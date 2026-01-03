@@ -1,0 +1,175 @@
+# Project Init Generator 配置文件
+# 说明：集中管理可配置参数，避免在 SKILL.md 中硬编码
+
+# ============================================================================
+# 语言映射配置
+# ============================================================================
+
+# 操作系统语言代码到对话语言的映射
+language_mapping:
+  zh-CN: 简体中文
+  zh_CN: 简体中文
+  zh-Hans: 简体中文
+  zh-Hans-CN: 简体中文
+  en-US: English
+  en_US: English
+  en-GB: English
+  en_GB: English
+  ja-JP: 日本語
+  ja_JP: 日本語
+  ko-KR: 한국어
+  ko_KR: 한국어
+  # 默认回退语言
+  default: 简体中文
+
+# 语言检测命令（按平台优先级）
+language_detection_commands:
+  darwin: # macOS
+    - locale | grep LANG
+    - defaults read -g AppleLanguages
+  linux:
+    - echo $LANG
+    - locale
+    - cat /etc/locale.conf
+  windows: # Git Bash / WSL
+    - echo $LANG
+    - locale
+
+# ============================================================================
+# 内置工程原则
+# ============================================================================
+
+built_in_principles:
+  - KISS (Keep It Simple, Stupid)
+  - YAGNI (You Aren't Gonna Need It)
+  - DRY (Don't Repeat Yourself)
+  - SOLID (面向对象设计五大原则)
+  - 关注点分离 (Separation of Concerns)
+  - 奥卡姆剃刀 (Occam's Razor)
+  - 最小惊讶原则 (Principle of Least Astonishment)
+  - 早期返回原则 (Early Return)
+
+# 原则冲突时的决策优先级
+principle_priority:
+  - 正确性
+  - 简洁性
+  - 清晰性
+  - 扩展性
+
+# ============================================================================
+# 默认目录结构模板
+# ============================================================================
+
+# 通用项目目录模板
+default_directory_template: |
+  ├── AGENTS.md          # 通用项目指令（Codex + Claude Code）
+  ├── CLAUDE.md          # Claude Code 特定指令
+  ├── README.md          # 项目说明（可选）
+  ├── .git/              # 版本控制（可选）
+  ├── src/               # 源代码目录
+  ├── tests/             # 测试代码（可选）
+  ├── docs/              # 文档目录（可选）
+  ├── config/            # 配置文件（可选）
+  └── scripts/           # 脚本工具（可选）
+
+# Python 项目目录模板
+python_directory_template: |
+  ├── AGENTS.md
+  ├── CLAUDE.md
+  ├── README.md
+  ├── pyproject.toml     # Python 项目配置
+  ├── requirements.txt   # 依赖列表
+  ├── src/               # 源代码包
+  ├── tests/             # 测试代码
+  ├── docs/              # 文档
+  ├── notebooks/         # Jupyter 笔记本（可选）
+  └── scripts/           # 脚本工具
+
+# Web 项目目录模板
+web_directory_template: |
+  ├── AGENTS.md
+  ├── CLAUDE.md
+  ├── README.md
+  ├── package.json       # Node.js 配置
+  ├── src/               # 源代码
+  ├── public/            # 静态资源
+  ├── tests/             # 测试代码
+  ├── docs/              # 文档
+  └── config/            # 配置文件
+
+# ============================================================================
+# 文档生成配置
+# ============================================================================
+
+# AGENTS.md 必需章节
+agents_required_sections:
+  - 项目目标
+  - 核心工作流
+  - 工程原则
+  - 目录结构
+  - 默认语言
+  - 联网与搜索（可选）
+  - 变更边界
+  - 有机更新原则
+
+# CLAUDE.md 必需章节
+claude_required_sections:
+  - Claude Code 环境特定说明
+  - 在 Claude Code 中的工作流
+  - 文件引用规范
+  - Claude Code 特定验证要点
+  - 与 AGENTS.md 的关系
+  - 有机更新在 Claude Code 中的实践
+
+# ============================================================================
+# 交互配置
+# ============================================================================
+
+# 最大问题数量（赶时间模式）
+max_questions_rush: 8
+
+# 最小必需信息（赶时间模式）
+min_required_info_rush:
+  - 项目名称/主题
+  - 时间范围（如适用）
+  - 研究类型/项目类型
+  - 主要目标/指标
+
+# ============================================================================
+# 文件处理配置
+# ============================================================================
+
+# 覆盖确认提示
+overwrite_prompt: "文件已存在，是否覆盖？"
+
+# 备份配置
+backup_before_overwrite: false  # 是否在覆盖前备份（暂未实现）
+backup_suffix: .bak
+
+# ============================================================================
+# 验证配置
+# ============================================================================
+
+# 静态验证检查项
+static_validation_checks:
+  - 项目名称一致性
+  - 目录结构匹配
+  - 默认语言设置
+  - 工程原则完整性
+  - 有机更新原则存在
+  - CLAUDE.md 引用 AGENTS.md
+
+# ============================================================================
+# 模板变量占位符
+# ============================================================================
+
+# 用于模板替换的占位符
+template_placeholders:
+  project_name: "{项目名称}"
+  project_description: "{项目描述}"
+  working_directory: "{工作目录}"
+  default_language: "{默认语言}"
+  workflow_description: "{工作流描述}"
+  directory_tree: "{目录树}"
+  custom_principles: "{自定义原则}"
+  platform_specific_notes: "{平台特定说明}"
