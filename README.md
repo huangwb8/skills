@@ -36,6 +36,42 @@ Skills are **write-once, run-anywhere** – the same skill works identically acr
 | GitHub | ✅ Compatible | `.github/skills/` |
 | VS Code | ✅ Compatible | `.vscode/skills/` |
 
+## Recommended Development Environment
+
+### 💡 VS Code + Claude Code / Codex Extension
+
+For the best skill development experience, we recommend using **VS Code** with the **Claude Code** or **Codex** extension.
+
+**Why this combination?**
+
+| Benefit | Description |
+|---------|-------------|
+| **🎯 Native Skill Integration** | Extensions load skills from `~/.claude/skills/` or `~/.codex/skills/` automatically |
+| **⚡ Real-time Validation** | Test skill triggers instantly with natural language prompts |
+| **🔍 Context-Aware Editing** | AI understands your project structure and applies organic update principles |
+| **🛠️ Integrated Workflow** | No context switching – edit, test, and iterate in one environment |
+| **📝 Smart Documentation** | AI helps maintain header-body alignment across SKILL.md, README.md, and config.yaml |
+
+**Setup Steps:**
+
+```bash
+# 1. Install VS Code
+# Download from https://code.visualstudio.com/
+
+# 2. Install Claude Code Extension (recommended)
+# VS Code → Extensions → Search "Claude Code" → Install
+
+# 3. Install skills system-wide
+python3 install-bensz-skills/scripts/install.py
+
+# 4. Open VS Code in your project
+code .
+
+# 5. Open Claude Code sidebar and start developing!
+```
+
+**Alternative:** Use the standalone Claude Code CLI if you prefer terminal-based workflows.
+
 ## Project Structure
 
 ```
@@ -65,9 +101,17 @@ skills/
 
 ## Quick Start
 
-### 1. System-wide Installation (Recommended)
+### 🚀 Quickest Method: AI-Assisted Installation (Recommended)
 
-Install skills globally to make them available in **any project**:
+Simply open this project in **Claude Code** or **Codex** and type:
+
+> "Please install this project's skills to Codex and Claude Code"
+
+The AI will automatically detect the `install-bensz-skills/` skill and execute the installation for you. This is the simplest method—no manual commands required.
+
+### 📦 Manual Installation
+
+If you prefer manual installation or need to run it from the terminal:
 
 ```bash
 # Clone the repository
@@ -83,9 +127,9 @@ The installer will:
 - Use MD5 versioning to update only changed skills
 - Support skill categories: normal, auxiliary, test
 
-### 2. Project-local Installation
+### 📁 Project-local Installation
 
-Copy specific skills to your project:
+For single-project use without system-wide installation:
 
 ```bash
 # For Claude Code
@@ -97,7 +141,7 @@ mkdir -p .codex/skills
 cp -r init-project .codex/skills/
 ```
 
-### 3. Verify Installation
+### ✅ Verify Installation
 
 Start a new session in your AI assistant and test with a trigger phrase:
 

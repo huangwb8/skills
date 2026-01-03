@@ -36,6 +36,42 @@
 | GitHub | ✅ 兼容 | `.github/skills/` |
 | VS Code | ✅ 兼容 | `.vscode/skills/` |
 
+## 推荐开发环境
+
+### 💡 VS Code + Claude Code / Codex 插件
+
+为获得最佳技能开发体验，我们推荐使用 **VS Code** 配合 **Claude Code** 或 **Codex** 插件。
+
+**为什么选择这个组合？**
+
+| 优势 | 说明 |
+|------|------|
+| **🎯 原生技能集成** | 插件自动从 `~/.claude/skills/` 或 `~/.codex/skills/` 加载技能 |
+| **⚡ 实时验证** | 使用自然语言提示即时测试技能触发 |
+| **🔍 上下文感知编辑** | AI 理解项目结构并应用有机更新原则 |
+| **🛠️ 集成工作流** | 无需上下文切换——编辑、测试、迭代在同一环境 |
+| **📝 智能文档维护** | AI 帮助维护 SKILL.md、README.md 和 config.yaml 之间的表头-正文一致性 |
+
+**安装步骤：**
+
+```bash
+# 1. 安装 VS Code
+# 从 https://code.visualstudio.com/ 下载
+
+# 2. 安装 Claude Code 插件（推荐）
+# VS Code → 扩展 → 搜索 "Claude Code" → 安装
+
+# 3. 系统级安装技能
+python3 install-bensz-skills/scripts/install.py
+
+# 4. 在 VS Code 中打开项目
+code .
+
+# 5. 打开 Claude Code 侧边栏开始开发！
+```
+
+**备选方案：** 如果您更喜欢基于终端的工作流，可使用独立的 Claude Code CLI。
+
 ## 项目结构
 
 ```
@@ -66,9 +102,17 @@ skills/
 
 ## 快速开始
 
-### 1. 系统级安装（推荐）
+### 🚀 最快方法：AI 辅助安装（推荐）
 
-全局安装技能，使其在**任何项目**中都可用：
+只需在 **Claude Code** 或 **Codex** 中打开本项目并输入：
+
+> "请安装本项目的 skills 到 codex 和 claude code 里"
+
+AI 会自动检测 `install-bensz-skills/` 技能并为您执行安装。这是最简单的方法——无需手动输入命令。
+
+### 📦 手动安装
+
+如果您更喜欢手动安装或需要从终端运行：
 
 ```bash
 # 克隆仓库
@@ -84,9 +128,9 @@ python3 install-bensz-skills/scripts/install.py
 - 使用 MD5 版本控制，仅更新有变化的技能
 - 支持技能分类：普通、辅助、测试
 
-### 2. 项目本地安装
+### 📁 项目本地安装
 
-将特定技能复制到项目：
+仅需在单个项目中使用，无需系统级安装：
 
 ```bash
 # 对于 Claude Code
@@ -98,7 +142,7 @@ mkdir -p .codex/skills
 cp -r init-project .codex/skills/
 ```
 
-### 3. 验证安装
+### ✅ 验证安装
 
 在 AI 助手中启动新会话，使用触发短语测试：
 
