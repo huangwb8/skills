@@ -101,25 +101,42 @@ web_directory_template: |
 # 文档生成配置
 # ============================================================================
 
-# AGENTS.md 必需章节
+# CLAUDE.md 必需章节（主指令文件）
+claude_required_sections:
+  - 项目目标
+  - 核心工作流
+  - 工程原则
+  - 默认语言
+  - 目录结构
+  - Claude Code 特定说明
+  - 变更边界
+  - 有机更新原则
+
+# AGENTS.md 必需章节（Codex CLI 适配）
 agents_required_sections:
   - 项目目标
   - 核心工作流
   - 工程原则
-  - 目录结构
   - 默认语言
-  - 联网与搜索（可选）
+  - 目录结构
+  - Codex CLI 特定说明
   - 变更边界
+  - 与 CLAUDE.md 的关系
   - 有机更新原则
 
-# CLAUDE.md 必需章节
-claude_required_sections:
-  - Claude Code 环境特定说明
-  - 在 Claude Code 中的工作流
-  - 文件引用规范
-  - Claude Code 特定验证要点
-  - 与 AGENTS.md 的关系
-  - 有机更新在 Claude Code 中的实践
+# README.md 必需章节
+readme_required_sections:
+  - 项目名称和描述
+  - 特性
+  - 快速开始
+  - 目录结构
+  - AI 辅助开发
+  - 许可证
+
+# CHANGELOG.md 必需章节
+changelog_required_sections:
+  - Unreleased
+  - 版本条目（Added/Changed/Fixed）
 
 # ============================================================================
 # 交互配置

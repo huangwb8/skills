@@ -263,14 +263,16 @@ def _determine_skill_type(skill_dir: Path, skills_root: Path) -> str:
     Returns:
         技能类型：SkillType.AUXILIARY, SkillType.NORMAL, 或 SkillType.TEST
     """
-    # 优先级1：从 YAML 读取 category
+    # 优先级1：从 YAML 读取 category（最高优先级，显式声明优先于启发式规则）
     category = _get_skill_category_from_yaml(skill_dir)
     if category:
         if category in {"auxiliary", "dev", "development"}:
             return SkillType.AUXILIARY
         elif category in {"test", "testing"}:
             return SkillType.TEST
-        # category 为 "normal" 或其他值时，继续检查启发式规则
+        elif category in {"normal", "production"}:
+            return SkillType.NORMAL
+        # 其他值：继续检查启发式规则（向后兼容）
 
     # 优先级2：检查是否在 test/ 或 tests/ 目录下
     rel_path = skill_dir.relative_to(skills_root)
@@ -280,9 +282,8 @@ def _determine_skill_type(skill_dir: Path, skills_root: Path) -> str:
     # 优先级3：基于目录名的启发式规则
     dir_name = skill_dir.name.lower()
 
-    # 辅助技能识别规则
+    # 辅助技能识别规则（仅限真正用于开发/维护的辅助工具）
     auxiliary_patterns = {
-        "auto-test-skill",  # 自动测试技能
         "install-bensz-skills",  # 安装器自身
     }
     if dir_name in auxiliary_patterns:
@@ -674,11 +675,11 @@ def main(argv: list[str]) -> int:
     # 初始化翻译器
     t = get_translator()
 
-    parser = argparse.ArgumentParser(description=t.arg_help_description)
-    parser.add_argument("--dry-run", action="store_true", help=t.arg_help_dry_run)
-    parser.add_argument("--codex", action="store_true", help=t.arg_help_codex)
-    parser.add_argument("--claude", action="store_true", help=t.arg_help_claude)
-    parser.add_argument("--force", action="store_true", help=t.arg_help_force)
+    parser = argparse.ArgumentParser(description=t.get("arg_help_description"))
+    parser.add_argument("--dry-run", action="store_true", help=t.get("arg_help_dry_run"))
+    parser.add_argument("--codex", action="store_true", help=t.get("arg_help_codex"))
+    parser.add_argument("--claude", action="store_true", help=t.get("arg_help_claude"))
+    parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
     args = parser.parse_args(argv)
 
     install_codex = args.codex or (not args.codex and not args.claude)
