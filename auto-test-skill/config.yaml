@@ -1,0 +1,103 @@
+# auto-test-skill 配置文件
+# 用于配置测试驱动优化工作流的参数
+
+# 测试会话配置
+test_session:
+  # 测试目录名称(相对于项目根目录)
+  directory: "test"
+  # 时间戳格式
+  timestamp_format: "%Y%m%d%H%M"
+  # 最大迭代轮数(默认10轮,防止无限循环)
+  max_iterations: 10
+  # 测试会话命名前缀
+  session_prefix: "v"
+
+# 问题优先级配置
+priority:
+  # P0问题的自动响应(可选)
+  auto_fix_p0: false
+  # 每轮迭代最大修复问题数
+  max_fixes_per_iteration: 5
+  # 优先级定义
+  levels:
+    P0:
+      name: "Critical"
+      description: "阻塞性问题,完全无法使用"
+      response_time: "立即"
+      color: "red"
+    P1:
+      name: "High"
+      description: "严重问题,核心功能受影响"
+      response_time: "24小时内"
+      color: "orange"
+    P2:
+      name: "Medium"
+      description: "中等问题,部分功能受限"
+      response_time: "3天内"
+      color: "yellow"
+    P3:
+      name: "Low"
+      description: "轻微问题,不影响主要功能"
+      response_time: "1周内"
+      color: "green"
+
+# 测试配置
+testing:
+  # 默认测试超时(秒)
+  timeout: 30
+  # 测试失败时是否自动停止
+  stop_on_failure: true
+  # 是否生成详细日志
+  verbose_logging: true
+  # 测试数据目录名
+  data_dir: "data"
+  # 测试脚本目录名
+  scripts_dir: "scripts"
+  # 测试输出目录名
+  output_dir: "output"
+
+# 报告配置
+reporting:
+  # 是否生成HTML报告(可选)
+  html_report: false
+  # 是否生成图表(可选)
+  generate_charts: false
+  # 报告语言
+  language: "zh-CN"
+  # 报告格式
+  format: "markdown"
+
+# 文档模板配置
+templates:
+  # Bug报告模板
+  bug_report: "templates/BUG_REPORT_TEMPLATE.md"
+  # 优化计划模板
+  optimization_plan: "templates/OPTIMIZATION_PLAN_TEMPLATE.md"
+  # 测试计划模板
+  test_plan: "templates/TEST_PLAN_TEMPLATE.md"
+  # 测试报告模板
+  test_report: "templates/TEST_REPORT_TEMPLATE.md"
+  # 最终总结模板
+  final_summary: "templates/FINAL_SUMMARY_TEMPLATE.md"
+
+# 质量标准
+quality:
+  # 测试覆盖率目标
+  coverage_target: 80
+  # 通过率目标
+  pass_rate_target: 95
+  # 回归测试要求
+  regression_required: true
+  # 文档更新要求
+  doc_update_required: true
+
+# 验收标准
+acceptance:
+  # 所有P0和P1问题必须修复
+  critical_and_high_fixed: true
+  # 核心功能测试100%通过
+  core_tests_passed: true
+  # 无回归问题
+  no_regression: true
+  # 文档已更新
+  docs_updated: true
