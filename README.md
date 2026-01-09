@@ -101,231 +101,80 @@ skills/
 
 ## Quick Start
 
-### 🚀 Quickest Method: AI-Assisted Installation (Recommended)
+### 🚀 How to Install Skills in This Project
 
-Simply open this project in **Claude Code** or **Codex** and type:
-
-> "Please install this project's skills to Codex and Claude Code"
-
-The AI will automatically detect the `install-bensz-skills/` skill and execute the installation for you. This is the simplest method—no manual commands required.
-
-### 📦 Manual Installation
-
-If you prefer manual installation or need to run it from the terminal:
+**Step 1: Clone this project**
 
 ```bash
-# Clone the repository
 git clone https://github.com/bensz/skills.git
 cd skills
-
-# Run the installer
-python3 install-bensz-skills/scripts/install.py
 ```
 
-The installer will:
-- Copy skills to `~/.claude/skills/` and `~/.codex/skills/`
-- Use MD5 versioning to update only changed skills
-- Support skill categories: normal, auxiliary, test
+**Step 2: Open this project in Claude Code or Codex, then type:**
 
-### 📁 Project-local Installation
+> `"install-bensz-skills this skill install skills in this project to Codex and Claude Code"`
 
-For single-project use without system-wide installation:
+That's it! All skills will be installed system-wide and available in any project.
 
-```bash
-# For Claude Code
-mkdir -p .claude/skills
-cp -r init-project .claude/skills/
+### 🎯 How to Use Skills in This Project
 
-# For Codex
-mkdir -p .codex/skills
-cp -r init-project .codex/skills/
-```
+**Open this project in Claude Code or Codex, then use natural language to trigger skills:**
 
-### ✅ Verify Installation
-
-Start a new session in your AI assistant and test with a trigger phrase:
-
-**Example for `init-project` skill:**
-> "Help me initialize a new project with AI context files"
-
-**Example for `install-bensz-skills` skill:**
-> "Install these skills system-wide"
-
-## Available Skills
-
-### init-project
-
-**Project documentation generator** – Automatically generates `AGENTS.md` and `CLAUDE.md` for new projects.
-
-**Features:**
-- Auto-detects project type (Python/Web/Rust/Go/Java/Data Science/Docs)
-- Auto-detects OS language for localization
-- Generates comprehensive AI context files
-- Template-based customization
-
-**Usage:**
 ```text
-"Initialize a new Python project"
-"Generate AGENTS.md for my Rust project"
-"Create project instructions for a web app"
+# Project initialization
+"init-project this skill help me initialize project"
+
+# System-wide installation
+"install-bensz-skills this skill install skills in this project to Codex and Claude Code"
+
+# Automated testing
+"auto-test-skill this skill help me test init-project this skill"
 ```
 
-See [init-project/README.md](init-project/README.md) for details.
+**It's that simple!** AI will automatically detect and trigger the appropriate skill – no manual configuration needed.
 
-### install-bensz-skills
+## Skill Development
 
-**System-wide installer** – Manages skill installation across platforms.
-
-**Features:**
-- Cross-platform installation (Claude Code, Codex, etc.)
-- MD5-based version control (incremental updates)
-- Skill categorization (normal/auxiliary/test)
-- Internationalization support (en/zh)
-
-**Usage:**
-```text
-"Install these skills system-wide"
-"Update all installed skills"
-```
-
-See [install-bensz-skills/README.md](install-bensz-skills/README.md) for details.
-
-## Creating Your Own Skills
-
-Skills follow the **Agent Skills Open Standard** with a three-file architecture:
-
-### 1. SKILL.md (Required)
-
-AI-facing instruction file that defines:
-- Trigger conditions
-- Workflow steps
-- Input/output specifications
-- Validation criteria
-
-### 2. README.md (Recommended)
-
-User-facing guide that explains:
-- What the skill does
-- How to trigger it
-- Prompt examples
-- Tips and best practices
-
-### 3. config.yaml (Recommended)
-
-Configuration file for:
-- Tunable parameters
-- Thresholds and values
-- Platform-specific settings
-
-**Minimum SKILL.md structure:**
-
-```markdown
----
-name: my-new-skill
-description: What this skill does and when to use it
-version: 1.0.0
-author: Your Name
-metadata:
-  keywords: [keyword1, keyword2]
-  short-description: One-line summary
----
-
-# Skill Name
-
-## Trigger Conditions
-When to use this skill.
-
-## Workflow
-1. Step one
-2. Step two
-
-## Validation
-How to verify success.
-```
-
-See [AGENTS.md](AGENTS.md) for comprehensive guidelines on skill development.
-
-## Organic Update Philosophy
-
-This project follows **organic whole-system updates** based on established engineering principles:
-
-- **KISS** – Keep designs simple and straightforward
-- **YAGNI** – Implement only what's needed now
-- **DRY** – Avoid duplication through abstraction
-- **SOLID** – Single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion
-
-**Key principle:** When updating a skill, consider its entire ecosystem – metadata, documentation, configuration, and references must evolve together coherently.
-
-See [AGENTS.md](AGENTS.md) → "Engineering Principles Foundation" for details.
-
-## Development Guide
-
-### Adding a New Skill
-
-```bash
-# Create skill directory
-mkdir my-new-skill
-cd my-new-skill
-
-# Create required files
-touch SKILL.md README.md config.yaml
-
-# Add scripts if needed
-mkdir scripts
-touch scripts/my-script.py
-```
-
-### Skill File Structure
+### File Structure
 
 ```
 my-skill/
-├── SKILL.md           # Required: AI instructions
+├── SKILL.md           # Required: AI instructions (includes YAML frontmatter)
 ├── README.md          # Recommended: User guide
-├── config.yaml        # Recommended: Configuration
+├── config.yaml        # Recommended: Configuration parameters
 ├── CHANGELOG.md       # Optional: Version history
-├── references/        # Optional: Detailed docs
+├── references/        # Optional: Detailed documentation
 │   └── advanced-guide.md
-└── scripts/           # Optional: Automation
+└── scripts/           # Optional: Automation scripts
     └── process.py
 ```
 
+### Quick Start
+
+```bash
+mkdir my-new-skill
+cd my-new-skill
+touch SKILL.md README.md config.yaml
+```
+
+### Architecture Layers
+
+| Layer | File/Directory | Purpose | When Loaded |
+|-------|---------------|---------|-------------|
+| **Metadata** | YAML Frontmatter | Skill discovery and activation | At session start |
+| **Operations** | SKILL.md | AI execution instructions | When skill triggers |
+| **Knowledge** | references/ | Detailed background and theory | On-demand |
+| **Tools** | scripts/ | Automation and computation | When needed |
+
 ### Best Practices
 
-1. **YAML Frontmatter** – Keep `description` clear and semantic for discovery
-2. **Progressive Disclosure** – Keep SKILL.md lean, move details to references/
-3. **Header-Body Alignment** – Sync metadata with actual behavior
-4. **Lazy Loading** – Don't load everything at startup
-5. **Platform Agnostic** – Avoid platform-specific code when possible
+- **YAML Frontmatter** – Keep `description` clear and semantic
+- **Progressive Disclosure** – Keep SKILL.md lean (<500 lines), move details to references/
+- **Header-Body Alignment** – Sync metadata with actual behavior
+- **Lazy Loading** – Don't load everything at startup
+- **Platform Agnostic** – Avoid platform-specific code when possible
 
-## Architecture Layers
-
-### 1. Metadata Layer (YAML Frontmatter)
-
-- **Purpose:** Skill discovery and activation
-- **Fields:** name, description, version, keywords
-- **Loaded:** At session start
-- **Critical:** `description` determines semantic matching
-
-### 2. Operations Layer (SKILL.md)
-
-- **Purpose:** AI execution instructions
-- **Content:** Workflow, steps, validation
-- **Loaded:** When skill triggers
-- **Goal:** Keep concise (ideally <500 lines)
-
-### 3. Knowledge Layer (references/)
-
-- **Purpose:** Detailed background and theory
-- **Content:** Standards, best practices, examples
-- **Loaded:** On-demand
-- **Structure:** Single-level references from SKILL.md
-
-### 4. Tool Layer (scripts/)
-
-- **Purpose:** Automation and computation
-- **Content:** Python/bash scripts
-- **Execution:** Called by AI when needed
-- **Style:** Explicit error handling, documented constants
+For comprehensive development guidelines, see [AGENTS.md](AGENTS.md).
 
 ## Contributing
 
@@ -346,13 +195,3 @@ Contributions welcome! Please ensure:
 ## License
 
 MIT License – See [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-
-**Built with ❤️ for the AI agent ecosystem**
-
-[agentskills.io](https://agentskills.io) • [GitHub](https://github.com/bensz/skills)
-
-</div>
