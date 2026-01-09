@@ -2,7 +2,7 @@
 
 # Skills Development Pipeline
 
-[![Version](https://img.shields.io/github/v/tag/bensz/skills?label=version&sort=semver)](https://github.com/bensz/skills/releases)
+[![Version](https://img.shields.io/github/v/tag/huangwb8/skills?label=version&sort=semver)](https://github.com/huangwb8/skills/releases)
 [![Standard](https://img.shields.io/badge/Agent%20Skills-Standard%20v1.0-blue.svg)](https://agentskills.io)
 [![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#platform-compatibility)
 [![Built with](https://img.shields.io/badge/built%20with-Python%203.10%2B-orange.svg)](https://www.python.org/)
@@ -29,7 +29,7 @@ A unified skills development pipeline for AI agents, maintaining reusable **Agen
 | Platform | Status | Install Path |
 |----------|--------|--------------|
 | [Claude Code](https://code.anthropic.com) | ✅ Native | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com) | ✅ Native | `~/.codex/skills/` |
+| [OpenAI Codex](https://openai.com/index/introducing-codex/) | ✅ Native | `~/.codex/skills/` |
 | Cursor | ✅ Compatible | `~/.cursor/skills/` |
 | GitHub | ✅ Compatible | `.github/skills/` |
 | VS Code | ✅ Compatible | `.vscode/skills/` |
@@ -76,7 +76,8 @@ code .
 skills/
 ├── AGENTS.md              # Core project instructions (engineering principles)
 ├── CLAUDE.md              # Claude Code specific configuration
-├── README.md              # This file
+├── README.md              # English documentation
+├── README_ZH.md           # 中文文档（Chinese documentation）
 │
 ├── init-project/          # Skill: Project documentation generator
 │   ├── SKILL.md          # Skill definition (AI-facing)
@@ -94,7 +95,7 @@ skills/
 │       ├── install.py    # Core installer logic
 │       └── i18n.py       # Internationalization
 │
-└── [future skills]/       # Additional skills following the same structure
+└── [more skills]/         # Additional skills following the same structure
 ```
 
 ## Quick Start
@@ -104,7 +105,7 @@ skills/
 **Step 1: Clone this project**
 
 ```bash
-git clone https://github.com/bensz/skills.git
+git clone https://github.com/huangwb8/skills.git
 cd skills
 ```
 
@@ -188,7 +189,7 @@ Contributions welcome! Please ensure:
 - [Agent Skills Open Standard](https://agentskills.io)
 - [AGENTS.md](AGENTS.md) – Project instructions and philosophy
 - [CLAUDE.md](CLAUDE.md) – Claude Code specific notes
-- [Skill Directory](https://github.com/bensz/skills) – Browse all skills
+- [Skill Directory](https://github.com/huangwb8/skills) – Browse all skills
 
 ## License
 

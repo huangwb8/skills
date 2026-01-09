@@ -2,7 +2,7 @@
 
 # Skills 开发流水线
 
-[![Version](https://img.shields.io/github/v/tag/bensz/skills?label=version&sort=semver)](https://github.com/bensz/skills/releases)
+[![Version](https://img.shields.io/github/v/tag/huangwb8/skills?label=version&sort=semver)](https://github.com/huangwb8/skills/releases)
 [![Standard](https://img.shields.io/badge/Agent%20Skills-Standard%20v1.0-blue.svg)](https://agentskills.io)
 [![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#平台兼容性)
 [![Built with](https://img.shields.io/badge/built%20with-Python%203.10%2B-orange.svg)](https://www.python.org/)
@@ -29,7 +29,7 @@
 | 平台 | 状态 | 安装路径 |
 |------|------|----------|
 | [Claude Code](https://code.anthropic.com) | ✅ 原生支持 | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com) | ✅ 原生支持 | `~/.codex/skills/` |
+| [OpenAI Codex](https://openai.com/index/introducing-codex/) | ✅ 原生支持 | `~/.codex/skills/` |
 | Cursor | ✅ 兼容 | `~/.cursor/skills/` |
 | GitHub | ✅ 兼容 | `.github/skills/` |
 | VS Code | ✅ 兼容 | `.vscode/skills/` |
@@ -105,7 +105,7 @@ skills/
 **第一步：克隆本项目**
 
 ```bash
-git clone https://github.com/bensz/skills.git
+git clone https://github.com/huangwb8/skills.git
 cd skills
 ```
 
@@ -189,7 +189,7 @@ touch SKILL.md README.md config.yaml
 - [Agent Skills 开放标准](https://agentskills.io)
 - [AGENTS.md](AGENTS.md) – 项目指令和哲学
 - [CLAUDE.md](CLAUDE.md) – Claude Code 特定说明
-- [技能目录](https://github.com/bensz/skills) – 浏览所有技能
+- [技能目录](https://github.com/huangwb8/skills) – 浏览所有技能
 
 ## 许可证
 
