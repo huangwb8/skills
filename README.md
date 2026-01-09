@@ -50,26 +50,6 @@ For the best skill development experience, we recommend using **VS Code** with t
 | **🛠️ Integrated Workflow** | No context switching – edit, test, and iterate in one environment |
 | **📝 Smart Documentation** | AI helps maintain header-body alignment across SKILL.md, README.md, and config.yaml |
 
-**Setup Steps:**
-
-```bash
-# 1. Install VS Code
-# Download from https://code.visualstudio.com/
-
-# 2. Install Claude Code Extension (recommended)
-# VS Code → Extensions → Search "Claude Code" → Install
-
-# 3. Install skills system-wide
-python3 install-bensz-skills/scripts/install.py
-
-# 4. Open VS Code in your project
-code .
-
-# 5. Open Claude Code sidebar and start developing!
-```
-
-**Alternative:** Use the standalone Claude Code CLI if you prefer terminal-based workflows.
-
 ## Project Structure
 
 ```
@@ -109,7 +89,7 @@ git clone https://github.com/huangwb8/skills.git
 cd skills
 ```
 
-**Step 2: Open this project in Claude Code or Codex, then type:**
+**Step 2: Open Claude Code or Codex in the project's root directory, then type:**
 
 > `"install-bensz-skills this skill install skills in this project to Codex and Claude Code"`
 
@@ -130,7 +110,7 @@ That's it! All skills will be installed system-wide and available in any project
 "auto-test-skill this skill help me test init-project this skill"
 ```
 
-**It's that simple!** AI will automatically detect and trigger the appropriate skill – no manual configuration needed.
+**It's that simple!** Natural language programming is the soul of Vibe Coding!
 
 ## Skill Development
 
