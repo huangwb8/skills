@@ -13,9 +13,7 @@
 
 </div>
 
-统一的 AI 技能开发流水线。本项目维护了一系列符合 [Agent Skills 开放标准](https://agentskills.io) 的可复用 **Agent Skills**，实现跨平台无缝兼容。
-
-技能遵循**一次编写，到处运行**原则——同一技能在 Claude Code、OpenAI Codex、Cursor 及其他兼容平台上表现完全一致。
+统一的 AI 技能开发流水线，维护符合 [Agent Skills 开放标准](https://agentskills.io) 的可复用技能，实现跨平台无缝兼容。技能遵循**一次编写，到处运行**原则——在 Claude Code、OpenAI Codex、Cursor 及其他兼容平台上表现完全一致。
 
 ## 核心特性
 

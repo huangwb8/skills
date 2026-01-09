@@ -13,9 +13,7 @@
 
 </div>
 
-A unified skills development pipeline for AI agents. This project maintains a collection of reusable **Agent Skills** that conform to the [Agent Skills Open Standard](https://agentskills.io), enabling seamless cross-platform compatibility.
-
-Skills are **write-once, run-anywhere** – the same skill works identically across Claude Code, OpenAI Codex, Cursor, and other compatible platforms.
+A unified skills development pipeline for AI agents, maintaining reusable **Agent Skills** conforming to the [Agent Skills Open Standard](https://agentskills.io) for seamless cross-platform compatibility. Skills are **write-once, run-anywhere** – working identically across Claude Code, OpenAI Codex, Cursor, and other compatible platforms.
 
 ## Highlights
 
