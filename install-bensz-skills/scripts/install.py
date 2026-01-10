@@ -680,18 +680,45 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--codex", action="store_true", help=t.get("arg_help_codex"))
     parser.add_argument("--claude", action="store_true", help=t.get("arg_help_claude"))
     parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
+    parser.add_argument("--source", type=str, default=None, help="指定额外的 skills 源目录路径")
     args = parser.parse_args(argv)
 
     install_codex = args.codex or (not args.codex and not args.claude)
     install_claude = args.claude or (not args.codex and not args.claude)
 
     script_path = Path(__file__).resolve()
-    skills_root = script_path.parents[2]  # .../pipelines/skills/
+    default_skills_root = script_path.parents[2]  # .../pipelines/skills/
 
-    # 按类型发现技能目录
+    # 处理源目录：可以是单个目录或多个目录（用逗号分隔）
+    if args.source:
+        # 支持逗号分隔的多个源目录
+        source_paths = [Path(p).resolve() for p in args.source.split(",")]
+        # 使用第一个指定的源目录作为主目录（用于版本控制等）
+        skills_root = source_paths[0]
+    else:
+        source_paths = [default_skills_root]
+        skills_root = default_skills_root
+
+    # 按类型发现技能目录（支持多个源目录）
     exclude = {"install-bensz-skills"}
-    skill_dirs_by_type = _find_skill_dirs(skills_root, exclude_names=exclude)
-    normal_skill_dirs = skill_dirs_by_type[SkillType.NORMAL]
+
+    # 合并所有源目录的技能
+    merged_skill_dirs_by_type: dict[str, list[Path]] = {
+        SkillType.NORMAL: [],
+        SkillType.AUXILIARY: [],
+        SkillType.TEST: [],
+    }
+
+    for source_root in source_paths:
+        if not source_root.exists():
+            print(f"⚠️  警告: 源目录不存在，跳过: {source_root}")
+            continue
+        print(f"🔍 扫描源目录: {source_root}")
+        skill_dirs_by_type = _find_skill_dirs(source_root, exclude_names=exclude)
+        for skill_type in [SkillType.NORMAL, SkillType.AUXILIARY, SkillType.TEST]:
+            merged_skill_dirs_by_type[skill_type].extend(skill_dirs_by_type[skill_type])
+
+    normal_skill_dirs = merged_skill_dirs_by_type[SkillType.NORMAL]
 
     if not normal_skill_dirs:
         print(t.error_no_skills_found(root=skills_root))
@@ -739,7 +766,7 @@ def main(argv: list[str]) -> int:
         report = _install_to_target(
             target=target,
             skills_root=skills_root,
-            skill_dirs_by_type=skill_dirs_by_type,
+            skill_dirs_by_type=merged_skill_dirs_by_type,
             dry_run=args.dry_run,
             force=args.force,
             t=t,
@@ -756,8 +783,8 @@ def main(argv: list[str]) -> int:
 
     total_installed = sum(len(r.installed_skills) for r in reports)
     total_skipped = sum(len(r.skipped_skills) for r in reports)
-    total_auxiliary = len(skill_dirs_by_type[SkillType.AUXILIARY])
-    total_test = len(skill_dirs_by_type[SkillType.TEST])
+    total_auxiliary = len(merged_skill_dirs_by_type[SkillType.AUXILIARY])
+    total_test = len(merged_skill_dirs_by_type[SkillType.TEST])
 
     print(t.summary_total_counts())
     print(t.summary_installed_count(count=total_installed))
@@ -785,11 +812,11 @@ def main(argv: list[str]) -> int:
     # 将 reports 转换为可序列化的格式
     manifests_for_save = [r.to_manifest_dict() for r in reports]
     manifests_for_save.append({
-        "skills_source_root": str(skills_root),
+        "skills_source_roots": [str(p) for p in source_paths],
         "skill_type_counts": {
-            "normal": len(skill_dirs_by_type[SkillType.NORMAL]),
-            "auxiliary": len(skill_dirs_by_type[SkillType.AUXILIARY]),
-            "test": len(skill_dirs_by_type[SkillType.TEST]),
+            "normal": len(merged_skill_dirs_by_type[SkillType.NORMAL]),
+            "auxiliary": len(merged_skill_dirs_by_type[SkillType.AUXILIARY]),
+            "test": len(merged_skill_dirs_by_type[SkillType.TEST]),
         }
     })
 
