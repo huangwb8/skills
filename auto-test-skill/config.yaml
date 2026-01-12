@@ -1,10 +1,70 @@
 # auto-test-skill 配置文件
-# 用于配置测试驱动优化工作流的参数
+# 用于配置测试驱动优化工作流的参数（尽量避免在 SKILL.md 中硬编码）
+
+# ============================================================================
+# Skill 信息（建议作为版本号等信息的主要来源）
+# ============================================================================
+
+skill_info:
+  name: "auto-test-skill"
+  version: "2.0.2"
+  description: "自动化测试驱动优化技能 - 支持多轮A轮迭代与B轮质量检查（六大原则）"
+  category: "normal"
+
+# ============================================================================
+# 目录与命名规范
+# ============================================================================
+
+directories:
+  # 规划文档目录（相对于 skill 根目录）
+  plans: "plans"
+  # 测试目录（相对于 skill 根目录）
+  tests: "tests"
+  # 测试会话命名格式（分钟级）
+  session_format: "v{year}{month}{day}{hour}{minute}"
+
+# ============================================================================
+# 轮次控制
+# ============================================================================
+
+test_rounds:
+  # A轮测试默认轮次
+  default_a_rounds: 1
+  # 最大A轮测试轮次（防止无限循环）
+  max_a_rounds: 10
+
+# ============================================================================
+# B轮质量检查（六大质量原则）
+# ============================================================================
+
+b_round_check:
+  # B轮是否为强制环节（默认true，除非用户明确跳过）
+  mandatory: true
+  dimensions:
+    - name: "hardcoded_ai_plan"
+      label: "硬编码/AI功能规划"
+      description: "检查确定性操作是否应硬编码，启发式判断是否由AI处理"
+    - name: "redundancy_check"
+      label: "冗余残留错误检查"
+      description: "检查是否存在重复逻辑、残留引用、僵尸文件"
+    - name: "security_check"
+      label: "安全性检查"
+      description: "检查输入验证、路径处理、敏感信息、权限控制"
+    - name: "overdesign_check"
+      label: "过度设计检查"
+      description: "检查是否存在YAGNI违反、不必要的抽象、配置臃肿"
+    - name: "generality_check"
+      label: "通用性检查"
+      description: "检查是否包含不必要的年份/场景限制/平台依赖等"
+    - name: "consistency_check"
+      label: "一致性检查"
+      description: "检查 YAML frontmatter、SKILL.md、config.yaml 与示例的一致性"
 
 # 测试会话配置
 test_session:
-  # 测试目录名称(相对于项目根目录)
-  directory: "test"
+  # 测试目录名称(相对于 skill 根目录)
+  # 说明：已迁移为 tests/（保留字段用于向后兼容旧文档）
+  directory: "tests"
   # 时间戳格式
   timestamp_format: "%Y%m%d%H%M"
   # 最大迭代轮数(默认10轮,防止无限循环)
@@ -79,6 +139,8 @@ templates:
   test_report: "templates/TEST_REPORT_TEMPLATE.md"
   # 最终总结模板
   final_summary: "templates/FINAL_SUMMARY_TEMPLATE.md"
+  # B轮质量检查模板
+  b_round_check: "templates/B_ROUND_CHECK_TEMPLATE.md"
 
 # 质量标准
 quality:

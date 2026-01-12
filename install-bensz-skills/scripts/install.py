@@ -66,6 +66,7 @@ def _ignore_patterns():
         ".mypy_cache",
         "test",
         "tests",
+        "plans",
     )
 
 
@@ -671,6 +672,51 @@ def _install_to_target(
     return report
 
 
+def _get_manifest_dir() -> Path:
+    """获取 manifest 文件的专用存储目录。
+
+    目录位置：~/.install-bensz-skills/manifests/
+
+    Returns:
+        manifest 存储目录路径
+    """
+    manifest_dir = Path.home() / ".install-bensz-skills" / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    return manifest_dir
+
+
+def _migrate_old_manifests() -> list[str]:
+    """迁移旧位置的 manifest 文件到新目录。
+
+    旧位置：~/.bensz-skills-install-manifest.*.json
+    新位置：~/.install-bensz-skills/manifests/
+
+    Returns:
+        迁移的文件列表
+    """
+    home = Path.home()
+    manifest_dir = _get_manifest_dir()
+    migrated: list[str] = []
+
+    # 查找所有旧位置的 manifest 文件
+    old_pattern = ".bensz-skills-install-manifest.*.json"
+    for old_file in home.glob(old_pattern):
+        if old_file.is_file():
+            # 提取时间戳部分作为新文件名
+            stem = old_file.stem  # .bensz-skills-install-manifest.20250112-160600
+            timestamp = stem.split(".")[-1] if "." in stem else _now_stamp()
+            new_file = manifest_dir / f"install-manifest.{timestamp}.json"
+
+            try:
+                shutil.move(str(old_file), str(new_file))
+                migrated.append(f"{old_file.name} -> {new_file.relative_to(home)}")
+            except Exception as e:
+                # 迁移失败时跳过，不影响安装流程
+                print(f"⚠️  迁移失败: {old_file} -> {e}")
+
+    return migrated
+
+
 def main(argv: list[str]) -> int:
     # 初始化翻译器
     t = get_translator()
@@ -808,6 +854,13 @@ def main(argv: list[str]) -> int:
 
     print(f"{'=' * 60}\n")
 
+    # 迁移旧位置的 manifest 文件
+    migrated_files = _migrate_old_manifests()
+    if migrated_files:
+        print(f"📦 迁移旧 manifest 文件到 {'.install-bensz-skills/manifests/'}:")
+        for migration in migrated_files:
+            print(f"   • {migration}")
+
     # Write one manifest per run for traceability.
     # 将 reports 转换为可序列化的格式
     manifests_for_save = [r.to_manifest_dict() for r in reports]
@@ -825,10 +878,18 @@ def main(argv: list[str]) -> int:
         print(json.dumps({"runs": manifests_for_save}, ensure_ascii=False, indent=2))
         return 0
 
+    # 使用专用目录存储 manifest 文件
+    manifest_dir = _get_manifest_dir()
     stamp = _now_stamp()
-    manifest_path = Path.home() / f".bensz-skills-install-manifest.{stamp}.json"
+    manifest_path = manifest_dir / f"install-manifest.{stamp}.json"
     manifest_path.write_text(json.dumps({"runs": manifests_for_save}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(t.summary_manifest_saved(path=manifest_path))
+
+    # 显示相对路径（更简洁）
+    print(t.summary_manifest_saved(path=manifest_path.relative_to(Path.home())))
+
+    # 显示提示：如何清理旧 manifest
+    print(f"💡 提示: 历史记录保存在 {manifest_path.relative_to(Path.home()).parent}/")
+
     return 0
 
 

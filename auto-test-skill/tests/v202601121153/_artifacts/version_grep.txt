@@ -1,0 +1,2 @@
+auto-test-skill/config.yaml:10:  version: "2.0.1"
+auto-test-skill/SKILL.md:3:version: 2.0.1

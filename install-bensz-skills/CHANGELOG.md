@@ -1,5 +1,116 @@
 # install-bensz-skills 优化日志
 
+## [Unreleased]
+
+### Fixed
+- 修复 `_ignore_patterns()` 函数，添加 `plans` 目录到忽略列表，确保 skill 根目录下的 `plans/` 和 `tests/` 子目录不会被安装到系统中
+
+### Changed
+- **优化 manifest 文件存储位置**：从用户根目录 `~/.bensz-skills-install-manifest.*.json` 迁移到专用隐藏目录 `~/.install-bensz-skills/manifests/install-manifest.*.json`
+- **自动迁移旧 manifest 文件**：每次运行安装脚本时，自动将旧位置的 manifest 文件迁移到新目录
+- **改进输出信息**：manifest 保存路径显示为相对路径，并添加历史记录目录提示
+
+## 2026-01-12: Manifest 文件存储优化
+
+### 变更内容
+
+#### 1. 专用存储目录
+
+**旧位置**：`~/.bensz-skills-install-manifest.*.json`（直接散落在用户根目录）
+
+**新位置**：`~/.install-bensz-skills/manifests/install-manifest.*.json`（集中管理）
+
+#### 2. 自动迁移功能
+
+每次运行安装脚本时，自动检测并迁移旧位置的 manifest 文件到新目录：
+
+```python
+def _migrate_old_manifests() -> list[str]:
+    """迁移旧位置的 manifest 文件到新目录。
+
+    旧位置：~/.bensz-skills-install-manifest.*.json
+    新位置：~/.install-bensz-skills/manifests/
+    """
+```
+
+#### 3. 新增辅助函数
+
+- `_get_manifest_dir()` — 获取 manifest 专用存储目录，自动创建目录结构
+- `_migrate_old_manifests()` — 自动迁移旧 manifest 文件，返回迁移结果列表
+
+### 设计原则
+
+**最小惊讶原则**：
+- 专用隐藏目录符合用户对临时/缓存文件的存放预期
+- 历史记录集中管理，便于清理和查找
+
+**关注点分离**：
+- manifest 文件与用户主目录分离
+- 安装记录与用户文件分离
+
+**向后兼容性**：
+- 自动迁移旧文件，无需手动操作
+- 迁移失败不影响正常安装流程
+
+### 用户影响
+
+**之前的输出**：
+```
+📝 Installation manifest saved: /Users/xxx/.bensz-skills-install-manifest.20260112-162559.json
+```
+
+**现在的输出**：
+```
+📦 迁移旧 manifest 文件到 .install-bensz-skills/manifests/:
+   • .bensz-skills-install-manifest.20260112-144237.json -> .install-bensz-skills/manifests/install-manifest.20260112-144237.json
+📝 Installation manifest saved: .install-bensz-skills/manifests/install-manifest.20260112-162559.json
+💡 提示: 历史记录保存在 .install-bensz-skills/manifests/
+```
+
+### 目录结构
+
+```
+~/.install-bensz-skills/
+└── manifests/
+    ├── install-manifest.20260112-144237.json
+    ├── install-manifest.20260112-162559.json
+    └── ...
+```
+
+### 技术实现
+
+**manifest 目录创建**：
+```python
+def _get_manifest_dir() -> Path:
+    """获取 manifest 文件的专用存储目录。
+
+    目录位置：~/.install-bensz-skills/manifests/
+    """
+    manifest_dir = Path.home() / ".install-bensz-skills" / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    return manifest_dir
+```
+
+**manifest 文件保存**：
+```python
+# 使用专用目录存储 manifest 文件
+manifest_dir = _get_manifest_dir()
+stamp = _now_stamp()
+manifest_path = manifest_dir / f"install-manifest.{stamp}.json"
+```
+
+### 清理建议
+
+用户可以安全地删除整个 manifest 目录来清理历史记录：
+
+```bash
+# 清理所有 manifest 历史记录
+rm -rf ~/.install-bensz-skills/
+
+# 或只清理旧的 manifest 文件
+find ~/.install-bensz-skills/manifests/ -name "*.json" -mtime +30 -delete
+```
+
 ## 2026-01-03: 技能类型分类系统（v4.0）
 
 ### 新增功能

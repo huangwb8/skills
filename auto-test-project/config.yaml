@@ -1,0 +1,290 @@
+# auto-test-project 配置文件
+# 用于配置项目级测试驱动优化工作流的参数（尽量避免在 SKILL.md 中硬编码）
+
+# ============================================================================
+# Skill 信息
+# ============================================================================
+
+skill_info:
+  name: "auto-test-project"
+  version: "1.0.1"
+  description: "项目级自动化测试驱动优化技能 - 支持多轮A轮迭代与B轮质量检查（六大原则）"
+  category: "normal"
+
+# ============================================================================
+# 目录与命名规范
+# ============================================================================
+
+directories:
+  # 规划文档目录（相对于项目根目录）
+  plans: "plans"
+  # 测试目录（相对于项目根目录）
+  tests: "tests"
+  # 测试会话命名格式（分钟级）
+  session_format: "v{year}{month}{day}{hour}{minute}"
+
+# ============================================================================
+# 项目识别
+# ============================================================================
+
+project_detection:
+  # 项目指令文件候选列表（按优先级排序）
+  instruction_files:
+    - "CLAUDE.md"
+    - "AGENTS.md"
+    - "PROJECT.md"
+    - "README.md"
+  # 项目配置文件候选列表
+  config_files:
+    - "config.yaml"
+    - "package.json"
+    - "pyproject.toml"
+    - "Cargo.toml"
+    - "go.mod"
+    - "pom.xml"
+    - "build.gradle"
+  # 项目类型识别标志
+  type_markers:
+    skill:
+      - "SKILL.md"
+      - ".claude/skills/"
+    workflow:
+      - "workflows/"
+      - ".github/workflows/"
+    script_collection:
+      - "bin/"
+      - "scripts/"
+    documentation:
+      - "docs/"
+      - "mkdocs.yml"
+      - "docusaurus.config.js"
+
+# ============================================================================
+# 轮次控制
+# ============================================================================
+
+test_rounds:
+  # A轮测试默认轮次
+  default_a_rounds: 1
+  # 最大A轮测试轮次（防止无限循环）
+  max_a_rounds: 10
+
+# ============================================================================
+# B轮质量检查（项目级六大质量原则）
+# ============================================================================
+
+b_round_check:
+  # B轮是否为强制环节（默认true，除非用户明确跳过）
+  mandatory: true
+  dimensions:
+    - name: "hardcoded_ai_plan"
+      label: "硬编码/AI功能规划"
+      description: "检查确定性操作是否应硬编码，启发式判断是否由AI处理"
+      project_level: true
+      scope: "跨模块分析：识别可脚本化的重复操作"
+    - name: "redundancy_check"
+      label: "冗余残留错误检查"
+      description: "检查是否存在重复逻辑、残留引用、僵尸文件"
+      project_level: true
+      scope: "跨文件检查：模块间的重复逻辑、全局的残留引用"
+    - name: "security_check"
+      label: "安全性检查"
+      description: "检查输入验证、路径处理、敏感信息、权限控制"
+      project_level: true
+      scope: "项目级安全：外部接口、依赖安全性、配置文件安全"
+    - name: "overdesign_check"
+      label: "过度设计检查"
+      description: "检查是否存在YAGNI违反、不必要的抽象、配置臃肿"
+      project_level: true
+      scope: "架构级检查：模块边界、抽象层次、配置复杂度"
+    - name: "generality_check"
+      label: "通用性检查"
+      description: "检查是否包含不必要的年份/场景限制/平台依赖等"
+      project_level: true
+      scope: "跨平台检查：项目是否过度依赖特定平台或场景"
+    - name: "consistency_check"
+      label: "一致性检查"
+      description: "检查项目指令文件、配置、文档与代码的一致性"
+      project_level: true
+      scope: "全局一致性：模块间接口、命名规范、文档同步"
+
+# ============================================================================
+# 测试会话配置
+# ============================================================================
+
+test_session:
+  # 测试目录名称(相对于项目根目录)
+  directory: "tests"
+  # 时间戳格式
+  timestamp_format: "%Y%m%d%H%M"
+  # 最大迭代轮数(默认10轮,防止无限循环)
+  max_iterations: 10
+  # 测试会话命名前缀
+  session_prefix: "v"
+
+# ============================================================================
+# 问题优先级配置
+# ============================================================================
+
+priority:
+  # P0问题的自动响应(可选)
+  auto_fix_p0: false
+  # 每轮迭代最大修复问题数
+  max_fixes_per_iteration: 5
+  # 优先级定义
+  levels:
+    P0:
+      name: "Critical"
+      description: "阻塞性问题,完全无法使用"
+      response_time: "立即"
+      color: "red"
+      examples:
+        - "项目完全无法初始化"
+        - "核心功能完全失效"
+        - "数据丢失或损坏"
+        - "严重安全漏洞"
+    P1:
+      name: "High"
+      description: "严重问题,核心功能受影响"
+      response_time: "24小时内"
+      color: "orange"
+      examples:
+        - "主要功能失效"
+        - "性能严重退化"
+        - "跨模块兼容性问题"
+        - "用户体验严重受损"
+    P2:
+      name: "Medium"
+      description: "中等问题,部分功能受限"
+      response_time: "3天内"
+      color: "yellow"
+      examples:
+        - "边缘功能失效"
+        - "性能轻微退化"
+        - "文档不一致"
+        - "配置文件问题"
+    P3:
+      name: "Low"
+      description: "轻微问题,不影响主要功能"
+      response_time: "1周内"
+      color: "green"
+      examples:
+        - "文档错误"
+        - "UI瑕疵"
+        - "代码风格问题"
+        - "体验优化建议"
+
+# ============================================================================
+# 测试配置
+# ============================================================================
+
+testing:
+  # 默认测试超时(秒)
+  timeout: 30
+  # 测试失败时是否自动停止
+  stop_on_failure: true
+  # 是否生成详细日志
+  verbose_logging: true
+  # 测试数据目录名
+  data_dir: "data"
+  # 测试脚本目录名
+  scripts_dir: "scripts"
+  # 测试输出目录名
+  output_dir: "output"
+
+# ============================================================================
+# 报告配置
+# ============================================================================
+
+reporting:
+  # 是否生成HTML报告(可选)
+  html_report: false
+  # 是否生成图表(可选)
+  generate_charts: false
+  # 报告语言
+  language: "zh-CN"
+  # 报告格式
+  format: "markdown"
+
+# ============================================================================
+# 文档模板配置
+# ============================================================================
+
+templates:
+  # Bug报告模板
+  bug_report: "templates/BUG_REPORT_TEMPLATE.md"
+  # 优化计划模板
+  optimization_plan: "templates/OPTIMIZATION_PLAN_TEMPLATE.md"
+  # 测试计划模板
+  test_plan: "templates/TEST_PLAN_TEMPLATE.md"
+  # 测试报告模板
+  test_report: "templates/TEST_REPORT_TEMPLATE.md"
+  # 最终总结模板
+  final_summary: "templates/FINAL_SUMMARY_TEMPLATE.md"
+  # B轮质量检查模板
+  b_round_check: "templates/B_ROUND_CHECK_TEMPLATE.md"
+  # 项目类型分析模板
+  project_type_analysis: "templates/PROJECT_TYPE_ANALYSIS_TEMPLATE.md"
+
+# ============================================================================
+# 质量标准
+# ============================================================================
+
+quality:
+  # 测试覆盖率目标
+  coverage_target: 80
+  # 通过率目标
+  pass_rate_target: 95
+  # 回归测试要求
+  regression_required: true
+  # 文档更新要求
+  doc_update_required: true
+
+# ============================================================================
+# 验收标准
+# ============================================================================
+
+acceptance:
+  # 所有P0和P1问题必须修复
+  critical_and_high_fixed: true
+  # 核心功能测试100%通过
+  core_tests_passed: true
+  # 无回归问题
+  no_regression: true
+  # 文档已更新
+  docs_updated: true
+  # 项目CHANGELOG.md已更新
+  project_changelog_updated: true
+
+# ============================================================================
+# 项目级测试边界配置
+# ============================================================================
+
+project_testing:
+  # 核心模块识别（通过目录/文件模式）
+  core_modules:
+    - pattern: "src/"
+      priority: "critical"
+    - pattern: "lib/"
+      priority: "high"
+    - pattern: "scripts/"
+      priority: "high"
+    - pattern: "SKILL.md"
+      priority: "critical"
+    - pattern: "CLAUDE.md"
+      priority: "critical"
+  # 跨模块测试配置
+  cross_module_testing:
+    enabled: true
+    # 需要集成测试的模块组合
+    integration_pairs:
+      - ["src/", "lib/"]
+      - ["scripts/", "config.yaml"]
+  # 排除的测试路径
+  exclude_paths:
+    - "node_modules/"
+    - "__pycache__/"
+    - ".git/"
+    - "tests/"
+    - "plans/"
+    - "_artifacts/"

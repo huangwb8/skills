@@ -1,0 +1,9 @@
+total 48
+drwxr-xr-x@  8 bensz  staff   256 Jan 12 11:55 .
+drwxr-xr-x@ 12 bensz  staff   384 Jan 12 11:23 ..
+-rw-r--r--@  1 bensz  staff  3873 Jan  2 19:05 BUG_REPORT_TEMPLATE.md
+-rw-r--r--@  1 bensz  staff  2689 Jan 12 11:18 B_ROUND_CHECK_TEMPLATE.md
+-rw-r--r--@  1 bensz  staff   924 Jan 12 11:18 FINAL_SUMMARY_TEMPLATE.md
+-rw-r--r--@  1 bensz  staff   858 Jan 12 11:55 OPTIMIZATION_PLAN_TEMPLATE.md
+-rw-r--r--@  1 bensz  staff  1237 Jan 12 12:00 TEST_PLAN_TEMPLATE.md
+-rw-r--r--@  1 bensz  staff   834 Jan 12 11:55 TEST_REPORT_TEMPLATE.md

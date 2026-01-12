@@ -27,7 +27,7 @@
 
 ### 触发方式
 
-在 Claude Code 中使用以下表述之一触发本技能:
+在支持 Agent Skills 的工具（如 Codex CLI、Claude Code、Cursor 等）中使用以下表述之一触发本技能:
 
 - "帮我测试一下这个技能"
 - "我需要制定测试计划"
@@ -51,20 +51,16 @@
 
 ### 工作流程
 
-本技能遵循**6阶段工作流**:
+本技能遵循 **A轮×N + B轮** 的多轮迭代工作流：
 
 ```
-阶段1: 问题收集与分析
+用户输入
   ↓
-阶段2: 优化计划制定
+[A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-阶段3: 测试会话管理
+B轮：六大质量原则检查 → 针对性优化 → 轻量验证
   ↓
-阶段4: 执行优化与测试
-  ↓
-阶段5: 测试报告与总结
-  ↓
-阶段6: 迭代循环或结束
+完成（文档齐全 + 问题闭环）
 ```
 
 详细说明请参阅 [SKILL.md](SKILL.md)。
@@ -73,25 +69,22 @@
 
 使用本技能后,您将获得:
 
-1. **结构化的问题报告** (`BUG_REPORT.md`)
-   - Bug详情(现象、根因、修复建议)
-   - 优先级排序(P0/P1/P2/P3)
-   - 验证方法和测试用例
+1. **规划文档（A轮）**：`plans/vYYYYMMDDHHMM.md`
+2. **测试会话目录（A轮）**：`tests/vYYYYMMDDHHMM/`（包含 `TEST_PLAN.md`、`TEST_REPORT.md`）
+3. **质量检查报告（B轮）**：`plans/B轮-vYYYYMMDDHHMM.md`
+4. **验证会话目录（B轮）**：`tests/B轮-vYYYYMMDDHHMM/`（包含 `TEST_PLAN.md`、`TEST_REPORT.md`）
 
-2. **详细的优化计划** (`OPTIMIZATION_PLAN.md`)
-   - Step-by-step修复步骤
-   - 轻量测试计划(验证点、预期结果)
-   - 时间估算和风险评估
+## 确定性辅助脚本（推荐）
 
-3. **测试会话目录** (`test/v{YYYYMMDDHHMM}/`)
-   - 规范化的目录结构
-   - 包含:TEST_PLAN.md、TEST_REPORT.md等
-   - 测试数据、脚本、输出分离
+为避免每轮手工创建目录与文档骨架，推荐使用：
 
-4. **最终测试总结** (`FINAL_SUMMARY.md`)
-   - 修复历程回顾
-   - 质量改进统计
-   - 经验教训总结
+```bash
+python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --id vYYYYMMDDHHMM --create-plan
+```
+
+说明：
+- `--skill-root` 指向“要被测试/被优化”的目标 skill 根目录（必须包含 `SKILL.md`）
+- `--create-plan` 会在缺失时生成 `plans/` 下对应的计划文档骨架（默认不覆盖）
 
 ## 文件结构
 
@@ -100,12 +93,18 @@ auto-test-skill/
 ├── SKILL.md                           # 技能主文档
 ├── README.md                          # 本文件
 ├── config.yaml                        # 配置文件
+├── plans/                             # 规划文档目录
+├── tests/                             # 测试会话目录
+├── scripts/                           # 确定性辅助脚本（可选）
 ├── templates/                         # 文档模板
 │   ├── BUG_REPORT_TEMPLATE.md         # Bug报告模板
 │   ├── OPTIMIZATION_PLAN_TEMPLATE.md  # 优化计划模板
-│   └── TEST_REPORT_TEMPLATE.md        # 测试报告模板
+│   ├── TEST_PLAN_TEMPLATE.md          # 测试计划模板
+│   ├── TEST_REPORT_TEMPLATE.md        # 测试报告模板
+│   ├── FINAL_SUMMARY_TEMPLATE.md      # 最终总结模板
+│   └── B_ROUND_CHECK_TEMPLATE.md      # B轮质量检查模板
 └── references/                        # 参考文档
-    └── TESTING_BEST_PRACTICES.md      # 测试最佳实践(待创建)
+    └── TESTING_BEST_PRACTICES.md      # 测试最佳实践
 ```
 
 ## 配置说明
@@ -114,6 +113,7 @@ auto-test-skill/
 
 主要配置项:
 
+- **skill_info.version**: 技能版本号（单一事实来源；`SKILL.md` 表头会同步该版本）
 - **test_session**: 测试会话配置(目录命名、最大迭代轮数)
 - **priority**: 优先级定义(P0/P1/P2/P3的详细说明)
 - **testing**: 测试配置(超时、失败处理、日志)
@@ -132,12 +132,11 @@ auto-test-skill/
 - 技能根目录: `/path/to/skills/your-skill`
 
 **执行流程**:
-1. 阶段1: 生成 BUG_REPORT.md
-2. 阶段2: 制定 OPTIMIZATION_PLAN.md(计划修复P0和P1问题)
-3. 阶段3: 创建测试会话 `test/v202601021313/`
-4. 阶段4: 执行修复,运行测试
-5. 阶段5: 填写 TEST_REPORT.md
-6. 阶段6: 验证通过,更新文档
+1. A轮：生成 `plans/vYYYYMMDDHHMM.md`（问题清单 + 改进计划）
+2. A轮：创建 `tests/vYYYYMMDDHHMM/` 并按计划修复与验证
+3. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（六大质量原则检查）
+4. B轮：创建 `tests/B轮-vYYYYMMDDHHMM/` 并做针对性验证
+5. 验收：更新 `CHANGELOG.md`
 
 **输出**:
 - 修复后的代码
@@ -219,7 +218,7 @@ def test_fix_problem_1():
 
 **A**: 测试会话目录本身就很轻量(主要是文档),可以保留所有历史会话。如果需要清理,建议:
 - 保留最近10个会话
-- 归档早期的会话到 `test_archive/`
+- 归档早期的会话到 `tests_archive/`（如你在项目里有该约定）
 - 保留关键里程碑的会话(如首次完整测试、重大修复等)
 
 ### Q2: 如果一个问题需要多轮迭代才能修复怎么办?

@@ -1,0 +1,3 @@
+      52 auto-test-skill/templates/TEST_REPORT_TEMPLATE.md
+      52 auto-test-skill/templates/OPTIMIZATION_PLAN_TEMPLATE.md
+     104 total
