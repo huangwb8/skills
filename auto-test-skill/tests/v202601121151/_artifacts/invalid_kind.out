@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills/auto-test-skill/scripts/create_test_session.py", line 203, in <module>
-    raise SystemExit(main())
-  File "/Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills/auto-test-skill/scripts/create_test_session.py", line 112, in main
-    kind = _normalize_kind(args.kind)
-  File "/Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills/auto-test-skill/scripts/create_test_session.py", line 67, in _normalize_kind
-    raise ValueError("kind must be 'a' or 'b'")
-ValueError: kind must be 'a' or 'b'

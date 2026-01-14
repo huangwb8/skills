@@ -45,6 +45,12 @@
 
 ## 使用方法
 
+### 开发者推荐
+
+```
+按 explain-results/plans/v202601122058.md 优化skill。之后，使用 auto-test-skill 这个skill进行7轮迭代优化，每次迭代的A轮必须要发现至少5-10个问题。
+```
+
 ### 触发方式
 
 在 Claude Code 中使用以下表述之一触发本技能:

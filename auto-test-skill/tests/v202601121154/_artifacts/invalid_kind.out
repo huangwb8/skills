@@ -1,4 +1,0 @@
-usage: create_test_session.py [-h] --skill-root SKILL_ROOT [--kind KIND]
-                              [--id ID] [--create-plan]
-                              [--seed-test-plan-from-plan] [--overwrite]
-error: kind must be 'a' or 'b'

@@ -1,2 +1,0 @@
-auto-test-skill/tests/B轮-v202601121155/TEST_PLAN.md:7:**关联规划文档**: plans/B轮-v202601121155.md
-auto-test-skill/tests/v202601121155/TEST_PLAN.md:7:**关联规划文档**: plans/v202601121155.md
