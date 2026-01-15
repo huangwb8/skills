@@ -19,7 +19,7 @@
 | **目标对象** | 单个 Agent Skill | 完整项目（多模块、多文件） |
 | **测试范围** | 单个 skill 目录 | 整个项目目录 |
 | **问题分析** | skill 级别 | 项目级别（跨模块） |
-| **质量检查** | skill 六大原则 | 项目级六大原则（扩展） |
+| **质量检查** | skill 六大原则 | 项目级七大原则（扩展） |
 
 ## 适用场景
 
@@ -28,6 +28,22 @@
 - ✅ 需要制定项目级的优化计划
 - ✅ 管理多轮迭代测试和修复流程
 - ✅ 生成项目级测试报告和总结文档
+
+## Quick Start
+
+在“目标项目根目录”执行：
+
+```bash
+# 1) 创建 A 轮会话骨架（会自动创建 plans/ 与 tests/）
+python3 /path/to/auto-test-project/scripts/create_test_session.py --project-root . --kind a --create-plan
+
+# 2) 修复并补齐 tests/<id>/TEST_PLAN.md 与 tests/<id>/TEST_REPORT.md 后，运行验证（推荐严格模式）
+python3 /path/to/auto-test-project/scripts/verify_test_session.py --require-plan tests/vYYYYMMDDHHMM
+```
+
+安全提示：该脚本会在 `--project-root` 下创建 `plans/` 与 `tests/`。为防止误用，默认拒绝将系统根目录或用户主目录作为 project-root；如你确有需要，可显式加 `--allow-unsafe-root` 覆盖。
+
+更完整的工作流与输出规范请阅读 [SKILL.md](SKILL.md)。
 
 ## 项目定义
 
@@ -45,11 +61,12 @@
 
 ## 使用方法
 
-### 开发者推荐
+### 维护者建议（用于迭代本技能本身）
 
-```
-按 explain-results/plans/v202601122058.md 优化skill。之后，使用 auto-test-skill 这个skill进行7轮迭代优化，每次迭代的A轮必须要发现至少5-10个问题。
-```
+- 建议用 `auto-test-skill` 对 `auto-test-project/` 做多轮 A/B 迭代（每轮提出 10-20 个问题并闭环），以保证脚本与模板的“可复现性 + 可验证性”。
+- 自检脚本：
+  - `python3 auto-test-project/scripts/verify_skill.py --skill-root auto-test-project`
+  - `python3 auto-test-project/scripts/verify_all_sessions.py --project-root auto-test-project`
 
 ### 触发方式
 
@@ -86,7 +103,7 @@
   ↓
 [A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-B轮：项目级六大质量原则检查 → 针对性优化 → 轻量验证
+B轮：项目级七大质量原则检查 → 针对性优化 → 轻量验证
   ↓
 完成（文档齐全 + 问题闭环 + 项目 CHANGELOG.md 已更新）
 ```
@@ -132,10 +149,13 @@ auto-test-project/
 
 主要配置项:
 
+- 说明：`config.yaml` 主要用于记录默认参数与检查维度；确定性脚本以 CLI 参数与源码为准（当前不解析本文件）。
 - **project_detection**: 项目类型识别配置（指令文件、配置文件、类型标志）
-- **test_session**: 测试会话配置（目录命名、最大迭代轮数）
+- **test_rounds**: 轮次控制（每轮最少问题数量与目标范围）
+- **test_session**: 测试会话配置（时间戳格式、最大迭代轮数）
 - **priority**: 优先级定义（P0/P1/P2/P3 的详细说明和示例）
-- **b_round_check**: B轮质量检查维度（项目级扩展）
+- **b_round_check**: B轮质量检查（七大维度 + 建议数量与修复率门槛）
+- **verification**: 会话验证脚本默认阈值（报告长度、问题数量、严格模式开关）
 - **project_testing**: 项目级测试边界配置（核心模块、跨模块测试、排除路径）
 
 详细配置请参阅 [config.yaml](config.yaml)。
@@ -152,7 +172,7 @@ auto-test-project/
 1. 项目初始化：识别项目类型为 Agent Skill
 2. A轮：生成 `plans/vYYYYMMDDHHMM.md`（问题清单 + 改进计划）
 3. A轮：创建 `tests/vYYYYMMDDHHMM/` 并按计划修复与验证
-4. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（项目级六大质量原则检查）
+4. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（项目级七大质量原则检查）
 5. B轮：创建 `tests/B轮-vYYYYMMDDHHMM/` 并做针对性验证
 6. 验收：更新项目 `CHANGELOG.md`
 
@@ -176,70 +196,22 @@ auto-test-project/
 - 跨模块集成测试通过
 - 测试覆盖率提升
 
-## 最佳实践
+## 更多参考
 
-### 1. 测试边界管理
-
-- 明确测试范围：核心功能 vs 边缘功能
-- 识别模块依赖：哪些模块可以独立测试，哪些需要集成测试
-- 设置优先级：先测试核心路径，再测试边缘情况
-
-### 2. 跨模块问题处理
-
-- 记录问题影响的模块范围
-- 分析修复的连锁反应
-- 验证修复后是否影响其他模块
-
-### 3. 项目级一致性
-
-- 确保所有模块遵循相同的工程原则
-- 检查跨模块的接口一致性
-- 验证项目级配置的正确性
-
-### 4. 文档同步更新
-
-- 项目级变更需要更新项目 CHANGELOG.md
-- 跨模块变更需要同步更新相关模块文档
-- 保持项目指令文件（CLAUDE.md 等）与实际状态一致
-
-## 常见问题
-
-### Q1: 项目类型识别失败怎么办？
-
-**A**: 如果技能无法自动识别项目类型：
-- 手动指定项目类型（通过 `PROJECT_TYPE.md`）
-- 确保项目根目录存在项目指令文件（CLAUDE.md、AGENTS.md 等）
-- 检查配置文件中的 `project_detection` 设置
-
-### Q2: 如果测试会话太多怎么办？
-
-**A**: 测试会话目录本身就很轻量（主要是文档），可以保留所有历史会话。如果需要清理，建议：
-- 保留最近 10 个会话
-- 归档早期的会话到 `tests_archive/`
-- 保留关键里程碑的会话（如首次完整测试、重大修复等）
-
-### Q3: 如何处理跨模块问题？
-
-**A**:
-- 在问题报告中明确列出受影响的模块
-- 在优化计划中考虑修复的连锁反应
-- 验证时增加集成测试用例
-- 更新相关模块的文档
-
-### Q4: 项目级质量检查与 skill 级别有什么区别？
-
-**A**: 项目级质量检查关注：
-- 跨模块的一致性（接口、命名、配置）
-- 架构级别的过度设计（模块边界、抽象层次）
-- 项目级的安全问题（外部接口、依赖安全性）
-- 全局的冗余和残留（重复逻辑、僵尸模块）
+- 常见问题与证据标准：`references/FAQ.md`
+- 项目级最佳实践：`references/PROJECT_TESTING_BEST_PRACTICES.md`
+- 项目级问题挖掘技巧：`references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`
+- 严格模式最小示例（P0-1 编号）：`references/EXAMPLE_STRICT_MINIMAL.md`
 
 ## 参考资源
 
 - **技能主文档**: [SKILL.md](SKILL.md)
 - **配置文件**: [config.yaml](config.yaml)
 - **文档模板**: [templates/](templates/)
-- **参考文档**: [references/PROJECT_TESTING_BEST_PRACTICES.md](references/PROJECT_TESTING_BEST_PRACTICES.md)
+- **参考文档**:
+  - [references/FAQ.md](references/FAQ.md)
+  - [references/PROJECT_TESTING_BEST_PRACTICES.md](references/PROJECT_TESTING_BEST_PRACTICES.md)
+  - [references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md](references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md)
 - **Agent Skills标准**: [https://agentskills.io](https://agentskills.io)
 
 **相关阅读**:

@@ -1,10 +1,10 @@
-# 测试计划（A轮）
+# 测试计划（{{ROUND_KIND}}）
 
 **测试ID**: {{TEST_ID}}
 **项目根目录**: {{PROJECT_ROOT}}
 **项目类型**: {{PROJECT_TYPE}}
 **测试时间**: {{TEST_TIME}}
-**对应计划**: {{PLAN_FILE}}
+**对应计划**: {{PLAN_DOC_PATH}}
 
 ---
 
@@ -72,3 +72,11 @@
 
 - {{RISK_1}}
 - {{RISK_2}}
+
+---
+
+完成后建议运行验证脚本检查会话质量：
+
+```bash
+python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/{{SESSION_NAME}}
+```

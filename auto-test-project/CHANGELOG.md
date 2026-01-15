@@ -4,86 +4,120 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [1.1.0] - 2026-01-14
-
-### Added（新增）
-
-- **强制数量要求**：
-  - 每轮 A 轮至少 10 个问题（P0 + P1 + P2 总和），鼓励 15-20 个
-  - B 轮至少 10-20 个建设性建议
-  - A.4 章节新增"强制检查"：必须满足至少 10 个问题才能进入下一轮
-- `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`：建设性建议标准（项目级版本）
-  - 定义建设性建议的四大特征：可执行、有证据、有价值、可验证
-  - 提供"黄金公式"：位置 + 问题现象 + 影响分析 + 涉及模块 + 修复方案 + 验证方法
-  - 包含项目级特有注意事项（跨模块依赖、项目级一致性、测试覆盖）
-- `references/ISSUE_DISCOVERY_TECHNIQUES.md`：问题挖掘技巧（项目级版本）
-  - 10 大类问题挖掘技巧，适配项目级测试场景
-  - 技巧 1 扩展为"跨模块交叉验证"
-  - 新增"项目级专项清单"和"跨模块测试场景"
-  - 提供单轮检查策略和数量达标策略
-- `references/ANTI_PATTERNS_LIBRARY.md`：反例库（项目级版本）
-  - 七大质量原则的常见反例，扩展为项目级场景
-  - 每个反例包含"涉及模块"字段，强调跨模块影响
-  - 新增项目级特有反例（如跨模块接口不一致、跨模块配置重复定义等）
-- `SKILL.md`：
-  - A.2 章节新增"建设性"要求，引用 `CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`
-  - A.2 章节新增"问题挖掘技巧"引用，推荐每轮使用 3-5 个技巧组合
-  - B.1 章节新增 B 轮数量要求（至少 10-20 个建议）
-  - B.2 章节新增"强制修复要求"：P0 100%、P1 ≥ 80% 修复率
-  - 完成条件新增"每轮 A 轮平均问题数量 ≥ 10 个"和"B 轮建议数量 ≥ 10 个"
-- `config.yaml`：
-  - 新增 `test_rounds.min_suggestions_per_round: 10`（A 轮最小建议数量）
-  - 新增 `test_rounds.target_suggestions_range: [15, 20]`（A 轮目标范围）
-  - 新增 `b_round_check.min_suggestions: 10`（B 轮最小建议数量）
-  - 新增 `b_round_check.target_suggestions_range: [15, 20]`（B 轮目标范围）
-  - 新增 `b_round_check.constructive_suggestion_required: true`（建设性建议要求）
-  - 新增 `b_round_check.p0_fix_rate_required: 100`（P0 修复率要求）
-  - 新增 `b_round_check.p1_fix_rate_required: 80`（P1 修复率要求）
-
-### Changed（变更）
-
-- 版本号从 `1.0.2` 升级为 `1.1.0`（新增功能，向下兼容）
-- `skill_info.description` 更新为强调"强制每轮提出10-20个建设性建议"
-- YAML frontmatter 同步版本号为 `1.1.0`，新增核心能力说明
-
-### Fixed（修复）
-
-- 修复 A 轮无明确数量要求导致测试深度不足的问题
-- 修复 B 轮修复要求不够明确导致验收标准模糊的问题
-
----
-
 ## [Unreleased]
 
 ### Added（新增）
 
-- `references/A_ROUND_PLAN_TEMPLATE.md`：A 轮优化计划结构模板（项目级版本，包含跨模块分析和依赖关系）
-- B 轮质量检查新增第 7 个维度：**项目指令文件瘦身检查**
-  - 检查 CLAUDE.md/AGENTS.md 等项目指令文件是否超过 400 行（建议阈值）
-  - 检查是否存在可独立到模块级 `references/` 或 `docs/` 的详细内容
-  - 提供渐进披露原则的瘦身策略表（项目级核心原则→CLAUDE.md，模块详细文档→模块内 references/）
+- **模板自动替换机制**：从技术上消除"占位符未替换"问题
+  - `scripts/create_test_session.py`：新增 `_render_template()` 函数，自动替换 `{{KEY}}` 格式的占位符
+  - 支持模板变量：`TEST_ID`、`PROJECT_ROOT`、`SESSION_NAME`、`TEST_TIME`、`ROUND_KIND` 等
+  - 新增 `--create-plan` 参数：自动创建计划文档骨架
+  - TEST_REPORT_TEMPLATE.md：重构为详细的结构化模板
+
+- **强制数量要求**：迫使 AI 深入挖掘问题
+  - A.2 节新增"数量要求"（强制）：每轮至少 10 个问题（P0 + P1 + P2 总和）
+  - 鼓励达到 15-20 个问题，项目级测试建议 15-25 个
+  - A.4 节新增"数量验证"（强制检查）：进入下一轮前必须确认问题数量 ≥ 10
+
+- **计划-执行一致性检查**：确保计划中的问题在报告中有对应记录
+  - `scripts/verify_test_session.py`：新增 `check_plan_report_consistency()` 函数
+  - 检查计划中的问题编号（P0-1, P1-2）是否在报告中有对应记录
+  - 检查问题数量是否达到最低要求（≥ 10 个）
+  - 新增配置常量 `MIN_ISSUE_COUNT = 10`
+
+- **新增参考文档**：
+  - `references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`：项目级问题挖掘技巧（8 大技巧）
+    - 跨模块一致性检查、依赖关系分析、配置管理审查
+    - 文档同步检查、边缘情况压力测试、代码"模式匹配"
+    - 安全性扫描、性能分析
+  - `references/EXAMPLE_TEST_REPORT.md`：完整的测试报告示例（12 个问题）
+    - 展示期望的输出质量
+    - 每个问题都有：位置、影响、修复建议、验证方法
+    - 使用多种问题挖掘技巧
+
 - `SKILL.md`：
-  - A.2 章节新增"全局意识"、"上下文连贯"、"项目视野"、"优先级依据"四大核心要求
-  - 明确 P0/P1/P2 优先级判定标准（P0: 阻塞/安全/核心缺陷；P1: 重要优化/模块间接口；P2: 锦上添花）
-  - 引用 `references/A_ROUND_PLAN_TEMPLATE.md` 作为详细结构模板
-  - B 轮章节标注新增的项目指令文件瘦身检查维度
-- `config.yaml`：
-  - 新增 `b_round_check.mandatory: true` 配置项，明确 B 轮为强制环节（除非用户明确要求跳过）
-  - A.4 章节增加强制提示："A 轮结束后（无论多少轮），必须进入 B 轮质量检查，不得跳过"
-  - B 轮章节开头增加 ⚠️ 警告："B 轮质量检查是项目级自动测试流程的强制性环节，除非用户明确要求跳过，否则不得省略"
-  - 完成条件引用 `config.yaml` 的 `mandatory` 配置，形成配置-文档联动
+  - 新增关键词：`template rendering`、`issue discovery techniques`
+  - 引用 `references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`
+  - 引用 `references/EXAMPLE_TEST_REPORT.md`
 
 ### Changed（变更）
 
-- B 轮质量检查从"六大原则"扩展为"七大原则"，新增项目指令文件瘦身检查维度
-- `templates/B_ROUND_CHECK_TEMPLATE.md`：**重大重构** - 所有七大原则的检查说明更加详细和可操作
-  - 每个原则新增"核心原则"一句话总结
-  - 每个原则新增三级判断标准（✅ 良好 / ⚠️ 改进信号 / ❌ 严重问题）
-  - 每个原则新增"典型反例（项目级）"章节，包含具体代码/配置示例
-  - 每个原则新增"改进方向（项目级）"操作指南
-  - 目标：让模型在执行 B 轮检查时更清晰理解每个原则的定义、判断标准和改进方向，避免歧义
-- `SKILL.md` A.2 章节：从简略的"问题清单"要求，重构为结构化的"全局视图 + 上下文 + 项目视野 + 优先级 + 可追溯性"框架
-- 版本号升级为 `1.0.2`（`config.yaml: skill_info.version` 同步到 `SKILL.md` YAML frontmatter）
+- `scripts/create_test_session.py`：**重大重构**
+  - 新增 `_render_template()` 函数
+  - `_copy_or_template()` 函数新增 `template_values` 参数，支持模板变量替换
+  - 新增 `--create-plan` 命令行参数
+  - 内联模板改为使用 `{{ROUND_KIND}}` 等变量
+
+- `scripts/verify_test_session.py`：增强验证能力
+  - 新增 `check_plan_report_consistency()` 函数
+  - 新增配置常量 `MIN_ISSUE_COUNT`
+  - 验证项从 4 项增加到 5 项
+
+- `templates/TEST_REPORT_TEMPLATE.md`：**完全重写**
+  - 从简单的 115 行模板重构为详细的 137 行结构化模板
+  - 包含：执行摘要、验证点执行情况、问题修复记录、问题修复统计、遗留问题、证据文件、下一步建议
+  - 在模板末尾添加验证命令提示
+
+- 版本号升级为 `1.2.0`（`config.yaml: skill_info.version` 同步到 `SKILL.md` YAML frontmatter）
+
+### Technical Details（技术细节）
+
+- 项目识别支持多种指令文件（CLAUDE.md、AGENTS.md、PROJECT.md 等）
+- 测试边界配置支持核心模块识别和排除路径设置
+- 优先级配置扩展为项目级示例（跨模块问题、架构问题等）
+- B轮质量检查增加 `project_level` 和 `scope` 字段
+
+### Fixed（修复）
+
+- **模板占位符未替换问题**：通过 `_render_template()` 函数从技术上解决
+- **计划与执行脱节问题**：通过 `check_plan_report_consistency()` 检测
+- **报告内容过短问题**：通过 `MIN_ISSUE_COUNT` 和 `MIN_REPORT_LENGTH` 双重门槛
+
+- `scripts/create_test_session.py`：
+  - 修复 B 轮创建会话时潜在的未定义变量问题（`--kind b` 可用）
+  - 修复 plan 文件存在时误把 plan 复制到 `TEST_PLAN.md` 的行为；新增 `--seed-test-plan-from-plan`（默认关闭）
+  - 统一 `--create-plan` 生成/引用的 plan 路径，避免 B 轮漏掉 `.md`
+  - 补齐模板变量（`PLAN_ID/PLAN_TIME/PROJECT_TYPE/PLAN_DOC_PATH` 等）用于头字段自动填充
+
+- `scripts/verify_test_session.py`：
+  - 放宽“文件:行号”证据正则，支持常见小写路径与 Windows 路径，减少误判
+
+- 文档与模板一致性：
+  - 将“B 轮质量检查”口径统一为项目级七大质量原则（与 `config.yaml:b_round_check.dimensions` 对齐）
+  - 重写 `templates/OPTIMIZATION_PLAN_TEMPLATE.md` 为 `P0-1/P1-1/P2-1` 编号结构，确保计划-报告一致性检查可落地
+  - `templates/TEST_PLAN_TEMPLATE.md` 标题改为按轮次变量渲染，并统一使用 `PLAN_DOC_PATH`
+
+- CLI 可用性与严格模式：
+  - `scripts/create_test_session.py` 增加 `--id` 格式校验（强制 `vYYYYMMDDHHMM`），并将常见错误统一为 argparse 报错（无堆栈）
+  - `scripts/verify_test_session.py` 改为 argparse CLI，新增 `--require-plan`（严格模式）以及 `--min-report-length`/`--min-issue-count`（阈值可配置）
+
+- `config.yaml` 口径精简与对齐：
+  - 明确标注 scripts 不解析 config（避免误导为“配置可改变脚本行为”）
+  - 去除重复字段与通用但未被本 skill 使用的段落（testing/reporting/quality/acceptance）
+  - 补齐结构化门槛字段：A 轮最少问题数/目标范围、B 轮建议数与修复率门槛、verify 默认阈值
+  - 同步更新 `README.md` 与 `SKILL.md` 对配置字段的引用口径
+
+- 文档有机瘦身与模块化：
+  - `SKILL.md` 增加 Quick Start，并将 FAQ/最佳实践正文下沉到 `references/`
+  - 新增 `references/FAQ.md`，集中维护常见问题、证据标准与严格模式用法
+  - `README.md` 增加 Quick Start，移除重复的长篇最佳实践/FAQ，改为引用 references
+
+- 模板与示例对齐严格模式：
+  - 重写 `templates/B_ROUND_CHECK_TEMPLATE.md` 为可填写骨架，并使用 `P0-1` 编号以支持一致性检查
+  - `templates/TEST_PLAN_TEMPLATE.md` 与 `templates/TEST_REPORT_TEMPLATE.md` 补充严格模式验证入口
+  - 新增 `references/EXAMPLE_STRICT_MINIMAL.md`，用于演示编号对齐与严格验证
+  - `references/A_ROUND_PLAN_TEMPLATE.md` 统一使用 `P0-1/P1-1/P2-1` 编号口径
+
+- 确定性自检与批量验证：
+  - 新增 `scripts/verify_skill.py`：一键自检本 skill（必需文件、脚本可用性、模板关键占位符自动填充回归）
+  - 新增 `scripts/verify_all_sessions.py`：批量验证 `tests/` 下会话（支持 `--require-plan` 与 `--skip-missing-plan`）
+  - 清理误生成的 `plans/B轮-v202601152999.md`，避免严格模式批量验证被历史残留阻塞
+
+- 安全性与跨平台鲁棒性：
+  - `scripts/create_test_session.py` 默认拒绝系统根目录/用户主目录作为 project-root（需显式 `--allow-unsafe-root` 才可覆盖）
+  - 将缺少指令文件的 warning 输出到 stderr，避免污染 stdout 的“会话路径输出”
+  - `scripts/verify_test_session.py` 与 `scripts/verify_skill.py` 采用容错读取，避免非 UTF-8 文件导致验证崩溃
+  - Quick Start/FAQ 补充安全提示，降低误用风险
 
 ## [1.0.0] - 2026-01-12
 
