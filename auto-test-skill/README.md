@@ -25,6 +25,12 @@
 
 ## 使用方法
 
+### 开发者推荐Prompt
+
+```
+使用 auto-test-skill 这个skill 对xxx这个skill进行3个A轮迭代优化并通过测试;每个A轮要提出10-20个问题；最后的B轮审查要强制执行。每一轮测试中的p0-p2级问题全都要落实、修复后才可以进入下一轮。
+```
+
 ### 触发方式
 
 在支持 Agent Skills 的工具（如 Codex CLI、Claude Code、Cursor 等）中使用以下表述之一触发本技能:

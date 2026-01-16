@@ -61,12 +61,11 @@ python3 /path/to/auto-test-project/scripts/verify_test_session.py --require-plan
 
 ## 使用方法
 
-### 维护者建议（用于迭代本技能本身）
+### 开发者建议
 
-- 建议用 `auto-test-skill` 对 `auto-test-project/` 做多轮 A/B 迭代（每轮提出 10-20 个问题并闭环），以保证脚本与模板的“可复现性 + 可验证性”。
-- 自检脚本：
-  - `python3 auto-test-project/scripts/verify_skill.py --skill-root auto-test-project`
-  - `python3 auto-test-project/scripts/verify_all_sessions.py --project-root auto-test-project`
+```
+使用 auto-test-project 这个skill 对xxx流程进行3个A轮迭代优化并通过测试;每个A轮要提出10-20个问题；最后的B轮审查要强制执行。每一轮测试中的p0-p2级问题全都要落实、修复后才可以进入下一轮。
+```
 
 ### 触发方式
 

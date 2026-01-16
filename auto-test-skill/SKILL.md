@@ -1,19 +1,20 @@
 ---
 name: auto-test-skill
-version: 2.1.0
+version: 2.2.0
 category: normal
 description: |
-  自动化测试驱动优化技能 - 用于在技能/项目迭代时，通过多轮 A 轮轻量测试 + B 轮质量检查（七大原则），
+  自动化测试驱动优化技能 - 用于在技能/项目迭代时，通过多轮 A 轮批判性测试 + B 轮质量检查（七大原则），
   系统化发现、记录、修复问题，并沉淀可追溯的 `plans/` 与 `tests/` 文档。
 
   **核心能力**:
   - 支持多轮 A 轮迭代：分析 → 计划 → 优化 → 轻量测试（可重复 N 次）
-  - **强制数量要求**：每轮 A 轮至少 10 个问题（鼓励 15-20 个），B 轮至少 10-20 个建议
+  - **批判性思维驱动**：强制使用"刁钻角度"思考，每轮至少 3 个系统性问题（架构/过度设计/一致/安全）
+  - **强制质量要求**：每轮 A 轮至少 10 个问题（鼓励 15-20 个），P0+P1 占比 ≥ 60%，B 轮至少 10-20 个建议
   - A 轮结束后执行 B 轮质量检查：七大质量原则全覆盖
   - 规范化测试会话命名：`vYYYYMMDDHHMM`
   - 将每轮产出固化为文档与目录（可追溯、可复现、可复盘）
 metadata:
-  short-description: 多轮 A 轮测试 + B 轮质量检查 的测试驱动优化流水线
+  short-description: 批判性思维驱动的测试驱动优化流水线（多轮 A 轮 + B 轮质量检查）
   keywords:
     - testing
     - QA
@@ -22,9 +23,11 @@ metadata:
     - iteration
     - optimization
     - workflow
+    - critical thinking
+    - systemic review
 ---
 
-# auto-test-skill（自动化测试驱动优化技能）
+# auto-test-skill（批判性思维驱动的测试优化技能）
 
 ## 你要产出的东西
 
@@ -78,29 +81,44 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 可选增强（推荐）：
 - 使用 `--create-plan` 自动生成 `plans/vYYYYMMDDHHMM.md` 的骨架（默认不覆盖）
 
-#### A.2 问题分析与计划生成（写入 plans/）
+#### A.2 批判性分析与计划生成（写入 plans/）
 
-目标：把本轮要解决的问题写成可执行计划，按 P0/P1/P2 排序。
+目标：使用**批判性思维**发现系统性问题，写成可执行计划，按 P0/P1/P2 排序。
 
 输出：`plans/vYYYYMMDDHHMM.md`
 
-**数量要求**（强制）：
+⚠️ **批判性思维是核心要求**（不是可选项）：
+- **必须使用「刁钻角度」思考**（详见 `references/CRITICAL_THINKING_GUIDE.md`）
+- **必须发现至少 3 个系统性问题**（架构/过度设计/一致/安全）
+- **禁止列出"不痛不痒"的表面问题**（如"缺少注释"等 P2 级别问题不应占多数）
+
+**质量要求**（强制）：
 - 每轮至少发现 10 个问题（P0 + P1 + P2 总和）
 - 鼓励达到 15-20 个问题（深入挖掘）
-- 如首轮无明确问题列表，必须先进行"静态检查 + 一致性检查 + 逻辑推演"再列出问题清单
+- **P0 + P1 占比必须 ≥ 60%**（确保问题有价值）
+- **系统性问题 ≥ 3 个**（架构设计/过度设计/一致性/安全性）
 
 **核心要求**：
 - **全局意识**：明确本轮在优化 journey 中的位置（首轮/中间/收尾）
+- **批判性聚焦**：每轮选择 1-2 个聚焦维度（系统架构/过度设计/一致性/安全性/边缘情况/用户体验）
+- **刁钻角度**：必须使用至少一个刁钻角度（边缘情况/恶意输入/隐式假设/自我质疑/跨文件矛盾）
 - **上下文连贯**：说明与上轮的关联，避免孤立的问题清单
 - **优先级依据**：P0/P1/P2 必须有明确的判定标准
-  - P0: 阻塞性问题、安全风险、核心功能缺失
-  - P1: 重要优化、功能增强、测试覆盖不足
+  - P0: 阻塞性问题、安全风险、核心功能缺失、架构设计缺陷
+  - P1: 重要优化（过度设计/冗余/不一致）、功能增强、测试覆盖不足
   - P2: 锦上添花、文档改进、后续迭代项
-- **可追溯性**：每个问题必须包含位置、影响、修复建议、验证方法
+- **可追溯性**：每个问题必须包含位置、现象、影响、修复建议、验证方法
 - **建设性**：每条建议必须可执行、有证据、有价值、可验证（详见 `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`）
 
-**详细结构模板**：`references/A_ROUND_PLAN_TEMPLATE.md`
-**问题挖掘技巧**：`references/ISSUE_DISCOVERY_TECHNIQUES.md` ⚠️ 强烈建议：每轮使用 3-5 个技巧组合
+**批判性思维框架**（必读）：
+- `references/CRITICAL_THINKING_GUIDE.md` ⚠️ **核心文档，必须使用**
+  - 框架 1: 系统视角思考（架构设计/过度设计/一致性）
+  - 框架 2: 刁钻角度思考（边缘情况/恶意输入/隐式假设/自我质疑）
+  - 框架 3: 问题质量标准（黄金公式 + 质量检查清单）
+- `references/A_ROUND_PLAN_TEMPLATE.md` ⚠️ **已简化，突出批判性思维要求**
+- `references/ISSUE_DISCOVERY_TECHNIQUES.md` 问题挖掘技巧（辅助工具）
+- `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md` 建设性建议标准
+- `references/ANTI_PATTERNS_LIBRARY.md` 反例库（快速识别常见问题）
 
 #### A.3 执行优化与轻量测试（写入 tests/）
 
@@ -180,6 +198,8 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 - [ ] 用户指定的 A 轮次数已完成（或明确说明提前结束原因）
 - [ ] B 轮质量检查已完成并形成报告（⚠️ 强制要求，参考 `config.yaml` 的 `b_round_check.mandatory`）
 - [ ] 每轮 A 轮平均问题数量 ≥ 10 个（P0 + P1 + P2 总和）
+- [ ] **每轮 P0 + P1 占比 ≥ 60%**（确保问题有价值）
+- [ ] **每轮系统性问题 ≥ 3 个**（架构/过度设计/一致/安全）
 - [ ] 关键问题（P0/P1）已闭环：计划 → 修复 → 证据 → 结论
 - [ ] B 轮 P0 问题修复率 = 100%，P1 问题修复率 ≥ 80%
 - [ ] `plans/` 与 `tests/` 结构完整且可追溯
@@ -196,9 +216,10 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
   - 测试计划：`templates/TEST_PLAN_TEMPLATE.md`
   - 测试报告：`templates/TEST_REPORT_TEMPLATE.md`
 - 参考：`references/`
-  - A 轮计划结构：`references/A_ROUND_PLAN_TEMPLATE.md`
+  - **批判性思维指南**：`references/CRITICAL_THINKING_GUIDE.md` ⚠️ **核心文档，必须使用**
+  - A 轮计划结构：`references/A_ROUND_PLAN_TEMPLATE.md` ⚠️ **已简化，突出批判性思维**
   - 测试最佳实践：`references/TESTING_BEST_PRACTICES.md`
-  - 建设性建议标准：`references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md` ⚠️ 新增
-  - 问题挖掘技巧：`references/ISSUE_DISCOVERY_TECHNIQUES.md` ⚠️ 新增
-  - 反例库：`references/ANTI_PATTERNS_LIBRARY.md` ⚠️ 新增
+  - 建设性建议标准：`references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`
+  - 问题挖掘技巧：`references/ISSUE_DISCOVERY_TECHNIQUES.md`
+  - 反例库：`references/ANTI_PATTERNS_LIBRARY.md`
 - 辅助脚本：`scripts/create_test_session.py`

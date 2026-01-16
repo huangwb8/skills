@@ -6,6 +6,55 @@
 
 ### Added（新增）
 
+- **批判性思维框架**：auto-test-skill 现在强制使用"刁钻角度"思考，确保发现系统性问题
+- `references/CRITICAL_THINKING_GUIDE.md`：批判性思维指南（核心文档）
+  - 框架 1: 系统视角思考（架构设计/过度设计/一致性）
+  - 框架 2: 刁钻角度思考（边缘情况/恶意输入/隐式假设/自我质疑）
+  - 框架 3: 问题质量标准（黄金公式 + 质量检查清单）
+  - 高质量问题示例库（系统性架构问题/过度设计问题/安全性问题）
+- `config.yaml`：
+  - 新增 `test_rounds.min_p0_p1_ratio: 60`（A 轮 P0+P1 最小占比）
+  - 新增 `test_rounds.min_systemic_issues: 3`（A 轮系统性问题最小数量）
+
+### Changed（变更）
+
+- **核心定位升级**：从"自动化测试驱动优化技能"升级为"批判性思维驱动的测试优化技能"
+- **SKILL.md**：
+  - 版本升级：2.1.0 → 2.2.0
+  - description：新增"批判性思维驱动"和"系统性问题"关键词
+  - A.2 章节：从"问题分析与计划生成"重构为"批判性分析与计划生成"
+  - A.2 章节：新增"批判性思维是核心要求"警告（不是可选项）
+  - A.2 章节：新增"质量要求"（P0+P1 占比 ≥ 60%，系统性问题 ≥ 3 个）
+  - A.2 章节：新增"批判性聚焦"和"刁钻角度"核心要求
+  - A.2 章节：新增"批判性思维框架"必读文档列表（CRITICAL_THINKING_GUIDE.md 放在首位）
+  - 完成条件：新增"P0+P1 占比 ≥ 60%"和"系统性问题 ≥ 3 个"验收标准
+  - 可复用资源：突出 CRITICAL_THINKING_GUIDE.md 为核心文档
+- **references/A_ROUND_PLAN_TEMPLATE.md**：大幅简化（从 200+ 行简化为核心结构）
+  - 第一部分：全局视图（聚焦维度 + 与上轮关联）
+  - 第二部分：批判性思维分析（刁钻角度 + 系统性问题）⚠️ 新增
+  - 第三部分：问题清单（P0-P2，明确质量要求）
+  - 第四部分：问题质量检查（9 条强制检查）⚠️ 新增
+- **config.yaml**：
+  - skill_info.version: 2.1.0 → 2.2.0
+  - skill_info.description: 更新为"批判性思维驱动的测试优化技能"
+  - test_rounds: 新增质量门槛配置（min_p0_p1_ratio, min_systemic_issues）
+
+### Fixed（修复）
+
+- 修复"问题挖掘技巧"未强调的问题（现在通过 CRITICAL_THINKING_GUIDE.md 强制使用）
+- 修复 A 轮模板过于复杂导致 AI 选择性忽略的问题（大幅简化，突出核心要求）
+- 修复缺乏"系统性问题"挖掘引导的问题（现在强制要求 ≥ 3 个系统性问题）
+
+### Removed（移除）
+
+- 移除 A_ROUND_PLAN_TEMPLATE.md 中冗余的"修改步骤"和"轻量测试计划"章节（聚焦核心批判性思维）
+
+---
+
+## [2.1.0] - 2026-01-14
+
+### Added（新增）
+
 - **"非常挑剔"升级**：auto-test-skill 现在强制每轮提出 10-20 个建设性建议
 - `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`：建设性建议标准文档（可执行、有证据、有价值、可验证）
 - `references/ISSUE_DISCOVERY_TECHNIQUES.md`：问题挖掘技巧文档（10 大类技巧，系统化发现 10+ 问题）
