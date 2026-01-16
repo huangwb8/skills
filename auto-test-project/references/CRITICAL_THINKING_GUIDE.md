@@ -2,7 +2,7 @@
 
 **文档版本**：v1.1.0
 **创建时间**：2026-01-16
-**用途**：为 auto-test-skill 提供「如何进行批判性思考」的思考框架
+**用途**：为 auto-test-project 提供「如何进行批判性思考」的思考框架（同样适用于 auto-test-skill）
 
 ---
 
@@ -17,10 +17,10 @@
 
 ## A 轮独立评估（强制）
 
-在 auto-test-skill 中，每轮 A 轮默认采用**独立评估**模式：
+在 auto-test-project（以及 auto-test-skill）中，每轮 A 轮默认采用**独立评估**模式：
 
 - **不查看**上轮的 `plans/` 与 `tests/`（避免确认偏差/路径依赖）
-- 只基于目标 skill 的**当前工作文件**证据（如 `SKILL.md`、`config.yaml`、`scripts/`、`references/`、`templates/` 等；排除 `README.md`、`CHANGELOG.md` 等非工作文件）
+- 只基于目标项目/目标 skill 的**当前工作文件**证据（如核心文档、配置、脚本、模板等；排除历史产物与无关文件）
 - 目标：让"多轮"带来"多角度"，而不是"重复确认同一结论"
 
 ### 独立评估 vs 渐进式评估（对比）

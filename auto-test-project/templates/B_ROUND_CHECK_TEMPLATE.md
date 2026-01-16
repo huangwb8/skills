@@ -5,11 +5,11 @@
 **目标项目**: {{PROJECT_NAME}}  
 **项目根目录**: {{PROJECT_ROOT}}  
 **项目类型**: {{PROJECT_TYPE}}  
-**对应A轮测试**: {{TEST_ID}}（如不同请手动填写）  
+**对应A轮测试**: {{A_TEST_ID}}（推荐创建 B 轮时显式传入 `--a-test-id`；如不正确请手动修正）  
 
 ---
 
-## 检查结果总览（七大质量原则）
+## 检查结果总览（质量原则；以 config.yaml:b_round_check.dimensions 为准）
 
 | 维度 | 状态 | 关键发现（一句话） |
 |------|------|--------------------|
@@ -20,6 +20,7 @@
 | 通用性检查 | ✅ / ⚠️ / ❌ | {{NOTE_5}} |
 | 一致性检查 | ✅ / ⚠️ / ❌ | {{NOTE_6}} |
 | 项目指令文件瘦身检查 | ✅ / ⚠️ / ❌ | {{NOTE_7}} |
+| 配置集中化检查 | ✅ / ⚠️ / ❌ | {{NOTE_8}} |
 
 ---
 
@@ -107,4 +108,3 @@
 
 - 建议数量：`config.yaml:b_round_check.min_suggestions` / `config.yaml:b_round_check.target_suggestions_range`
 - 修复率门槛：`config.yaml:b_round_check.p0_fix_rate_required` / `config.yaml:b_round_check.p1_fix_rate_required`
-

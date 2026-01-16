@@ -1,5 +1,8 @@
 # auto-test-skill 配置文件
-# 用于配置测试驱动优化工作流的参数（尽量避免在 SKILL.md 中硬编码）
+#
+# 注意：
+# - `scripts/create_test_session.py` 仅解析 `directories.*` 与 `templates.*`（并做路径安全校验：拒绝 symlink、拒绝解析后越界）。
+# - 其余字段用于 A/B 轮规划口径（供 AI/人类参考），避免把“确定性行为”写进 SKILL.md。
 
 # ============================================================================
 # Skill 信息（建议作为版本号等信息的主要来源）
@@ -7,12 +10,12 @@
 
 skill_info:
   name: "auto-test-skill"
-  version: "2.2.0"
-  description: "批判性思维驱动的测试优化技能 - 支持多轮A轮迭代与B轮质量检查（七大原则），强制每轮提出10-20个高质量建议（P0+P1占比≥60%，系统性问题≥3个）"
+  version: "2.3.0"
+  description: "批判性思维驱动的测试优化技能 - 支持多轮 A 轮独立评估与 B 轮质量原则检查（以 b_round_check.dimensions 为准），强制每轮提出 10-20 个高质量建议（P0+P1 占比≥60%，系统性问题≥3个）"
   category: "normal"
 
 # ============================================================================
-# 目录与命名规范
+# 目录与命名规范（脚本会读取）
 # ============================================================================
 
 directories:
@@ -20,11 +23,21 @@ directories:
   plans: "plans"
   # 测试目录（相对于 skill 根目录）
   tests: "tests"
-  # 测试会话命名格式（分钟级）
-  session_format: "v{year}{month}{day}{hour}{minute}"
 
 # ============================================================================
-# 轮次控制
+# 文档模板配置（脚本会读取）
+# ============================================================================
+
+templates:
+  bug_report: "templates/BUG_REPORT_TEMPLATE.md"
+  optimization_plan: "templates/OPTIMIZATION_PLAN_TEMPLATE.md"
+  test_plan: "templates/TEST_PLAN_TEMPLATE.md"
+  test_report: "templates/TEST_REPORT_TEMPLATE.md"
+  final_summary: "templates/FINAL_SUMMARY_TEMPLATE.md"
+  b_round_check: "templates/B_ROUND_CHECK_TEMPLATE.md"
+
+# ============================================================================
+# 轮次控制（规划口径）
 # ============================================================================
 
 test_rounds:
@@ -42,22 +55,39 @@ test_rounds:
   min_systemic_issues: 3
 
 # ============================================================================
-# B轮质量检查（七大质量原则）
+# A轮审查范围（独立评估；规划口径）
+# ============================================================================
+
+a_round_check:
+  independent_review:
+    enabled: true  # 是否启用独立评估模式（A轮不看 plans/ 与 tests/）
+    exclude_patterns:
+      - "tests/**"
+      - "plans/**"
+      # 兼容旧写法（更浅层，但保留避免历史文档/工具误解）
+      - "tests/*"
+      - "plans/*"
+      - "*.bak"
+    required_files:  # 必须审查的核心工作文件
+      - "SKILL.md"
+      - "config.yaml"
+    required_dirs:  # 必须审查的目录（不存在可在计划中说明）
+      - "scripts/"
+      - "references/"
+      - "templates/"
+      - "assets/"
+
+# ============================================================================
+# B轮质量检查（质量原则检查；规划口径；维度以 b_round_check.dimensions 为准）
 # ============================================================================
 
 b_round_check:
-  # B轮是否为强制环节（默认true，除非用户明确跳过）
   mandatory: true
-  # B轮必须提出的最小建议数量（P0 + P1 + P2 总和）
   min_suggestions: 10
-  # 建议数量目标范围
   target_suggestions_range: [15, 20]
-  # 建设性建议是否需要满足标准（详见 references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md）
   constructive_suggestion_required: true
-  # P0问题修复率要求（百分比）
   p0_fix_rate_required: 100
-  # P1问题修复率要求（百分比）
-  p1_fix_rate_required: 80
+  p1_fix_rate_required: 100
   dimensions:
     - name: "hardcoded_ai_plan"
       label: "硬编码/AI功能规划"
@@ -77,110 +107,9 @@ b_round_check:
     - name: "consistency_check"
       label: "一致性检查"
       description: "检查 YAML frontmatter、SKILL.md、config.yaml 与示例的一致性"
+    - name: "config_centralization_check"
+      label: "配置集中化检查"
+      description: "检查精确端（config.yaml）与模糊端（工作文档）是否完全分离，确保所有可配置参数集中在 config.yaml 作为单一真相来源"
     - name: "skill_md_weight_check"
       label: "SKILL.md瘦身检查"
       description: "检查 SKILL.md 是否过于冗长，应将详细内容模块化到 references/"
-
-# 测试会话配置
-test_session:
-  # 测试目录名称(相对于 skill 根目录)
-  # 说明：已迁移为 tests/（保留字段用于向后兼容旧文档）
-  directory: "tests"
-  # 时间戳格式
-  timestamp_format: "%Y%m%d%H%M"
-  # 最大迭代轮数(默认10轮,防止无限循环)
-  max_iterations: 10
-  # 测试会话命名前缀
-  session_prefix: "v"
-
-# 问题优先级配置
-priority:
-  # P0问题的自动响应(可选)
-  auto_fix_p0: false
-  # 每轮迭代最大修复问题数
-  max_fixes_per_iteration: 5
-  # 优先级定义
-  levels:
-    P0:
-      name: "Critical"
-      description: "阻塞性问题,完全无法使用"
-      response_time: "立即"
-      color: "red"
-    P1:
-      name: "High"
-      description: "严重问题,核心功能受影响"
-      response_time: "24小时内"
-      color: "orange"
-    P2:
-      name: "Medium"
-      description: "中等问题,部分功能受限"
-      response_time: "3天内"
-      color: "yellow"
-    P3:
-      name: "Low"
-      description: "轻微问题,不影响主要功能"
-      response_time: "1周内"
-      color: "green"
-
-# 测试配置
-testing:
-  # 默认测试超时(秒)
-  timeout: 30
-  # 测试失败时是否自动停止
-  stop_on_failure: true
-  # 是否生成详细日志
-  verbose_logging: true
-  # 测试数据目录名
-  data_dir: "data"
-  # 测试脚本目录名
-  scripts_dir: "scripts"
-  # 测试输出目录名
-  output_dir: "output"
-
-# 报告配置
-reporting:
-  # 是否生成HTML报告(可选)
-  html_report: false
-  # 是否生成图表(可选)
-  generate_charts: false
-  # 报告语言
-  language: "zh-CN"
-  # 报告格式
-  format: "markdown"
-
-# 文档模板配置
-templates:
-  # Bug报告模板
-  bug_report: "templates/BUG_REPORT_TEMPLATE.md"
-  # 优化计划模板
-  optimization_plan: "templates/OPTIMIZATION_PLAN_TEMPLATE.md"
-  # 测试计划模板
-  test_plan: "templates/TEST_PLAN_TEMPLATE.md"
-  # 测试报告模板
-  test_report: "templates/TEST_REPORT_TEMPLATE.md"
-  # 最终总结模板
-  final_summary: "templates/FINAL_SUMMARY_TEMPLATE.md"
-  # B轮质量检查模板
-  b_round_check: "templates/B_ROUND_CHECK_TEMPLATE.md"
-
-# 质量标准
-quality:
-  # 测试覆盖率目标
-  coverage_target: 80
-  # 通过率目标
-  pass_rate_target: 95
-  # 回归测试要求
-  regression_required: true
-  # 文档更新要求
-  doc_update_required: true
-
-# 验收标准
-acceptance:
-  # 所有P0和P1问题必须修复
-  critical_and_high_fixed: true
-  # 核心功能测试100%通过
-  core_tests_passed: true
-  # 无回归问题
-  no_regression: true
-  # 文档已更新
-  docs_updated: true

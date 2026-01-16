@@ -22,6 +22,14 @@
 - 批判性分析能发现"本质问题"（如为什么需要两个配置？日志策略是否合理？）
 - 项目级测试的核心价值在于**系统视角和架构洞察**，而非替代 linter
 
+**必读（建议每轮 A 轮先过一遍）**：
+- `references/CRITICAL_THINKING_GUIDE.md`：批判性思维框架（含“刁钻角度/边缘情况/恶意输入”）
+- `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`：建设性建议标准（可执行/有证据/可验证）
+- `references/ANTI_PATTERNS_LIBRARY.md`：反例库（快速识别常见反模式）
+
+**独立评估提醒**：
+- A 轮默认不查看历史 `plans/` 与 `tests/`，避免确认偏差；只基于当前项目状态做“重新审视”。
+
 ---
 
 # 技巧 0: 批判性分析框架（系统视角）⭐️ 优先使用

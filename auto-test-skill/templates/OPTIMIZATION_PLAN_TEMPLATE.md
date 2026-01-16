@@ -7,6 +7,25 @@
 
 ---
 
+## 独立评估与审查范围（强制）
+
+- [ ] 本轮基于目标 skill 的**当前工作状态**独立评估
+- [ ] **未查看**历史轮次的 `plans/` 与 `tests/`（计划阶段不依赖历史产物，避免确认偏差/路径依赖）
+
+**必须审查文件**（参考 `config.yaml:a_round_check.independent_review.required_files`）：
+- `SKILL.md` / `config.yaml`
+
+**必须审查目录**（参考 `config.yaml:a_round_check.independent_review.required_dirs`）：
+- `scripts/` / `references/` / `templates/` / `assets/`
+
+**排除范围**：`plans/`、`tests/`、`README.md`、`CHANGELOG.md` 以及 `exclude_patterns` 命中的文件。
+
+**扫描/审查证据（建议填入命令）**：
+- `rg -n \"...\" ...`
+- `find ...`
+
+---
+
 ## 问题清单（按优先级）
 
 > 每个问题至少包含：位置（文件:行号）、影响、修复方式、验证方法。
@@ -46,7 +65,6 @@
 
 ## 本轮轻量测试
 
-- 会话目录：`tests/{{TEST_ID}}/`
-- 测试计划：`tests/{{TEST_ID}}/TEST_PLAN.md`
-- 测试报告：`tests/{{TEST_ID}}/TEST_REPORT.md`
-
+- 会话目录：`{{SESSION_DIR_REL}}/`
+- 测试计划：`{{TEST_PLAN_REL}}`
+- 测试报告：`{{TEST_REPORT_REL}}`

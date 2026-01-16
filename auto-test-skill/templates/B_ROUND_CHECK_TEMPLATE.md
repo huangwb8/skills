@@ -1,4 +1,4 @@
-# B轮质量检查报告（七大质量原则）
+# B轮质量检查报告（质量原则检查）
 
 **检查ID**: B轮-{{TEST_ID}}
 **检查时间**: {{CHECK_TIME}}
@@ -18,7 +18,8 @@
 | 过度设计检查 | ✅ / ⚠️ / ❌ | {{NOTE_4}} |
 | 通用性检查 | ✅ / ⚠️ / ❌ | {{NOTE_5}} |
 | 一致性检查 | ✅ / ⚠️ / ❌ | {{NOTE_6}} |
-| SKILL.md瘦身检查 | ✅ / ⚠️ / ❌ | {{NOTE_7}} |
+| 配置集中化检查 | ✅ / ⚠️ / ❌ | {{NOTE_7}} |
+| SKILL.md瘦身检查 | ✅ / ⚠️ / ❌ | {{NOTE_8}} |
 
 ---
 
@@ -421,7 +422,7 @@ processing:
   - 文档中提到的配置项在 config.yaml 中存在
   - 文档中提到的路径、模板在 config.yaml 中定义且路径正确
   - config.yaml 中的配置项在文档中都有说明
-- **README.md 与 SKILL.md 一致**：
+- **README.md 与 SKILL.md 一致**（B 轮额外检查）：
   - README 中的示例与 SKILL.md 中的工作流一致
   - README 中的触发方式与 YAML `description` 一致
 - **术语一致**：同一概念在所有文件中使用相同的术语
@@ -621,6 +622,171 @@ v202601141900
 
 ---
 
+## 7. 配置集中化检查
+
+**状态**: ✅ / ⚠️ / ❌
+
+### 核心原则
+**精确端（config.yaml）与模糊端（工作文档）完全分离**。所有可配置参数必须集中在 `config.yaml` 作为单一真相来源，工作文档仅引用配置，不硬编码任何值。
+
+### 判断标准
+
+#### ✅ 配置集中化良好
+- **config.yaml 是唯一参数来源**：所有阈值、路径、选项、超时、重试次数等可配置参数都定义在 `config.yaml` 中
+- **scripts/ 仅读取配置**：脚本通过加载 `config.yaml` 获取参数，不硬编码任何魔法数字或路径
+- **SKILL.md 仅引用配置**：文档中提及参数时，仅说明"参考 config.yaml 中的 `xxx` 选项"，不直接写出具体值
+- **无参数分散**：不存在"同一个参数在多个文件中重复定义"的情况
+- **无硬编码常量**：代码和文档中不存在 `MAX_RETRY = 3`、`TIMEOUT = 30` 这类硬编码（除非是真正的数学/物理常数）
+
+#### ⚠️ 存在配置分散信号
+- 部分参数在 `config.yaml` 中定义，但部分参数硬编码在 `scripts/` 中
+- SKILL.md 中写死了参数值（如"最大重试 3 次"），而非引用 `config.yaml`
+- 修改参数需要同时修改多个文件
+- 不同环境/用户使用时，需要修改代码而非仅修改配置
+
+#### ❌ 严重配置分散问题
+- 完全没有 `config.yaml`，所有参数硬编码在代码和文档中
+- 存在 `config.yaml` 但内容为空或仅有少量配置，大量参数仍硬编码
+- 同一参数在多个文件中有不同的值（如文档说"默认 3 次"，代码写的是 5 次）
+- 脚本中存在大量魔法数字且无注释说明来源
+
+### 典型反例
+
+**反例1**：参数硬编码在脚本中
+```python
+# scripts/process.py - 错误做法
+MAX_RETRIES = 3  # 硬编码
+TIMEOUT = 30     # 硬编码
+OUTPUT_DIR = "./output"  # 硬编码
+
+def process_file(file):
+    for i in range(MAX_RETRIES):  # 应该从 config.yaml 读取
+        ...
+```
+**问题**：修改参数需要改代码，且无法针对不同环境提供不同配置
+
+**正确做法**：
+```python
+# scripts/process.py - 正确做法
+import yaml
+
+def load_config():
+    with open('config.yaml', 'r') as f:
+        return yaml.safe_load(f)
+
+config = load_config()
+MAX_RETRIES = config.get('max_retries', 3)
+TIMEOUT = config.get('timeout', 30)
+OUTPUT_DIR = config.get('output_dir', './output')
+```
+
+**反例2**：文档中写死参数值
+```markdown
+# SKILL.md - 错误做法
+## 配置说明
+本技能最大重试 3 次，超时时间 30 秒。
+```
+**问题**：修改 config.yaml 后，文档仍然显示旧的默认值
+
+**正确做法**：
+```markdown
+# SKILL.md - 正确做法
+## 配置说明
+重试次数和超时时间请参考 `config.yaml` 中的 `max_retries` 和 `timeout` 选项。
+```
+
+**反例3**：同一参数多处定义且不一致
+```python
+# scripts/process.py
+MAX_RETRIES = 3
+```
+```markdown
+# README.md
+默认最大重试次数：5 次
+```
+```yaml
+# config.yaml
+max_retries: 5
+```
+**问题**：文档与代码不一致，用户会困惑
+
+### 改进方向
+- 将所有可配置参数提取到 `config.yaml`，提供合理的默认值
+- 脚本启动时加载 `config.yaml`，使用 `config.get('key', default_value)` 模式读取参数
+- 文档中仅说明参数的含义和位置，不写出具体值
+- 使用环境变量或配置文件覆盖机制，支持不同环境的配置需求
+
+### 检查方法（建议）
+```bash
+# 搜索脚本中的硬编码数字
+rg "(?<=MAX_RETRIES|TIMEOUT|DELAY)\s*=\s*\d+" scripts/
+
+# 搜索硬编码路径
+rg "(?<=path|dir|file)\s*=\s*[\"'][\w/]+[\"']" scripts/
+
+# 搜索 SKILL.md 中的具体数值
+rg "\d+\s*(次|秒|分钟|字节)" SKILL.md
+
+# 对比 config.yaml 和脚本中的变量名
+rg "config\.get\(" scripts/ | grep -oP 'get\(\K[^\)]+' | sort -u
+```
+
+### 本轮发现
+- {{FINDING_7}}
+
+### 改进建议
+- {{SUGGESTION_7}}
+
+---
+
+## 8. SKILL.md 瘦身检查
+
+**状态**: ✅ / ⚠️ / ❌
+
+### 核心原则
+**遵循渐进披露原则**。SKILL.md 应保持简洁，只包含 AI 执行所需的核心信息；详细内容应模块化到 `references/`。
+
+### 判断标准
+
+#### ✅ SKILL.md 瘦身良好
+- **行数合理**：SKILL.md 不超过 300 行（建议阈值，可根据复杂度调整）
+- **核心内容保留**：工作流概览、输入输出、关键步骤、验证标准
+- **详细内容已模块化**：详细策略、标准、模板、示例已移至 `references/`
+- **配置说明已分离**：配置项的详细说明已移至 `config.yaml` 注释
+- **技术细节已下沉**：实现逻辑、参数说明已移至 `scripts/` 注释或 README
+
+#### ⚠️ 存在臃肿信号
+- SKILL.md 超过 300-400 行
+- 包含大量详细的策略说明（可独立为文档）
+- 包含完整的模板内容（可移至 `assets/` 或 `references/`）
+- 包含冗长的配置项说明（可移至 `config.yaml` 注释）
+- 包含详细的技术实现细节（可移至脚本注释或 README）
+
+#### ❌ 严重臃肿问题
+- SKILL.md 超过 500 行
+- 包含多个完整的模板文件内容
+- 包含大量配置项的详细说明（每个配置项一段说明）
+- 包含详细的技术架构和实现细节
+- `references/` 目录几乎为空，但 SKILL.md 非常长
+
+### 渐进披露策略
+
+| 内容类型 | 保留位置 | 示例 |
+|---------|---------|------|
+| **核心工作流** | SKILL.md | 概览、输入输出、关键步骤、验证标准 |
+| **详细模板** | references/ 或 assets/ | 完整的 A 轮计划结构、B 轮检查清单 |
+| **技术实现细节** | scripts/ 注释或 README | 实现逻辑、参数说明、算法细节 |
+| **配置说明** | config.yaml 注释 | 参数含义、默认值、使用示例 |
+| **详细策略/标准** | references/ | 质量原则、最佳实践、设计决策 |
+
+### 本轮发现
+- {{FINDING_8}}
+
+### 瘦身建议
+- {{SUGGESTION_8}}
+
+---
+
 ## 改进建议汇总（按优先级）
 
 ⚠️ **数量要求**：B 轮必须提出至少 10-20 个建设性建议（P0 + P1 + P2 总和）
@@ -742,8 +908,9 @@ v202601141900
 | 过度设计检查 | {{SCORE_4}} | 15 | {{REASON_4}} |
 | 通用性检查 | {{SCORE_5}} | 10 | {{REASON_5}} |
 | 一致性检查 | {{SCORE_6}} | 15 | {{REASON_6}} |
-| SKILL.md瘦身检查 | {{SCORE_7}} | 10 | {{REASON_7}} |
-| **总分** | **{{TOTAL_SCORE}}** | **100** | |
+| 配置集中化检查 | {{SCORE_7}} | 15 | {{REASON_7}} |
+| SKILL.md瘦身检查 | {{SCORE_8}} | 10 | {{REASON_8}} |
+| **总分** | **{{TOTAL_SCORE}}** | **115** | |
 
 ### 评分标准
 - **90-100 分**：优秀（生产就绪）
@@ -754,4 +921,3 @@ v202601141900
 ### 与上轮对比
 - 上轮得分：{{PREV_SCORE}}（如有）
 - 本轮进步：{{IMPROVEMENT}}
-

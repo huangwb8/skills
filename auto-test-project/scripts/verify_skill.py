@@ -19,10 +19,15 @@ REQUIRED_FILES = [
     "templates/B_ROUND_CHECK_TEMPLATE.md",
     "templates/TEST_PLAN_TEMPLATE.md",
     "templates/TEST_REPORT_TEMPLATE.md",
+    "references/A_ROUND_PLAN_TEMPLATE.md",
     "references/FAQ.md",
     "references/PROJECT_TESTING_BEST_PRACTICES.md",
     "references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md",
+    "references/CRITICAL_THINKING_GUIDE.md",
+    "references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md",
+    "references/ANTI_PATTERNS_LIBRARY.md",
     "references/EXAMPLE_STRICT_MINIMAL.md",
+    "references/EXAMPLE_TEST_REPORT.md",
 ]
 
 
@@ -100,12 +105,12 @@ def main() -> int:
 
     skill_md = (skill_root / "SKILL.md").read_text(encoding="utf-8", errors="replace")
     readme_md = (skill_root / "README.md").read_text(encoding="utf-8", errors="replace")
-    for needle in ["references/FAQ.md", "references/EXAMPLE_STRICT_MINIMAL.md"]:
+    for needle in ["references/FAQ.md", "references/EXAMPLE_STRICT_MINIMAL.md", "references/CRITICAL_THINKING_GUIDE.md"]:
         if needle not in skill_md and needle not in readme_md:
             failures.append(f"docs missing reference to {needle} (expected in SKILL.md or README.md)")
 
     config_text = (skill_root / "config.yaml").read_text(encoding="utf-8", errors="replace")
-    for key in ["skill_info:", "test_rounds:", "b_round_check:", "verification:"]:
+    for key in ["skill_info:", "test_rounds:", "a_round_check:", "b_round_check:", "verification:"]:
         if key not in config_text:
             failures.append(f"config.yaml missing key block: {key}")
 
@@ -145,7 +150,20 @@ def main() -> int:
             )
 
         b_create = _run(
-            [sys.executable, str(skill_root / "scripts/create_test_session.py"), "--project-root", str(dummy_root), "--kind", "b", "--id", b_id, "--create-plan", "--overwrite"],
+            [
+                sys.executable,
+                str(skill_root / "scripts/create_test_session.py"),
+                "--project-root",
+                str(dummy_root),
+                "--kind",
+                "b",
+                "--id",
+                b_id,
+                "--a-test-id",
+                a_id,
+                "--create-plan",
+                "--overwrite",
+            ],
             cwd=skill_root,
         )
         if b_create.returncode != 0:
@@ -154,7 +172,7 @@ def main() -> int:
             failures.extend(
                 _assert_placeholders_replaced(
                     dummy_root / "plans" / f"B轮-{b_id}.md",
-                    keys=["SESSION_NAME", "PLAN_TIME", "PROJECT_NAME", "PROJECT_ROOT", "PROJECT_TYPE", "TEST_ID"],
+                    keys=["SESSION_NAME", "PLAN_TIME", "PROJECT_NAME", "PROJECT_ROOT", "PROJECT_TYPE", "A_TEST_ID"],
                 )
             )
 

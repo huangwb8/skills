@@ -1,20 +1,21 @@
 ---
 name: auto-test-skill
-version: 2.2.0
+version: 2.3.0
 category: normal
 description: |
-  自动化测试驱动优化技能 - 用于在技能/项目迭代时，通过多轮 A 轮批判性测试 + B 轮质量检查（七大原则），
+  自动化测试驱动优化技能 - 用于在技能/项目迭代时，通过多轮 A 轮批判性测试 + B 轮质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准），
   系统化发现、记录、修复问题，并沉淀可追溯的 `plans/` 与 `tests/` 文档。
 
   **核心能力**:
   - 支持多轮 A 轮迭代：分析 → 计划 → 优化 → 轻量测试（可重复 N 次）
+  - **独立评估模式**：每轮 A 轮基于当前状态独立审查，不查看历史 `plans/`/`tests/`，降低确认偏差
   - **批判性思维驱动**：强制使用"刁钻角度"思考，每轮至少 3 个系统性问题（架构/过度设计/一致/安全）
   - **强制质量要求**：每轮 A 轮至少 10 个问题（鼓励 15-20 个），P0+P1 占比 ≥ 60%，B 轮至少 10-20 个建议
-  - A 轮结束后执行 B 轮质量检查：七大质量原则全覆盖
+  - A 轮结束后执行 B 轮质量原则检查：维度以 `config.yaml:b_round_check.dimensions` 为准（当前为 8 项）
   - 规范化测试会话命名：`vYYYYMMDDHHMM`
   - 将每轮产出固化为文档与目录（可追溯、可复现、可复盘）
 metadata:
-  short-description: 批判性思维驱动的测试驱动优化流水线（多轮 A 轮 + B 轮质量检查）
+  short-description: 批判性思维驱动的测试驱动优化流水线（多轮 A 轮 + B 轮质量原则检查）
   keywords:
     - testing
     - QA
@@ -33,16 +34,18 @@ metadata:
 
 本 skill 的交付不是“口头建议”，而是一组可追溯的文件：
 
+（目录位置以 `config.yaml:directories` 为准；默认 `plans/` + `tests/`）
+
 - `plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划（每轮 1 份）
 - `tests/vYYYYMMDDHHMM/`：A 轮测试会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
-- `plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告（六大质量原则）
+- `plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量原则检查报告（维度以 `config.yaml:b_round_check.dimensions` 为准）
 - `tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
 
 ## 目录与命名规范
 
 - 测试会话 ID：`vYYYYMMDDHHMM`（分钟级时间戳）
-- 规划文档：放在 `plans/`
-- 测试会话：放在 `tests/`
+- 规划文档：默认放在 `plans/`（以 `config.yaml:directories.plans` 为准）
+- 测试会话：默认放在 `tests/`（以 `config.yaml:directories.tests` 为准）
 - B 轮统一加前缀：`B轮-`
 
 ## 工作流程
@@ -54,7 +57,7 @@ metadata:
   ↓
 [A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-B轮：六大质量原则检查 → 针对性优化 → 轻量验证
+B轮：质量原则检查 → 针对性优化 → 轻量验证
   ↓
 完成（文档齐全 + 问题闭环）
 ```
@@ -74,6 +77,10 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 # 方式2：在任意位置执行（--skill-root 指向目标 skill 根目录）
 python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --id vYYYYMMDDHHMM --create-plan
 ```
+
+说明：
+- 脚本会优先使用目标 skill 的 `templates/`（如存在）；否则回退到 auto-test-skill 自带的 `templates/`，确保对任意 skill 都可用。
+- `--id` 可省略（脚本自动生成 `vYYYYMMDDHHMM`）；如显式指定，必须为 `vYYYYMMDDHHMM` 格式。
 
 最低要求：
 - `plans/` 与 `tests/` 存在
@@ -99,10 +106,17 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 - **系统性问题 ≥ 3 个**（架构设计/过度设计/一致性/安全性）
 
 **核心要求**：
-- **全局意识**：明确本轮在优化 journey 中的位置（首轮/中间/收尾）
+- **独立评估原则**（强制）：
+  - 每轮 A 轮必须基于目标 skill 的**当前工作状态**独立分析
+  - **不查看**上轮的 `plans/` 和 `tests/` 文件，避免"确认偏差"与"路径依赖"
+  - 每轮都是一次完整的、无偏见的系统性审查
+- **审查范围**（强制）：
+  - 必须审查：`SKILL.md`、`config.yaml`（核心工作文件）
+  - 必须审查目录：`scripts/`、`references/`、`templates/`、`assets/`（如不存在可在计划中说明）
+  - 排除范围：`tests/`、`plans/`、`CHANGELOG.md`、`README.md`（测试产物、变更记录和用户文档，不属于 skill 的工作代码），以及 `config.yaml` 中 `a_round_check.independent_review.exclude_patterns` 命中的文件
+  - 审查方法：使用 Glob/Read/Grep（如 `rg`/`find`）对工作文件做全量扫描，确保不遗漏
 - **批判性聚焦**：每轮选择 1-2 个聚焦维度（系统架构/过度设计/一致性/安全性/边缘情况/用户体验）
 - **刁钻角度**：必须使用至少一个刁钻角度（边缘情况/恶意输入/隐式假设/自我质疑/跨文件矛盾）
-- **上下文连贯**：说明与上轮的关联，避免孤立的问题清单
 - **优先级依据**：P0/P1/P2 必须有明确的判定标准
   - P0: 阻塞性问题、安全风险、核心功能缺失、架构设计缺陷
   - P1: 重要优化（过度设计/冗余/不一致）、功能增强、测试覆盖不足
@@ -131,6 +145,12 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 - 每条结论必须有可复现证据（命令输出、文件、对比结果）
 - 中间产物放入 `tests/vYYYYMMDDHHMM/_artifacts/`，不污染主目录
 
+可选增强（推荐，确定性自检）：
+
+```bash
+python3 auto-test-skill/scripts/verify_test_session.py --require-plan tests/vYYYYMMDDHHMM
+```
+
 #### A.4 是否进入下一轮
 
 ⚠️ **强制检查**（必须满足才能进入下一轮）：
@@ -139,12 +159,13 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 
 **进入下一轮 A 轮的条件**（在满足强制检查的前提下）：
 - [ ] 用户指定的轮次数未完成
-- [ ] 仍存在未解决的 P0 / P1
-- [ ] 轻量测试报告中出现阻塞性失败
+- [ ] 本轮问题（P0/P1/P2）已全部闭环：修复完成，并在 `tests/` 会话的 `TEST_REPORT.md` 中给出验证证据
+
+注意：每轮 A 轮都是独立评估，不因“问题已解决”而提前终止；如用户指定 N 轮，则按 N 轮执行。
 
 **重要**：A 轮结束后（无论多少轮），必须进入 B 轮质量检查，不得跳过。
 
-### B 轮质量检查（七大质量原则）
+### B 轮质量原则检查（当前 8 项）
 
 ⚠️ **强制执行**：B 轮质量检查是自动测试流程的强制性环节，除非用户明确要求跳过，否则不得省略。
 
@@ -161,34 +182,44 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 - 过度设计检查
 - 通用性检查
 - 一致性检查
-- **SKILL.md 瘦身检查**（新增）：检查 SKILL.md 是否过于冗长，应将详细内容模块化到 `references/`
+- **配置集中化检查**（新增）：检查精确端（config.yaml）与模糊端（工作文档）是否完全分离，确保所有可配置参数集中在 config.yaml 作为单一真相来源
+- SKILL.md 瘦身检查：检查 SKILL.md 是否过于冗长，应将详细内容模块化到 `references/`
 
 模板：`templates/B_ROUND_CHECK_TEMPLATE.md`
 
 #### B.2 B 轮优化与验证（写入 tests/）
 
 ⚠️ **强制修复要求**：
-- B 轮发现的 **所有 P0 问题必须修复**
-- B 轮发现的 **所有 P1 问题必须修复或有明确的"不修复"理由**
+- B 轮发现的 **所有 P0-P2 问题都必须处理**（修复或明确说明不修复理由）
+- P0 问题必须修复
+- P1 问题必须修复（除非有合理理由）
+- P2 问题应尽可能修复
 - 每个修复必须有验证证据（命令输出、文件对比、测试结果）
 - 修复后必须更新 `CHANGELOG.md`
 
 **验证报告必须包含**：
-1. 修复清单：每个 P0/P1 问题的修复方案和证据
-2. 遗留问题：未修复的 P2 问题及原因
+1. 修复清单：每个 P0-P2 问题的修复方案和证据
+2. 遗留问题：未修复问题及原因（无论优先级）
 3. 变更记录：更新目标 skill 的 CHANGELOG.md
+
+可选增强（推荐，确定性自检）：
+
+```bash
+python3 auto-test-skill/scripts/verify_test_session.py --require-plan tests/B轮-vYYYYMMDDHHMM
+```
 
 **完成条件**：
 - [ ] P0 问题修复率 = 100%
-- [ ] P1 问题修复率 ≥ 80%（或 100%，取决于问题严重性）
+- [ ] P1 问题修复率 = 100%（除非有合理的不修复理由）
+- [ ] P2 问题修复率 ≥ 60%（鼓励全部修复）
 - [ ] 所有修复都有可复现证据
 
-目标：对 B 轮发现的 P0/P1 进行针对性修复并验证。
+目标：对 B 轮发现的所有问题（P0-P2）进行系统性修复并验证。
 
 推荐创建独立会话目录：
 
 ```bash
-python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . --kind b --id vYYYYMMDDHHMM --create-plan
+python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM --create-plan
 ```
 
 输出：`tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
@@ -201,7 +232,7 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 - [ ] **每轮 P0 + P1 占比 ≥ 60%**（确保问题有价值）
 - [ ] **每轮系统性问题 ≥ 3 个**（架构/过度设计/一致/安全）
 - [ ] 关键问题（P0/P1）已闭环：计划 → 修复 → 证据 → 结论
-- [ ] B 轮 P0 问题修复率 = 100%，P1 问题修复率 ≥ 80%
+- [ ] B 轮 P0 问题修复率 = 100%，P1 问题修复率 = 100%（或在报告中逐条说明不修复理由）
 - [ ] `plans/` 与 `tests/` 结构完整且可追溯
 - [ ] 目标 skill 的 `CHANGELOG.md` 已更新
 
@@ -223,3 +254,4 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
   - 问题挖掘技巧：`references/ISSUE_DISCOVERY_TECHNIQUES.md`
   - 反例库：`references/ANTI_PATTERNS_LIBRARY.md`
 - 辅助脚本：`scripts/create_test_session.py`
+- 辅助脚本：`scripts/verify_test_session.py`

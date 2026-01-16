@@ -7,6 +7,75 @@ import sys
 from pathlib import Path
 
 
+def _strip_inline_comment(value: str) -> str:
+    if "#" not in value:
+        return value
+    return value.split("#", 1)[0].rstrip()
+
+
+def _parse_simple_yaml_sections(text: str, *, wanted_sections: set[str]) -> dict[str, dict[str, str]]:
+    result: dict[str, dict[str, str]] = {}
+    current: str | None = None
+    for raw in text.splitlines():
+        line = raw.rstrip("\n")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        if not line.startswith(" ") and line.endswith(":"):
+            section = line[:-1].strip()
+            current = section if section in wanted_sections else None
+            continue
+
+        if current is None:
+            continue
+
+        if line.startswith("  ") and ":" in line:
+            key, value = line.split(":", 1)
+            key = key.strip()
+            value = _strip_inline_comment(value.strip())
+            if not value:
+                continue
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+            result.setdefault(current, {})[key] = value
+
+    return result
+
+
+def _safe_rel_path(value: str, *, default: str) -> str:
+    if not value:
+        return default
+    p = Path(value)
+    if p.is_absolute() or ".." in p.parts:
+        return default
+    return value
+
+
+def _load_directories_from_skill_config() -> dict[str, str]:
+    skill_root = Path(__file__).resolve().parent.parent
+    config_path = skill_root / "config.yaml"
+    if not config_path.exists():
+        return {}
+
+    text = config_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        import yaml  # type: ignore
+    except Exception:
+        data = _parse_simple_yaml_sections(text, wanted_sections={"directories"})
+        return data.get("directories") or {}
+
+    try:
+        obj = yaml.safe_load(text) or {}
+    except Exception:
+        data = _parse_simple_yaml_sections(text, wanted_sections={"directories"})
+        return data.get("directories") or {}
+
+    v = obj.get("directories")
+    if isinstance(v, dict):
+        return {str(k): str(vv) for k, vv in v.items() if isinstance(vv, (str, int, float))}
+    return {}
+
+
 def _run_verify(
     *,
     project_root: Path,
@@ -27,7 +96,9 @@ def _run_verify(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify all test sessions under <project_root>/tests.")
+    parser = argparse.ArgumentParser(
+        description="Verify all test sessions under <project_root>/<tests_dir> (tests_dir defaults to config.yaml:directories.tests)."
+    )
     parser.add_argument("--project-root", default=".", help="Project root containing tests/ and scripts/ (default: .).")
     parser.add_argument(
         "--require-plan",
@@ -42,8 +113,9 @@ def main() -> int:
     args = parser.parse_args()
 
     project_root = Path(args.project_root).expanduser().resolve()
-    tests_dir = project_root / "tests"
-    plans_dir = project_root / "plans"
+    dirs = _load_directories_from_skill_config()
+    tests_dir = project_root / _safe_rel_path(dirs.get("tests", ""), default="tests")
+    plans_dir = project_root / _safe_rel_path(dirs.get("plans", ""), default="plans")
     if not tests_dir.exists():
         print(f"error: missing tests dir: {tests_dir}", file=sys.stderr)
         return 2
@@ -85,4 +157,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

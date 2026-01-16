@@ -1,13 +1,15 @@
 ---
 name: auto-test-project
-version: 1.2.0
+version: 1.3.0
 category: normal
 description: |
   项目级自动化测试驱动优化技能 - 用于对完整项目（如 skill、workflow、或类似 init-project 定义的流程项目）进行持续性 AI 优化。
 
   **核心能力**:
   - 支持多轮 A 轮迭代：分析 → 计划 → 优化 → 轻量测试（可重复 N 次）
-  - A 轮结束后执行 B 轮质量检查：项目级七大质量原则全覆盖
+  - **独立评估模式**：每轮 A 轮默认不查看历史 `plans/`/`tests/`，基于当前项目状态独立审查，降低确认偏差（口径以 `config.yaml:a_round_check.independent_review` 为准）
+  - **批判性思维门槛**：每轮至少 3 个系统性问题（架构/过度设计/一致/安全等），且 P0+P1 占比 ≥ 60%（口径以 `config.yaml:test_rounds.*` 为准）
+  - A 轮结束后执行 B 轮质量检查：维度以 `config.yaml:b_round_check.dimensions` 为准
   - 规范化测试会话命名：`vYYYYMMDDHHMM`
   - 将每轮产出固化为文档与目录（可追溯、可复现、可复盘）
   - 项目级优化：从单个 skill 扩展到完整项目（多文件、多模块、跨目录）
@@ -79,7 +81,7 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/vY
 
 - `plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划（每轮 1 份）
 - `tests/vYYYYMMDDHHMM/`：A 轮测试会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
-- `plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告（七大质量原则）
+- `plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告（维度以 `config.yaml:b_round_check.dimensions` 为准）
 - `tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
 
 ## 目录与命名规范
@@ -100,7 +102,7 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/vY
   ↓
 [A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-B轮：项目级七大质量原则检查 → 针对性优化 → 轻量验证
+B轮：质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准） → 针对性优化 → 轻量验证
   ↓
 完成（文档齐全 + 问题闭环 + 项目 CHANGELOG.md 已更新）
 ```
@@ -162,12 +164,18 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 
 **⚠️ 质量要求**（批判性思维门槛）：
 - 每轮至少有 **1-2 个痛点级问题**（架构级/设计级问题，非表面问题）
+- 每轮至少有 **3 个系统性问题**（架构/过度设计/一致/安全等；项目级优先关注跨模块/跨文件矛盾）
 - 每轮问题类型分布推荐：痛点级 ~20%、隐患级 ~50%、噪音级 ~30%
 - **每个 P0/P1 问题必须包含批判性思维字段**（批判性质疑、根本原因、价值判断）
+- **P0 + P1 占比必须 ≥ 60%**（确保问题有价值；小项目可在计划中说明为何达不到）
 
 说明：默认口径以 `config.yaml:test_rounds.min_issues_per_round` 与 `config.yaml:test_rounds.target_issues_range` 为准。
 
 **核心要求**：
+- **独立评估原则**（默认启用，除非用户明确要求“沿上轮跟进修复”）：
+  - 每轮 A 轮基于目标项目的**当前工作状态**独立分析
+  - 默认**不查看**历史 `plans/` 与 `tests/`（避免确认偏差/路径依赖）
+  - 排除范围建议以 `config.yaml:a_round_check.independent_review.exclude_patterns` 为准（历史产物/缓存/依赖目录应排除）
 - **批判性思维优先**：**优先使用技巧 0（批判性分析框架）**，再辅以技术检查技巧（技巧 1-8）
   - 技巧 0.1：第一性原理思考（评估项目是否偏离核心目标）
   - 技巧 0.2：架构合理性质疑（评估模块划分、依赖方向、抽象层次）
@@ -185,9 +193,14 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 
 **详细结构模板**：`references/A_ROUND_PLAN_TEMPLATE.md`（包含"系统视角与批判性分析"章节）
 
+**批判性思维必读**：
+- `references/CRITICAL_THINKING_GUIDE.md` ⚠️ **核心文档，必须使用**
+- `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md` 建设性建议标准（避免“空洞建议/不可验证”）
+- `references/ANTI_PATTERNS_LIBRARY.md` 反例库（快速识别常见项目级反模式）
+
 **问题挖掘技巧**：`references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`
 - ⚠️ **强制要求**：每轮**必须使用技巧 0（批判性分析框架）**
-- ⚠️ **强烈建议**：每轮使用 3-5 个技巧组合（如技巧 0.1 + 0.2 + 技巧 1 跨模块一致性检查）
+  - ⚠️ **强烈建议**：每轮使用 3-5 个技巧组合（如技巧 0.1 + 0.2 + 技巧 1 跨模块一致性检查）
 
 **如首轮无明确问题列表**：先做静态检查与一致性检查，再给出问题清单。
 
@@ -286,7 +299,7 @@ python3 auto-test-project/scripts/verify_test_session.py tests/vYYYYMMDDHHMM
 
 **重要**：A 轮结束后（无论多少轮），必须进入 B 轮质量检查，不得跳过。
 
-### B 轮质量检查（项目级七大质量原则）
+### B 轮质量检查（维度以 config.yaml:b_round_check.dimensions 为准）
 
 ⚠️ **强制执行**：B 轮质量检查是项目级自动测试流程的强制性环节，除非用户明确要求跳过，否则不得省略。
 
@@ -300,7 +313,7 @@ python3 auto-test-project/scripts/verify_test_session.py tests/vYYYYMMDDHHMM
 - 建议数量：至少 10 条（P0+P1+P2，总和），目标范围 10-20
 - 修复率门槛：P0 = 100%，P1 ≥ 80%
 
-检查维度（以 `config.yaml` 的 `b_round_check.dimensions` 为准）：
+检查维度（以 `config.yaml:b_round_check.dimensions` 为准）：
 - 硬编码/AI 功能规划
 - 冗余残留错误检查
 - 安全性检查
@@ -308,6 +321,7 @@ python3 auto-test-project/scripts/verify_test_session.py tests/vYYYYMMDDHHMM
 - 通用性检查
 - 一致性检查
 - **项目指令文件瘦身检查**（新增）：检查 CLAUDE.md/AGENTS.md 等项目指令文件是否过于冗长，应将详细内容模块化到各模块的 `references/` 或 `docs/`
+- 配置集中化检查：检查可配置参数是否集中到配置文件作为单一真相来源，避免散落造成口径漂移
 
 模板：`templates/B_ROUND_CHECK_TEMPLATE.md`
 
@@ -317,8 +331,10 @@ python3 auto-test-project/scripts/verify_test_session.py tests/vYYYYMMDDHHMM
 
 推荐创建独立会话目录：
 
+建议显式提供 `--a-test-id`（对应 A 轮会话 ID），避免 B 轮文档中 A/B 关联被默认值误导。
+
 ```bash
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM
+python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM
 ```
 
 输出：`tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
@@ -355,7 +371,7 @@ done
 | **目标对象** | 单个 Agent Skill | 完整项目（多模块、多文件） |
 | **测试范围** | 单个 skill 目录 | 整个项目目录 |
 | **问题分析** | skill 级别（SKILL.md、config.yaml） | 项目级别（跨模块、跨文件） |
-| **质量检查** | skill 六大原则 | 项目级七大原则（扩展） |
+| **质量检查** | 维度以 `config.yaml:b_round_check.dimensions` 为准 | 维度以 `config.yaml:b_round_check.dimensions` 为准（项目级扩展） |
 | **输出位置** | 在 skill 内部创建 `plans/` 和 `tests/` | 在项目根目录创建 `plans/` 和 `tests/` |
 | **CHANGELOG** | 更新 skill 的 CHANGELOG.md | 更新项目的 CHANGELOG.md |
 
@@ -367,6 +383,9 @@ done
   - `references/FAQ.md`：常见问题（如何检测“假计划/空报告”、证据标准、避免会话污染等）
   - `references/PROJECT_TESTING_BEST_PRACTICES.md`：项目级测试最佳实践
   - `references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`：项目级问题挖掘技巧 ⚠️ 强烈建议每轮使用 3-5 个技巧组合
+  - `references/CRITICAL_THINKING_GUIDE.md`：批判性思维指南 ⚠️ A 轮必须使用
+  - `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`：建设性建议标准（可执行、可验证、有证据）
+  - `references/ANTI_PATTERNS_LIBRARY.md`：反例库（快速识别项目级反模式）
   - `references/EXAMPLE_STRICT_MINIMAL.md`：严格模式最小示例（P0-1 编号如何让计划-报告一致性检查落地）
   - `references/EXAMPLE_TEST_REPORT.md`：完整的测试报告示例（12 个问题，展示期望的输出质量）
 - 辅助脚本：

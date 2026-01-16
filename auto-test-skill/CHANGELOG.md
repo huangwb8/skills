@@ -5,7 +5,9 @@
 ## [Unreleased]
 
 ### Added（新增）
-
+- `scripts/verify_test_session.py`：确定性验证测试会话完整性（会话结构/关联计划/占位符残留/报告状态），支持 `--require-plan` 与自动发现 skill_root
+- **B 轮全覆盖修复机制**：B 轮优化与验证现在要求处理所有 P0-P2 问题（修复或说明不修复理由），确保所有发现的问题都有闭环处理
+- **B 轮第八质量原则：配置集中化检查**：新增"精确端（config.yaml）与模糊端（工作文档）完全分离"检查维度，确保所有可配置参数集中在 config.yaml 作为单一真相来源，提升 skill 可维护性
 - **批判性思维框架**：auto-test-skill 现在强制使用"刁钻角度"思考，确保发现系统性问题
 - `references/CRITICAL_THINKING_GUIDE.md`：批判性思维指南（核心文档）
   - 框架 1: 系统视角思考（架构设计/过度设计/一致性）
@@ -15,32 +17,74 @@
 - `config.yaml`：
   - 新增 `test_rounds.min_p0_p1_ratio: 60`（A 轮 P0+P1 最小占比）
   - 新增 `test_rounds.min_systemic_issues: 3`（A 轮系统性问题最小数量）
+  - 新增 `a_round_check.independent_review`（A 轮独立评估配置：审查范围 + 排除范围）
 
 ### Changed（变更）
 
+- 版本升级：2.2.2 → 2.3.0（新增会话验证脚本、配置瘦身、脚本安全/可用性增强）
+- `scripts/create_test_session.py`：
+  - 新增 `--a-test-id`（B 轮记录对应 A 轮会话 id，并替换 B 轮模板的 `A_TEST_ID`）
+  - 为 `TEST_PLAN_TEMPLATE.md` 的常用占位符提供默认值，避免残留 `{{...}}`
+  - 会话/计划模板中不再硬编码 `tests/` 路径（通过 `SESSION_DIR_REL/TEST_PLAN_REL/TEST_REPORT_REL` 注入）
+  - 路径安全：拒绝 symlink 目录，并校验 plans/tests/session 解析后仍位于 `--skill-root`
+- `scripts/verify_test_session.py`：新增会话结构与一致性验证（可选但推荐）
+- `config.yaml`：
+  - 裁剪为“脚本读取 + 规划口径”的最小集合，并明确脚本仅解析 `directories.*` 与 `templates.*`
+  - `exclude_patterns` 增加 `tests/**` 与 `plans/**`（并保留旧写法兼容）
+- `templates/OPTIMIZATION_PLAN_TEMPLATE.md`：本轮轻量测试路径引用改为脚本注入，支持自定义 tests 目录
+- `SKILL.md`：
+  - 版本同步到 2.3.0
+  - A.3/B.2 增加 `verify_test_session.py` 推荐自检命令
+  - B 轮会话创建示例补充 `--a-test-id`
+- `README.md`：
+  - 更新 config 说明为“脚本读取范围 + 规划口径”，并补充版本更新顺序
+  - 补充 `verify_test_session.py` 最小用法示例
+- 版本升级：2.2.1 → 2.2.2（配置/文档一致性修复）
 - **核心定位升级**：从"自动化测试驱动优化技能"升级为"批判性思维驱动的测试优化技能"
+- **A 轮独立评估机制**：A 轮评估默认不查看 `plans/` 与 `tests/`，并强制声明审查范围（required_files/required_dirs）与排除范围（exclude_patterns），降低确认偏差、提升多轮价值
+- **create_test_session.py**：
+  - 对任意目标 skill 可用：优先使用目标 skill 的 `templates/`，否则回退到 auto-test-skill 自带模板
+  - 严格校验 `--id` 为 `vYYYYMMDDHHMM`（省略 `--id` 时自动生成），避免不规范会话目录
+  - `--kind` 支持 `A轮/B轮`（中文环境更自然）
+  - 会话元数据时间字段在同一时刻生成，避免边界条件不一致
 - **SKILL.md**：
+  - 版本升级：2.2.0 → 2.2.1
   - 版本升级：2.1.0 → 2.2.0
   - description：新增"批判性思维驱动"和"系统性问题"关键词
   - A.2 章节：从"问题分析与计划生成"重构为"批判性分析与计划生成"
   - A.2 章节：新增"批判性思维是核心要求"警告（不是可选项）
   - A.2 章节：新增"质量要求"（P0+P1 占比 ≥ 60%，系统性问题 ≥ 3 个）
+  - A.2 章节：新增"独立评估原则"与"审查范围"强制要求（不看 `plans/` 与 `tests/`）
   - A.2 章节：新增"批判性聚焦"和"刁钻角度"核心要求
   - A.2 章节：新增"批判性思维框架"必读文档列表（CRITICAL_THINKING_GUIDE.md 放在首位）
+  - A.4 章节：进入下一轮条件改为“本轮问题闭环 + 用户轮次数未完成”，并明确“每轮独立评估，不因问题已解决提前终止”
   - 完成条件：新增"P0+P1 占比 ≥ 60%"和"系统性问题 ≥ 3 个"验收标准
   - 可复用资源：突出 CRITICAL_THINKING_GUIDE.md 为核心文档
 - **references/A_ROUND_PLAN_TEMPLATE.md**：大幅简化（从 200+ 行简化为核心结构）
-  - 第一部分：全局视图（聚焦维度 + 与上轮关联）
+  - 第一部分：独立评估与审查范围（不看 plans/tests + required_files/required_dirs）
   - 第二部分：批判性思维分析（刁钻角度 + 系统性问题）⚠️ 新增
   - 第三部分：问题清单（P0-P2，明确质量要求）
   - 第四部分：问题质量检查（9 条强制检查）⚠️ 新增
+- **templates/OPTIMIZATION_PLAN_TEMPLATE.md**：补齐 A 轮独立评估与审查范围章节，避免仅列问题而遗漏“范围覆盖/排除范围”声明
+- **README.md**：补齐 A 轮独立评估说明与配置项索引，统一 B 轮为“七大质量原则”，并补充脚本模板回退说明
 - **config.yaml**：
   - skill_info.version: 2.1.0 → 2.2.0
+  - skill_info.version: 2.2.0 → 2.2.1
   - skill_info.description: 更新为"批判性思维驱动的测试优化技能"
   - test_rounds: 新增质量门槛配置（min_p0_p1_ratio, min_systemic_issues）
+  - skill_info.description: 补充 A 轮“独立评估”口径
+
+- **测试会话**：
+  - A 轮验证会话：`tests/v202601162213/`
+  - B 轮验证会话：`tests/B轮-v202601162227/`
 
 ### Fixed（修复）
 
+- 修复 A 轮计划模板对 tests 目录的硬编码：现在会正确引用自定义 `directories.tests`
+- 修复 B 轮计划模板关键字段 `A_TEST_ID` 无法自动替换的问题（新增 `--a-test-id`）
+- 修复 B 轮“七大/八大”口径漂移：统一为“质量原则检查”，并明确以 `config.yaml:b_round_check.dimensions` 为准
+- 修复 B 轮 P1 修复率阈值规则冲突：将 `config.yaml:b_round_check.p1_fix_rate_required` 统一为 100%，并同步更新 `auto-test-skill/SKILL.md` 验收口径
+- 修复 `scripts/create_test_session.py` 的“伪配置”风险：脚本现在会读取 `config.yaml` 中的 `directories.*` 与 `templates.*`（缺失/解析失败时回退默认值），并统一使用正斜杠展示路径
 - 修复"问题挖掘技巧"未强调的问题（现在通过 CRITICAL_THINKING_GUIDE.md 强制使用）
 - 修复 A 轮模板过于复杂导致 AI 选择性忽略的问题（大幅简化，突出核心要求）
 - 修复缺乏"系统性问题"挖掘引导的问题（现在强制要求 ≥ 3 个系统性问题）
@@ -48,6 +92,7 @@
 ### Removed（移除）
 
 - 移除 A_ROUND_PLAN_TEMPLATE.md 中冗余的"修改步骤"和"轻量测试计划"章节（聚焦核心批判性思维）
+- `config.yaml`：移除未被引用的过度设计段落（test_session/priority/testing/reporting/quality/acceptance），降低误用
 
 ---
 
@@ -162,4 +207,3 @@
 
 - 更新 `auto-test-skill/config.yaml`：补充轮次、目录、B 轮检查维度与模板配置。
 - 重构 `auto-test-skill/SKILL.md` 与 `auto-test-skill/README.md`：统一输出交付与目录命名为 `plans/` + `tests/`，并改为 A/B 轮工作流描述。
-

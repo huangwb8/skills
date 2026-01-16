@@ -67,6 +67,7 @@ def _ignore_patterns():
         "test",
         "tests",
         "plans",
+        "agents",  # 跳过内部子技能目录（如 awesome-code/agents/）
     )
 
 
@@ -316,6 +317,9 @@ def _is_test_skill_dir(skill_dir: Path) -> bool:
 def _find_skill_dirs(skills_root: Path, exclude_names: set[str]) -> dict[str, list[Path]]:
     """发现所有技能目录并按类型分类。
 
+    只扫描顶级 skill 目录（即 skills_root 的直接子目录），跳过子目录中的 skill。
+    例如：awesome-code/agents/xxx 中的 SKILL.md 会被跳过。
+
     Returns:
         包含三个键的字典：
         - "normal": 普通技能列表（可安装）
@@ -329,11 +333,24 @@ def _find_skill_dirs(skills_root: Path, exclude_names: set[str]) -> dict[str, li
         SkillType.TEST: [],
     }
 
-    for skill_md in sorted(skills_root.rglob("SKILL.md")):
-        skill_dir = skill_md.parent
+    # 只扫描顶级目录（skills_root 的直接子目录）
+    for skill_dir in sorted(skills_root.iterdir()):
+        # 跳过排除的目录名
         if skill_dir.name in exclude_names:
             continue
-        # Skip hidden dirs just in case.
+        # 跳过隐藏目录
+        if skill_dir.name.startswith("."):
+            continue
+        # 跳过非目录
+        if not skill_dir.is_dir():
+            continue
+
+        # 检查是否是 skill 目录（包含 SKILL.md）
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            continue
+
+        # 跳过隐藏路径（以防万一）
         if any(part.startswith(".") for part in skill_dir.relative_to(skills_root).parts):
             continue
 

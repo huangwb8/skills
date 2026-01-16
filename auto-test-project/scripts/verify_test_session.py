@@ -21,16 +21,108 @@
     2 - 参数错误
 """
 
+from __future__ import annotations
+
 import sys
 import re
 import argparse
 from pathlib import Path
 from typing import List, Tuple
 
-# 配置常量
-MIN_REPORT_LENGTH = 500  # 报告最小字符数
 REQUIRED_FILES = ["TEST_PLAN.md", "TEST_REPORT.md"]
-MIN_ISSUE_COUNT = 10  # 最少问题数量（P0 + P1 + P2）
+
+
+def _strip_inline_comment(value: str) -> str:
+    if "#" not in value:
+        return value
+    return value.split("#", 1)[0].rstrip()
+
+
+def _parse_simple_yaml_sections(text: str, *, wanted_sections: set[str]) -> dict[str, dict[str, str]]:
+    """
+    Parse a minimal subset of YAML:
+    - top-level mapping keys (no indentation)
+    - one level nested key/value pairs under a wanted section (2+ spaces)
+    """
+    result: dict[str, dict[str, str]] = {}
+    current: str | None = None
+    for raw in text.splitlines():
+        line = raw.rstrip("\n")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        if not line.startswith(" ") and line.endswith(":"):
+            section = line[:-1].strip()
+            current = section if section in wanted_sections else None
+            continue
+
+        if current is None:
+            continue
+
+        if line.startswith("  ") and ":" in line:
+            key, value = line.split(":", 1)
+            key = key.strip()
+            value = _strip_inline_comment(value.strip())
+            if not value:
+                continue
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+            result.setdefault(current, {})[key] = value
+
+    return result
+
+
+def _safe_rel_path(value: str, *, default: str) -> str:
+    if not value:
+        return default
+    p = Path(value)
+    if p.is_absolute() or ".." in p.parts:
+        return default
+    return value
+
+
+def _load_skill_config() -> dict[str, dict[str, str]]:
+    skill_root = Path(__file__).resolve().parent.parent
+    config_path = skill_root / "config.yaml"
+    if not config_path.exists():
+        return {}
+
+    text = config_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        import yaml  # type: ignore
+    except Exception:
+        return _parse_simple_yaml_sections(text, wanted_sections={"directories", "verification"})
+
+    try:
+        data = yaml.safe_load(text) or {}
+    except Exception:
+        return _parse_simple_yaml_sections(text, wanted_sections={"directories", "verification"})
+
+    out: dict[str, dict[str, str]] = {}
+    for section in ("directories", "verification"):
+        v = data.get(section)
+        if isinstance(v, dict):
+            out[section] = {str(k): str(vv) for k, vv in v.items() if isinstance(vv, (str, int, float))}
+    return out
+
+
+_CFG = _load_skill_config()
+_CFG_DIRS = _CFG.get("directories") or {}
+_CFG_VER = _CFG.get("verification") or {}
+
+def _int_or(default: int, value: str | None) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+# Defaults (overrideable by CLI flags)
+MIN_REPORT_LENGTH = _int_or(500, _CFG_VER.get("min_report_length"))
+MIN_ISSUE_COUNT = _int_or(10, _CFG_VER.get("min_issue_count"))
+PLANS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("plans", ""), default="plans")
 
 def _read_text(path: Path) -> str:
     # Be tolerant to non-UTF8 files in real projects; verification should not crash.
@@ -84,9 +176,11 @@ def check_report_content(session_dir: Path, *, min_report_length: int) -> Tuple[
         r'（在此[处处]填入[^）]*）',
         r'（描述[^）]*）',
         r'（填入[^）]*）',
+        r'（待填写[^）]*）',
         r'\[TODO[^\]]*\]',
         r'\[待[^\]]*\]',
-        r'待[补充填写添加][^。。。]*。',
+        # Catch common variants even when punctuation is missing.
+        r'待(?:补充|填写|添加)(?:[^。\n]{0,80})',
     ]
 
     for pattern in placeholder_patterns:
@@ -165,7 +259,7 @@ def check_plan_report_consistency(
     # 尝试找到对应的 plan 文件
     session_name = session_dir.name
     project_root = session_dir.parent.parent
-    plan_file = project_root / "plans" / f"{session_name}.md"
+    plan_file = project_root / PLANS_DIRNAME / f"{session_name}.md"
 
     if not plan_file.exists():
         if require_plan:

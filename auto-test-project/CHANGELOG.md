@@ -71,6 +71,14 @@
   - 引用 `references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`
   - 引用 `references/EXAMPLE_TEST_REPORT.md`
 
+- **批判性思维/建设性建议/反模式资源补齐**：
+  - 新增 `references/CRITICAL_THINKING_GUIDE.md`、`references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`、`references/ANTI_PATTERNS_LIBRARY.md`，用于提升 A 轮问题质量与可执行性
+  - `references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md` 补充“必读/独立评估提醒”入口
+
+- **A 轮独立评估与质量门槛配置化**：
+  - `config.yaml` 新增 `a_round_check.independent_review.*` 与 `test_rounds.min_p0_p1_ratio/min_systemic_issues` 口径
+  - `SKILL.md` 与 `templates/OPTIMIZATION_PLAN_TEMPLATE.md` 同步强调独立评估与门槛（系统性问题/占比）
+
 ### Changed（变更）
 
 - `scripts/create_test_session.py`：**重大重构**
@@ -89,7 +97,7 @@
   - 包含：执行摘要、验证点执行情况、问题修复记录、问题修复统计、遗留问题、证据文件、下一步建议
   - 在模板末尾添加验证命令提示
 
-- 版本号升级为 `1.2.0`（`config.yaml: skill_info.version` 同步到 `SKILL.md` YAML frontmatter）
+- 版本号升级为 `1.3.0`（`config.yaml: skill_info.version` 同步到 `SKILL.md` YAML frontmatter）
 
 ### Technical Details（技术细节）
 
@@ -104,6 +112,13 @@
 - **计划与执行脱节问题**：通过 `check_plan_report_consistency()` 检测
 - **报告内容过短问题**：通过 `MIN_ISSUE_COUNT` 和 `MIN_REPORT_LENGTH` 双重门槛
 
+- **B 轮可追溯性与口径漂移问题**：
+  - `templates/B_ROUND_CHECK_TEMPLATE.md` 改为使用 `A_TEST_ID` 表达“对应 A 轮测试”，避免把 B 轮自身 ID 误当成 A 轮
+  - B 轮相关文档/模板口径统一为“维度以 `config.yaml:b_round_check.dimensions` 为准”，避免硬编码“七大”导致漂移
+
+- **确定性自检兼容性问题**：
+  - `scripts/verify_test_session.py` 增加 `from __future__ import annotations`，避免在 Python 3.9 下因 `X | Y` 注解运行时求值导致 CLI 崩溃
+
 - `scripts/create_test_session.py`：
   - 修复 B 轮创建会话时潜在的未定义变量问题（`--kind b` 可用）
   - 修复 plan 文件存在时误把 plan 复制到 `TEST_PLAN.md` 的行为；新增 `--seed-test-plan-from-plan`（默认关闭）
@@ -114,7 +129,7 @@
   - 放宽“文件:行号”证据正则，支持常见小写路径与 Windows 路径，减少误判
 
 - 文档与模板一致性：
-  - 将“B 轮质量检查”口径统一为项目级七大质量原则（与 `config.yaml:b_round_check.dimensions` 对齐）
+  - 将“B 轮质量检查”口径统一为“维度以 `config.yaml:b_round_check.dimensions` 为准”（避免硬编码数量导致漂移）
   - 重写 `templates/OPTIMIZATION_PLAN_TEMPLATE.md` 为 `P0-1/P1-1/P2-1` 编号结构，确保计划-报告一致性检查可落地
   - `templates/TEST_PLAN_TEMPLATE.md` 标题改为按轮次变量渲染，并统一使用 `PLAN_DOC_PATH`
 
@@ -123,7 +138,7 @@
   - `scripts/verify_test_session.py` 改为 argparse CLI，新增 `--require-plan`（严格模式）以及 `--min-report-length`/`--min-issue-count`（阈值可配置）
 
 - `config.yaml` 口径精简与对齐：
-  - 明确标注 scripts 不解析 config（避免误导为“配置可改变脚本行为”）
+  - 明确标注 scripts 仅解析必要配置段（如 `directories/templates/verification`），其余字段作为规划口径参考
   - 去除重复字段与通用但未被本 skill 使用的段落（testing/reporting/quality/acceptance）
   - 补齐结构化门槛字段：A 轮最少问题数/目标范围、B 轮建议数与修复率门槛、verify 默认阈值
   - 同步更新 `README.md` 与 `SKILL.md` 对配置字段的引用口径

@@ -1,6 +1,6 @@
 # auto-test-skill
 
-自动化测试驱动优化技能 - 用于AI辅助开发后的系统性测试和迭代优化。
+批判性思维驱动的测试驱动优化技能 - 用于在 AI 辅助开发后进行系统性测试与迭代优化。
 
 ## 概述
 
@@ -9,11 +9,11 @@
 **核心价值**:
 - ✅ **结构化问题管理**: 从bug发现到优先级排序的全流程管理
 - ✅ **可重复测试**: 规范化的测试目录和文档结构
-- ✅ **渐进式优化**: 通过轻量测试快速验证修复效果
+- ✅ **独立评估 + 迭代修复**: 每轮 A 轮独立审查当前状态，按计划修复并用轻量测试验证
 - ✅ **完整追溯**: 每轮迭代都有明确的测试计划和报告
 
 **设计理念**:
-本技能借鉴了成熟的软件测试实践(如时间戳命名测试会话、规范化文档结构、测试数据/脚本/输出分离等),确保每个测试会话都是独立、透明、可重复的。
+本技能借鉴了成熟的软件测试实践（如时间戳命名测试会话、规范化文档结构、测试数据/脚本/输出分离等），确保每个测试会话都是独立、透明、可重复的；其中 **A 轮默认采用“独立评估”模式**（不查看 `plans/` 与 `tests/`），以降低确认偏差并提升多轮价值。
 
 ## 适用场景
 
@@ -30,6 +30,8 @@
 ```
 使用 auto-test-skill 这个skill 对xxx这个skill进行3个A轮迭代优化并通过测试;每个A轮要提出10-20个问题；最后的B轮审查要强制执行。每一轮测试中的p0-p2级问题全都要落实、修复后才可以进入下一轮。
 ```
+
+补充要求（推荐）：每轮 A 轮为**独立评估**（不查看上一轮 `plans/`/`tests/`），并明确本轮审查范围与排除范围。
 
 ### 触发方式
 
@@ -64,7 +66,7 @@
   ↓
 [A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-B轮：六大质量原则检查 → 针对性优化 → 轻量验证
+B轮：质量原则检查 → 针对性优化 → 轻量验证
   ↓
 完成（文档齐全 + 问题闭环）
 ```
@@ -86,11 +88,24 @@ B轮：六大质量原则检查 → 针对性优化 → 轻量验证
 
 ```bash
 python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --id vYYYYMMDDHHMM --create-plan
+
+# 或：省略 --id 自动生成 vYYYYMMDDHHMM
+python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --create-plan
+```
+
+验证会话完整性（推荐，避免“空报告/占位符残留”）：
+
+```bash
+# 在目标 skill 根目录内执行
+python3 /path/to/auto-test-skill/scripts/verify_test_session.py --require-plan tests/vYYYYMMDDHHMM
 ```
 
 说明：
 - `--skill-root` 指向“要被测试/被优化”的目标 skill 根目录（必须包含 `SKILL.md`）
 - `--create-plan` 会在缺失时生成 `plans/` 下对应的计划文档骨架（默认不覆盖）
+- 脚本会优先使用目标 skill 的 `templates/`（如存在）；否则使用 auto-test-skill 自带 `templates/` 作为回退模板
+- B 轮可选：使用 `--a-test-id vYYYYMMDDHHMM` 记录“对应的 A 轮会话 id”（用于 B 轮报告可追溯）
+- `--seed-test-plan-from-plan`（高级，不推荐）：会将 `plans/` 下的计划文档直接复制为 `TEST_PLAN.md`，通常你应当基于 `templates/TEST_PLAN_TEMPLATE.md` 补全验证点即可
 
 ## 文件结构
 
@@ -115,17 +130,19 @@ auto-test-skill/
 
 ## 配置说明
 
-本技能使用 `config.yaml` 配置测试参数。
+本技能使用 `config.yaml` 作为**口径统一**与**部分脚本参数**的单一来源。
 
 主要配置项:
 
-- **skill_info.version**: 技能版本号（单一事实来源；`SKILL.md` 表头会同步该版本）
-- **test_session**: 测试会话配置(目录命名、最大迭代轮数)
-- **priority**: 优先级定义(P0/P1/P2/P3的详细说明)
-- **testing**: 测试配置(超时、失败处理、日志)
-- **reporting**: 报告配置(格式、语言、图表)
-- **quality**: 质量标准(覆盖率、通过率目标)
-- **acceptance**: 验收标准(完成条件)
+- **脚本会读取**：
+  - **directories.\***：`plans/` 与 `tests/` 的相对目录（`scripts/create_test_session.py` 会做路径安全校验）
+  - **templates.\***：计划/报告等模板路径（相对 skill 根目录）
+- **规划口径（AI/人类参考）**：
+  - **test_rounds**：每轮数量阈值（10-20、P0+P1≥60%、系统性问题≥3 等）
+  - **a_round_check.independent_review**：A 轮独立评估的审查范围与排除范围（不看 `plans/` 与 `tests/`）
+  - **b_round_check**：B 轮质量检查是否强制、数量阈值、修复率要求、检查维度（`b_round_check.dimensions`）
+
+版本更新顺序（推荐）：先更新 `config.yaml:skill_info.version`，再同步 `SKILL.md` YAML 表头与 `CHANGELOG.md`。
 
 详细配置请参阅 [config.yaml](config.yaml)。
 
@@ -140,7 +157,7 @@ auto-test-skill/
 **执行流程**:
 1. A轮：生成 `plans/vYYYYMMDDHHMM.md`（问题清单 + 改进计划）
 2. A轮：创建 `tests/vYYYYMMDDHHMM/` 并按计划修复与验证
-3. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（六大质量原则检查）
+3. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（质量原则检查；维度以 `config.yaml:b_round_check.dimensions` 为准）
 4. B轮：创建 `tests/B轮-vYYYYMMDDHHMM/` 并做针对性验证
 5. 验收：更新 `CHANGELOG.md`
 
@@ -155,8 +172,8 @@ auto-test-skill/
 
 **迭代轮次**:
 - **第1轮** (`v202601021313`): 修复 P0(2个) + P1(3个) → 测试通过
-- **第2轮** (`v202601031015`): 修复 P2(3个) → 测试通过
-- **第3轮** (`v202601041420`): 修复 P3(2个) + 新发现的问题 → 测试通过
+- **第2轮** (`v202601031015`): 修复 P1(2个) + P2(3个) → 测试通过
+- **第3轮** (`v202601041420`): 修复剩余 P2 + 新发现的问题 → 测试通过
 
 **最终输出**:
 - FINAL_SUMMARY.md(总结3轮优化历程)

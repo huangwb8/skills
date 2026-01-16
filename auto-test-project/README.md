@@ -19,7 +19,7 @@
 | **目标对象** | 单个 Agent Skill | 完整项目（多模块、多文件） |
 | **测试范围** | 单个 skill 目录 | 整个项目目录 |
 | **问题分析** | skill 级别 | 项目级别（跨模块） |
-| **质量检查** | skill 六大原则 | 项目级七大原则（扩展） |
+| **质量检查** | 维度以 `config.yaml:b_round_check.dimensions` 为准 | 维度以 `config.yaml:b_round_check.dimensions` 为准（项目级扩展） |
 
 ## 适用场景
 
@@ -102,7 +102,7 @@ python3 /path/to/auto-test-project/scripts/verify_test_session.py --require-plan
   ↓
 [A轮 × N]：分析 → 计划 → 优化 → 轻量测试
   ↓
-B轮：项目级七大质量原则检查 → 针对性优化 → 轻量验证
+B轮：质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准） → 针对性优化 → 轻量验证
   ↓
 完成（文档齐全 + 问题闭环 + 项目 CHANGELOG.md 已更新）
 ```
@@ -148,12 +148,12 @@ auto-test-project/
 
 主要配置项:
 
-- 说明：`config.yaml` 主要用于记录默认参数与检查维度；确定性脚本以 CLI 参数与源码为准（当前不解析本文件）。
+- 说明：`config.yaml` 主要用于记录默认参数与检查维度；确定性脚本会读取必要配置（如 `directories/templates/verification`）并支持 CLI 覆盖，其余字段作为规划口径参考。
 - **project_detection**: 项目类型识别配置（指令文件、配置文件、类型标志）
 - **test_rounds**: 轮次控制（每轮最少问题数量与目标范围）
 - **test_session**: 测试会话配置（时间戳格式、最大迭代轮数）
 - **priority**: 优先级定义（P0/P1/P2/P3 的详细说明和示例）
-- **b_round_check**: B轮质量检查（七大维度 + 建议数量与修复率门槛）
+- **b_round_check**: B轮质量检查（维度以 `b_round_check.dimensions` 为准 + 建议数量与修复率门槛）
 - **verification**: 会话验证脚本默认阈值（报告长度、问题数量、严格模式开关）
 - **project_testing**: 项目级测试边界配置（核心模块、跨模块测试、排除路径）
 
@@ -171,7 +171,7 @@ auto-test-project/
 1. 项目初始化：识别项目类型为 Agent Skill
 2. A轮：生成 `plans/vYYYYMMDDHHMM.md`（问题清单 + 改进计划）
 3. A轮：创建 `tests/vYYYYMMDDHHMM/` 并按计划修复与验证
-4. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（项目级七大质量原则检查）
+4. B轮：生成 `plans/B轮-vYYYYMMDDHHMM.md`（质量原则检查；维度以 `b_round_check.dimensions` 为准）
 5. B轮：创建 `tests/B轮-vYYYYMMDDHHMM/` 并做针对性验证
 6. 验收：更新项目 `CHANGELOG.md`
 
@@ -200,6 +200,9 @@ auto-test-project/
 - 常见问题与证据标准：`references/FAQ.md`
 - 项目级最佳实践：`references/PROJECT_TESTING_BEST_PRACTICES.md`
 - 项目级问题挖掘技巧：`references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md`
+- 批判性思维指南：`references/CRITICAL_THINKING_GUIDE.md`
+- 建设性建议标准：`references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md`
+- 反例库（反模式速查）：`references/ANTI_PATTERNS_LIBRARY.md`
 - 严格模式最小示例（P0-1 编号）：`references/EXAMPLE_STRICT_MINIMAL.md`
 
 ## 参考资源
@@ -211,6 +214,9 @@ auto-test-project/
   - [references/FAQ.md](references/FAQ.md)
   - [references/PROJECT_TESTING_BEST_PRACTICES.md](references/PROJECT_TESTING_BEST_PRACTICES.md)
   - [references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md](references/PROJECT_ISSUE_DISCOVERY_TECHNIQUES.md)
+  - [references/CRITICAL_THINKING_GUIDE.md](references/CRITICAL_THINKING_GUIDE.md)
+  - [references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md](references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md)
+  - [references/ANTI_PATTERNS_LIBRARY.md](references/ANTI_PATTERNS_LIBRARY.md)
 - **Agent Skills标准**: [https://agentskills.io](https://agentskills.io)
 
 **相关阅读**:
