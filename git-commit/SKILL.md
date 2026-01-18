@@ -128,7 +128,7 @@ category: normal
 - 数据库 schema 变更（不兼容旧版本）
 
 **处理方式**：
-- 在 type 后添加 `!` 标记（如 `feat(api)!: redesign authentication API`）
+- 在 type 后添加感叹号标记，如 `feat(api)!: redesign authentication API`
 - 在脚注中说明 `BREAKING CHANGE: <description>`
 - 建议将破坏性变更拆分为独立提交（如与修复混在同一提交）
 
