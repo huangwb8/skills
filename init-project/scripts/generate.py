@@ -3,12 +3,14 @@
 Project Init Generator - 生成脚本
 
 用于生成 AI 项目指令文件：
-- CLAUDE.md（Claude Code 项目指令 - 主文件）
-- AGENTS.md（OpenAI Codex CLI 项目指令 - 基于 CLAUDE.md 适配）
+- AGENTS.md（跨平台通用项目指令 - Single Source of Truth）
+- CLAUDE.md（Claude Code 特定适配 - 通过 @./AGENTS.md 引用）
 - README.md（项目介绍与使用方法 - 可选）
-- CHANGELOG.md（AI 优化历史记录 - 可选）
+- CHANGELOG.md（项目变更记录 - 强制性）
 
 支持语言检测、模板变量替换、自定义配置和自动项目分析。
+
+注意：版本号以 config.yaml:skill_info.version 为准
 """
 
 import os
@@ -318,6 +320,16 @@ class ProjectInitGenerator:
         for key, value in variables.items():
             placeholder = "{" + key + "}"
             result = result.replace(placeholder, value or f"[待填写: {key}]")
+
+        # 检查是否有未替换的占位符（排除代码块中的占位符）
+        # 使用简单的启发式方法：检查非代码块区域的占位符
+        remaining = re.findall(r'\{([^}\s]+)\}', result)
+        # 过滤掉常见的代码模式（如 {key}、{value} 等在代码示例中）
+        code_patterns = {'key', 'value', 'year', 'month', 'day', 'hour', 'minute', 'version'}
+        real_remaining = [p for p in remaining if p not in code_patterns and not p.startswith('项目')]
+        if real_remaining:
+            print(f"⚠️  以下占位符可能未被替换: {set(real_remaining)}")
+
         return result
 
     def generate_agents_md(self, variables: dict) -> str:
@@ -414,10 +426,16 @@ class ProjectInitGenerator:
 
         Returns:
             是否成功写入
+
+        注意：
+            智能合并使用正则表达式解析 Markdown 章节，可能存在边缘情况处理不当。
+            如果合并结果不符合预期，建议使用 --overwrite 参数完全覆盖。
         """
         if path.exists() and not overwrite:
             if merge:
                 # 智能合并模式：保留用户自定义内容，更新标准模板结构
+                print(f"⚠️  正在智能合并 {path.name}（保留自定义内容，更新标准部分）")
+                print(f"   提示：如果合并结果不符合预期，请使用 --overwrite 参数完全覆盖")
                 content = self.merge_existing_file(path, content, path.name)
             else:
                 return False
@@ -521,198 +539,9 @@ class ProjectInitGenerator:
 
         return merged_content
 
-    # 同步配置：核心章节（需要在所有文件中保持一致）
-    CORE_SECTIONS = [
-        "项目目标",
-        "核心工作流",
-        "工程原则",
-        "默认语言",
-        "目录结构",
-        "变更边界",
-        "变更记录规范",
-        "版本号管理规范",
-        "有机更新原则",
-    ]
-
-    # 平台特定章节（不同步）
-    PLATFORM_SPECIFIC_SECTIONS = {
-        "CLAUDE.md": [
-            "Claude Code 特定说明",
-            "文件引用规范",
-            "任务管理",
-            "代码变更规范",
-        ],
-        "AGENTS.md": [
-            "Codex CLI 特定说明",
-            "文件引用规范",
-            "代码编辑规范",
-            "输出格式",
-        ],
-    }
-
-    def extract_section(self, content: str, section_name: str) -> Optional[str]:
-        """
-        从文件内容中提取指定章节
-
-        Args:
-            content: 文件内容
-            section_name: 章节名称
-
-        Returns:
-            章节内容（不包括标题），如果找不到则返回 None
-        """
-        pattern = rf"## {re.escape(section_name)}\s*\n+(.*?)(?=\n##|\Z)"
-        match = re.search(pattern, content, re.DOTALL)
-        return match.group(1).strip() if match else None
-
-    def sync_from_source(self, source_path: Path, target_path: Path) -> bool:
-        """
-        从源文件同步核心章节到目标文件
-
-        策略：
-        1. 读取源文件，提取核心章节
-        2. 读取目标文件
-        3. 保留目标文件的平台特定章节
-        4. 用源文件的核心章节替换目标文件的对应章节
-
-        Args:
-            source_path: 源文件路径（如 AGENTS.md）
-            target_path: 目标文件路径（如 CLAUDE.md）
-
-        Returns:
-            是否成功同步
-        """
-        if not source_path.exists():
-            print(f"❌ 源文件不存在: {source_path}")
-            return False
-
-        if not target_path.exists():
-            print(f"❌ 目标文件不存在: {target_path}")
-            return False
-
-        try:
-            # 读取源文件和目标文件
-            with open(source_path, 'r', encoding='utf-8') as f:
-                source_content = f.read()
-            with open(target_path, 'r', encoding='utf-8') as f:
-                target_content = f.read()
-
-            # 提取源文件的核心章节
-            source_sections = {}
-            for section_name in self.CORE_SECTIONS:
-                section_content = self.extract_section(source_content, section_name)
-                if section_content:
-                    source_sections[section_name] = section_content
-
-            if not source_sections:
-                print(f"⚠️  源文件中未找到任何核心章节")
-                return False
-
-            # 同步到目标文件
-            updated_content = target_content
-            synced_sections = []
-
-            for section_name, section_content in source_sections.items():
-                # 检查目标文件中是否有这个章节
-                if f"## {section_name}" in updated_content:
-                    # 替换现有章节
-                    pattern = rf"(## {re.escape(section_name)}\s*\n+)(.*?)(?=\n##|\Z)"
-                    updated_content = re.sub(
-                        pattern,
-                        rf"\1{section_content}\n",
-                        updated_content,
-                        count=1,
-                        flags=re.DOTALL
-                    )
-                    synced_sections.append(section_name)
-                else:
-                    # 在"有机更新原则"之前插入新章节
-                    updated_content = updated_content.replace(
-                        "## 有机更新原则",
-                        f"## {section_name}\n\n{section_content}\n\n## 有机更新原则"
-                    )
-                    synced_sections.append(section_name)
-
-            # 写入目标文件
-            with open(target_path, 'w', encoding='utf-8') as f:
-                f.write(updated_content)
-
-            print(f"✅ 已从 {source_path.name} 同步到 {target_path.name}")
-            print(f"   同步的章节: {', '.join(synced_sections)}")
-            return True
-
-        except Exception as e:
-            print(f"❌ 同步失败: {e}")
-            return False
-
-    def check_consistency(self, claude_path: Path, agents_path: Path) -> dict:
-        """
-        检查两个文件的核心章节是否一致
-
-        Args:
-            claude_path: CLAUDE.md 文件路径
-            agents_path: AGENTS.md 文件路径
-
-        Returns:
-            {
-                "consistent": bool,
-                "diff_sections": ["项目目标", "核心工作流"],
-                "details": {章节名: {"claude": "...", "agents": "..."}}
-            }
-        """
-        result = {
-            "consistent": True,
-            "diff_sections": [],
-            "details": {}
-        }
-
-        if not claude_path.exists() or not agents_path.exists():
-            result["consistent"] = False
-            result["error"] = "文件不存在"
-            return result
-
-        try:
-            with open(claude_path, 'r', encoding='utf-8') as f:
-                claude_content = f.read()
-            with open(agents_path, 'r', encoding='utf-8') as f:
-                agents_content = f.read()
-
-            # 检查每个核心章节
-            for section_name in self.CORE_SECTIONS:
-                claude_section = self.extract_section(claude_content, section_name)
-                agents_section = self.extract_section(agents_content, section_name)
-
-                # 如果两个文件都有这个章节，比较内容
-                if claude_section and agents_section:
-                    # 标准化比较（移除空白差异）
-                    claude_normalized = re.sub(r'\s+', ' ', claude_section.strip())
-                    agents_normalized = re.sub(r'\s+', ' ', agents_section.strip())
-
-                    if claude_normalized != agents_normalized:
-                        result["consistent"] = False
-                        result["diff_sections"].append(section_name)
-                        result["details"][section_name] = {
-                            "claude": claude_section[:100] + "..." if len(claude_section) > 100 else claude_section,
-                            "agents": agents_section[:100] + "..." if len(agents_section) > 100 else agents_section
-                        }
-                # 如果只有一个文件有这个章节
-                elif claude_section or agents_section:
-                    result["consistent"] = False
-                    result["diff_sections"].append(section_name)
-                    result["details"][section_name] = {
-                        "claude": claude_section or "(不存在)",
-                        "agents": agents_section or "(不存在)"
-                    }
-
-        except Exception as e:
-            result["consistent"] = False
-            result["error"] = str(e)
-
-        return result
-
     def check_consistency_reminder(self, claude_path: Path, agents_path: Path) -> None:
         """
-        检查并提醒用户保持 CLAUDE.md 和 AGENTS.md 的一致性
+        提醒用户新的维护工作流
 
         Args:
             claude_path: CLAUDE.md 文件路径
@@ -722,20 +551,19 @@ class ProjectInitGenerator:
 
         if both_exist:
             print("\n" + "="*60)
-            print("💡 使用 init-project 脚本同步 CLAUDE.md 和 AGENTS.md")
+            print("💡 AGENTS.md 与 CLAUDE.md 的关系")
             print("="*60)
-            print("\n📋 推荐工作流：")
-            print("   1. 先修改 AGENTS.md（项目指令主文件）")
-            print("   2. 运行同步命令：")
-            print("      python3 init-project/scripts/generate.py --sync-from agents")
-            print("   3. （可选）检查一致性：")
-            print("      python3 init-project/scripts/generate.py --check-consistency")
-            print("\n📌 核心章节将自动同步：")
-            print("   - 项目目标、核心工作流、工程原则")
-            print("   - 默认语言、目录结构、变更边界、有机更新原则")
-            print("\n🔧 平台特定章节保持独立：")
-            print("   - Claude Code 特定说明（仅 CLAUDE.md）")
-            print("   - Codex CLI 特定说明（仅 AGENTS.md）")
+            print("\n📋 新的维护工作流（v2.0.0）：")
+            print("   1. 修改 AGENTS.md（唯一需要手动维护的文件）")
+            print("   2. CLAUDE.md 通过 @./AGENTS.md 自动引用")
+            print("   3. 无需运行任何同步命令")
+            print("\n📌 架构说明：")
+            print("   - AGENTS.md：跨平台通用项目指令（Single Source of Truth）")
+            print("   - CLAUDE.md：Claude Code 特定适配（自动引用 AGENTS.md）")
+            print("   - 修改 AGENTS.md 后，CLAUDE.md 会自动生效")
+            print("\n🔧 参考文档：")
+            print("   - AGENTS.md 标准：https://agents.md/")
+            print("   - Claude Code @ 引用语法：https://github.com/anthropics/claude-code/issues/990")
             print("="*60 + "\n")
 
     def generate_auto(
@@ -762,6 +590,14 @@ class ProjectInitGenerator:
             是否成功
         """
         output_dir = output_dir or Path.cwd()
+
+        # 验证输出目录
+        if not output_dir.exists():
+            print(f"错误: 目录 {output_dir} 不存在")
+            return False
+        if not output_dir.is_dir():
+            print(f"错误: {output_dir} 不是有效目录")
+            return False
 
         # 分析项目
         analysis = ProjectAnalyzer.analyze_project(output_dir)
@@ -798,18 +634,7 @@ class ProjectInitGenerator:
                 success = False
         else:
             # 完整生成模式
-            # 1. 生成 CLAUDE.md（主指令文件）- 使用智能合并模式
-            claude_content = self.generate_claude_md(variables)
-            claude_was_merged = claude_path.exists() and not overwrite
-            if self.write_file(claude_path, claude_content, overwrite, merge=True):
-                generated_files.append(claude_path)
-                if claude_was_merged:
-                    print(f"🔄 {claude_path} 已智能更新（保留了自定义内容）")
-            else:
-                print(f"⚠️  {claude_path} 已存在，使用 --overwrite 覆盖")
-                success = False
-
-            # 2. 生成 AGENTS.md（基于 CLAUDE.md 适配）- 使用智能合并模式
+            # 1. 生成 AGENTS.md（跨平台通用项目指令 - Single Source of Truth）
             agents_content = self.generate_agents_md(variables)
             agents_was_merged = agents_path.exists() and not overwrite
             if self.write_file(agents_path, agents_content, overwrite, merge=True):
@@ -820,7 +645,18 @@ class ProjectInitGenerator:
                 print(f"⚠️  {agents_path} 已存在，使用 --overwrite 覆盖")
                 success = False
 
-            # 显示一致性提醒
+            # 2. 生成 CLAUDE.md（Claude Code 特定适配，使用 @./AGENTS.md 引用）
+            claude_content = self.generate_claude_md(variables)
+            claude_was_merged = claude_path.exists() and not overwrite
+            if self.write_file(claude_path, claude_content, overwrite, merge=True):
+                generated_files.append(claude_path)
+                if claude_was_merged:
+                    print(f"🔄 {claude_path} 已智能更新（保留了自定义内容）")
+            else:
+                print(f"⚠️  {claude_path} 已存在，使用 --overwrite 覆盖")
+                success = False
+
+            # 显示工作流提醒
             self.check_consistency_reminder(claude_path, agents_path)
 
             # 3. 生成 README.md（如果不存在或要求覆盖）
@@ -847,8 +683,8 @@ class ProjectInitGenerator:
 ### Added（新增）
 
 - 重新初始化 AI 项目指令文件
-- 更新 `CLAUDE.md`（Claude Code 项目指令）
-- 更新 `AGENTS.md`（OpenAI Codex CLI 项目指令）
+- 更新 `AGENTS.md`（跨平台通用项目指令）
+- 更新 `CLAUDE.md`（Claude Code 特定适配）
 """
                     if self.append_changelog_entry(changelog_path, entry):
                         print(f"ℹ️  已更新 {changelog_path}")
@@ -969,20 +805,8 @@ def main():
   # 自动生成并覆盖现有文件
   python3 generate.py --auto --overwrite
 
-  # 仅生成 CLAUDE.md 和 AGENTS.md（跳过 README 和 CHANGELOG）
+  # 仅生成 AGENTS.md 和 CLAUDE.md（跳过 README 和 CHANGELOG）
   python3 generate.py --auto --skip-readme --skip-changelog
-
-  # 从 AGENTS.md 同步到 CLAUDE.md（推荐工作流）
-  python3 generate.py --sync-from agents
-
-  # 从 CLAUDE.md 同步到 AGENTS.md
-  python3 generate.py --sync-from claude
-
-  # 检查 CLAUDE.md 和 AGENTS.md 的一致性
-  python3 generate.py --check-consistency
-
-  # 同步后检查一致性
-  python3 generate.py --sync-from agents && python3 generate.py --check-consistency
 
   # 手动指定项目信息
   python3 generate.py --project-name my-project --project-description "数据科学项目"
@@ -1047,16 +871,6 @@ def main():
         action="store_true",
         help="仅生成 CHANGELOG.md"
     )
-    parser.add_argument(
-        "--sync-from",
-        choices=["agents", "claude"],
-        help="从指定文件同步核心章节到另一个文件（agents=从AGENTS.md同步到CLAUDE.md，claude=从CLAUDE.md同步到AGENTS.md）"
-    )
-    parser.add_argument(
-        "--check-consistency",
-        action="store_true",
-        help="检查 CLAUDE.md 和 AGENTS.md 的核心章节是否一致"
-    )
 
     args = parser.parse_args()
 
@@ -1065,55 +879,17 @@ def main():
 
     # 确定输出目录
     output_dir = Path(args.output_dir).resolve()
+
+    # 验证输出目录
+    if not output_dir.exists():
+        print(f"错误: 目录 {output_dir} 不存在")
+        return 1
+    if not output_dir.is_dir():
+        print(f"错误: {output_dir} 不是有效目录")
+        return 1
+
     claude_path = output_dir / "CLAUDE.md"
     agents_path = output_dir / "AGENTS.md"
-
-    # 检查一致性
-    if args.check_consistency:
-        if not claude_path.exists() or not agents_path.exists():
-            print("❌ CLAUDE.md 和 AGENTS.md 必须都存在才能检查一致性")
-            return 1
-
-        result = generator.check_consistency(claude_path, agents_path)
-
-        if result.get("consistent"):
-            print("✅ CLAUDE.md 和 AGENTS.md 的核心章节完全一致")
-            return 0
-        else:
-            print("❌ CLAUDE.md 和 AGENTS.md 的核心章节存在差异：\n")
-            for section in result.get("diff_sections", []):
-                print(f"   📌 {section}")
-                if "details" in result and section in result["details"]:
-                    details = result["details"][section]
-                    print(f"      CLAUDE.md: {details.get('claude', '(不存在)')[:60]}...")
-                    print(f"      AGENTS.md: {details.get('agents', '(不存在)')[:60]}...")
-                    print()
-            return 1
-
-    # 同步模式
-    if args.sync_from:
-        if args.sync_from == "agents":
-            source = agents_path
-            target = claude_path
-            source_name = "AGENTS.md"
-            target_name = "CLAUDE.md"
-        else:  # claude
-            source = claude_path
-            target = agents_path
-            source_name = "CLAUDE.md"
-            target_name = "AGENTS.md"
-
-        if not source.exists():
-            print(f"❌ 源文件不存在: {source_name}")
-            return 1
-
-        if not target.exists():
-            print(f"❌ 目标文件不存在: {target_name}")
-            print(f"   提示：先运行 --auto 生成两个文件，然后再使用同步功能")
-            return 1
-
-        success = generator.sync_from_source(source, target)
-        return 0 if success else 1
 
     # 仅检测语言
     if args.detect_language_only:

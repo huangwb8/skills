@@ -1,0 +1,53 @@
+# Git Commit Skill 配置
+#
+# 版本号遵循语义化版本规范：主版本号.次版本号.修订号
+# - 不兼容的 API 修改 → 主版本号+1
+# - 向下兼容的新功能 → 次版本号+1
+# - 问题修正 → 修订号+1
+
+skill_info:
+  name: git-commit              # 技能名称（与目录名一致）
+  version: 1.1.0                # 当前版本（修复 P0 问题：空仓库语言检测、拆分建议标准、冲突状态处理）
+  description: "仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji）"  # 技能描述（最大 1024 字符）
+  category: "git"               # 技能分类（normal/git/data-analysis/devops 等）
+
+# 提交类型定义
+commit_types:
+  feat: "新增功能"
+  fix: "缺陷修复"
+  docs: "文档与注释"
+  style: "风格/格式（不改语义）"
+  refactor: "重构（不新增功能、不修缺陷）"
+  perf: "性能优化"
+  test: "新增/修复测试"
+  chore: "构建/工具/杂务"
+  ci: "CI/CD 配置与脚本"
+  revert: "回滚提交"
+
+# Emoji 映射
+emoji_map:
+  feat: "✨"
+  fix: "🐛"
+  docs: "📝"
+  style: "🎨"
+  refactor: "♻️"
+  perf: "⚡️"
+  test: "✅"
+  chore: "🔧"
+  ci: "👷"
+  revert: "⏪️"
+
+# 拆分提交的阈值
+split_thresholds:
+  max_lines: 300  # 单次提交最大改动行数
+  max_dirs: 5     # 跨越的顶级目录数
+  max_files: 20   # 单次提交最大文件数
+
+# 提交信息约束
+message_constraints:
+  max_subject_length: 72    # 主题行最大长度
+  max_body_lines: 10        # 正文最大行数
+  max_body_items: 3         # 正文列表项数量
+
+# 提交信息默认语言（zh/en）
+default_language: "en"

@@ -1,8 +1,8 @@
 ---
 name: init-project
-description: 当用户要初始化一个新项目（在空目录或新建项目），需要生成 AI 项目指令文件时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：CLAUDE.md（Claude Code 项目指令）、AGENTS.md（OpenAI Codex CLI 项目指令，基于 CLAUDE.md 适配）、README.md（项目介绍与使用方法）、CHANGELOG.md（AI 优化历史记录）。适用于"初始化项目"、"新建项目配置"、"生成项目文档"、"自动生成 AGENTS.md"等场景。
+description: 当用户要初始化一个新项目（在空目录或新建项目），需要生成 AI 项目指令文件时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）。适用于"初始化项目"、"新建项目配置"、"生成项目文档"、"自动生成 AGENTS.md"等场景。
 metadata:
-  short-description: 完全自动生成 AI 项目指令文档（CLAUDE.md + AGENTS.md + README.md + CHANGELOG.md）
+  short-description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md）
   keywords:
     - 项目初始化
     - 初始化项目
@@ -28,7 +28,10 @@ metadata:
     - 检测项目类型
     - OpenAI Codex
     - Claude Code
-    - AI 优化历史
+    - 跨平台指令
+    - @ 引用语法
+    - Single Source of Truth
+# 版本号以 config.yaml:skill_info.version 为准
 ---
 
 # Init Project（项目初始化文档生成器）
@@ -39,83 +42,101 @@ metadata:
 
 ## 生成文件
 
-| 文件 | 用途 | 平台适配 | 强制性 |
-|------|------|----------|--------|
-| **CLAUDE.md** | Claude Code 项目指令 | Claude Code | **必须** |
-| **AGENTS.md** | OpenAI Codex CLI 项目指令 | 基于 CLAUDE.md 适配 | **必须** |
-| **README.md** | 项目介绍与使用方法 | 通用 | 可选 |
-| **CHANGELOG.md** | 项目变更记录（唯一正式记录） | 通用 | **必须** |
+| 文件 | 用途 | 平台适配 | 强制性 | 维护方式 |
+|------|------|----------|--------|----------|
+| **AGENTS.md** | 跨平台通用项目指令 | 20+ AI 编码工具 | **必须** | 手动维护（Single Source of Truth） |
+| **CLAUDE.md** | Claude Code 特定适配 | Claude Code | **必须** | 自动引用 AGENTS.md |
+| **README.md** | 项目介绍与使用方法 | 通用 | 可选 | 手动维护 |
+| **CHANGELOG.md** | 项目变更记录 | 通用 | **必须** | 手动维护 |
 
-**重要**：CHANGELOG.md 不是可选项，而是项目管理的**强制性要求**。凡是项目的更新，都要统一在 CHANGELOG.md 文件里记录。
+**重要说明**：
+
+1. **AGENTS.md 是唯一需要手动维护的项目指令文件**
+   - 包含跨平台通用的核心指令
+   - 符合 [AGENTS.md 标准](https://agents.md/)（60k+ 开源项目采用）
+   - 支持 OpenAI Codex、Google Jules、Cursor、Devin、Windsurf 等 20+ 工具
+
+2. **CLAUDE.md 通过 `@./AGENTS.md` 语法自动引用**
+   - 修改 AGENTS.md 后，CLAUDE.md 自动生效
+   - 无需运行任何同步命令
+   - 仅包含 Claude Code 特定的适配内容
+
+3. **CHANGELOG.md 是项目管理的强制性要求**
+   - 凡是项目的更新，都要统一在 CHANGELOG.md 文件里记录
+   - 遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式
 
 ## 核心特性
 
 - **完全自动化**：一键生成，无需手动输入信息
 - **智能项目分析**：自动检测项目类型（Python/Web/Rust/Go/Java/数据科学/文档等）
-- **双平台适配**：同时生成 Claude Code (CLAUDE.md) 和 OpenAI Codex (AGENTS.md) 指令
+- **跨平台通用**：生成符合 AGENTS.md 标准的跨平台指令文件
+- **零维护成本**：CLAUDE.md 通过 `@./AGENTS.md` 自动引用，修改 AGENTS.md 即可
 - **自动语言检测**：检测操作系统默认语言并设为对话默认语言
 - **目录结构推断**：分析现有文件和目录，自动生成目录树
 - **README 解析与生成**：从 README.md 提取信息，或自动生成项目介绍
 - **强制变更记录**：自动创建 CHANGELOG.md，**这是项目管理的强制性要求**
 - **工程原则内置**：基于 SOLID、KISS、DRY、YAGNI、关注点分离等原则
 - **有机更新框架**：生成的文档本身遵循有机更新原则，便于未来迭代
-- **智能增量更新**：对已存在的 CLAUDE.md 和 AGENTS.md，自动保留用户自定义内容，仅更新标准化部分
-- **主从同步机制**：支持从一个文件同步核心章节到另一个文件
-- **一致性检查**：自动检测两个文件的核心章节是否一致
+- **智能增量更新**：对已存在的 AGENTS.md，自动保留用户自定义内容，仅更新标准化部分
+- **符合社区标准**：遵循 [AGENTS.md 官方规范](https://agents.md/)，与 60k+ 开源项目保持一致
 
-## CLAUDE.md 与 AGENTS.md 同步机制
+## AGENTS.md 与 CLAUDE.md 的关系
 
-**核心原则**：CLAUDE.md 和 AGENTS.md 是同一项目指令的两个平台适配版本，核心内容通过 `init-project` 脚本保持同步。
+**核心原则**：AGENTS.md 是跨平台通用项目指令（Single Source of Truth），CLAUDE.md 通过 `@./AGENTS.md` 语法自动引用。
 
-### 推荐工作流
+### 架构设计
 
-1. **先修改 AGENTS.md**（项目指令主文件）
-2. **运行同步命令**：
-   ```bash
-   python3 init-project/scripts/generate.py --sync-from agents
-   ```
-3. **（可选）检查一致性**：
-   ```bash
-   python3 init-project/scripts/generate.py --check-consistency
-   ```
-
-### 核心章节与平台特定章节
-
-**自动同步的核心章节**（在两个文件中保持一致）：
-- `## 项目目标`
-- `## 核心工作流`
-- `## 工程原则`
-- `## 默认语言`
-- `## 目录结构`
-- `## 变更边界`
-- `## 有机更新原则`
-
-**平台特定的差异化章节**（不参与同步）：
-- `## Claude Code 特定说明`（仅 CLAUDE.md）
-  - 文件引用规范（markdown 链接语法）
-  - 任务管理（TodoWrite 工具）
-  - 代码变更规范（Read/Edit 工具）
-- `## Codex CLI 特定说明`（仅 AGENTS.md）
-  - 文件引用规范（内联代码格式）
-  - 代码编辑规范（高效连贯编辑）
-  - 输出格式（简短逻辑后续步骤）
-
-### 同步命令详解
-
-```bash
-# 从 AGENTS.md 同步到 CLAUDE.md（推荐）
-python3 init-project/scripts/generate.py --sync-from agents
-
-# 从 CLAUDE.md 同步到 AGENTS.md
-python3 init-project/scripts/generate.py --sync-from claude
-
-# 检查两个文件的一致性
-python3 init-project/scripts/generate.py --check-consistency
-
-# 同步后立即检查（使用 && 连接）
-python3 init-project/scripts/generate.py --sync-from agents && \
-  python3 init-project/scripts/generate.py --check-consistency
 ```
+项目根目录/
+├── AGENTS.md              # 跨平台通用指令（手动维护）
+│   ├── 项目目标
+│   ├── 核心工作流
+│   ├── 工程原则
+│   ├── 默认语言
+│   ├── 目录结构
+│   ├── 变更边界
+│   └── 有机更新原则
+│
+└── CLAUDE.md              # Claude Code 特定适配（自动引用）
+    ├── @./AGENTS.md       # 自动引用 AGENTS.md 的全部内容
+    └── Claude Code 特定说明
+        ├── 文件引用规范（markdown 链接语法）
+        ├── 任务管理（TodoWrite 工具）
+        └── 代码变更规范（Read/Edit 工具）
+```
+
+### 维护工作流
+
+**标准流程**：
+1. **修改 AGENTS.md**（唯一需要手动维护的文件）
+2. **CLAUDE.md 自动生效**（无需任何操作）
+3. **记录变更到 CHANGELOG.md**
+
+**优势**：
+- ✅ 零维护成本：修改 AGENTS.md 后，CLAUDE.md 自动生效
+- ✅ Single Source of Truth：AGENTS.md 是唯一的事实来源
+- ✅ 符合社区标准：遵循 [AGENTS.md 官方规范](https://agents.md/)
+- ✅ 跨平台兼容：AGENTS.md 支持 20+ AI 编码工具
+
+### Claude Code 的 @ 引用语法
+
+根据 [Claude Code Issue #990](https://github.com/anthropics/claude-code/issues/990)，Claude Code 支持 `@` 语法来引用其他文件：
+
+```markdown
+# CLAUDE.md
+
+## 核心指令
+
+@./AGENTS.md
+
+## Claude Code 特定说明
+...
+```
+
+**工作原理**：
+- Claude Code 启动时，会自动将 `@./AGENTS.md` 引用的文件内容"拉入"上下文
+- 修改 AGENTS.md 后，CLAUDE.md 会自动读取最新内容
+- 无需运行任何同步命令或构建步骤
 
 ## 触发条件
 
@@ -141,8 +162,8 @@ python3 init-project/scripts/generate.py --auto
 2. 从 README.md 提取项目名称和描述（如存在）
 3. 生成目录树（自动过滤 .git、node_modules、__pycache__ 等）
 4. 检测操作系统语言
-5. 生成 CLAUDE.md（主指令文件）
-6. 基于 CLAUDE.md 适配生成 AGENTS.md（OpenAI Codex CLI 版本）
+5. 生成 AGENTS.md（跨平台通用项目指令）
+6. 生成 CLAUDE.md（使用 `@./AGENTS.md` 引用 + Claude Code 特定适配）
 7. 检查并生成 README.md（如不存在）
 8. 检查并生成 CHANGELOG.md（如不存在）
 
@@ -162,7 +183,7 @@ python3 init-project/scripts/generate.py --auto
 
 3. **仅生成指定文件**：
    ```bash
-   # 仅生成 CLAUDE.md 和 AGENTS.md（CHANGELOG.md 仍会生成，因为它是强制性的）
+   # 仅生成 AGENTS.md 和 CLAUDE.md（CHANGELOG.md 仍会生成，因为它是强制性的）
    python3 init-project/scripts/generate.py --auto --skip-readme
 
    # 仅更新 README.md
@@ -215,8 +236,8 @@ python3 init-project/scripts/generate.py --auto
 | 通用 | 需求分析 → 设计 → 实现 → 验证 → 交付 |
 
 **生成顺序**：
-1. **CLAUDE.md**：Claude Code 主指令文件
-2. **AGENTS.md**：基于 CLAUDE.md 微调，适配 OpenAI Codex CLI
+1. **AGENTS.md**：跨平台通用项目指令（Single Source of Truth）
+2. **CLAUDE.md**：使用 `@./AGENTS.md` 引用 + Claude Code 特定适配
 
 #### 5. 检查并生成 README.md
 
@@ -292,60 +313,33 @@ python3 scripts/generate.py \
 
 ## 默认语言
 
-{自动检测的语言，如：除非用户明确要求其他语言，始终使用简体中文与用户对话与撰写文档/说明。}
+{自动检测的语言}
 
 ## 目录结构
 
 {自动生成的目录树}
 
 ## 变更边界
+
 - {修改范围限制}
 - {保护性规则}
 
 ## 有机更新原则
 
-### 理解意图
-首先理解用户需求背后的意图
-
-### 定位生态位
-每条规则都应找到其在文档结构中的位置
-
-### 协调更新
-更新一个部分时，同步更新相关部分；保持文档格式规范（层级标题不使用序号前缀）
-
-### 保持一致性
-术语、示例、引用保持统一
+1. 理解意图
+2. 定位生态位
+3. 协调更新
+4. 保持一致性
 ```
 
-### CLAUDE.md 结构（主指令文件）
+### CLAUDE.md 结构（Claude Code 特定适配）
 
 ```markdown
 # {项目名称} - Claude Code 项目指令
 
-## 项目目标
+## 核心指令
 
-{核心功能描述}
-
-## 核心工作流
-
-{根据项目类型自动生成的工作流}
-
-## 工程原则
-
-| 原则 | 在本项目中的体现 |
-|------|------------------|
-| KISS | 追求极致简洁 |
-| YAGNI | 只实现当前需要的功能 |
-| DRY | 相似逻辑应抽象复用 |
-| ...  | ... |
-
-## 默认语言
-
-{自动检测的语言}
-
-## 目录结构
-
-{自动生成的目录树}
+@./AGENTS.md
 
 ## Claude Code 特定说明
 
@@ -357,82 +351,26 @@ python3 scripts/generate.py \
 - 行范围：`[filename.md:42-51](路径/filename.md#L42-L51)`
 - 目录：`[目录名/](路径/目录名/)`
 
-### Claude Code 特定验证要点
+### 任务管理
 
-完成项目任务后，额外检查：
-- [ ] 检查项根据项目类型自动调整
-- [ ] 路径是否使用正斜杠
-- [ ] 文件引用是否使用 markdown 链接
+- 使用 TodoWrite 工具跟踪复杂任务的进度
+- 完成任务后及时标记为 completed
+- 拆分大任务为可管理的小步骤
 
-## 有机更新原则
+### 代码变更规范
 
-1. 理解意图
-2. 定位生态位
-3. 协调更新
-4. 保持一致性
+- 修改代码前先使用 Read 工具阅读文件
+- 优先使用 Edit 工具进行精确修改
+- 避免不必要的格式化或重构
+
+### 与 AGENTS.md 的关系
+
+- **AGENTS.md**：跨平台通用项目指令（Single Source of Truth）
+- **CLAUDE.md**：通过 `@./AGENTS.md` 自动引用 + Claude Code 特定适配
+- **维护流程**：修改 AGENTS.md → CLAUDE.md 自动生效 → 记录到 CHANGELOG.md
 ```
-
-### AGENTS.md 结构（Codex CLI 适配）
-
-基于 CLAUDE.md 微调，适配 OpenAI Codex CLI 的特定要求：
-
-```markdown
-# {项目名称} - 项目指令
-
-你正在 `{工作目录}` 中工作：该目录用于 {项目用途}。
-
-## 项目目标
-
-{核心功能描述}
-
-## 核心工作流
-
-{工作流与 CLAUDE.md 保持一致}
-
-## 工程原则
-
-{工程原则与 CLAUDE.md 保持一致}
-
-## 默认语言
-
-{语言设置与 CLAUDE.md 保持一致}
-
-## 目录结构
-
-{目录树与 CLAUDE.md 保持一致}
-
-## Codex CLI 特定说明
-
-### 文件引用规范
-
-在 Codex CLI 中引用文件时，使用内联代码格式：
-- 使用内联代码使文件路径可点击
-- 每个引用应有独立路径
-- 包含相关的起始行号
-
-### 与 CLAUDE.md 的关系
-
-- **CLAUDE.md**：Claude Code 主指令文件
-- **AGENTS.md**：基于 CLAUDE.md 适配的 Codex CLI 版本
-- 两个文件的核心内容保持一致，仅平台特定说明有差异
-
-## 有机更新原则
-
-{与 CLAUDE.md 保持一致}
-```
-
-**CLAUDE.md → AGENTS.md 转换规则**：
-1. 移除 Claude Code 特定的 markdown 链接语法说明
-2. 添加 Codex CLI 的内联代码引用规范
-3. 调整"与 AGENTS.md 的关系"为"与 CLAUDE.md 的关系"
-4. 其他核心内容保持完全一致
 
 ### README.md 结构（项目介绍）
-
-仅在 README.md 不存在时生成：
-
-```markdown
-# {项目名称}
 
 {项目描述}
 

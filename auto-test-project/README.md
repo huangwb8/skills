@@ -64,7 +64,7 @@ python3 /path/to/auto-test-project/scripts/verify_test_session.py --require-plan
 ### 开发者建议
 
 ```
-使用 auto-test-project 这个skill 对xxx流程进行3个A轮迭代优化并通过测试;每个A轮要提出10-20个问题；最后的B轮审查要强制执行。每一轮测试中的p0-p2级问题全都要落实、修复后才可以进入下一轮。
+使用 auto-test-project 这个skill 对xxx流程进行1轮迭代优化。
 ```
 
 ### 触发方式
