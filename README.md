@@ -1,151 +1,151 @@
 <div align="center">
 
-# Skills Development Pipeline
+# Skills 开发流水线
 
 [![Version](https://img.shields.io/github/v/tag/huangwb8/skills?label=version&sort=semver)](https://github.com/huangwb8/skills/releases)
 [![Standard](https://img.shields.io/badge/Agent%20Skills-Standard%20v1.0-blue.svg)](https://agentskills.io)
-[![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#platform-compatibility)
+[![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#平台兼容性)
 [![Built with](https://img.shields.io/badge/built%20with-Python%203.10%2B-orange.svg)](https://www.python.org/)
 
-[English](README.md) | [中文](README_ZH.md)
+[中文](README.md) | [English](README_EN.md)
 
-<strong>Reusable Agent Skills Library following the Agent Skills Open Standard</strong>
+<strong>遵循 Agent Skills 开放标准的可复用 AI 技能库</strong>
 
 </div>
 
-A unified skills development pipeline for AI agents, maintaining reusable **Agent Skills** conforming to the [Agent Skills Open Standard](https://agentskills.io) for seamless cross-platform compatibility. Skills are **write-once, run-anywhere** – working identically across Claude Code, OpenAI Codex, Cursor, and other compatible platforms.
+统一的 AI 技能开发流水线，维护符合 [Agent Skills 开放标准](https://agentskills.io) 的可复用技能，实现跨平台无缝兼容。技能遵循**一次编写，到处运行**原则——在 Claude Code、OpenAI Codex、Cursor 及其他兼容平台上表现完全一致。
 
-## Highlights
+## 核心特性
 
-- **🔄 Unified Skill Library** – Single codebase for multiple agent platforms
-- **📋 Open Standard** – Follows [agentskills.io](https://agentskills.io) specifications
-- **🚀 System-wide Installation** – Skills available in any project via installer
-- **🎯 Organic Updates** – Guided by SOLID, KISS, YAGNI, DRY principles
-- **📚 Progressive Disclosure** – Three-layer architecture: metadata → operations → knowledge
-- **🔍 Semantic Discovery** – Skills trigger based on natural language intent
+- **🔄 统一技能库** – 单一代码库支持多个 AI 平台
+- **📋 开放标准** – 遵循 [agentskills.io](https://agentskills.io) 规范
+- **🚀 系统级安装** – 通过安装器使技能在任何项目中可用
+- **🎯 有机更新** – 遵循 SOLID、KISS、YAGNI、DRY 原则
+- **📚 渐进披露** – 三层架构：元数据 → 操作 → 知识
+- **🔍 语义发现** – 基于自然语言意图触发技能
 
-## Platform Compatibility
+## 平台兼容性
 
-| Platform | Status | Install Path |
-|----------|--------|--------------|
-| [Claude Code](https://code.anthropic.com) | ✅ Native | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com/index/introducing-codex/) | ✅ Native | `~/.codex/skills/` |
-| Cursor | ✅ Compatible | `~/.cursor/skills/` |
-| GitHub | ✅ Compatible | `.github/skills/` |
-| VS Code | ✅ Compatible | `.vscode/skills/` |
+| 平台 | 状态 | 安装路径 |
+|------|------|----------|
+| [Claude Code](https://code.anthropic.com) | ✅ 原生支持 | `~/.claude/skills/` |
+| [OpenAI Codex](https://openai.com/index/introducing-codex/) | ✅ 原生支持 | `~/.codex/skills/` |
+| Cursor | ✅ 兼容 | `~/.cursor/skills/` |
+| GitHub | ✅ 兼容 | `.github/skills/` |
+| VS Code | ✅ 兼容 | `.vscode/skills/` |
 
-## Recommended Development Environment
+## 推荐开发环境
 
-### 💡 VS Code + Claude Code / Codex Extension
+### 💡 VS Code + Claude Code / Codex 插件
 
-For the best skill development experience, we recommend using **VS Code** with the **Claude Code** or **Codex** extension.
+为获得最佳技能开发体验，我们推荐使用 **VS Code** 配合 **Claude Code** 或 **Codex** 插件。
 
-**Why this combination?**
+**为什么选择这个组合？**
 
-| Benefit | Description |
-|---------|-------------|
-| **🎯 Native Skill Integration** | Extensions load skills from `~/.claude/skills/` or `~/.codex/skills/` automatically |
-| **⚡ Real-time Validation** | Test skill triggers instantly with natural language prompts |
-| **🔍 Context-Aware Editing** | AI understands your project structure and applies organic update principles |
-| **🛠️ Integrated Workflow** | No context switching – edit, test, and iterate in one environment |
-| **📝 Smart Documentation** | AI helps maintain header-body alignment across SKILL.md, README.md, and config.yaml |
+| 优势 | 说明 |
+|------|------|
+| **🎯 原生技能集成** | 插件自动从 `~/.claude/skills/` 或 `~/.codex/skills/` 加载技能 |
+| **⚡ 实时验证** | 使用自然语言提示即时测试技能触发 |
+| **🔍 上下文感知编辑** | AI 理解项目结构并应用有机更新原则 |
+| **🛠️ 集成工作流** | 无需上下文切换——编辑、测试、迭代在同一环境 |
+| **📝 智能文档维护** | AI 帮助维护 SKILL.md、README.md 和 config.yaml 之间的表头-正文一致性 |
 
-## Project Structure
+## 项目结构
 
 ```
 skills/
-├── AGENTS.md              # Core project instructions (engineering principles)
-├── CLAUDE.md              # Claude Code specific configuration
-├── README.md              # English documentation
-├── README_ZH.md           # 中文文档
+├── AGENTS.md              # 核心项目指令（工程原则）
+├── CLAUDE.md              # Claude Code 特定配置
+├── README.md              # 中文说明（本文件）
+├── README_EN.md           # 英文说明
 │
-├── init-project/          # Skill: Project documentation generator
-│   ├── SKILL.md          # Skill definition (AI-facing)
-│   ├── README.md         # User guide (human-facing)
-│   ├── config.yaml       # Configuration parameters
-│   ├── scripts/          # Automation scripts
-│   │   └── generate.py   # Generate AGENTS.md + CLAUDE.md
-│   └── templates/        # Document templates
+├── init-project/          # 技能：项目文档生成器
+│   ├── SKILL.md          # 技能定义（面向 AI）
+│   ├── README.md         # 用户指南（面向人类）
+│   ├── config.yaml       # 配置参数
+│   ├── scripts/          # 自动化脚本
+│   │   └── generate.py   # 生成 AGENTS.md + CLAUDE.md
+│   └── templates/        # 文档模板
 │
-├── install-bensz-skills/  # Skill: System-wide installer
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   ├── CHANGELOG.md      # Changelog
-│   └── scripts/          # Installation scripts
+├── install-bensz-skills/  # 技能：系统级安装器
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   ├── CHANGELOG.md      # 更新日志
+│   └── scripts/          # 安装脚本
 │
-├── git-commit/            # Skill: Smart Git commits
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── scripts/          # Automation scripts
+├── git-commit/            # 技能：智能 Git 提交
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── scripts/          # 自动化脚本
 │
-├── git-publish-release/   # Skill: GitHub release publisher
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── scripts/          # Automation scripts
+├── git-publish-release/   # 技能：GitHub 发布
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── scripts/          # 自动化脚本
 │
-├── auto-test-skill/       # Skill: Skill-level automated testing
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   ├── config.yaml       # Configuration parameters
-│   └── scripts/          # Testing scripts
+├── auto-test-skill/       # 技能：技能级自动测试
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   ├── config.yaml       # 配置参数
+│   └── scripts/          # 测试脚本
 │
-└── auto-test-project/     # Skill: Project-level automated testing
-    ├── SKILL.md          # Skill definition
-    ├── README.md         # User guide
-    └── config.yaml       # Configuration parameters
+└── auto-test-project/     # 技能：项目级自动测试
+    ├── SKILL.md          # 技能定义
+    ├── README.md         # 用户指南
+    └── config.yaml       # 配置参数
 ```
 
-## Quick Start
+## 快速开始
 
-### 🚀 How to Install Skills in This Project
+### 🚀 如何安装本项目的 skill
 
-**Step 1: Clone this project**
+**第一步：克隆本项目**
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
 ```
 
-**Step 2: Open Claude Code or Codex in the project's root directory, then type:**
+**第二步：本项目的根目录打开 Claude Code 或 Codex，输入：**
 
-> `"install-bensz-skills this skill install skills in this project to Codex and Claude Code"`
+> `"install-bensz-skills 这个 skill 将本项目里的 skill 安装到 Codex 和 Claude Code 里"`
 
-That's it! All skills will be installed system-wide and available in any project.
+就这么简单！所有 skill 将被安装到系统级，可在任何项目中使用。
 
-### 🎯 How to Use Skills in This Project
+### 🎯 如何使用本项目的 skills
 
-**Open this project in Claude Code or Codex, then use natural language to trigger skills:**
+**在 Claude Code 或 Codex 中打开本项目，直接使用自然语言触发技能：**
 
 ```text
-# Project initialization
-"init-project this skill help me initialize project"
+# 项目初始化
+"init-project 这个 skill 帮我初始化项目"
 
-# System-wide installation
-"install-bensz-skills this skill install skills in this project to Codex and Claude Code"
+# 系统级安装
+"install-bensz-skills 这个 skill 将本项目里的 skill 安装到 Codex 和 Claude Code 里"
 
-# Automated testing
-"auto-test-skill this skill help me test init-project this skill"
+# 自动化测试
+"auto-test-skill 这个 skill 帮我测试 init-project 这个 skill"
 ```
 
-**It's that simple!** Natural language programming is the soul of Vibe Coding!
+**就是这么简单！** 自然语言编程才是 Vibe Coding 的灵魂！
 
-## Skill Development
+## 技能开发
 
-### File Structure
+### 文件结构
 
 ```
 my-skill/
-├── SKILL.md           # Required: AI instructions (includes YAML frontmatter)
-├── README.md          # Recommended: User guide
-├── config.yaml        # Recommended: Configuration parameters
-├── CHANGELOG.md       # Optional: Version history
-├── references/        # Optional: Detailed documentation
+├── SKILL.md           # 必需：AI 指令（包含 YAML frontmatter）
+├── README.md          # 推荐：用户指南
+├── config.yaml        # 推荐：配置参数
+├── CHANGELOG.md       # 可选：版本历史
+├── references/        # 可选：详细文档
 │   └── advanced-guide.md
-└── scripts/           # Optional: Automation scripts
+└── scripts/           # 可选：自动化脚本
     └── process.py
 ```
 
-### Quick Start
+### 快速创建
 
 ```bash
 mkdir my-new-skill
@@ -153,41 +153,41 @@ cd my-new-skill
 touch SKILL.md README.md config.yaml
 ```
 
-### Architecture Layers
+### 架构层次
 
-| Layer | File/Directory | Purpose | When Loaded |
-|-------|---------------|---------|-------------|
-| **Metadata** | YAML Frontmatter | Skill discovery and activation | At session start |
-| **Operations** | SKILL.md | AI execution instructions | When skill triggers |
-| **Knowledge** | references/ | Detailed background and theory | On-demand |
-| **Tools** | scripts/ | Automation and computation | When needed |
+| 层次 | 文件/目录 | 用途 | 加载时机 |
+|------|----------|------|----------|
+| **元数据层** | YAML Frontmatter | 技能发现与激活 | 会话启动时 |
+| **操作层** | SKILL.md | AI 执行指令 | 技能触发时 |
+| **知识层** | references/ | 详细背景和理论 | 按需加载 |
+| **工具层** | scripts/ | 自动化和计算 | 需要时调用 |
 
-### Best Practices
+### 最佳实践
 
-- **YAML Frontmatter** – Keep `description` clear and semantic
-- **Progressive Disclosure** – Keep SKILL.md lean (<500 lines), move details to references/
-- **Header-Body Alignment** – Sync metadata with actual behavior
-- **Lazy Loading** – Don't load everything at startup
-- **Platform Agnostic** – Avoid platform-specific code when possible
+- **YAML Frontmatter** – 保持 `description` 清晰且语义化
+- **渐进披露** – 保持 SKILL.md 精简（<500 行），详细内容移至 references/
+- **表头-正文一致性** – 同步元数据与实际行为
+- **延迟加载** – 启动时不要加载所有内容
+- **平台无关** – 尽可能避免平台特定代码
 
-For comprehensive development guidelines, see [AGENTS.md](AGENTS.md).
+完整的开发指南请参阅 [AGENTS.md](AGENTS.md)。
 
-## Contributing
+## 贡献指南
 
-Contributions welcome! Please ensure:
+欢迎贡献！请确保：
 
-1. **Follow the Standard** – Comply with [agentskills.io](https://agentskills.io)
-2. **Complete Documentation** – SKILL.md + README.md at minimum
-3. **Organic Updates** – Maintain header-body consistency
-4. **Test Across Platforms** – Verify on Claude Code and Codex if possible
+1. **遵循标准** – 符合 [agentskills.io](https://agentskills.io)
+2. **完整文档** – 至少包含 SKILL.md + README.md
+3. **有机更新** – 保持表头-正文一致性
+4. **跨平台测试** – 如可能，在 Claude Code 和 Codex 上验证
 
-## Resources
+## 资源链接
 
-- [Agent Skills Open Standard](https://agentskills.io)
-- [AGENTS.md](AGENTS.md) – Project instructions and philosophy
-- [CLAUDE.md](CLAUDE.md) – Claude Code specific notes
-- [Skill Directory](https://github.com/huangwb8/skills) – Browse all skills
+- [Agent Skills 开放标准](https://agentskills.io)
+- [AGENTS.md](AGENTS.md) – 项目指令和哲学
+- [CLAUDE.md](CLAUDE.md) – Claude Code 特定说明
+- [技能目录](https://github.com/huangwb8/skills) – 浏览所有技能
 
-## License
+## 许可证
 
-MIT License – See [LICENSE](LICENSE) for details.
+MIT License – 详见 [LICENSE](LICENSE)。
