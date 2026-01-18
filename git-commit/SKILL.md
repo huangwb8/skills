@@ -14,6 +14,17 @@ category: normal
 
 仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过）。
 
+## 工作模式
+
+本技能支持两种工作模式：
+
+| 模式 | 触发方式 | 行为特征 |
+|------|----------|----------|
+| **自动模式** | 默认（无参数） | AI 自主决策所有步骤：自动暂存、自动拆分、直接提交 |
+| **审核模式** | `--review` 参数 | 在关键决策点暂停，等待用户确认暂存方式、拆分建议、提交信息 |
+
+**默认使用自动模式**，因为大多数情况下 commit 的顺利提交比内容本身更重要；如不满意可直接回退。
+
 ## 触发场景
 
 - 用户要提交代码改动
@@ -46,8 +57,8 @@ category: normal
 - 用 `git status --porcelain` 与 `git diff` 获取已暂存与未暂存的改动
   - **如无改动**：提示 "当前无改动，无需提交"，退出
 - 若已暂存文件为 0：
-  - 若传入 `--all` → 执行 `git add -A`
-  - 否则提示用户选择：
+  - **自动模式**：自动执行 `git add -A`（除非传入 `--no-all` 跳过）
+  - **审核模式**：提示用户选择：
     - **选项 1**：暂存所有改动（`git add -A`）
     - **选项 2**：暂存部分文件（`git add <path>...`）
     - **选项 3**：取消命令，手动分组暂存后重试
@@ -71,7 +82,9 @@ category: normal
 - 单一提交类型
 - 可独立回滚
 
-若检测到多组独立变更或 diff 规模过大，给出每一组的 pathspec 拆分建议
+若检测到多组独立变更或 diff 规模过大：
+- **自动模式**：按分组自动执行多次提交（不询问）
+- **审核模式**：给出每一组的 pathspec 拆分建议，询问是否接受
 
 ### 4. 提交信息生成
 
@@ -142,8 +155,12 @@ category: normal
 
 ### 5. 执行提交
 
-- 单提交场景：`git commit [-S] [--no-verify] [-s] -F .git/COMMIT_EDITMSG`
-- 多提交场景（如接受拆分建议）：按分组给出 `git add <paths> && git commit ...` 的明确指令
+- **自动模式**：
+  - 单提交场景：直接执行 `git commit [-S] [--no-verify] [-s] -F .git/COMMIT_EDITMSG`
+  - 多提交场景：按分组自动依次执行 `git add <paths> && git commit ...`
+- **审核模式**：
+  - 单提交场景：显示生成的 commit message，询问是否确认后再提交
+  - 多提交场景：给出每一组的 `git add <paths> && git commit ...` 指令，询问是否执行
 
 ### 6. 安全回滚
 
@@ -151,10 +168,19 @@ category: normal
 
 ## 使用参数
 
+### 模式控制
+
+- `--review`：启用审核模式（在关键决策点暂停，等待用户确认）
+- `--no-all`：在自动模式下跳过自动暂存（暂存区为空时报错退出）
+
+### 提交控制
+
 - `--no-verify`：跳过本地 Git 钩子
-- `--all`：当暂存区为空时，自动 `git add -A`
 - `--amend`：修补上一次提交（⚠️ 危险操作：仅在未推送的本地分支使用，已推送的分支使用会导致历史不一致）
 - `--signoff`：附加 `Signed-off-by` 行
+
+### 内容控制
+
 - `--emoji`：在提交信息中包含 emoji 前缀
 - `--scope <scope>`：指定提交作用域
 - `--type <type>`：强制提交类型
@@ -197,7 +223,9 @@ BREAKING CHANGE: authentication API has been completely redesigned, all clients 
 
 ### 拆分提交示例
 
-**检测到多组独立变更，建议拆分为以下提交**：
+**自动模式**：自动执行以下三个提交（不询问）
+
+**审核模式**：检测到多组独立变更，建议拆分为以下提交：
 
 #### 提交 1：feat(ui): add user authentication flow
 ```bash

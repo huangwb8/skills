@@ -7,9 +7,24 @@
 
 skill_info:
   name: git-commit              # 技能名称（与目录名一致）
-  version: 1.1.0                # 当前版本（修复 P0 问题：空仓库语言检测、拆分建议标准、冲突状态处理）
+  version: 2.0.0                # 当前版本（新增审核/自动模式）
   description: "仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji）"  # 技能描述（最大 1024 字符）
   category: "git"               # 技能分类（normal/git/data-analysis/devops 等）
+
+# 工作模式配置
+modes:
+  # 默认模式（auto/review）
+  default: "auto"               # auto: AI 自主决策；review: 关键步骤需用户确认
+  # 自动模式行为
+  auto:
+    auto_stage: true            # 暂存区为空时自动 git add -A
+    auto_split: true            # 达到阈值时自动拆分提交
+    auto_commit: true           # 直接提交，不询问确认
+  # 审核模式行为（当传入 --review 参数时）
+  review:
+    prompt_stage: true          # 暂存区为空时提示用户选择
+    prompt_split: true          # 给出拆分建议，询问是否接受
+    prompt_commit: true         # 显示 commit message，询问是否确认
 
 # 提交类型定义
 commit_types:
