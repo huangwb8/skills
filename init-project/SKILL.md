@@ -1,28 +1,14 @@
 ---
 name: init-project
-description: 当用户要初始化一个新项目（在空目录或新建项目），需要生成 AI 项目指令文件时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）。适用于"初始化项目"、"新建项目配置"、"生成项目文档"、"自动生成 AGENTS.md"等场景。
+description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）。
 metadata:
   short-description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md）
   keywords:
+    - init-project
     - 项目初始化
-    - 初始化项目
-    - 新建项目
-    - 项目配置
-    - 项目文档
     - AGENTS.md
     - CLAUDE.md
-    - README.md
-    - CHANGELOG.md
     - 项目指令
-    - 自动生成
-    - 一键生成
-    - generate project docs
-    - create project structure
-    - init project
-    - 项目初始化文档
-    - 系统级 prompt
-    - 项目原则
-    - 工程原则
     - 项目规范
     - 自动分析项目
     - 检测项目类型

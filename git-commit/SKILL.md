@@ -1,20 +1,12 @@
 ---
 name: git-commit
-description: 当用户要提交 Git 改动时使用。仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过）。适用于"提交代码"、"git commit"、"生成提交信息"、"提交改动"等场景。
+description: 当用户明确要求"提交 Git 改动"、"生成 commit 信息"或"创建 git commit"时使用。仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过）。
 metadata:
   short-description: 仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji）
   keywords:
     - git commit
-    - 提交代码
-    - 提交改动
-    - 生成提交信息
     - conventional commit
     - commit message
-    - Git 提交
-    - 自动提交
-    - 拆分提交
-    - emoji commit
-    - commitizen
 category: normal
 ---
 

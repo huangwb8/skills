@@ -3,8 +3,9 @@ name: auto-test-skill
 version: 2.3.0
 category: normal
 description: |
-  自动化测试驱动优化技能 - 用于在技能/项目迭代时，通过多轮 A 轮批判性测试 + B 轮质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准），
-  系统化发现、记录、修复问题，并沉淀可追溯的 `plans/` 与 `tests/` 文档。
+  当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。
+
+  通过多轮 A 轮批判性测试 + B 轮质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准），系统化发现、记录、修复问题，并沉淀可追溯的 `plans/` 与 `tests/` 文档。
 
   **核心能力**:
   - 支持多轮 A 轮迭代：分析 → 计划 → 优化 → 轻量测试（可重复 N 次）
@@ -14,18 +15,17 @@ description: |
   - A 轮结束后执行 B 轮质量原则检查：维度以 `config.yaml:b_round_check.dimensions` 为准（当前为 8 项）
   - 规范化测试会话命名：`vYYYYMMDDHHMM`
   - 将每轮产出固化为文档与目录（可追溯、可复现、可复盘）
+
+  ⚠️ 以下情况不适用：
+  - 用户只是想优化/改进某个功能（应直接修改）
+  - 用户只是询问技能问题（应直接回答）
+  - 没有明确"测试"意图的一般性开发
 metadata:
   short-description: 批判性思维驱动的测试驱动优化流水线（多轮 A 轮 + B 轮质量原则检查）
   keywords:
-    - testing
-    - QA
-    - bug report
-    - regression
-    - iteration
-    - optimization
-    - workflow
-    - critical thinking
-    - systemic review
+    - auto-test-skill
+    - 批判性测试
+    - QA review
 ---
 
 # auto-test-skill（批判性思维驱动的测试优化技能）

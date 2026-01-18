@@ -3,7 +3,9 @@ name: auto-test-project
 version: 1.3.0
 category: normal
 description: |
-  项目级自动化测试驱动优化技能 - 用于对完整项目（如 skill、workflow、或类似 init-project 定义的流程项目）进行持续性 AI 优化。
+  当用户明确要求"测试项目"、"运行 auto-test-project"或"进行项目级测试"时使用。
+
+  对完整项目（如 skill、workflow、或类似 init-project 定义的流程项目）进行多轮 A 轮批判性测试 + B 轮质量检查，系统化发现、记录、修复问题。
 
   **核心能力**:
   - 支持多轮 A 轮迭代：分析 → 计划 → 优化 → 轻量测试（可重复 N 次）
@@ -17,22 +19,17 @@ description: |
   - **模板自动替换**：创建测试会话时自动替换模板变量，消除人工填写错误
   - **强制数量要求**：每轮至少 10 个问题，鼓励 15-25 个
 
+  ⚠️ 以下情况不适用：
+  - 用户只是想优化/改进某个功能（应直接修改）
+  - 用户只是询问项目问题（应直接回答）
+  - 没有明确"测试"意图的一般性开发
+
 metadata:
   short-description: 多轮 A 轮测试 + B 轮质量检查 的项目级测试驱动优化流水线
   keywords:
-    - project testing
+    - auto-test-project
+    - 项目级测试
     - project QA
-    - project optimization
-    - bug report
-    - regression testing
-    - iteration
-    - workflow
-    - CI/CD
-    - continuous improvement
-    - verification
-    - execution validation
-    - template rendering
-    - issue discovery techniques
 ---
 
 # auto-test-project（项目级自动化测试驱动优化）

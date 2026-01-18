@@ -1,26 +1,14 @@
 ---
 name: git-publish-release
-description: 当用户需要发布项目到 GitHub、创建 GitHub Release、生成并发布 Release Notes、推送 tag 并创建 release 时使用：智能分析 tag 间历史变化，生成专业且吸引人的 Release Notes，自动创建 GitHub Release。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
+description: 当用户明确要求"发布项目到 GitHub"、"创建 GitHub Release"或"生成 Release Notes"时使用。智能分析 tag 间历史变化，生成专业且吸引人的 Release Notes，自动创建 GitHub Release。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
 
 metadata:
   short-description: GitHub Release 自动发布与 Release Notes 生成
   keywords:
+    - git-publish-release
     - GitHub Release
-    - 发布项目
     - release notes
-    - tag 发布
-    - 版本发布
-    - 自动发布
-    - Git tag
-    - GitHub API
-    - 版本管理
-    - changelog
-    - commit 历史
-    - 版本公告
-    - prerelease
-    - alpha
-    - beta
-    - rc
+    - version publish
 ---
 
 # GitHub Release
