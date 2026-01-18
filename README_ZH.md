@@ -72,10 +72,27 @@ skills/
 │   ├── README.md         # 用户指南
 │   ├── CHANGELOG.md      # 更新日志
 │   └── scripts/          # 安装脚本
-│       ├── install.py    # 核心安装逻辑
-│       └── i18n.py       # 国际化支持
 │
-└── [更多技能]/           # 遵循相同结构的附加技能
+├── git-commit/            # 技能：智能 Git 提交
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── scripts/          # 自动化脚本
+│
+├── git-publish-release/   # 技能：GitHub 发布
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── scripts/          # 自动化脚本
+│
+├── auto-test-skill/       # 技能：技能级自动测试
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   ├── config.yaml       # 配置参数
+│   └── scripts/          # 测试脚本
+│
+└── auto-test-project/     # 技能：项目级自动测试
+    ├── SKILL.md          # 技能定义
+    ├── README.md         # 用户指南
+    └── config.yaml       # 配置参数
 ```
 
 ## 快速开始

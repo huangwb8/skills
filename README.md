@@ -57,7 +57,7 @@ skills/
 ├── AGENTS.md              # Core project instructions (engineering principles)
 ├── CLAUDE.md              # Claude Code specific configuration
 ├── README.md              # English documentation
-├── README_ZH.md           # 中文文档（Chinese documentation）
+├── README_ZH.md           # 中文文档
 │
 ├── init-project/          # Skill: Project documentation generator
 │   ├── SKILL.md          # Skill definition (AI-facing)
@@ -72,10 +72,27 @@ skills/
 │   ├── README.md         # User guide
 │   ├── CHANGELOG.md      # Changelog
 │   └── scripts/          # Installation scripts
-│       ├── install.py    # Core installer logic
-│       └── i18n.py       # Internationalization
 │
-└── [more skills]/         # Additional skills following the same structure
+├── git-commit/            # Skill: Smart Git commits
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── scripts/          # Automation scripts
+│
+├── git-publish-release/   # Skill: GitHub release publisher
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── scripts/          # Automation scripts
+│
+├── auto-test-skill/       # Skill: Skill-level automated testing
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   ├── config.yaml       # Configuration parameters
+│   └── scripts/          # Testing scripts
+│
+└── auto-test-project/     # Skill: Project-level automated testing
+    ├── SKILL.md          # Skill definition
+    ├── README.md         # User guide
+    └── config.yaml       # Configuration parameters
 ```
 
 ## Quick Start
