@@ -109,6 +109,7 @@
 - [ ] **冗余检查**：是否存在重复逻辑或可合并的相似代码？
 - [ ] **残留检查**：删除功能后，相关引用是否全部清理？
 - [ ] **一致性检查**：YAML frontmatter、SKILL.md、config.yaml 三者是否一致？
+- [ ] **版本号检查**：确认版本号仅在 config.yaml 中记录，SKILL.md 和 README.md 中是否存在冗余的版本号记录？
 - [ ] **僵尸检查**：是否存在未被引用的文件或定义？
 
 **实践要点**：
@@ -472,22 +473,21 @@ skill_info:
 
 ### 版本同步机制
 
-版本号必须按照以下顺序同步：
+**核心规则**：版本号仅在 `config.yaml` 中记录（Single Source of Truth），其他任何地方**不得直接记录版本号**，只能通过引用 config.yaml 获取。
 
-1. **config.yaml**（Single Source of Truth）
-   - 所有版本号变更首先在此文件更新
-   - 作为其他文件版本信息的唯一来源
+| 文件 | 版本号处理方式 | 说明 |
+|------|--------------|------|
+| **config.yaml** | **唯一记录处** | 版本号的唯一来源，遵循语义化版本规范 |
+| **SKILL.md** | ❌ **禁止直接记录** | 不得在 YAML frontmatter 或正文中直接记录版本号 |
+| **README.md** | 仅引用 | 在文档中说明"版本号见 config.yaml:skill_info.version" |
+| **CHANGELOG.md** | 仅引用 | 在版本条目标题中使用，但本质是记录变更历史，非版本号存储 |
 
-2. **SKILL.md**（YAML frontmatter）
-   - 可选：在 `metadata.version` 字段中记录
-   - 用于 AI 读取当前技能版本
-
-3. **README.md**
-   - 在版本历史或升级说明中引用 config.yaml 的版本号
-
-4. **CHANGELOG.md**
-   - 每次版本变更时，添加新的版本条目
-   - 记录该版本的变更内容
+**实践要点**：
+- ❌ **禁止**：在 SKILL.md 的 YAML frontmatter 中添加 `metadata.version` 字段
+- ❌ **禁止**：在 SKILL.md 正文中直接写明"当前版本：v1.0.0"
+- ❌ **禁止**：在 README.md 中硬编码版本号（如"最新版本 v1.0.0"）
+- ✅ **推荐**：在 README.md 中写明"版本信息见 config.yaml:skill_info.version"
+- ✅ **推荐**：使用脚本或构建工具动态读取 config.yaml 中的版本号（如需要）
 
 ### 新建技能时的版本号初始化
 
@@ -515,7 +515,7 @@ skill_info:
 - 每次更新技能时，首先评估变更类型
 - 根据变更类型更新 config.yaml 中的版本号
 - 立即在 CHANGELOG.md 中记录变更内容
-- 同步更新 SKILL.md 的 metadata.version（如有）
+- ❌ 不要在其他文件中记录或同步版本号（保持 config.yaml 为唯一来源）
 
 ### 版本号检查命令
 
