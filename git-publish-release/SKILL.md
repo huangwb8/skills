@@ -29,10 +29,25 @@ metadata:
    - 如未指定，列出最近 tags 供选择
 2. **项目路径**（可选，默认当前工作目录）
 3. **GitHub Token**
-   - 优先使用 `GH_TOKEN` 环境变量
-   - 未设置时提示用户提供
+   - 自动从当前目录的 `.env` 文件读取 `GH_TOKEN`
+   - 如 `.env` 不存在，自动创建并提示用户添加 token
+   - 自动将 `.env` 添加到 `.gitignore`（如未添加）
 
 ## 工作流程
+
+### 准备认证
+
+首先获取 GitHub Token：
+
+```bash
+# 确保 .env 存在、.gitignore 已配置，并读取 GH_TOKEN
+GH_TOKEN=$(bash scripts/get-github-token.sh)
+```
+
+脚本会自动处理：
+- `.env` 文件不存在时自动创建
+- `.env` 未在 `.gitignore` 中时自动添加
+- 读取并返回 `GH_TOKEN` 值
 
 ### 确认项目信息
 
@@ -180,7 +195,8 @@ curl -X POST \
 
 | 场景 | 处理方式 |
 |------|---------|
-| GH_TOKEN 未设置 | 提示用户设置环境变量或提供 token |
+| .env 文件不存在 | 自动创建并提示用户添加 GH_TOKEN |
+| GH_TOKEN 未设置或无效 | 提示用户在 .env 文件中设置 token |
 | Tag 不存在 | 提示用户可用的 tags 列表 |
 | 网络请求失败 | 重试 3 次，仍失败则报错并给出手动创建指南 |
 | 权限不足 | 提示检查 token 权限（需要 `repo` scope） |
@@ -192,3 +208,4 @@ curl -X POST \
 2. **错误解决**：捕获 curl 错误并给出明确的错误信息
 3. **Git 远程解析**：处理 HTTPS 和 SSH 两种 remote URL 格式
 4. **Markdown 转义**：在 JSON 中传递 Release Notes 时正确处理特殊字符
+5. **Token 安全**：`.env` 文件自动加入 `.gitignore`，防止意外提交

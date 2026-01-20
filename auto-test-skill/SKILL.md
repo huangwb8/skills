@@ -1,6 +1,5 @@
 ---
 name: auto-test-skill
-version: 2.3.0
 category: normal
 description: |
   当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。

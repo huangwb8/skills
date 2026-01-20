@@ -1,6 +1,5 @@
 ---
 name: auto-test-project
-version: 1.3.0
 category: normal
 description: |
   当用户明确要求"测试项目"、"运行 auto-test-project"或"进行项目级测试"时使用。
