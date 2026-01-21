@@ -2,13 +2,19 @@
 
 ## [Unreleased]
 
+### Changed
+- 优化 [SKILL.md](SKILL.md) 的 `description` 字段，明确说明"默认同时安装到 Codex 和 Claude Code"
+- 优化命令行参数帮助文本（`i18n.py`），为 `--codex` 和 `--claude` 添加默认行为说明，让用户清楚理解这两个参数是"单一目标选项"
+
 ### Fixed
 - 修复 `_ignore_patterns()` 函数，添加 `plans` 目录到忽略列表，确保 skill 根目录下的 `plans/` 和 `tests/` 子目录不会被安装到系统中
+- 修复总体摘要中技能个数统计逻辑：使用 set 去重，确保同一技能在多个平台安装时只计数一次（如 3 个技能安装到 2 个平台应显示 3 个，而非 6 个）
+
+### Added
+- 新增 [references/install-report-template.md](references/install-report-template.md)：定义安装报告的标准格式规范，包括章节标题、分隔符、状态图标、多语言支持等
 
 ### Changed
-- **优化 manifest 文件存储位置**：从用户根目录 `~/.bensz-skills-install-manifest.*.json` 迁移到专用隐藏目录 `~/.install-bensz-skills/manifests/install-manifest.*.json`
-- **自动迁移旧 manifest 文件**：每次运行安装脚本时，自动将旧位置的 manifest 文件迁移到新目录
-- **改进输出信息**：manifest 保存路径显示为相对路径，并添加历史记录目录提示
+- 更新 [SKILL.md](SKILL.md) 中的安装报告示例，引用新的报告模板规范文档
 
 ## 2026-01-12: Manifest 文件存储优化
 

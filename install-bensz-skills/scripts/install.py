@@ -844,8 +844,12 @@ def main(argv: list[str]) -> int:
     print(t.summary_total_header())
     print(f"{'=' * 60}")
 
-    total_installed = sum(len(r.installed_skills) for r in reports)
-    total_skipped = sum(len(r.skipped_skills) for r in reports)
+    # 技能个数统计（去重）：基于唯一技能名称，而非安装次数
+    # 使用 set 去重，确保同一个技能在多个平台安装时只计数一次
+    installed_skill_names = {s.name for r in reports for s in r.installed_skills}
+    skipped_skill_names = {s.name for r in reports for s in r.skipped_skills}
+    total_installed = len(installed_skill_names)
+    total_skipped = len(skipped_skill_names)
     total_auxiliary = len(merged_skill_dirs_by_type[SkillType.AUXILIARY])
     total_test = len(merged_skill_dirs_by_type[SkillType.TEST])
 

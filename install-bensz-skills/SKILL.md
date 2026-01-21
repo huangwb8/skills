@@ -1,7 +1,7 @@
 ---
 name: install-bensz-skills
 category: auxiliary
-description: 当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（Codex: ~/.codex/skills；Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装和单独目标安装。
+description: 当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装和指定单一目标安装。
 ---
 
 # Install Bensz Skills（系统级安装器）
@@ -58,31 +58,37 @@ codex exec "列出所有可用的技能"
 📦 正在安装到 CLAUUDE: /Users/xxx/.claude/skills
 ============================================================
 
-removed legacy symlink: /Users/xxx/.claude/skills/pipeline-skills
-installed: /Users/xxx/.claude/skills/nsfc-abstract-writer
-installed: /Users/xxx/.claude/skills/nsfc-aims-writer
-installed: /Users/xxx/.claude/skills/zcf:git-commit
+【安装过程】
+────────────────────────────────────────────────────────────
+installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 
-📊 安装摘要 - CLAUUDE
-============================================================
+【安装摘要】
+────────────────────────────────────────────────────────────
+┌────────────────────────┬──────────────┬─────────────────┐
+│ Skill 名称              │ 状态         │ 原因            │
+├────────────────────────┼──────────────┼─────────────────┤
+│ nsfc-bib-manager        │ ✅ 已安装    │ 版本已更新...  │
+│ git-commit              │ ⏭️  跳过     │ 版本未变化     │
+└────────────────────────┴──────────────┴─────────────────┘
 
-✅ 已安装/更新 (3 个):
-   • nsfc-abstract-writer
-     MD5: a3f5e8d9c2b1f4a6e7c8d0b1a2f3e4d5
-   • nsfc-aims-writer
-     MD5: b4e6f9a0d3c2e5f7a8b9c1d2e3f4a5b6
-   • zcf:git-commit
-     MD5: c5d7a0b1e4d3f6a8b9c2d3e4f5a6b7c8
+【辅助技能（已忽略，仅用于开发）】(1 个)
+   • install-bensz-skills ⏭️ 跳过
 
-⏭️  跳过 (15 个):
-   • nsfc-bib-manager
-     原因: 版本未变化
-   • nsfc-foundation-conditions-writer
-     原因: 版本未变化
-   ...
+────────────────────────────────────────────────────────────
+📊 统计
+────────────────────────────────────────────────────────────
+普通技能: 1 个已安装, 1 个跳过
 
 ============================================================
+🎯 总体安装摘要
+============================================================
+
+总计数:
+  • 已安装/更新: 1 个
+  • 跳过: 1 个
 ```
+
+**注**：完整报告格式规范见 [references/install-report-template.md](references/install-report-template.md)。
 
 ## 安装策略（脚本保证）
 

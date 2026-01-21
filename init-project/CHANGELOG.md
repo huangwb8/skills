@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- `init-project/SKILL.md` 按社区推荐格式瘦身：移除大段内嵌模板示例，改为引用 `init-project/templates/*.template`，确保 `SKILL.md` ≤ 500 行
+
 ## [2.0.1] - 2026-01-18
 
 ### Fixed（修复）

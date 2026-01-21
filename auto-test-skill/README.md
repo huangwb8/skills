@@ -42,7 +42,7 @@
 **典型场景**：
 
 ```
-根据 auto-test-skill 的B轮原则，目前 target-skill 还有哪些优化的地方？
+根据 auto-test-skill 的B轮原则，目前 bensz-rmd-rules 还有哪些优化的地方？
 ```
 
 **优势**：

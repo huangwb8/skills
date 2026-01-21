@@ -17,7 +17,6 @@ metadata:
     - 跨平台指令
     - @ 引用语法
     - Single Source of Truth
-# 版本号以 config.yaml:skill_info.version 为准
 ---
 
 # Init Project（项目初始化文档生成器）
@@ -270,154 +269,16 @@ python3 scripts/generate.py \
 
 生成的文档包含以下内容：
 
-### AGENTS.md 结构
+### 模板来源（Single Source of Truth）
 
-```markdown
-# {项目名称} - 项目指令
+为避免在 `SKILL.md` 内堆叠大段模板文本（社区推荐：`SKILL.md` ≤ 500 行），本技能的输出模板统一放在 `init-project/templates/`：
 
-你正在 `{工作目录}` 中工作：该目录用于 {项目用途}。
+- **AGENTS.md**：`init-project/templates/AGENTS.md.template`
+- **CLAUDE.md**：`init-project/templates/CLAUDE.md.template`（核心：`@./AGENTS.md` 引用 AGENTS.md）
+- **README.md**：`init-project/templates/README.md.template`
+- **CHANGELOG.md**：`init-project/templates/CHANGELOG.md.template`
 
-## 项目目标
-
-{核心功能描述}
-
-## 核心工作流
-
-{根据项目类型自动生成的工作流}
-
-## 工程原则
-
-| 原则 | 在本项目中的体现 |
-|------|------------------|
-| KISS | 追求极致简洁；文档标题不使用序号前缀（用 `##` 而非 `## 1)`） |
-| YAGNI | 只实现当前需要的功能 |
-| DRY | 相似逻辑应抽象复用 |
-| SOLID | 面向对象设计五大原则 |
-| 关注点分离 | 不同层次逻辑应分离 |
-| 奥卡姆剃刀 | 优先选择最简单的解决方案；Markdown 本身有层级结构，序号是冗余的形式化标记 |
-| 最小惊讶原则 | 行为应符合用户直觉 |
-
-## 默认语言
-
-{自动检测的语言}
-
-## 目录结构
-
-{自动生成的目录树}
-
-## 变更边界
-
-- {修改范围限制}
-- {保护性规则}
-
-## 有机更新原则
-
-1. 理解意图
-2. 定位生态位
-3. 协调更新
-4. 保持一致性
-```
-
-### CLAUDE.md 结构（Claude Code 特定适配）
-
-```markdown
-# {项目名称} - Claude Code 项目指令
-
-## 核心指令
-
-@./AGENTS.md
-
-## Claude Code 特定说明
-
-### 文件引用规范
-
-在 Claude Code 中引用文件时，使用 markdown 链接语法：
-- 文件：`[filename.md](路径/filename.md)`
-- 特定行：`[filename.md:42](路径/filename.md#L42)`
-- 行范围：`[filename.md:42-51](路径/filename.md#L42-L51)`
-- 目录：`[目录名/](路径/目录名/)`
-
-### 任务管理
-
-- 使用 TodoWrite 工具跟踪复杂任务的进度
-- 完成任务后及时标记为 completed
-- 拆分大任务为可管理的小步骤
-
-### 代码变更规范
-
-- 修改代码前先使用 Read 工具阅读文件
-- 优先使用 Edit 工具进行精确修改
-- 避免不必要的格式化或重构
-
-### 与 AGENTS.md 的关系
-
-- **AGENTS.md**：跨平台通用项目指令（Single Source of Truth）
-- **CLAUDE.md**：通过 `@./AGENTS.md` 自动引用 + Claude Code 特定适配
-- **维护流程**：修改 AGENTS.md → CLAUDE.md 自动生效 → 记录到 CHANGELOG.md
-```
-
-### README.md 结构（项目介绍）
-
-{项目描述}
-
-## 特性
-
-- {特性 1}
-- {特性 2}
-- {特性 3}
-
-## 快速开始
-
-{根据项目类型生成的快速开始指南}
-
-## 目录结构
-
-{简化的目录说明}
-
-## AI 辅助开发
-
-本项目配置了 AI 辅助开发支持：
-
-- **Claude Code**: 使用 `CLAUDE.md` 作为项目指令
-- **OpenAI Codex CLI**: 使用 `AGENTS.md` 作为项目指令
-
-### 使用方式
-
-1. 在项目目录启动 Claude Code 或 Codex CLI
-2. AI 会自动读取对应的指令文件
-3. 按项目工作流进行开发
-
-## 许可证
-
-{默认 MIT，可根据需要修改}
-```
-
-### CHANGELOG.md 结构（项目变更记录 - 强制性）
-
-遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式：
-
-```markdown
-# Changelog
-
-**重要**：本文件是项目变更的**唯一正式记录**。凡是项目的更新，都要统一在本文件里记录。
-
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
-
-## [Unreleased]
-
-## [{版本号}] - {日期}
-
-### Added（新增）
-- 初始化项目指令文件
-- 生成 CLAUDE.md（Claude Code 项目指令）
-- 生成 AGENTS.md（OpenAI Codex CLI 项目指令）
-
-### Changed（变更）
-{记录每次修改的内容，例如：修改了 XXX 章节：原因是 YYY}
-
-### Fixed（修复）
-{记录修复的问题}
-```
+脚本会基于项目分析结果替换模板占位符；当目标文件已存在时，按本文后续的“智能合并策略”处理。
 
 **CHANGELOG.md 更新规则（强制性）**：
 - 每次修改 CLAUDE.md 或 AGENTS.md 时，**必须**追加记录
