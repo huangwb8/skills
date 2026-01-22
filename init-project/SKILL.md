@@ -15,8 +15,8 @@ metadata:
     - OpenAI Codex
     - Claude Code
     - 跨平台指令
-    - @ 引用语法
-    - Single Source of Truth
+    - "@引用语法"
+    - SingleSourceofTruth
 ---
 
 # Init Project（项目初始化文档生成器）
