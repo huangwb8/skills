@@ -1,78 +1,216 @@
-# install-bensz-skills
+# install-bensz-skills — 用户使用指南
 
-**系统级技能安装器** — 将 `pipelines/skills/` 下的所有技能安装到系统级位置（Codex 和 Claude Code），使其在任意项目中可用。
+本 README 面向**使用者**：如何将 `pipelines/skills/` 中的技能安装到系统级位置，使其在任意项目中可用。
+
+> **提示**：执行指令与硬性规范在 [SKILL.md](SKILL.md)；默认参数在 [config.yaml](config.yaml)。
+
+---
 
 ## 快速开始
+
+### 本地安装（最推荐）
 
 ```bash
 # 默认：同时安装到 Codex 和 Claude Code（仅安装有更新的）
 python3 install-bensz-skills/scripts/install.py
+```
 
-# 仅安装到 Claude Code
+### 远程安装（从 GitHub 获取）
+
+```bash
+# 交互式检查模式：询问后再安装（推荐）
+python3 install-bensz-skills/scripts/install.py --remote --check
+```
+
+---
+
+## 功能概述
+
+`install-bensz-skills` 是一个**系统级技能安装器**，它将当前仓库 `pipelines/skills/` 下的所有技能复制安装到：
+
+- **Codex**：`~/.codex/skills/`
+- **Claude Code**：`~/.claude/skills/`
+
+### 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| 智能版本控制 | 使用 MD5 哈希值检测变化，仅安装有更新的技能 |
+| 技能自动分类 | 自动识别普通技能/辅助技能/测试技能，仅安装普通技能 |
+| 远程安装支持 | 支持从 GitHub 仓库下载并安装技能 |
+| 双平台支持 | 同时支持 Codex 和 Claude Code |
+
+---
+
+## 使用场景与命令
+
+### 场景 1：初次安装
+
+你刚克隆了技能仓库，想要让所有技能在系统中可用。
+
+```bash
+python3 install-bensz-skills/scripts/install.py
+```
+
+### 场景 2：更新技能
+
+你更新了仓库中的某些技能，想要同步到系统。
+
+```bash
+# 再次运行即可（仅安装有变化的）
+python3 install-bensz-skills/scripts/install.py
+```
+
+### 场景 3：仅安装到 Claude Code
+
+你只使用 Claude Code，不需要安装到 Codex。
+
+```bash
 python3 install-bensz-skills/scripts/install.py --claude
+```
 
-# 仅安装到 Codex
-python3 install-bensz-skills/scripts/install.py --codex
+### 场景 4：预览模式
 
-# 强制重新安装所有技能（忽略版本检查）
-python3 install-bensz-skills/scripts/install.py --force
+你想要查看将要安装哪些技能，但不实际执行。
 
-# 预览模式（不实际安装）
+```bash
 python3 install-bensz-skills/scripts/install.py --dry-run
 ```
 
-## 技能类型分类
+### 场景 5：从额外目录安装
 
-安装器会自动识别并分类技能，**仅安装普通技能**，辅助技能和测试技能将被忽略。
+你需要从其他 skills 目录合并安装。
 
-### 1. 普通技能（Normal Skills）
+```bash
+# 单个源目录
+python3 install-bensz-skills/scripts/install.py --source /path/to/skills
 
-**定义**：供用户在项目中使用的功能技能。
+# 多个源目录（逗号分隔）
+python3 install-bensz-skills/scripts/install.py --source /path/skills-a,/path/skills-b
+```
 
-**识别规则**：
-- 默认所有包含 `SKILL.md` 的目录为普通技能
-- 除非被明确标记为辅助技能或测试技能
+### 场景 6：强制重装
 
-**行为**：✅ **会被安装**到 `~/.codex/skills/` 和 `~/.claude/skills/`
+某些技能出现异常，想要强制重新安装。
 
-**示例**：
-- `systematic-literature-review` — 系统文献综述生成
-- `knit-rmd-html` — R Markdown 渲染
-- `init-project` — 项目初始化
-- `check-review-alignment` — 综述引用一致性核查
-- `nfsc/` 下的所有 NSFC 写作技能
+```bash
+python3 install-bensz-skills/scripts/install.py --force
+```
 
-### 2. 辅助技能（Auxiliary Skills）
+### 场景 7：从远程仓库安装
 
-**定义**：仅用于开发或维护本技能仓库的工具，不会在生产环境中使用。
+你想要从 GitHub 仓库获取最新技能，无需手动克隆。
 
-**识别规则**（优先级从高到低）：
-1. **YAML frontmatter** 中的 `category` 字段为 `auxiliary`/`dev`/`development`
-2. **目录名匹配**：
-   - `auto-test-skill` — 自动测试技能
-   - `install-bensz-skills` — 安装器自身
+```bash
+# 交互式检查（推荐）：可以看到将要安装的技能并确认
+python3 install-bensz-skills/scripts/install.py --remote --check
 
-**行为**：❌ **不会被安装**（在报告中显示为"已忽略"）
+# 自动强制安装：适合 CI/CD 或自动化脚本
+python3 install-bensz-skills/scripts/install.py --remote --auto
+```
 
-**原因**：这些技能仅在开发本仓库时需要，在其他项目中没有用途。
+---
 
-### 3. 测试技能（Test Skills）
+## 命令行参数速查表
 
-**定义**：用于测试其他技能功能的临时或专用技能。
+### 本地安装参数
 
-**识别规则**（优先级从高到低）：
-1. **YAML frontmatter** 中的 `category` 字段为 `test`/`testing`
-2. **路径**：位于 `test/` 或 `tests/` 目录下
-3. **目录名模式**：
-   - 以 `test` 开头（如 `test-skill`）
-   - 包含 `test-`、`-test`、`_test`、`test_`
-   - 时间戳格式（如 `20260103_123456`）
+| 参数 | 说明 | 适用场景 |
+|------|------|----------|
+| `--dry-run` | 预览模式，不实际写入文件 | 查看将要安装的技能 |
+| `--codex` | 仅安装到 Codex（`~/.codex/skills/`） | 只使用 Codex |
+| `--claude` | 仅安装到 Claude Code（`~/.claude/skills/`） | 只使用 Claude Code |
+| `--force` | 强制重新安装所有技能 | 技能异常需要重装 |
+| `--source` | 指定额外的 skills 源目录路径 | 从其他目录安装 |
 
-**行为**：❌ **不会被安装**（在报告中显示为"已忽略"）
+### 远程安装参数
 
-**原因**：这些技能仅在测试和开发时使用，不应分发到生产环境。
+| 参数 | 说明 | 适用场景 |
+|------|------|----------|
+| `--remote` | 启用远程安装模式 | 从 GitHub 获取技能 |
+| `--check` | 检查模式（交互式确认后再安装） | 手动确认安装内容 |
+| `--auto` | 自动模式（强制安装，无需确认） | CI/CD 自动化 |
+| `--{id}` | 仅安装指定远程源（如 `--general`、`--research`） | 只安装某个源 |
+
+**常用组合**：
+- `--remote --check`：交互式远程安装（推荐）
+- `--remote --auto`：自动强制远程安装
+- `--remote --check --claude`：仅对 Claude Code 执行远程检查
+- `--remote --check --general`：仅检查并安装 general 源
+
+---
+
+## 技能自动分类
+
+安装器会自动识别并分类技能，**仅安装普通技能**。
+
+### 你的需求 → 技能类型 → 配置方式
+
+| 你的需求 | 技能类型 | 是否安装 | 配置方式 |
+|---------|---------|---------|---------|
+| 供用户在项目中使用的功能技能 | 普通技能 | ✅ 安装 | 无需配置（默认） |
+| 仅用于开发本仓库的工具 | 辅助技能 | ❌ 忽略 | 添加 `category: auxiliary` |
+| 用于测试的临时技能 | 测试技能 | ❌ 忽略 | 添加 `category: test` |
+
+### 如何标记技能类型
+
+在 `SKILL.md` 的 YAML frontmatter 中添加 `category` 字段：
+
+```yaml
+---
+name: my-skill
+category: normal  # 可选值: normal, auxiliary, test（或省略，默认为 normal）
+description: 技能描述
+---
+```
+
+**推荐做法**：
+- 普通技能：可省略 `category`（默认为 `normal`）
+- 辅助技能：明确添加 `category: auxiliary`
+- 测试技能：明确添加 `category: test`
+
+---
+
+## 远程安装配置
+
+远程技能源通过 `config.yaml` 配置文件定义：
+
+```yaml
+remote_sources:
+  - id: "general"
+    name: "通用技能"
+    url: "https://github.com/huangwb8/skills"
+    branch: "main"
+    skills_path: "skills"
+    description: "通用技能，建议所有用户安装"
+    recommended: true
+
+  - id: "research"
+    name: "科研技能"
+    url: "https://github.com/huangwb8/ChineseResearchLaTeX"
+    branch: "main"
+    skills_path: "skills"
+    description: "科研相关技能，建议有科研需要的用户安装"
+    recommended: false
+```
+
+### 配置字段说明
+
+| 字段 | 说明 | 必需 |
+|------|------|------|
+| `id` | 源 ID（用于 `--{id}` 过滤） | ✅ 必需 |
+| `name` | 源名称（用于显示和提示） | ✅ 必需 |
+| `url` | Git 仓库 URL | ✅ 必需 |
+| `branch` | 分支名称（默认 `main`） | ❌ 可选 |
+| `skills_path` | 技能目录相对于仓库根目录的路径 | ✅ 必需 |
+| `description` | 源描述（用于提示用户） | ❌ 可选 |
+| `recommended` | 是否推荐安装（影响默认提示行为） | ❌ 可选 |
+
+---
 
 ## 安装报告示例
+
+安装完成后，脚本会生成详细的安装报告：
 
 ```
 ============================================================
@@ -80,134 +218,74 @@ python3 install-bensz-skills/scripts/install.py --dry-run
 ============================================================
 
 【安装过程】
-------------------------------------------------------------
-removed legacy symlink: /Users/xxx/.claude/skills/pipeline-skills
-installed: /Users/xxx/.claude/skills/systematic-literature-review
-installed: /Users/xxx/.claude/skills/nsfc-abstract-writer
+────────────────────────────────────────────────────────────
+installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 
 【安装摘要】
-------------------------------------------------------------
-┌──────────────────────────────────────┬──────────────┬─────────────────────────────────┐
-│ Skill 名称                           │ 状态         │ 原因                             │
-├──────────────────────────────────────┼──────────────┼─────────────────────────────────┤
-│ systematic-literature-review         │ ✅ 已安装    │ 版本已更新 (MD5: a3f5e8d9c2b1)  │
-│ knit-rmd-html                        │ ⏭️  跳过     │ 版本未变化                      │
-└──────────────────────────────────────┴──────────────┴─────────────────────────────────┘
+────────────────────────────────────────────────────────────
+┌────────────────────────┬──────────────┬─────────────────┐
+│ Skill 名称              │ 状态         │ 原因            │
+├────────────────────────┼──────────────┼─────────────────┤
+│ nsfc-bib-manager        │ ✅ 已安装    │ 版本已更新...  │
+│ git-commit              │ ⏭️  跳过     │ 版本未变化     │
+└────────────────────────┴──────────────┴─────────────────┘
 
-【辅助技能（已忽略，仅用于开发）】(2 个)
-   • auto-test-skill ⏭️ 跳过
-     原因: 辅助技能（开发用，不安装到生产环境）
+【辅助技能（已忽略，仅用于开发）】(1 个)
    • install-bensz-skills ⏭️ 跳过
-     原因: 辅助技能（开发用，不安装到生产环境）
 
-【测试技能（已忽略，仅用于测试）】(1 个)
-   • v20260103_123456 ⏭️ 跳过
-     原因: 测试技能（测试用，不安装到生产环境）
-
-------------------------------------------------------------
+────────────────────────────────────────────────────────────
 📊 统计
-------------------------------------------------------------
+────────────────────────────────────────────────────────────
 普通技能: 1 个已安装, 1 个跳过
-辅助技能: 2 个已忽略（开发用，不安装）
-测试技能: 1 个已忽略（测试用，不安装）
-
-============================================================
-🎯 总体安装摘要
-============================================================
-总计数:
-  • 已安装/更新: 1 个
-  • 跳过: 1 个
-
-CLAUUDE:
-  新安装: systematic-literature-review
-  未变化: knit-rmd-html
-
-辅助技能: 2 个已忽略（开发用）
-测试技能: 1 个已忽略（测试用）
-============================================================
-
-📝 安装清单已保存: /Users/xxx/.bensz-skills-install-manifest.20260103-123456.json
 ```
 
-## 为技能添加类型标记
-
-如果你是技能开发者，可以通过在 SKILL.md 的 YAML frontmatter 中添加 `category` 字段来明确指定技能类型：
-
-```yaml
 ---
-name: my-skill
-category: normal  # 可选值: normal, auxiliary, test
-description: 技能描述
----
-```
 
-**推荐做法**：
-- **普通技能**：可以省略 `category` 字段（默认为 normal）
-- **辅助技能**：明确添加 `category: auxiliary`
-- **测试技能**：明确添加 `category: test`
+## 常见问题（FAQ）
 
-## 命令行参数
+### Q: 为什么某些技能没有被安装？
 
-| 参数 | 说明 |
-|------|------|
-| `--dry-run` | 预览模式，不实际写入文件 |
-| `--codex` | 仅安装到 Codex |
-| `--claude` | 仅安装到 Claude Code |
-| `--force` | 强制重新安装所有技能（忽略 MD5 检查） |
+A: 检查技能是否被标记为**辅助技能**或**测试技能**。安装器仅安装普通技能。详见上面的"技能自动分类"部分。
 
-## MD5 版本控制机制
+### Q: 如何添加新的远程技能源？
 
-- **版本计算**：计算每个技能目录中 `SKILL.md` 的 MD5 哈希值作为版本标识
-- **版本存储**：安装后在目标目录生成平台特定的 manifest 文件（`.skill-manifest.{codex,claude}.json`）
-- **智能安装**：
-  - ✅ **已安装且版本未变**：跳过，不重复安装
-  - ✅ **版本已变化**：强制覆盖安装
-  - ✅ **新技能**：直接安装
+A: 编辑 `config.yaml`，在 `remote_sources` 数组中添加新的源配置。详见"远程安装配置"部分。
 
-## 安装策略
+### Q: 远程安装失败怎么办？
 
-- 仅安装**普通技能**
-- **排除**：辅助技能和测试技能（记录在报告中但不安装）
-- **MD5 版本检查**：优先检查平台特定的 manifest 文件，回退到重新计算
-- **直接替换**：发现目标路径已存在同名目录且版本变化时，直接删除旧版本并安装新版本（不备份）
-  - 理由：Git 已提供版本控制，可随时回退；新版本通常比旧版本更好
-- 若存在旧的 `pipeline-skills` 软链接：会移除该软链接（不删除真实目录）
+A: 检查：
+1. 网络连接是否正常
+2. Git 是否已安装（`git --version`）
+3. PyYAML 依赖是否已安装（`python3 -m pip install pyyaml`）
+4. 某些网络环境可能需要配置代理
 
-## 常见问题
+### Q: 安装后技能没有生效？
 
-### Q: 为什么我的辅助技能没有被安装？
-
-A: 辅助技能（如 `auto-test-skill` 和 `install-bensz-skills`）仅用于开发本仓库，在其他项目中没有用途，因此不会被安装。这是设计行为，详见上面的"技能类型分类"部分。
-
-### Q: 如何让我的技能被识别为辅助技能或测试技能？
-
-A: 在技能的 `SKILL.md` 文件的 YAML frontmatter 中添加 `category` 字段：
-
-```yaml
----
-category: auxiliary  # 或 test
----
-```
-
-### Q: 如果我刚更新了本仓库的技能？
-
-A: 再次运行安装脚本即可完成系统级更新（仅安装有变化的）。
-
-### Q: 需要强制重装？
-
-A: 使用 `--force` 参数。
-
-### Q: Claude Code / Codex 都需要新会话？
-
-A: 是的，安装后建议新建会话验证，因为技能在会话启动时加载。
+A: Claude Code / Codex 需要**新会话**才会重新加载更新后的技能。安装后建议新建会话验证。
 
 ### Q: 如何回退到旧版本？
 
-A: 使用 Git 回退源代码后，重新运行安装脚本即可（不备份旧版本）。
+A: 使用 Git 回退源代码后，重新运行安装脚本即可（安装器不备份旧版本）。
+
+### Q: 临时目录未清理怎么办？
+
+A: 手动删除 `~/.install-bensz-skills/tmp-remote-install` 目录。
+
+### Q: 版本控制是如何工作的？
+
+A: 脚本使用 **MD5 哈希值**进行智能版本控制：
+- **版本计算**：对技能目录内的可安装文件进行 MD5 计算（排除 `tests/`、`plans/`、缓存与临时文件）
+- **版本存储**：安装后在目标目录生成平台特定 manifest（`.skill-manifest.{codex,claude}.json`）记录版本信息
+- **智能安装**：
+  - ✅ 已安装且版本未变：跳过，不重复安装
+  - ✅ 版本已变化：强制覆盖安装
+  - ✅ 新技能：直接安装
+
+---
 
 ## 相关文件
 
-- `SKILL.md` — 技能定义（供 Claude Code/Codex 加载）
-- `CHANGELOG.md` — 优化日志（记录版本优化历史）
-- `scripts/install.py` — 核心安装脚本
-- `scripts/i18n.py` — 国际化模块（中/英）
+- [SKILL.md](SKILL.md) — 技能定义（供 AI 加载）
+- [config.yaml](config.yaml) — 配置文件（远程源、版本信息）
+- [CHANGELOG.md](CHANGELOG.md) — 变更日志
+- [scripts/install.py](scripts/install.py) — 核心安装脚本

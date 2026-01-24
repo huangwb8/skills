@@ -25,6 +25,10 @@ class Messages:
     arg_help_codex: str
     arg_help_claude: str
     arg_help_force: str
+    arg_help_remote: str
+    arg_help_check: str
+    arg_help_auto: str
+    arg_help_source_filter: str
 
     # 错误消息
     error_no_skills_found: str
@@ -71,6 +75,31 @@ class Messages:
     # 其他消息
     manifest_preview: str
 
+    # 远程安装消息
+    remote_check_intro: str
+    remote_auto_intro: str
+    remote_source_prompt: str
+    remote_source_prompt_recommended: str
+    remote_download_progress: str
+    remote_download_complete: str
+    remote_download_failed: str
+    remote_skills_path_missing: str
+    remote_compare_header: str
+    remote_compare_new: str
+    remote_compare_updated: str
+    remote_compare_unchanged: str
+    remote_confirm_install: str
+    remote_confirm_install_detail: str
+    remote_temp_dir: str
+    remote_cleanup_complete: str
+    remote_no_updates: str
+    remote_user_cancelled: str
+    remote_git_not_found: str
+    remote_config_not_found: str
+    remote_config_error: str
+    remote_source_filter_selected: str
+    remote_source_filter_invalid: str
+
 
 # 英文消息
 MESSAGES_EN = Messages(
@@ -79,6 +108,10 @@ MESSAGES_EN = Messages(
     arg_help_codex="Install to Codex only (default: both Codex and Claude Code).",
     arg_help_claude="Install to Claude Code only (default: both Codex and Claude Code).",
     arg_help_force="Force re-install all skills, ignoring MD5 check.",
+    arg_help_remote="Enable remote installation mode (download skills from GitHub).",
+    arg_help_check="Check mode (interactive confirmation before installing).",
+    arg_help_auto="Auto mode (force install without confirmation).",
+    arg_help_source_filter="Filter remote sources by ID (e.g., --general, --research).",
     error_no_skills_found="No installable skills found (scanned root: {root})",
     error_skill_name_collision="Detected skill directory name conflicts (basename duplicated), cannot install safely:",
     installing_to_target="Installing to {TARGET}: {root}",
@@ -115,6 +148,30 @@ MESSAGES_EN = Messages(
     summary_unchanged="  Unchanged: {skills}",
     summary_manifest_saved="📝 Installation manifest saved: {path}",
     manifest_preview="[dry-run] manifest preview:",
+    # 远程安装消息
+    remote_check_intro="\n🌐 Remote Check Mode: Download and compare remote skills before installation.",
+    remote_auto_intro="\n🌐 Remote Auto Mode: Automatically download and install remote skills.",
+    remote_source_prompt="Do you want to install skills from '{name}'? ({description}) [y/N]: ",
+    remote_source_prompt_recommended="Do you want to install skills from '{name}'? ({description}) [Recommended] [Y/n]: ",
+    remote_download_progress="Downloading {name} from {url}...",
+    remote_download_complete="Download complete: {name}",
+    remote_download_failed="Download failed: {name} - {error}",
+    remote_skills_path_missing="Download complete but skills_path not found: {name} - {path}",
+    remote_compare_header="\n【Remote Skills Comparison Report】",
+    remote_compare_new="🟢 New Skills ({count})",
+    remote_compare_updated="🟡 Updatable Skills ({count})",
+    remote_compare_unchanged="⚪ Latest Skills ({count})",
+    remote_confirm_install="Confirm to install/update these skills? [y/N]: ",
+    remote_confirm_install_detail="  New: {new_count}, Updated: {updated_count}, Unchanged: {unchanged_count}",
+    remote_temp_dir="Temporary directory: {path}",
+    remote_cleanup_complete="Temporary directory cleaned up.",
+    remote_no_updates="No updates available.",
+    remote_user_cancelled="User cancelled.",
+    remote_git_not_found="Error: Git command not found. Please install Git first.",
+    remote_config_not_found="Error: Config file not found: {path}",
+    remote_config_error="Error: Failed to load config file: {error}",
+    remote_source_filter_selected="Selected sources: {sources}",
+    remote_source_filter_invalid="Warning: Invalid source ID(s) ignored: {invalid_ids}",
 )
 
 # 中文消息
@@ -124,13 +181,17 @@ MESSAGES_ZH = Messages(
     arg_help_codex="仅安装到 Codex（默认：同时安装到 Codex 和 Claude Code）。",
     arg_help_claude="仅安装到 Claude Code（默认：同时安装到 Codex 和 Claude Code）。",
     arg_help_force="强制重新安装所有 skills，忽略 MD5 检查。",
+    arg_help_remote="启用远程安装模式（从 GitHub 下载技能）。",
+    arg_help_check="检查模式（安装前交互式确认）。",
+    arg_help_auto="自动模式（强制安装，无需确认）。",
+    arg_help_source_filter="按 ID 过滤远程源（如 --general、--research）。",
     error_no_skills_found="未发现可安装的 skills（扫描根目录：{root}）",
     error_skill_name_collision="检测到 skill 目录名冲突（basename 重复），无法安全安装：",
     installing_to_target="正在安装到 {TARGET}: {root}",
-    removed_legacy_symlink="removed legacy symlink: {path}",
-    skip_legacy_path="skip legacy path (not a symlink): {path}",
-    removed_existing="removed: {dest}",
-    installed="installed: {dest}",
+    removed_legacy_symlink="已移除旧软链接: {path}",
+    skip_legacy_path="跳过旧路径（非软链接）: {path}",
+    removed_existing="已删除: {dest}",
+    installed="已安装: {dest}",
     dry_run_prefix="[dry-run] ",
     # 表格相关
     table_header_skill="Skill 名称",
@@ -160,6 +221,30 @@ MESSAGES_ZH = Messages(
     summary_unchanged="  未变化: {skills}",
     summary_manifest_saved="📝 安装清单已保存: {path}",
     manifest_preview="[dry-run] manifest preview:",
+    # 远程安装消息
+    remote_check_intro="\n🌐 远程检查模式：下载并对比远程技能后再安装。",
+    remote_auto_intro="\n🌐 远程自动模式：自动下载并安装远程技能。",
+    remote_source_prompt="是否要安装来自 '{name}' 的技能？({description}) [y/N]: ",
+    remote_source_prompt_recommended="是否要安装来自 '{name}' 的技能？({description}) [推荐] [Y/n]: ",
+    remote_download_progress="正在从 {url} 下载 {name}...",
+    remote_download_complete="下载完成: {name}",
+    remote_download_failed="下载失败: {name} - {error}",
+    remote_skills_path_missing="下载完成但未找到 skills_path: {name} - {path}",
+    remote_compare_header="\n【远程技能对比报告】",
+    remote_compare_new="🟢 新增技能 ({count}个)",
+    remote_compare_updated="🟡 可更新技能 ({count}个)",
+    remote_compare_unchanged="⚪ 最新技能 ({count}个)",
+    remote_confirm_install="确认安装/更新这些技能？ [y/N]: ",
+    remote_confirm_install_detail="  新增: {new_count}个, 更新: {updated_count}个, 最新: {unchanged_count}个",
+    remote_temp_dir="临时目录: {path}",
+    remote_cleanup_complete="临时目录已清理。",
+    remote_no_updates="没有可用的更新。",
+    remote_user_cancelled="用户取消。",
+    remote_git_not_found="错误: 未找到 Git 命令。请先安装 Git。",
+    remote_config_not_found="错误: 配置文件不存在: {path}",
+    remote_config_error="错误: 加载配置文件失败: {error}",
+    remote_source_filter_selected="已选择源: {sources}",
+    remote_source_filter_invalid="警告: 无效的源 ID 已忽略: {invalid_ids}",
 )
 
 

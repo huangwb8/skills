@@ -80,6 +80,59 @@
 - ❌ 避免：硬编码会变化的业务逻辑
 - ✅ 推荐：将可配置参数集中到 config.yaml
 
+**Skill 脚本路径感知机制**：
+
+当 skill 被安装到 `~/.claude/skills/` 或 `~/.codex/skills/` 后，其脚本需要能够正确识别自身的绝对路径，以便访问同 skill 内的 `config.yaml`、`assets/`、`references/` 等资源。
+
+**标准实现模式**：
+
+```python
+# 在脚本文件中获取 skill 根目录
+# 假设脚本位于 {skill_name}/scripts/script.py
+
+# 模式1：使用 parent 索引（推荐）
+skill_root = Path(__file__).resolve().parents[1]  # 向上两级到 skill 根目录
+
+# 模式2：显式使用 parent.parent
+skill_root = Path(__file__).resolve().parent.parent
+
+# 访问 skill 内资源
+config_path = skill_root / "config.yaml"
+assets_dir = skill_root / "assets"
+references_dir = skill_root / "references"
+```
+
+**关键原则**：
+- ✅ **始终使用 `Path(__file__).resolve()`**：获取脚本文件的绝对路径，自动解析符号链接
+- ✅ **基于 `__file__` 计算相对路径**：无论 skill 安装到何处，都能正确定位资源
+- ❌ **禁止使用 `Path.cwd()` 或 `os.getcwd()`**：这会返回用户当前工作目录，而非 skill 目录
+- ❌ **禁止硬编码绝对路径**：如 `/Users/xxx/skills/xxx`，这会在安装后失效
+
+**实践示例**：
+
+```python
+# ✅ 正确：基于 __file__ 的相对路径
+from pathlib import Path
+
+SKILL_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = SKILL_ROOT / "config.yaml"
+ASSETS_DIR = SKILL_ROOT / "assets"
+
+def load_config():
+    return yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+
+# ❌ 错误：使用当前工作目录
+SKILL_ROOT = Path.cwd()  # 这会返回用户的工作目录，而非 skill 目录
+
+# ❌ 错误：硬编码绝对路径
+SKILL_ROOT = Path("/Users/xxx/pipelines/skills/xxx")
+```
+
+**跨平台兼容性**：
+- 使用 `Path` 对象而非字符串拼接，自动处理路径分隔符（`/` vs `\`）
+- 使用 `.resolve()` 规范化路径，解析 `..` 和符号链接
+- 使用 `encoding="utf-8"` 显式指定文件编码，避免平台差异
+
 ### 2. 多轮 AI 自检 + 人类监督 + 时刻轻量测试
 
 **核心思想**：建立可重复的优化循环，确保每次变更都可验证
@@ -306,13 +359,14 @@ AI：理解意图 → 定位文件命名规则在工作流中的位置 →
    - 按照有机整体更新原则修改
    - 同步更新相关文件和示例
 
-4. **自检验证**：
+4. **更新用户文档（强制）**：
+   - **每次优化 skill 后，如有功能变化或新增，必须使用 write-skill-readme skill 重新优化 README.md**
+   - 确保 README.md 与 SKILL.md、config.yaml 保持一致
+   - 这是保证用户文档与技能实现同步的关键步骤
+
+5. **自检验证**：
    - 运行静态自检清单
    - 检查六大质量原则
-
-5. **更新用户文档**：
-   - 如技能工作流或配置有变更，使用 **write-skill-readme** skill 更新 README.md
-   - 确保 README.md 与 SKILL.md、config.yaml 保持一致
 
 6. **轻量测试**：
    - 在测试目录验证核心功能

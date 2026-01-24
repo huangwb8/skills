@@ -2,19 +2,55 @@
 
 ## [Unreleased]
 
+### Added
+- 新增远程 skills_path 缺失的错误提示文案（`remote_skills_path_missing`）
+- 新增 A/B 轮测试会话与计划文档（`tests/v202601230716/`、`tests/B轮-v202601230716/`、`plans/v202601230716.md`、`plans/B轮-v202601230716.md`）
+- 新增远程源过滤功能：支持按源 ID 选择性安装远程技能
+  - 新增 `config.yaml` 中每个源的 `id` 字段（如 `general`、`research`）
+  - 新增动态命令行参数：自动为配置中的每个源 ID 生成 `--<id>` 参数（如 `--general`、`--research`）
+  - 新增 `source_filter` 参数到 `_remote_install_main()` 函数
+  - 支持同时选择多个源：`--remote --auto --general --research`
+  - 支持无效 ID 检测与警告提示
+  - 新增国际化消息：`remote_source_filter_selected`、`remote_source_filter_invalid`
+- 新增远程安装功能：支持从 GitHub 仓库下载并安装技能
+  - 新增 `--remote --check` 模式：交互式远程安装，下载后对比并询问用户确认
+  - 新增 `--remote --auto` 模式：自动强制远程安装，无需确认
+  - 新增 `config.yaml` 配置文件：定义远程技能源，支持多源配置
+  - 新增 `SkillComparison` 数据类：记录远程与本地技能的对比结果
+  - 新增函数：`_load_config()`, `_check_git_available()`, `_create_temp_dir()`, `_cleanup_temp_dir()`, `_download_remote_source()`, `_compare_remote_skills()`, `_print_comparison_report()`, `_prompt_user_install()`, `_prompt_source_install()`, `_install_remote_skills()`, `_remote_install_main()`
+- 新增命令行参数：`--remote`, `--check`, `--auto`
+- 新增国际化消息：远程安装相关的中英文提示和错误消息
+- 新增 [references/install-report-template.md](references/install-report-template.md)：定义安装报告的标准格式规范，包括章节标题、分隔符、状态图标、多语言支持等
+- 新增 `skill_info` 元数据到 [config.yaml](config.yaml)，作为版本与描述的单一来源
+
 ### Changed
-- 优化 [SKILL.md](SKILL.md) 的 `description` 字段，明确说明"默认同时安装到 Codex 和 Claude Code"
+- 临时目录名净化并加入 URL 哈希后缀，避免路径异常与冲突
+- 更新 [SKILL.md](SKILL.md) 示例与参数说明，补充 `--source` 与 `--{id}` 过滤用法
+- 更新 [README.md](README.md) 示例与参数说明，补充 `--source` 与 `--{id}` 过滤用法
+- 远程源配置示例补齐 `id` 字段以匹配动态参数
+- 表格输出按显示宽度对齐（CJK/emoji 兼容）
+- 版本号更新至 0.4.1（见 [config.yaml](config.yaml)）
+- 优化 [SKILL.md](SKILL.md) 的 `description` 字段，明确说明"默认同时安装到 Codex 和 Claude Code"，并添加远程安装模式说明
 - 优化命令行参数帮助文本（`i18n.py`），为 `--codex` 和 `--claude` 添加默认行为说明，让用户清楚理解这两个参数是"单一目标选项"
+- 更新 [SKILL.md](SKILL.md) 文档结构：区分本地安装和远程安装模式，添加远程源配置说明和参数组合示例
+- 更新 [SKILL.md](SKILL.md) 中的安装报告示例，引用新的报告模板规范文档
+- 更新 [SKILL.md](SKILL.md) 常见问题：添加远程安装相关问题和解决方案
+- 版本检测改为对可安装文件集合计算 MD5（排除 tests/plans/缓存）
+- dry-run 只做预览：不创建目标目录、不迁移旧 manifest
+- 远程临时目录每次运行前清理，避免残留导致克隆失败
+- 多源合并新增同名技能冲突检测并中止
+- 远程配置加载错误改为显式提示依赖缺失/解析失败
 
 ### Fixed
+- 修复远程检查模式错误地强制重装未变化技能
+- 修复远程安装 manifest `source` 写入临时路径导致不可追溯的问题
+- 修复 `category` 解析仅限前 30 行导致类型识别失败的问题
+- 修复 `skills_path` 不存在时静默失败的问题
+- 修复英文对比提示包含中文计数单位的问题
 - 修复 `_ignore_patterns()` 函数，添加 `plans` 目录到忽略列表，确保 skill 根目录下的 `plans/` 和 `tests/` 子目录不会被安装到系统中
 - 修复总体摘要中技能个数统计逻辑：使用 set 去重，确保同一技能在多个平台安装时只计数一次（如 3 个技能安装到 2 个平台应显示 3 个，而非 6 个）
-
-### Added
-- 新增 [references/install-report-template.md](references/install-report-template.md)：定义安装报告的标准格式规范，包括章节标题、分隔符、状态图标、多语言支持等
-
-### Changed
-- 更新 [SKILL.md](SKILL.md) 中的安装报告示例，引用新的报告模板规范文档
+- 修复文档与实现不一致：更新 manifest 命名规则与 MD5 说明
+- 修复中文本地化输出中 legacy 文案未翻译的问题
 
 ## 2026-01-12: Manifest 文件存储优化
 

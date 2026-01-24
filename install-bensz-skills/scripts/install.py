@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
+import os
 import shutil
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -45,6 +48,17 @@ class SkillInfo:
     reason: str = ""
 
 
+@dataclass
+class SkillComparison:
+    """技能对比结果。"""
+    name: str
+    remote_md5: str
+    local_md5: str | None
+    status: str  # "new", "updated", "unchanged"
+    remote_path: Path
+    local_path: Path | None
+
+
 def _now_stamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
 
@@ -56,19 +70,36 @@ def _is_symlink(path: Path) -> bool:
         return False
 
 
+_IGNORE_DIR_NAMES = {
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "test",
+    "tests",
+    "plans",
+}
+_IGNORE_FILE_NAMES = {".DS_Store"}
+_IGNORE_GLOBS = ("*.pyc", "*.pyo")
+
+
 def _ignore_patterns():
     return shutil.ignore_patterns(
-        ".DS_Store",
-        "__pycache__",
-        "*.pyc",
-        "*.pyo",
-        ".pytest_cache",
-        ".mypy_cache",
-        "test",
-        "tests",
-        "plans",
-        "agents",  # 跳过内部子技能目录（如 awesome-code/agents/）
+        *_IGNORE_FILE_NAMES,
+        *_IGNORE_GLOBS,
+        *_IGNORE_DIR_NAMES,
     )
+
+
+def _should_ignore_rel_path(rel_path: Path) -> bool:
+    if any(part.startswith(".") for part in rel_path.parts):
+        return True
+    if any(part in _IGNORE_DIR_NAMES for part in rel_path.parts):
+        return True
+    if rel_path.name in _IGNORE_FILE_NAMES:
+        return True
+    if any(fnmatch.fnmatch(rel_path.name, pattern) for pattern in _IGNORE_GLOBS):
+        return True
+    return False
 
 
 def _print_skill_table(
@@ -94,11 +125,18 @@ def _print_skill_table(
     header_status = t.table_header_status()
     header_reason = t.table_header_reason()
 
-    # 计算列宽（基于内容）
+    # 计算实际显示宽度（中文/emoji 以双宽估算）
+    def display_width(s: str) -> int:
+        return sum(2 if ord(c) > 127 else 1 for c in s)
+
+    def pad_display(s: str, width: int) -> str:
+        padding = width - display_width(s)
+        return s + (" " * max(padding, 0))
+
+    # 计算列宽（基于显示宽度）
     all_skills = installed_skills + skipped_skills
-    max_name_len = max((len(skill.name) for skill in all_skills), default=20)
-    # 考虑 emoji 宽度（实际显示宽度约为字符数的2倍）
-    name_width = max(max_name_len, len(header_skill)) + 2
+    max_name_display = max((display_width(skill.name) for skill in all_skills), default=20)
+    name_width = max(max_name_display, display_width(header_skill)) + 2
 
     # 计算原因列的最大宽度（考虑中文和英文）
     reason_samples = []
@@ -108,15 +146,12 @@ def _print_skill_table(
         else:
             reason_samples.append(t.table_reason_no_change())
 
-    # 计算实际显示宽度（中文算2个字符宽度）
-    def display_width(s: str) -> int:
-        return sum(2 if ord(c) > 127 else 1 for c in s)
-
     max_reason_display = max((display_width(r) for r in reason_samples), default=20)
     reason_width = max(max_reason_display, display_width(header_reason)) + 4
 
-    # 状态列固定宽度
-    status_width = 14
+    # 状态列宽度（考虑 emoji）
+    status_samples = [header_status, t.table_status_installed(), t.table_status_skipped()]
+    status_width = max(display_width(s) for s in status_samples) + 2
 
     # 构建分隔线
     separator = "─" * name_width + "┬" + "─" * status_width + "┬" + "─" * reason_width
@@ -129,9 +164,7 @@ def _print_skill_table(
     print(top_border)
 
     # 表头
-    print(
-        f"│ {header_skill:<{name_width}} │ {header_status:<{status_width}} │ {header_reason:<{reason_width}} │"
-    )
+    print(f"│ {pad_display(header_skill, name_width)} │ {pad_display(header_status, status_width)} │ {pad_display(header_reason, reason_width)} │")
     print(row_separator)
 
     # 按状态排序：已安装的在前，跳过的在后
@@ -145,9 +178,7 @@ def _print_skill_table(
             status = t.table_status_skipped()
             reason = t.table_reason_no_change()
 
-        print(
-            f"│ {skill.name:<{name_width}} │ {status:<{status_width}} │ {reason:<{reason_width}} │"
-        )
+        print(f"│ {pad_display(skill.name, name_width)} │ {pad_display(status, status_width)} │ {pad_display(reason, reason_width)} │")
 
     print(bottom_border)
 
@@ -155,20 +186,19 @@ def _print_skill_table(
 def _calculate_skill_md5(skill_dir: Path) -> str:
     """计算 skill 目录的 MD5 哈希值。
 
-    优先计算 SKILL.md 的哈希值，因为它是技能的核心定义文件。
-    如果需要更精确的版本控制，可以遍历整个目录。
+    基于可安装文件生成稳定哈希，排除 tests/plans 等不参与安装的内容。
     """
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        # 回退到整个目录的哈希
-        hasher = hashlib.md5()
-        for file in sorted(skill_dir.rglob("*")):
-            if file.is_file() and not any(p.startswith(".") for p in file.relative_to(skill_dir).parts):
-                hasher.update(file.read_bytes())
-        return hasher.hexdigest()
-
-    content = skill_md.read_text(encoding="utf-8")
-    return hashlib.md5(content.encode("utf-8")).hexdigest()
+    hasher = hashlib.md5()
+    for file in sorted(skill_dir.rglob("*")):
+        if not file.is_file():
+            continue
+        rel_path = file.relative_to(skill_dir)
+        if _should_ignore_rel_path(rel_path):
+            continue
+        hasher.update(str(rel_path).encode("utf-8"))
+        hasher.update(b"\0")
+        hasher.update(file.read_bytes())
+    return hasher.hexdigest()
 
 
 def _get_installed_md5(dest_dir: Path, target: Target) -> str | None:
@@ -200,13 +230,13 @@ def _get_installed_md5(dest_dir: Path, target: Target) -> str | None:
     return None
 
 
-def _save_skill_manifest(dest_dir: Path, md5: str, source: Path, target: Target) -> None:
+def _save_skill_manifest(dest_dir: Path, md5: str, source: str | Path, target: Target) -> None:
     """保存 skill 的版本信息到平台特定的 manifest 文件。
 
     Args:
         dest_dir: 技能目标目录
         md5: 技能内容的 MD5 哈希值
-        source: 技能源目录路径
+        source: 技能源目录路径或稳定来源标识
         target: 目标平台信息（codex/claude）
     """
     # 平台特定的 manifest 文件名
@@ -233,15 +263,17 @@ def _get_skill_category_from_yaml(skill_dir: Path) -> str | None:
     try:
         content = skill_md.read_text(encoding="utf-8")
         lines = content.split("\n")
+        if not lines or lines[0].strip() != "---":
+            return None
+
         in_frontmatter = False
-        for line in lines[:30]:  # 只检查前30行
+        for line in lines:
             stripped = line.strip()
             if stripped == "---":
                 if not in_frontmatter:
                     in_frontmatter = True
-                else:
-                    break
-                continue
+                    continue
+                break
             if in_frontmatter and line.startswith("category:"):
                 category = line.split(":", 1)[1].strip().strip('"').strip("'")
                 return category.lower()
@@ -371,6 +403,554 @@ def _find_skill_dirs(skills_root: Path, exclude_names: set[str]) -> dict[str, li
         raise SystemExit("\n".join(msg))
 
     return skill_dirs_by_type
+
+
+# ============================================================================
+# 远程安装相关函数
+# ============================================================================
+
+def _load_config(config_path: Path) -> dict:
+    """加载配置文件。
+
+    Returns:
+        配置字典
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(config_path)
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("缺少 PyYAML 依赖，请先运行 `python3 -m pip install pyyaml`") from exc
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as exc:
+        raise RuntimeError(f"配置文件解析失败: {exc}") from exc
+
+
+def _check_git_available() -> bool:
+    """检查 Git 命令是否可用。"""
+    try:
+        subprocess.run(
+            ["git", "--version"],
+            capture_output=True,
+            check=True,
+            text=True
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def _create_temp_dir() -> Path:
+    """创建临时目录。
+
+    Returns:
+        临时目录路径
+    """
+    temp_dir = Path.home() / ".install-bensz-skills" / "tmp-remote-install"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    return temp_dir
+
+
+def _cleanup_temp_dir(temp_dir: Path) -> None:
+    """清理临时目录。"""
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+
+
+def _sanitize_source_name(name: str, url: str) -> str:
+    """生成安全且稳定的临时目录名。"""
+    sanitized = name.strip()
+    for sep in (os.sep, os.altsep, "/", "\\"):
+        if sep:
+            sanitized = sanitized.replace(sep, "-")
+    sanitized = sanitized.replace(" ", "-").strip(".-")
+    sanitized = "-".join(part for part in sanitized.split("-") if part)
+    if not sanitized:
+        sanitized = "source"
+    suffix = hashlib.md5(url.encode("utf-8")).hexdigest()[:8] if url else "local"
+    return f"{sanitized}-{suffix}"
+
+
+def _format_remote_source_label(source_config: dict) -> str:
+    """生成可写入 manifest 的稳定来源标识。"""
+    name = source_config.get("name", "unknown")
+    url = source_config.get("url", "")
+    branch = source_config.get("branch", "main")
+    skills_path = source_config.get("skills_path", "skills")
+    if url:
+        return f"{name} ({url}@{branch}:{skills_path})"
+    return f"{name} (@{branch}:{skills_path})"
+
+
+def _download_remote_source(
+    source_config: dict,
+    temp_dir: Path,
+    t: get_translator().__class__,
+) -> Path | None:
+    """从 GitHub 下载远程技能源到临时目录。
+
+    Args:
+        source_config: 源配置字典
+        temp_dir: 临时目录
+        t: 翻译器
+
+    Returns:
+        下载后的技能根目录路径，失败返回 None
+    """
+    name = source_config.get("name", "unknown")
+    url = source_config.get("url", "")
+    branch = source_config.get("branch", "main")
+    skills_path = source_config.get("skills_path", "skills")
+
+    print(t.remote_download_progress(name=name, url=url))
+
+    # 创建子目录用于克隆
+    clone_dir = temp_dir / _sanitize_source_name(name, url)
+    clone_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # 使用 git clone --depth 1 浅克隆
+        subprocess.run(
+            [
+                "git", "clone",
+                "--depth", "1",
+                "--branch", branch,
+                "--single-branch",
+                url,
+                str(clone_dir / "repo")
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=300  # 5分钟超时
+        )
+    except subprocess.TimeoutExpired:
+        print(t.remote_download_failed(name=name, error="timeout"))
+        return None
+    except subprocess.CalledProcessError as e:
+        print(t.remote_download_failed(name=name, error=e.stderr.strip()))
+        return None
+    except Exception as e:
+        print(t.remote_download_failed(name=name, error=str(e)))
+        return None
+
+    print(t.remote_download_complete(name=name))
+
+    # 返回技能目录路径
+    skills_dir = clone_dir / "repo" / skills_path
+    if not skills_dir.exists():
+        print(t.remote_skills_path_missing(name=name, path=skills_path))
+        return None
+
+    return skills_dir
+
+
+def _compare_remote_skills(
+    remote_skills_dir: Path,
+    local_target: Path,
+    target: Target,
+    t: get_translator().__class__,
+) -> list[SkillComparison]:
+    """对比远程技能与本地已安装技能。
+
+    Args:
+        remote_skills_dir: 远程技能目录
+        local_target: 本地目标目录（如 ~/.claude/skills）
+        target: 目标平台信息
+        t: 翻译器
+
+    Returns:
+        技能对比结果列表
+    """
+    comparisons: list[SkillComparison] = []
+
+    # 发现远程技能
+    remote_skill_dirs = _find_skill_dirs(remote_skills_dir, exclude_names=set())
+
+    for remote_skill_dir in remote_skill_dirs.get(SkillType.NORMAL, []):
+        skill_name = remote_skill_dir.name
+        remote_md5 = _calculate_skill_md5(remote_skill_dir)
+        local_skill_dir = local_target / skill_name
+
+        if local_skill_dir.exists():
+            # 技能已存在，检查是否需要更新
+            local_md5 = _get_installed_md5(local_skill_dir, target)
+            if local_md5 != remote_md5:
+                status = "updated"
+            else:
+                status = "unchanged"
+        else:
+            # 新技能
+            local_md5 = None
+            status = "new"
+
+        comparisons.append(SkillComparison(
+            name=skill_name,
+            remote_md5=remote_md5,
+            local_md5=local_md5,
+            status=status,
+            remote_path=remote_skill_dir,
+            local_path=local_skill_dir if local_skill_dir.exists() else None,
+        ))
+
+    return comparisons
+
+
+def _print_comparison_report(
+    comparisons: list[SkillComparison],
+    t: get_translator().__class__,
+) -> None:
+    """打印远程技能对比报告。
+
+    Args:
+        comparisons: 技能对比结果列表
+        t: 翻译器
+    """
+    print()
+    print(t.remote_compare_header())
+    print("─" * 60)
+
+    # 按状态分组
+    new_skills = [c for c in comparisons if c.status == "new"]
+    updated_skills = [c for c in comparisons if c.status == "updated"]
+    unchanged_skills = [c for c in comparisons if c.status == "unchanged"]
+
+    # 打印新增技能
+    if new_skills:
+        print()
+        print(t.remote_compare_new(count=len(new_skills)))
+        for skill in new_skills:
+            print(f"   • {skill.name}")
+
+    # 打印可更新技能
+    if updated_skills:
+        print()
+        print(t.remote_compare_updated(count=len(updated_skills)))
+        for skill in updated_skills:
+            print(f"   • {skill.name}")
+
+    # 打印最新技能
+    if unchanged_skills:
+        print()
+        print(t.remote_compare_unchanged(count=len(unchanged_skills)))
+        for skill in unchanged_skills:
+            print(f"   • {skill.name}")
+
+
+def _prompt_user_install(
+    comparisons: list[SkillComparison],
+    source_name: str,
+    t: get_translator().__class__,
+) -> bool:
+    """询问用户是否确认安装/更新远程技能。
+
+    Args:
+        comparisons: 技能对比结果列表
+        source_name: 源名称
+        t: 翻译器
+
+    Returns:
+        True 表示用户确认，False 表示取消
+    """
+    new_count = len([c for c in comparisons if c.status == "new"])
+    updated_count = len([c for c in comparisons if c.status == "updated"])
+    unchanged_count = len([c for c in comparisons if c.status == "unchanged"])
+
+    # 如果没有需要安装或更新的技能，跳过
+    if new_count == 0 and updated_count == 0:
+        print(t.remote_no_updates())
+        return False
+
+    print()
+    print(t.remote_confirm_install_detail(
+        new_count=new_count,
+        updated_count=updated_count,
+        unchanged_count=unchanged_count,
+    ))
+    response = input(t.remote_confirm_install()).strip().lower()
+
+    return response in ("y", "yes", "是")
+
+
+def _prompt_source_install(
+    source_config: dict,
+    t: get_translator().__class__,
+) -> bool:
+    """询问用户是否安装某个源。
+
+    Args:
+        source_config: 源配置
+        t: 翻译器
+
+    Returns:
+        True 表示用户确认，False 表示跳过
+    """
+    name = source_config.get("name", "")
+    description = source_config.get("description", "")
+    recommended = source_config.get("recommended", False)
+
+    if recommended:
+        prompt = t.remote_source_prompt_recommended(name=name, description=description)
+        default = "y"
+    else:
+        prompt = t.remote_source_prompt(name=name, description=description)
+        default = "n"
+
+    response = input(prompt).strip().lower()
+    if not response:
+        return default == "y"
+
+    return response in ("y", "yes", "是")
+
+
+def _install_remote_skills(
+    comparisons: list[SkillComparison],
+    target: Target,
+    force: bool,
+    source_label: str,
+    t: get_translator().__class__,
+) -> InstallReport:
+    """安装远程技能。
+
+    Args:
+        comparisons: 技能对比结果列表
+        target: 目标平台
+        force: 是否强制安装
+        source_label: 远程来源标识（用于 manifest）
+        t: 翻译器
+
+    Returns:
+        安装报告
+    """
+    installed_skills: list[SkillInfo] = []
+    skipped_skills: list[SkillInfo] = []
+    process_messages: list[str] = []
+
+    # 处理旧的软链接
+    legacy_msg = _safe_remove_legacy_symlink(target.legacy_link, dry_run=False, t=t)
+    if legacy_msg:
+        process_messages.append(legacy_msg)
+
+    target.root.mkdir(parents=True, exist_ok=True)
+
+    for comparison in comparisons:
+        if comparison.status == "unchanged" and not force:
+            skipped_skills.append(SkillInfo(
+                name=comparison.name,
+                src=comparison.remote_path,
+                dest=target.root / comparison.name,
+                md5=comparison.remote_md5,
+                skill_type=SkillType.NORMAL,
+                skipped=True,
+                reason=t.table_reason_no_change(),
+            ))
+            continue
+
+        # 删除旧版本
+        dest_dir = target.root / comparison.name
+        remove_msg = _remove_existing(dest_dir, dry_run=False, t=t)
+        if remove_msg:
+            process_messages.append(remove_msg)
+
+        # 复制新版本
+        copy_msg = _copy_fresh(comparison.remote_path, dest=dest_dir, dry_run=False, t=t)
+        if copy_msg:
+            process_messages.append(copy_msg)
+
+        _save_skill_manifest(dest_dir, comparison.remote_md5, source_label, target)
+
+        reason_msg = t.table_reason_updated(md5=comparison.remote_md5[:12])
+        installed_skills.append(SkillInfo(
+            name=comparison.name,
+            src=comparison.remote_path,
+            dest=dest_dir,
+            md5=comparison.remote_md5,
+            skill_type=SkillType.NORMAL,
+            installed=True,
+            reason=reason_msg,
+        ))
+
+    return InstallReport(
+        target_label=target.label,
+        target_root=target.root,
+        installed_skills=installed_skills,
+        skipped_skills=skipped_skills,
+        auxiliary_skills=[],
+        test_skills=[],
+        process_messages=process_messages,
+    )
+
+
+def _remote_install_main(
+    *,
+    auto_mode: bool,
+    install_codex: bool,
+    install_claude: bool,
+    source_filter: list[str] | None = None,
+    available_source_ids: list[str] | None = None,
+    t: get_translator().__class__,
+) -> int:
+    """远程安装主流程。
+
+    Args:
+        auto_mode: 是否自动模式（无需确认）
+        install_codex: 是否安装到 Codex
+        install_claude: 是否安装到 Claude Code
+        source_filter: 要安装的源 ID 列表（None 表示安装所有源）
+        available_source_ids: 配置中可用的源 ID 列表
+        t: 翻译器
+
+    Returns:
+        退出代码
+    """
+    # 打印介绍
+    if auto_mode:
+        print(t.remote_auto_intro())
+    else:
+        print(t.remote_check_intro())
+
+    # 检查 Git
+    if not _check_git_available():
+        print(t.remote_git_not_found())
+        return 1
+
+    # 加载配置
+    config_path = Path(__file__).parents[1] / "config.yaml"
+    try:
+        config = _load_config(config_path)
+    except FileNotFoundError:
+        print(t.remote_config_not_found(path=config_path))
+        return 1
+    except RuntimeError as exc:
+        print(t.remote_config_error(error=str(exc)))
+        return 1
+
+    remote_sources = config.get("remote_sources", [])
+    if not remote_sources:
+        print(t.remote_config_error(error=f"未配置 remote_sources: {config_path}"))
+        return 1
+
+    # 应用源过滤
+    if source_filter:
+        # 检查无效的源 ID
+        valid_ids = {s.get("id", "") for s in remote_sources if s.get("id")}
+        invalid_ids = [sid for sid in source_filter if sid not in valid_ids]
+        if invalid_ids:
+            print(t.remote_source_filter_invalid(invalid_ids=", ".join(invalid_ids)))
+
+        # 过滤源
+        filtered_sources = [s for s in remote_sources if s.get("id") in source_filter]
+        if not filtered_sources:
+            print(t.remote_config_error(error=f"没有找到匹配的源，请检查源 ID: {', '.join(source_filter)}"))
+            return 1
+
+        remote_sources = filtered_sources
+        print(t.remote_source_filter_selected(sources=", ".join(s.get("name", s.get("id", "")) for s in remote_sources)))
+
+    # 创建临时目录
+    temp_dir = _create_temp_dir()
+    print(t.remote_temp_dir(path=temp_dir.relative_to(Path.home())))
+
+    # 确定目标
+    targets: list[Target] = []
+    home = Path.home()
+    if install_codex:
+        targets.append(Target(
+            label="codex",
+            root=home / ".codex/skills",
+            legacy_link=home / ".codex/skills/pipeline-skills",
+        ))
+    if install_claude:
+        targets.append(Target(
+            label="claude",
+            root=home / ".claude/skills",
+            legacy_link=home / ".claude/skills/pipeline-skills",
+        ))
+
+    all_reports: list[InstallReport] = []
+
+    try:
+        # 遍历每个远程源
+        for source in remote_sources:
+            source_name = source.get("name", "unknown")
+            source_label = _format_remote_source_label(source)
+
+            # 询问用户是否安装（check 模式）
+            if not auto_mode:
+                if not _prompt_source_install(source, t):
+                    print(t.remote_user_cancelled())
+                    continue
+
+            # 下载远程源
+            remote_skills_dir = _download_remote_source(source, temp_dir, t)
+            if remote_skills_dir is None:
+                continue
+
+            # 对每个目标进行处理
+            for target in targets:
+                print(f"\n{'=' * 60}")
+                print(f"📦 {t.installing_to_target(TARGET=target.label.upper(), root=target.root)}")
+                print(f"{'=' * 60}")
+
+                # 对比远程与本地技能
+                comparisons = _compare_remote_skills(remote_skills_dir, target.root, target, t)
+
+                if not comparisons:
+                    print(t.error_no_skills_found(root=remote_skills_dir))
+                    continue
+
+                # 打印对比报告（check 模式）
+                if not auto_mode:
+                    _print_comparison_report(comparisons, t)
+
+                    # 询问用户是否确认安装
+                    if not _prompt_user_install(comparisons, source_name, t):
+                        print(t.remote_user_cancelled())
+                        continue
+
+                # 安装技能
+                report = _install_remote_skills(
+                    comparisons,
+                    target,
+                    force=auto_mode,
+                    source_label=source_label,
+                    t=t,
+                )
+                all_reports.append(report)
+
+                # 打印报告
+                _print_report(report, t)
+
+    finally:
+        # 清理临时目录
+        _cleanup_temp_dir(temp_dir)
+        print()
+        print(t.remote_cleanup_complete())
+
+    # 输出总体摘要
+    if all_reports:
+        print(f"\n{'=' * 60}")
+        print(t.summary_total_header())
+        print(f"{'=' * 60}")
+
+        installed_skill_names = {s.name for r in all_reports for s in r.installed_skills}
+        skipped_skill_names = {s.name for r in all_reports for s in r.skipped_skills}
+        total_installed = len(installed_skill_names)
+        total_skipped = len(skipped_skill_names)
+
+        print(t.summary_total_counts())
+        print(t.summary_installed_count(count=total_installed))
+        print(t.summary_skipped_count(count=total_skipped))
+
+        print(f"{'=' * 60}\n")
+
+    return 0
 
 
 @dataclass
@@ -607,7 +1187,8 @@ def _install_to_target(
     if legacy_msg:
         process_messages.append(legacy_msg)
 
-    target.root.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        target.root.mkdir(parents=True, exist_ok=True)
 
     # 仅处理普通技能（安装或跳过）
     for src_dir in skill_dirs_by_type[SkillType.NORMAL]:
@@ -744,8 +1325,63 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--claude", action="store_true", help=t.get("arg_help_claude"))
     parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
     parser.add_argument("--source", type=str, default=None, help="指定额外的 skills 源目录路径")
+    parser.add_argument("--remote", action="store_true", help=t.get("arg_help_remote"))
+    parser.add_argument("--check", action="store_true", help=t.get("arg_help_check"))
+    parser.add_argument("--auto", action="store_true", help=t.get("arg_help_auto"))
+
+    # 加载配置以获取可用的源 ID（用于动态添加 --<id> 参数）
+    config_path = Path(__file__).parents[1] / "config.yaml"
+    available_source_ids: list[str] = []
+    if config_path.exists():
+        try:
+            import yaml
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+            remote_sources = config.get("remote_sources", [])
+            available_source_ids = [s.get("id", "") for s in remote_sources if s.get("id")]
+        except Exception:
+            pass  # 如果加载失败，跳过动态参数
+
+    # 为每个可用的源 ID 添加布尔参数
+    for source_id in available_source_ids:
+        parser.add_argument(
+            f"--{source_id}",
+            action="store_true",
+            help=f"仅安装来自 '{source_id}' 的远程源",
+            default=False,
+        )
+
     args = parser.parse_args(argv)
 
+    # 远程安装模式
+    if args.remote:
+        # 验证参数组合
+        if args.check and args.auto:
+            print("错误: --check 和 --auto 不能同时使用")
+            return 1
+        if not args.check and not args.auto:
+            print("错误: --remote 需要指定 --check 或 --auto")
+            return 1
+
+        # 收集用户选择的源 ID
+        selected_source_ids: list[str] = []
+        for source_id in available_source_ids:
+            if hasattr(args, source_id) and getattr(args, source_id):
+                selected_source_ids.append(source_id)
+
+        install_codex = args.codex or (not args.codex and not args.claude)
+        install_claude = args.claude or (not args.codex and not args.claude)
+
+        return _remote_install_main(
+            auto_mode=args.auto,
+            install_codex=install_codex,
+            install_claude=install_claude,
+            source_filter=selected_source_ids if selected_source_ids else None,
+            available_source_ids=available_source_ids,
+            t=t,
+        )
+
+    # 本地安装模式（原有逻辑）
     install_codex = args.codex or (not args.codex and not args.claude)
     install_claude = args.claude or (not args.codex and not args.claude)
 
@@ -782,6 +1418,16 @@ def main(argv: list[str]) -> int:
             merged_skill_dirs_by_type[skill_type].extend(skill_dirs_by_type[skill_type])
 
     normal_skill_dirs = merged_skill_dirs_by_type[SkillType.NORMAL]
+
+    name_collisions: dict[str, list[Path]] = {}
+    for skill_dir in normal_skill_dirs:
+        name_collisions.setdefault(skill_dir.name, []).append(skill_dir)
+    collisions = {name: paths for name, paths in name_collisions.items() if len(paths) > 1}
+    if collisions:
+        msg = [t.error_skill_name_collision()]
+        for name, paths in sorted(collisions.items()):
+            msg.append(f"- {name}: " + ", ".join(str(p) for p in paths))
+        raise SystemExit("\n".join(msg))
 
     if not normal_skill_dirs:
         print(t.error_no_skills_found(root=skills_root))
@@ -875,13 +1521,6 @@ def main(argv: list[str]) -> int:
 
     print(f"{'=' * 60}\n")
 
-    # 迁移旧位置的 manifest 文件
-    migrated_files = _migrate_old_manifests()
-    if migrated_files:
-        print(f"📦 迁移旧 manifest 文件到 {'.install-bensz-skills/manifests/'}:")
-        for migration in migrated_files:
-            print(f"   • {migration}")
-
     # Write one manifest per run for traceability.
     # 将 reports 转换为可序列化的格式
     manifests_for_save = [r.to_manifest_dict() for r in reports]
@@ -898,6 +1537,13 @@ def main(argv: list[str]) -> int:
         print(t.manifest_preview())
         print(json.dumps({"runs": manifests_for_save}, ensure_ascii=False, indent=2))
         return 0
+
+    # 迁移旧位置的 manifest 文件
+    migrated_files = _migrate_old_manifests()
+    if migrated_files:
+        print(f"📦 迁移旧 manifest 文件到 {'.install-bensz-skills/manifests/'}:")
+        for migration in migrated_files:
+            print(f"   • {migration}")
 
     # 使用专用目录存储 manifest 文件
     manifest_dir = _get_manifest_dir()
