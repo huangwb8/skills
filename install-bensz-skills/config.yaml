@@ -24,4 +24,4 @@ remote_sources:
     branch: "main"
     skills_path: "skills"
     description: "科研相关技能，建议有科研需要的用户安装"
-    recommended: true
+    recommended: false
