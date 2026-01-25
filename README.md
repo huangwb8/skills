@@ -59,6 +59,12 @@ skills/
 ├── README.md              # 中文说明（本文件）
 ├── README_EN.md           # 英文说明
 │
+├── @install/              # 快速安装脚本（一键安装）
+│   ├── install.sh        # macOS/Linux/WSL
+│   ├── install.ps1       # Windows PowerShell
+│   ├── install.bat       # Windows CMD
+│   └── README.md         # 安装说明
+│
 ├── init-project/          # 技能：项目文档生成器
 │   ├── SKILL.md          # 技能定义（面向 AI）
 │   ├── README.md         # 用户指南（面向人类）
@@ -71,6 +77,7 @@ skills/
 │   ├── SKILL.md          # 技能定义
 │   ├── README.md         # 用户指南
 │   ├── CHANGELOG.md      # 更新日志
+│   ├── config.yaml       # 配置参数
 │   └── scripts/          # 安装脚本
 │
 ├── git-commit/            # 技能：智能 Git 提交
@@ -99,6 +106,21 @@ skills/
 
 ### 🚀 如何安装本项目的 skill
 
+#### 方法一：一键快速安装（推荐）
+
+**无需克隆项目，一行命令完成安装！**
+
+| 平台 | 命令 |
+|------|------|
+| **macOS / Linux / WSL** | `curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh \| bash` |
+| **Windows PowerShell** | `irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 \| iex` |
+
+安装完成后，技能将自动安装到：
+- `~/.claude/skills/` (Claude Code)
+- `~/.codex/skills/` (OpenAI Codex)
+
+#### 方法二：本地安装
+
 **第一步：克隆本项目**
 
 ```bash
@@ -111,6 +133,16 @@ cd skills
 > `"install-bensz-skills 这个 skill 将本项目里的 skill 安装到 Codex 和 Claude Code 里"`
 
 就这么简单！所有 skill 将被安装到系统级，可在任何项目中使用。
+
+#### 方法三：手动安装
+
+```bash
+# 进入项目目录
+cd skills
+
+# 运行安装脚本
+python3 install-bensz-skills/scripts/install.py --claude --codex
+```
 
 ### 🎯 如何使用本项目的 skills
 
