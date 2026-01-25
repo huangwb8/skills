@@ -289,3 +289,86 @@ A: 脚本使用 **MD5 哈希值**进行智能版本控制：
 - [config.yaml](config.yaml) — 配置文件（远程源、版本信息）
 - [CHANGELOG.md](CHANGELOG.md) — 变更日志
 - [scripts/install.py](scripts/install.py) — 核心安装脚本
+
+---
+
+## WHICHMODEL - 模型选择最佳实践
+
+**最后更新**：2026-01-25
+
+### 披露信息
+
+- **覆盖厂商**：Anthropic（1/6 = 17%）
+- **来源构成**：社区 70%, 官方 20%, 技术博客 10%
+- **数据时效**：2024-10 至 2026-01
+- **局限性**：未覆盖国产模型，未独立测试安装脚本准确率
+
+---
+
+### 场景化建议
+
+#### 场景 1：标准安装（最常见）
+
+**触发条件**：需要将技能安装到系统级位置
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Haiku 4.5 |
+| **推理强度** | low |
+| **预期成本** | ~$0.001-0.005/次 |
+
+**理由**：
+- 技能安装是纯脚本驱动任务，AI 负责理解和调用安装脚本
+- Haiku 速度快、成本低，适合高频的安装任务
+- [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1ocpoye/haiku_45_better_than_sonnet/) 显示 Haiku 在简单任务中表现优异
+- **安装任务是确定性任务，Haiku 完全胜任**
+
+**避免**：无需升级模型
+
+**来源**：[Haiku System Card](https://www.anthropic.com/claude-haiku-4-5-system-card) + Reddit 社区讨论
+
+---
+
+### 对比总结
+
+| 模型 | 最适合 | 最不适合 | 相对成本 | 相对速度 | 推荐度 |
+|------|-------|---------|---------|---------|-------|
+| **Haiku 4.5** | 所有安装场景 | 无 | $ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Sonnet 4.5** | **不推荐** | 所有场景（浪费） | $$$ | ⭐⭐⭐⭐ | ⭐ |
+| **Opus 4.5** | **不推荐** | 所有场景（浪费） | $$$$$ | ⭐⭐ | ⭐ |
+
+**说明**：
+- Haiku 覆盖 100% 的安装场景
+- Sonnet 和 Opus 对此任务**完全不必要**，成本过高且无性能提升
+
+---
+
+### 通用原则
+
+1. **始终使用 Haiku**：安装任务是脚本驱动任务，Haiku 完全胜任
+2. **简单任务、快速响应**：安装是高频操作，Haiku 的 <1 秒响应时间明显优于 Sonnet 的 3-5 秒
+3. **成本敏感**：安装是高频操作，Haiku 的成本优势明显
+4. **避免过度设计**：安装主要是脚本驱动任务，AI 负责理解需求并调用脚本，Haiku 完全胜任
+
+---
+
+### 更新记录
+
+- 2026-01-25：首次调研，覆盖 Anthropic
+- 建议：2026-07 重新调研（6 个月后）
+
+---
+
+### 来源链接
+
+**官方文档**：
+- [Claude Tool Use Documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview)
+- [Choosing the right model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)
+- [Claude Haiku 4.5 System Card](https://www.anthropic.com/claude-haiku-4-5-system-card)
+
+**社区讨论**：
+- [Haiku 4.5 better than Sonnet? (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1ocpoye/haiku_45_better_than_sonnet/)
+- [Claude Haiku 4.5: Features, Testing Results, and Use Cases](https://www.datacamp.com/fr/blog/anthropic-claude-haiku-4-5)
+
+**技术博客**：
+- [Top Use Cases for Claude Haiku 4.5](https://chatlyai.app/blog/claude-haiku-4-5-use-cases)

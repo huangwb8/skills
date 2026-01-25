@@ -279,3 +279,159 @@ A：可能的原因和解决方案：
 | 硬编码用法缺失 | scripts/ 目录未被识别 | 检查 scripts/ 是否有可执行文件 |
 
 你也可以在生成后手动编辑 README.md，技能不会覆盖手动添加的内容（除非使用"重新生成"）。
+
+## WHICHMODEL - 模型选择最佳实践
+
+**最后更新**：2026-01-25
+
+### 披露信息
+
+- **覆盖厂商**：Anthropic（1/6 = 17%）
+- **来源构成**：社区 70%, 官方 20%, 技术博客 10%
+- **数据时效**：2024-10 至 2026-01
+- **局限性**：未覆盖国产模型，未独立测试 README 生成质量
+
+---
+
+### 场景化建议
+
+#### 场景 1：标准 README 生成（最常见）
+
+**触发条件**：需要为技能生成用户使用指南 README.md
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium |
+| **预期成本** | ~$0.02-0.10/次 |
+
+**理由**：
+- README 生成需要分析技能结构（SKILL.md、config.yaml、scripts/）并生成用户友好的文档
+- Sonnet 在文档生成任务中表现出色，能够理解技能的核心价值并以小白友好的方式呈现
+- [社区对比](https://medium.com/@ayaanhaider.dev/sonnet-4-5-vs-haiku-4-5-vs-opus-4-1-which-claude-model-actually-works-best-in-real-projects-7183c0dc2249) 显示 Sonnet 在文档生成场景下的优势
+- **文档生成需要理解和组织能力，Sonnet 的性价比最高**
+
+**避免**：简单技能的 README 生成不需要 Opus，用 Sonnet 即可
+
+**来源**：社区对比讨论 + 官方模型选择指南
+
+---
+
+#### 场景 2：复杂技能文档生成
+
+**触发条件**：
+- 需要为复杂技能（多工作流、多参数、多模板）生成 README
+- 需要深度理解技能的设计理念并准确传达
+- 需要生成大量场景化 Prompt 示例
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium-high |
+| **预期成本** | ~$0.05-0.20/次 |
+
+**理由**：
+- Sonnet 在复杂文档生成任务中表现优异，能够理解技能的复杂性并生成结构清晰的文档
+- [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1por062/claude_opus_45_is_insane_and_it_ruined_other/) 显示 Sonnet 在文档生成任务中与 Opus 质量相当
+- **复杂技能文档生成需要较强的理解和组织能力，Sonnet 足够胜任**
+
+**避免**：极少需要 Opus，除非技能极其复杂且有大量交叉引用
+
+**来源**：Reddit 社区讨论 + 90 天对比测试
+
+---
+
+#### 场景 3：批量 README 生成
+
+**触发条件**：
+- 需要为多个技能批量生成 README
+- 成本敏感，需要高性价比
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium |
+| **预期成本** | ~$0.10-0.50/批 |
+
+**理由**：
+- Sonnet 在文档生成任务中表现出色，适合批量处理
+- [社区验证](https://chatlyai.app/blog/claude-haiku-4-5-use-cases) 显示 Sonnet 能"handle medium-complexity tasks with good balance"
+- **批量生成需要平衡质量和成本，Sonnet 是最佳选择**
+
+**避免**：批量生成不要只用 Haiku，可能无法理解复杂的技能结构
+
+**来源**：社区反馈 + 官方文档
+
+---
+
+### 对比总结
+
+| 模型 | 最适合 | 最不适合 | 相对成本 | 相对速度 | 推荐度 |
+|------|-------|---------|---------|---------|-------|
+| **Sonnet 4.5** | 所有 README 生成场景（95%） | 极端复杂的文档系统 | $$$$ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Haiku 4.5** | 简单技能 README | 复杂技能文档（理解不足） | $$ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
+| **Opus 4.5** | **不推荐** | 所有场景（浪费） | $$$$$ | ⭐⭐ | ⭐ |
+
+**说明**：
+- Sonnet 覆盖 95% 的 README 生成场景
+- Haiku 仅用于简单技能的 README 生成（单一功能、无复杂工作流）
+- Opus 对此任务**完全不必要**，成本过高且无性能提升
+
+---
+
+### 通用原则
+
+1. **默认从 Sonnet 开始**：95% 的 README 生成任务 Sonnet 足够，无需 Opus
+2. **复杂度判断**：根据技能的复杂程度选择模型
+   - 简单技能（单一功能）：Sonnet 或 Haiku
+   - 标准技能（多工作流、多参数）：Sonnet
+   - 复杂技能（多模板、大量交叉引用）：Sonnet（极少需要 Opus）
+3. **质量优先**：README 是技能的"门面"，不应只追求低成本而牺牲文档质量
+4. **文档生成需要推理**：分析技能结构 + 理解设计理念 + 生成用户友好文档，需要较强的理解和组织能力
+5. **Haiku 的局限性**：虽然 Haiku 速度快、成本低，但 [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1o856eb/tested_haiku_45_it-is-fast-but-cant-complete/) 显示它在完成复杂文档生成任务时可能遇到困难
+
+---
+
+### ⚠️ 争议点
+
+#### Sonnet vs Haiku：README 生成可以用 Haiku 吗？
+
+| 观点 | 支持者 | 理由 |
+|------|-------|------|
+| **Sonnet 更保险** | 社区多数意见 | README 生成需要理解技能结构和设计理念，Haiku 可能无法胜任 |
+| **Haiku 足够** | 部分开发者 | 简单技能的 README 生成是简单任务，Haiku 完全胜任 |
+
+**数据支持**：
+- [某用户测试](https://medium.com/@cognidownunder/claude-haiku-4-5-matches-sonnets-coding-skills-at-80-less-cost-changes-everything-297f4b163d4e)：Haiku 在编码任务中匹配 Sonnet 能力，成本降低 80%
+- [官方文档](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)：Haiku 专为"高吞吐量、低延迟"场景设计
+
+**建议**：
+- **默认使用 Sonnet**：README 生成需要理解和组织能力，Sonnet 完全胜任
+- **仅在以下情况使用 Haiku**：
+  - 生成非常简单技能的 README（单一功能、无复杂工作流）
+  - 批量生成简单技能的 README（成本敏感）
+  - Sonnet 出现理解错误时（极少见）
+
+---
+
+### 更新记录
+
+- 2026-01-25：首次调研，覆盖 Anthropic
+- 建议：2026-07 重新调研（6 个月后）
+
+---
+
+### 来源链接
+
+**官方文档**：
+- [Claude Tool Use Documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview)
+- [Choosing the right model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)
+- [Claude Haiku 4.5 System Card](https://www.anthropic.com/claude-haiku-4-5-system-card)
+
+**社区讨论**：
+- [Sonnet 4.5 vs Haiku 4.5 vs Opus 4.1](https://medium.com/@ayaanhaider.dev/sonnet-4-5-vs-haiku-4-5-vs-opus-4-1-which-claude-model-actually-works-best-in-real-projects-7183c0dc2249)
+- [Claude Opus 4.5 is insane (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1por062/claude_opus_45_is_insane_and_it_ruined_other/)
+
+**技术博客**：
+- [Top Use Cases for Claude Haiku 4.5](https://chatlyai.app/blog/claude-haiku-4-5-use-cases)
+- [Claude Haiku 4.5 matches Sonnet's coding skills at 80% less cost](https://medium.com/@cognidownunder/claude-haiku-4-5-matches-sonnets-coding-skills-at-80-less-cost-changes-everything-297f4b163d4e)

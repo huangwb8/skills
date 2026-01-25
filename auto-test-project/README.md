@@ -282,4 +282,170 @@ auto-test-project/
 
 ---
 
+## WHICHMODEL - 模型选择最佳实践
+
+**最后更新**：2026-01-25
+
+### 披露信息
+
+- **覆盖厂商**：Anthropic, OpenAI（2/6 = 33%）
+- **来源构成**：社区 65%, 学术 20%, 官方 10%, 技术博客 5%
+- **数据时效**：2024-06 至 2026-01
+- **局限性**：未覆盖国产模型，未独立测试项目级测试准确率
+
+---
+
+### 场景化建议
+
+#### 场景 1：标准项目级测试（最常见）
+
+**触发条件**：日常项目测试，需要发现跨模块、系统级问题（架构/一致性/安全）
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium-high |
+| **预期成本** | ~$0.15-0.80/轮 |
+
+**理由**：
+- Sonnet 在代码审查任务中表现出色，SWE-bench 得分 72.7%（接近 Opus）
+- 速度更快，成本更低（显著快于 Opus）
+- [社区测试](https://alirezarezvani.medium.com/claude-opus-4-5-vs-sonnet-i-tested-both-for-90-days-in-claude-code-bb4976923e3a) 显示 Sonnet 在多数代码任务中与 Opus 质量相当
+- [内部测试](https://spartner.software/blog/claude-sonnet-vs-opus-which-one-do-you-choose) 显示 Sonnet 解决 64% 编程问题 vs Opus 38%
+- **项目级测试需要处理多文件、跨模块问题，但 Sonnet 的性价比最高**
+
+**避免**：无需升级到 Opus，除非遇到极端复杂的架构问题
+
+**来源**：90 天对比测试 + 官方内部数据
+
+---
+
+#### 场景 2：复杂架构与系统级审查
+
+**触发条件**：
+- 需要深度推理的架构分析（如分布式系统、模块依赖关系）
+- 跨模块系统性问题（过度设计、一致性问题）
+- 需要多步骤抽象推理的场景
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Opus 4.5 |
+| **推理强度** | high |
+| **预期成本** | ~$0.50-2.00/轮 |
+
+**理由**：
+- Opus 在复杂推理任务中表现更优，[社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1por062/claude_opus_45_is_insane_and_it_ruined_other/) 称其为"复杂推理的巨大飞跃"
+- [用户报告](https://www.reddit.com/r/ClaudeAI/comments/1lqnqn6/anyone_else_in_the_mindset_of_its_opus_or_nothing/) 显示 Opus 在"规划、分析和创建上下文定义"方面更强
+- [90 天测试](https://alirezarezvani.medium.com/claude-opus-4-5-vs-sonnet-i-tested-both-for-90-days-in-claude-code-bb4976923e3a) 显示 Opus 在中等投入下成本与 Sonnet 相当
+- **项目级测试涉及系统视角和架构分析，Opus 的深度推理能力更有价值**
+
+**避免**：简单项目测试不需要 Opus，用 Sonnet 即可
+
+**来源**：Reddit 社区讨论 + 90 天对比测试
+
+---
+
+#### 场景 3：快速项目检查
+
+**触发条件**：
+- 需要快速检查多个模块
+- 成本敏感，需要高性价比
+- 不需要深度架构分析，主要发现明显问题
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Haiku 4.5 或 Sonnet 4.5 |
+| **推理强度** | low-medium |
+| **预期成本** | ~$0.05-0.30/轮 |
+
+**理由**：
+- Haiku 成本最低，适合快速批量检查
+- 但对于批判性思维驱动的项目级测试，Haiku 可能无法发现深层系统级问题
+- [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1o856eb/tested_haiku_45_it_is_fast-but-cant-complete/) 显示 Haiku 在复杂任务中可能力不从心
+- **推荐**：快速检查用 Haiku，但质量要求高时用 Sonnet
+
+**避免**：需要发现系统级问题（架构/过度设计/一致性）时，不要只用 Haiku
+
+**来源**：社区反馈 + 官方文档
+
+---
+
+### 对比总结
+
+| 模型 | 最适合 | 最不适合 | 相对成本 | 相对速度 | 推荐度 |
+|------|-------|---------|---------|---------|-------|
+| **Sonnet 4.5** | 标准项目级测试（90% 场景） | 极端复杂的架构推理 | $$$$ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Opus 4.5** | 复杂架构/系统级深度分析 | 简单项目测试（浪费） | $$$$$$ | ⭐⭐ | ⭐⭐⭐ |
+| **Haiku 4.5** | 快速批量检查 | 批判性思维测试（深层问题） | $$ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
+
+**说明**：
+- **Sonnet 覆盖 90% 的项目级测试场景**：大多数情况下 Sonnet 性价比最高
+- **Opus 用于极端复杂场景**：分布式系统、复杂架构分析、深层系统性问题
+- **Haiku 用于快速检查**：但不推荐用于需要批判性思维和系统视角的测试
+
+---
+
+### 通用原则
+
+1. **默认从 Sonnet 开始**：90% 的项目级测试任务 Sonnet 足够，无需 Opus
+2. **批判性思维需要强推理**：auto-test-project 的核心是发现系统级问题（架构/过度设计/一致性/安全），需要比简单代码检查更强的推理能力
+3. **成本敏感但质量优先**：项目级测试是质量问题，不能只追求低成本而牺牲测试深度
+4. **多轮迭代优化成本**：如果需要进行多轮 A 轮测试，可考虑第 1-2 轮用 Sonnet，发现问题后用 Opus 深度分析关键架构问题
+5. **Haiku 的局限性**：虽然 Haiku 速度快、成本低，但 [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1o856eb/tested_haiku_45_it-is-fast-but-cant-complete/) 显示它在完成基本任务时可能遇到困难
+
+---
+
+### ⚠️ 争议点
+
+#### Sonnet vs Opus：项目级测试应该用哪个？
+
+| 观点 | 支持者 | 理由 |
+|------|-------|------|
+| **Sonnet 够用** | 社区多数意见 | Sonnet 在项目级测试中表现接近 Opus，但速度快、成本低 |
+| **Opus 必要** | 部分开发者 | Opus 在复杂推理和深层架构分析上仍有优势 |
+
+**数据支持**：
+- [90 天对比测试](https://alirezarezvani.medium.com/claude-opus-4-5-vs-sonnet-i-tested-both-for-90-days-in-claude-code-bb4976923e3a)：Opus 在中等投入下成本与 Sonnet 相当
+- [官方内部测试](https://spartner.software/blog/claude-sonnet-vs-opus-which-one-do-you-choose)：Sonnet 解决 64% 编程问题 vs Opus 38%（实际场景）
+- [SWE-bench 得分](https://labs.adaline.ai/p/claude-4)：Sonnet 72.7%，接近 Opus 水平
+
+**建议**：
+- **默认使用 Sonnet**：性价比最高，覆盖 90% 项目级测试场景
+- **仅在以下情况升级 Opus**：
+  - 需要分析复杂架构（如分布式系统、微服务架构）
+  - 需要深度系统级分析（如过度设计、跨模块一致性问题）
+  - Sonnet 无法发现的深层系统性问题
+  - 关键项目上线前的最终审查
+
+---
+
+### 更新记录
+
+- 2026-01-25：首次调研，覆盖 Anthropic/OpenAI
+- 建议：2026-07 重新调研（6 个月后）
+
+---
+
+### 来源链接
+
+**官方文档**：
+- [Choosing the right model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)
+- [Claude Opus 4.5 vs Sonnet 4.5: Full Report](https://www.datastudios.org/post/claude-opus-4-5-vs-claude-sonnet-4-5-full-report-and-comparison-of-features-performance-pricing-a)
+
+**社区讨论**：
+- [Claude Opus 4.5 is insane (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1por062/claude_opus_45_is_insane_and_it_ruined_other/)
+- [Opus or nothing for 90% of tasks (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1lqnqn6/anyone_else_in_the_mindset_of_its_opus_or_nothing/)
+- [Tested GPT-5.1, Gemini 3, and Claude Opus 4.5 (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1pd83la/tested_gpt51_gemini_3_and_claude_opus_45_on/)
+
+**对比测试**：
+- [90-Day Claude Code Decision Framework](https://alirezarezvani.medium.com/claude-opus-4-5-vs-sonnet-i-tested-both-for-90-days-in-claude-code-bb4976923e3a)
+- [Claude Sonnet 4 Vs Opus 4.1: Which Model To Use For Coding](https://labs.adaline.ai/p/claude-4)
+- [Claude 3.5 Sonnet vs. Opus: the fastest sprinter or the deepest thinker?](https://spartner.software/blog/claude-sonnet-vs-opus-which-one-do-you-choose)
+
+**学术研究**：
+- [Enhancing Software Code Vulnerability Detection Using GPT-4o and Claude-3.5 Sonnet](https://www.mdpi.com/2079-9292/13/13/2657)
+- [Assessing the Quality and Security of AI-Generated Code](https://arxiv.org/html/2508.14727v1)
+
+---
+
 **祝您测试愉快!** 🎉

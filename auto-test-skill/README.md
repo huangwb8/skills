@@ -313,53 +313,79 @@ def test_fix_problem_1():
 
 ## WHICHMODEL - 模型选择最佳实践
 
-本节由 `which-model` skill 自动调研生成，最后更新：2026-01-03
+### 披露信息
+- **最后更新**：2026-01-25
+- **覆盖厂商**：Anthropic（Claude 系列）
+- **来源构成**：官方文档 60%、技术博客 25%、社区讨论 15%
+- **数据时效**：2025-2026
+- **局限性**：本次调研主要基于 Anthropic 官方文档，未包含第三方独立基准测试
 
-### 场景一：代码分析与 Bug 检测
+### 场景一：批判性代码分析与问题发现（A 轮核心任务）
 - **推荐模型**：Claude Sonnet 4.5
 - **推荐参数**：
-  - 推理强度：medium
-  - Thinking 模式：开
-  - Temperature：0.3（平衡准确性与创造性）
-  - Max Tokens：8192
-- **理由**：Sonnet 4.5 在 SWE-bench Verified 上达到 state-of-the-art 性能，比 GPT-4o 高出约 25% 在代码分析任务上。特别适合静态代码分析和漏洞检测。[来源：Claude Sonnet 4.5 - Anthropic 官方 - Sonnet 在代码测试和分析上的性能提升]
+  - Extended Thinking：开启，budget_tokens: 10000-16000
+  - Temperature：不可调（Thinking 模式下固定）
+  - Max Tokens：16384
+- **理由**：Sonnet 4.5 在 SWE-bench Verified 上达到 **77.2%**（state-of-the-art），特别擅长"测试其自己的代码"。官方文档明确指出其"在代码分析任务上表现卓越"，且相比前代模型"代码编辑错误率从 9% 降至 0%"。
+- **来源**：[Anthropic Models Overview](https://platform.claude.com/docs/en/docs/about-claude/models/all-models)、[Sonnet 4.5 Performance Summary](https://www.anthropic.com/claude/sonnet)
 
-### 场景二：测试用例生成
-- **推荐模型**：Claude Sonnet 4.5
-- **推荐参数**：
-  - 推理强度：medium
-  - Thinking 模式：开
-  - Temperature：0.5（允许一定的测试场景多样性）
-  - Max Tokens：4096
-- **理由**：测试用例生成需要理解代码逻辑并设计边界条件，Sonnet 4.5 在代码理解和推理上表现优异，且支持 up to 64K output tokens 适合生成大量测试代码。[来源：Claude Sonnet 4.5 Technical Analysis - Sonnet 的长文本生成能力]
-
-### 场景三：测试计划与优化方案制定
+### 场景二：测试计划与优化方案制定（A 轮规划任务）
 - **推荐模型**：Claude Opus 4.5
 - **推荐参数**：
-  - 推理强度：high
-  - Thinking 模式：开
-  - Temperature：0.7（鼓励多角度思考）
-  - Max Tokens：16384
-- **理由**：制定优化计划需要综合考虑多个因素（优先级、依赖关系、风险评估），Opus 4.5 的最强推理能力能确保计划的完整性和可执行性。[来源：Claude Code Best Practices - 复杂规划任务使用 Opus]
+  - Extended Thinking：开启，budget_tokens: 16000-32000
+  - Max Tokens：32768
+- **理由**：Opus 4.5 官方定位为"Premium model combining maximum intelligence with practical performance"，在复杂推理任务上表现最佳。官方案例显示其能"发现未预料但合法的 workaround"，证明其深度推理能力。此外，用户报告"工具调用错误和构建错误减少 50%-75%"。
+- **适用**：多轮迭代优化计划、复杂依赖关系分析、P0/P1 优先级评估
+- **来源**：[Anthropic Models Overview](https://platform.claude.com/docs/en/docs/about-claude/models/all-models)、[Opus 4.5 Announcement](https://www.anthropic.com/news/claude-opus-4-5)
 
-### 场景四：快速代码审查（轻量级）
+### 场景三：B 轮质量原则检查（8 维度系统性审查）
+- **推荐模型**：Claude Sonnet 4.5
+- **推荐参数**：
+  - Extended Thinking：开启，budget_tokens: 8000-12000
+  - Max Tokens：16384
+- **理由**：B 轮检查涉及 8 个标准化维度（硬编码/AI 规划、冗余检查、安全性等），属于结构化分析任务。Sonnet 4.5 在此类任务上性价比最高（$3/MTok input vs Opus 的 $5/MTok），且官方推荐其用于"complex agents and coding"。
+- **来源**：[Anthropic Models Overview](https://platform.claude.com/docs/en/docs/about-claude/models/all-models)
+
+### 场景四：轻量测试验证（快速筛查）
 - **推荐模型**：Claude Haiku 4.5
 - **推荐参数**：
-  - 推理强度：low
-  - Thinking 模式：关
+  - Extended Thinking：关闭（简单任务无需深度推理）
   - Temperature：0.3
-  - Max Tokens：2048
-- **理由**：对于简单的代码风格检查或基础问题识别，Haiku 4.5 能提供快速反馈，适合早期快速筛查。[来源：Choosing the right model - 从 Haiku 开始的渐进式策略]
+  - Max Tokens：4096
+- **理由**：Haiku 4.5 官方定位为"near-frontier intelligence"的最快模型，价格仅 $1/MTok input。适合简单的语法检查、格式验证等轻量任务，可节省时间和成本。
+- **适用**：早期问题筛查、简单格式验证、快速反馈循环
+- **来源**：[Anthropic Models Overview](https://platform.claude.com/docs/en/docs/about-claude/models/all-models)
+
+### 场景五：多步骤工具调用与交叉验证
+- **推荐模型**：Claude Sonnet 4.5 / Opus 4.5
+- **推荐参数**：
+  - Extended Thinking：开启
+  - Interleaved Thinking：开启（需 beta header `interleaved-thinking-2025-05-14`）
+  - budget_tokens：可超过 max_tokens（工具调用场景特殊规则）
+- **理由**：auto-test-skill 涉及大量 Glob/Read/Grep 工具调用。启用 Interleaved Thinking 后，Claude 可在每次工具调用结果返回后进行推理，做出"更细致的决策"。官方文档明确支持此功能用于"chain multiple tool calls with reasoning steps in between"。
+- **来源**：[Extended Thinking with Tool Use](https://platform.claude.com/docs/en/docs/build-with-claude/extended-thinking#extended-thinking-with-tool-use)
+
+### 模型对比总结
+
+| 场景 | 推荐模型 | Thinking | 核心优势 | 成本（input） |
+|------|----------|----------|----------|---------------|
+| A 轮问题发现 | Sonnet 4.5 | 开 | SWE-bench 77.2%，代码分析 SOTA | $3/MTok |
+| A 轮规划制定 | Opus 4.5 | 开 | 最强推理，复杂规划 | $5/MTok |
+| B 轮质量检查 | Sonnet 4.5 | 开 | 结构化分析性价比 | $3/MTok |
+| 轻量验证 | Haiku 4.5 | 关 | 最快响应，低成本 | $1/MTok |
+| 多步工具调用 | Sonnet/Opus | 开+交叉 | 工具间推理 | $3-5/MTok |
 
 ### 通用原则
-1. **代码分析用 Sonnet**：Sonnet 4.5 是代码分析和漏洞检测的最佳选择（SWE-bench Verified 领先）
-2. **复杂规划用 Opus**：多轮迭代优化计划、复杂依赖关系分析需要 Opus 4.5 的最强推理
-3. **快速筛查用 Haiku**：简单的风格检查或早期问题识别可用 Haiku 4.5 节省时间
-4. **测试生成用 Sonnet**：Sonnet 4.5 支持长文本输出（64K tokens），适合生成大量测试代码
-5. **Temperature 调整**：漏洞检测用低 Temperature（0.1-0.3），规划用中高 Temperature（0.5-0.7）
+
+1. **默认用 Sonnet 4.5**：官方明确推荐"如果不确定用哪个模型，从 Sonnet 4.5 开始"——它在"智能、速度和成本之间提供最佳平衡"
+2. **复杂规划升级 Opus**：当任务涉及多因素权衡、长期规划、架构决策时，使用 Opus 4.5
+3. **Extended Thinking 是关键**：auto-test-skill 的批判性分析任务强烈推荐开启 Thinking 模式，预算建议 10000-16000 tokens
+4. **Interleaved Thinking 用于工具密集型任务**：涉及多次 Glob/Read/Grep 调用时，启用交叉推理可提升分析质量
+5. **Haiku 用于快速验证**：轻量任务用 Haiku 可节省 70%+ 成本
 
 ### 更新记录
-- 2026-01-03：初始调研，基于 Anthropic 官方文档、SWE-bench Verified 基准测试和软件工程最佳实践
+- 2026-01-25：基于 Anthropic 官方文档（2025-2026）全面更新，新增 Extended Thinking 和 Interleaved Thinking 最佳实践
+- 2026-01-03：初始调研
 
 ## 版本历史
 

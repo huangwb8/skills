@@ -182,6 +182,170 @@ git push origin v1.0.0
 - [Release Notes 模板示例](references/release-templates.md)
 - [GitHub API 文档](https://docs.github.com/en/rest/releases/releases)
 
+## WHICHMODEL - 模型选择最佳实践
+
+**最后更新**：2026-01-25
+
+### 披露信息
+
+- **覆盖厂商**：Anthropic, OpenAI（2/6 = 33%）
+- **来源构成**：社区 70%, 官方 20%, 技术博客 10%
+- **数据时效**：2024-10 至 2026-01
+- **局限性**：未覆盖国产模型，未独立测试 Release Notes 生成质量
+
+---
+
+### 场景化建议
+
+#### 场景 1：标准版本发布（最常见）
+
+**触发条件**：常规版本发布，需要生成 Release Notes
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Haiku 4.5 或 Sonnet 4.5 |
+| **推理强度** | low-medium |
+| **预期成本** | ~$0.005-0.05/次 |
+
+**理由**：
+- Release Notes 生成主要是文本处理和模式匹配任务
+- Haiku 成本最低，适合简单版本发布
+- Sonnet 在 commit 分类和内容整理上表现更好
+- [社区反馈](https://www.reddit.com/r/ClaudeAI/comments/1ocpoye/haiku_45_better_than_sonnet/) 显示 Haiku 在简单任务中表现优异
+
+**避免**：复杂大规模版本（100+ commits）建议用 Sonnet
+
+**来源**：[Haiku System Card](https://www.anthropic.com/claude-haiku-4-5-system-card) + Reddit 社区讨论
+
+---
+
+#### 场景 2：大规模版本发布
+
+**触发条件**：
+- 大规模版本（100+ commits）
+- 跨越多个功能模块
+- 需要深度理解业务价值
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium |
+| **预期成本** | ~$0.03-0.15/次 |
+
+**理由**：
+- Sonnet 在代码分析和内容整理上表现出色
+- 更适合需要"中等复杂度理解"的场景
+- [社区对比](https://medium.com/@ayaanhaider.dev/sonnet-4-5-vs-haiku-4-5-vs-opus-4-1-which-claude-model-actually-works-best-in-real-projects-7183c0dc2249) 显示 Sonnet 在复杂场景下的优势
+- **大规模 commit 历史分析需要一定的推理能力**
+
+**避免**：简单版本（<20 commits）不需要 Sonnet，用 Haiku 即可
+
+**来源**：社区对比讨论 + 官方模型选择指南
+
+---
+
+#### 场景 3：首次发布
+
+**触发条件**：
+- 项目首次发布（v1.0.0）
+- 需要生成完整的初始介绍
+- 需要创造性撰写项目定位
+
+| 项目 | 建议 |
+|------|------|
+| **推荐模型** | Claude Sonnet 4.5 |
+| **推理强度** | medium |
+| **预期成本** | ~$0.05-0.20/次 |
+
+**理由**：
+- 首次发布需要理解和总结整个项目
+- 需要创造性撰写吸引人的标题和价值定位
+- Sonnet 在内容组织和语言表达上更有优势
+- **首次发布是项目的"第一印象"，值得投入更多资源**
+
+**避免**：如果不是首次发布，优先使用 Haiku
+
+**来源**：社区反馈 + 官方文档
+
+---
+
+### 对比总结
+
+| 模型 | 最适合 | 最不适合 | 相对成本 | 相对速度 | 推荐度 |
+|------|-------|---------|---------|---------|-------|
+| **Haiku 4.5** | 小版本发布、常规版本 | 大规模版本、首次发布 | $ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Sonnet 4.5** | 大规模版本、首次发布 | 小版本（浪费） | $$$ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Opus 4.5** | **不推荐** | 所有场景 | $$$$$ | ⭐⭐ | ⭐ |
+
+**说明**：
+- Haiku 覆盖 80% 的版本发布场景（小版本、常规版本）
+- Sonnet 用于大规模版本（100+ commits）和首次发布
+- Opus 对此任务**完全不必要**，成本过高且无性能提升
+
+---
+
+### 通用原则
+
+1. **默认从 Haiku 开始**：80% 的版本发布任务 Haiku 足够，无需升级
+2. **复杂度判断**：根据 commit 数量选择模型
+   - <20 commits：Haiku
+   - 20-100 commits：Haiku 或 Sonnet
+   - >100 commits：Sonnet
+   - 首次发布：Sonnet
+3. **成本敏感**：版本发布是高频操作，Haiku 的成本优势明显
+4. **速度优先**：Haiku 的 <1 秒响应时间明显优于 Sonnet 的 3-5 秒
+5. **避免过度设计**：Release Notes 生成主要是模式匹配和文本整理，Haiku 完全胜任
+
+---
+
+### ⚠️ 争议点
+
+#### Haiku vs Sonnet：Release Notes 生成真的可以用 Haiku 吗？
+
+| 观点 | 支持者 | 理由 |
+|------|-------|------|
+| **Haiku 足够** | Reddit 社区 | Release Notes 生成是简单任务，Haiku 在文本处理任务中表现稳定 |
+| **Sonnet 更保险** | 部分开发者 | 担心 Haiku 在大规模版本分析时出错 |
+
+**数据支持**：
+- [某用户测试](https://medium.com/@cognidownunder/claude-haiku-4-5-matches-sonnets-coding-skills-at-80-less-cost-changes-everything-297f4b163d4e)：Haiku 在编码任务中匹配 Sonnet 能力，成本降低 80%
+- [官方文档](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)：Haiku 专为"高吞吐量、低延迟"场景设计
+
+**建议**：
+- **默认使用 Haiku**：小版本和常规版本发布，Haiku 完全胜任
+- **仅在以下情况升级 Sonnet**：
+  - 大规模版本（>100 commits）
+  - 首次发布（需要项目理解和创造性撰写）
+  - 跨多个功能模块的复杂版本
+  - Haiku 出现理解错误时（极少见）
+
+---
+
+### 更新记录
+
+- 2026-01-25：首次调研，覆盖 Anthropic/OpenAI
+- 建议：2026-07 重新调研（6 个月后）
+
+---
+
+### 来源链接
+
+**官方文档**：
+- [Claude Tool Use Documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview)
+- [Choosing the right model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model)
+- [Claude Haiku 4.5 System Card](https://www.anthropic.com/claude-haiku-4-5-system-card)
+
+**社区讨论**：
+- [Sonnet 4.5 vs Haiku 4.5 vs Opus 4.1](https://medium.com/@ayaanhaider.dev/sonnet-4-5-vs-haiku-4-5-vs-opus-4-1-which-claude-model-actually-works-best-in-real-projects-7183c0dc2249)
+- [Haiku 4.5 better than Sonnet? (Reddit)](https://www.reddit.com/r/ClaudeAI/comments/1ocpoye/haiku_45_better_than_sonnet/)
+- [Claude Haiku 4.5: Features, Testing Results, and Use Cases](https://www.datacamp.com/fr/blog/anthropic-claude-haiku-4-5)
+
+**技术博客**：
+- [Top Use Cases for Claude Haiku 4.5](https://chatlyai.app/blog/claude-haiku-4-5-use-cases)
+- [Claude Haiku 4.5 matches Sonnet's coding skills at 80% less cost](https://medium.com/@cognidownunder/claude-haiku-4-5-matches-sonnets-coding-skills-at-80-less-cost-changes-everything-297f4b163d4e)
+
+---
+
 ## 🤝 贡献
 
 欢迎反馈和改进建议！请提交 issue 或 PR。
