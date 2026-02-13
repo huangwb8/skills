@@ -1,8 +1,8 @@
 ---
 name: git-commit
-description: 当用户明确要求"提交 Git 改动"、"生成 commit 信息"或"创建 git commit"时使用。仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过）。
+description: 当用户明确要求"提交 Git 改动"、"生成 commit 信息"或"创建 git commit"时使用。仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过），提交后默认自动 push（可 --no-push 跳过）。
 metadata:
-  short-description: 仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji）
+  short-description: 仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji），默认自动 push
   keywords:
     - git commit
     - conventional commit
@@ -12,7 +12,7 @@ category: normal
 
 # Git Commit
 
-仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过）。
+仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过），提交后默认自动 push（可 --no-push 跳过）。
 
 ## 工作模式
 
@@ -56,13 +56,24 @@ category: normal
 
 - 用 `git status --porcelain` 与 `git diff` 获取已暂存与未暂存的改动
   - **如无改动**：提示 "当前无改动，无需提交"，退出
-- 若已暂存文件为 0：
-  - **自动模式**：自动执行 `git add -A`（除非传入 `--no-all` 跳过）
-    - 此命令会自动暂存所有改动，包括：修改的文件、删除的文件、**新文件和新目录**
+- 额外检测 **未跟踪文件（untracked）**：用 `git ls-files --others --exclude-standard` 列出未跟踪且未被忽略的文件
+- 若存在未跟踪文件：
+  - **自动模式**（默认）：
+    - 若暂存区为空：自动执行 `git add -A`（除非传入 `--no-all` 或 `--no-untracked` 跳过）
+    - 若暂存区非空：仅暂存未跟踪文件（除非传入 `--no-untracked` 跳过）
+      - 先获取列表：`git ls-files --others --exclude-standard`
+      - 再执行：`git add -- <untracked_paths...>`
+      - 如路径可能包含空格/特殊字符：用 NUL 分隔更稳妥
+        - `git ls-files --others --exclude-standard -z | xargs -0 git add --`
+      - 说明：此操作不会影响你已暂存/未暂存的其他改动，只是把“新文件”补进暂存区，避免漏提交
   - **审核模式**：提示用户选择：
     - **选项 1**：暂存所有改动（`git add -A`）
-    - **选项 2**：暂存部分文件（`git add <path>...`）
-    - **选项 3**：取消命令，手动分组暂存后重试
+    - **选项 2**：仅暂存未跟踪文件（`git add -- <untracked_paths...>`）
+    - **选项 3**：暂存部分文件（`git add <path>...`）
+    - **选项 4**：取消命令，手动分组暂存后重试
+- 若暂存区为空且无未跟踪文件：
+  - **自动模式**：自动执行 `git add -A`（除非传入 `--no-all` 跳过）
+  - **审核模式**：提示用户选择暂存方式（同上）
 
 ### 3. 拆分建议
 
@@ -163,20 +174,42 @@ category: normal
   - 单提交场景：显示生成的 commit message，询问是否确认后再提交
   - 多提交场景：给出每一组的 `git add <paths> && git commit ...` 指令，询问是否执行
 
-### 6. 安全回滚
+### 6. 自动推送
+
+提交成功后，默认自动执行 push：
+
+- **自动模式**：提交成功后直接执行 `git push`（除非传入 `--no-push`）
+- **审核模式**：提交成功后询问是否推送
+- **推送前检查**：
+  - 检查当前分支是否有上游分支：`git rev-parse --abbrev-ref --symbolic-full-name @{u}`
+  - 如无上游分支：自动执行 `git push -u origin <branch>` 设置上游并推送
+  - 如有上游分支：直接执行 `git push`
+- **推送失败处理**：
+  - 如推送被拒绝（远程有新提交）：提示用户先拉取（`git pull --rebase`）后再推送
+  - 如无推送权限：提示用户检查远程仓库配置
+
+### 7. 安全回滚
+
+### 7. 安全回滚
 
 如误暂存，可用 `git restore --staged <paths>` 撤回暂存（命令会给出指令）
+
+如误提交（未推送），可用 `git reset --soft HEAD~1` 撤回提交（保留改动）
+
+如已推送，需使用 `git revert` 创建反向提交（避免强制推送）
 
 ## 使用参数
 
 ### 模式控制
 
 - `--review`：启用审核模式（在关键决策点暂停，等待用户确认）
-- `--no-all`：在自动模式下跳过自动暂存（暂存区为空时报错退出）
+- `--no-all`：在自动模式下跳过自动暂存（包括自动 `git add -A` 与自动补齐未跟踪文件）
+- `--no-untracked`：在自动/审核模式下不自动处理未跟踪文件（避免把“新文件”自动加入暂存区）
 
 ### 提交控制
 
 - `--no-verify`：跳过本地 Git 钩子
+- `--no-push`：提交后不自动推送（仅本地提交）
 - `--amend`：修补上一次提交（⚠️ 危险操作：仅在未推送的本地分支使用，已推送的分支使用会导致历史不一致）
 - `--signoff`：附加 `Signed-off-by` 行
 
@@ -261,5 +294,6 @@ git commit -m "docs(auth): update authentication documentation
 
 - **仅使用 Git**：不调用任何包管理器/构建命令
 - **尊重钩子**：默认执行本地 Git 钩子；使用 `--no-verify` 可跳过
+- **默认推送**：提交成功后默认自动 push；使用 `--no-push` 可跳过
 - **不改源码内容**：命令只读写 `.git/COMMIT_EDITMSG` 与暂存区
 - **安全提示**：在 rebase/merge 冲突、detached HEAD 等状态下会先提示处理/确认再继续

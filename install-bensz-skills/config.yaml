@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: install-bensz-skills
-  version: 0.4.1
+  version: 0.4.2
   description: "当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装和指定单一目标安装。支持远程安装模式（--remote --check/--auto），从 GitHub 仓库下载并安装技能。"
   category: 安装管理
 
@@ -25,3 +25,11 @@ remote_sources:
     skills_path: "skills"
     description: "科研相关技能，建议有科研需要的用户安装"
     recommended: true
+
+  - id: "anthropic-docs"
+    name: "Anthropic 文档处理技能"
+    url: "https://github.com/anthropics/skills"
+    branch: "main"
+    skills_path: "skills"
+    description: "Anthropic 官方文档处理技能（docx、pdf、pptx、xlsx），用于处理 Office 文档"
+    recommended: false

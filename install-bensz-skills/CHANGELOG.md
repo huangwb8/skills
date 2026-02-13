@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+- **install-bensz-skills 自身现在也会被安装**：不再硬编码排除自身，改为通过 SKILL.md 中的 `category` 字段控制
+  - 修改 SKILL.md：`category` 从 `auxiliary` 改为 `normal`，说明"包括 install-bensz-skills 自身"
+  - 修改 install.py：移除硬编码的 `auxiliary_patterns = {"install-bensz-skills"}` 逻辑
+  - 修改 install.py：移除 `exclude = {"install-bensz-skills"}` 变量
+  - 影响：现在 `install-bensz-skills` 也会被安装到系统级目录（~/.codex/skills 和 ~/.claude/skills）
+  - 理由：使安装器本身也能在任意项目中被发现与调用，提高可用性
+
 ### Added
 - 新增远程 skills_path 缺失的错误提示文案（`remote_skills_path_missing`）
 - 新增 A/B 轮测试会话与计划文档（`tests/v202601230716/`、`tests/B轮-v202601230716/`、`plans/v202601230716.md`、`plans/B轮-v202601230716.md`）
@@ -40,6 +48,7 @@
 - 远程临时目录每次运行前清理，避免残留导致克隆失败
 - 多源合并新增同名技能冲突检测并中止
 - 远程配置加载错误改为显式提示依赖缺失/解析失败
+- 版本号更新至 0.4.2（见 [config.yaml](config.yaml)）
 
 ### Fixed
 - 修复远程检查模式错误地强制重装未变化技能
@@ -51,6 +60,7 @@
 - 修复总体摘要中技能个数统计逻辑：使用 set 去重，确保同一技能在多个平台安装时只计数一次（如 3 个技能安装到 2 个平台应显示 3 个，而非 6 个）
 - 修复文档与实现不一致：更新 manifest 命名规则与 MD5 说明
 - 修复中文本地化输出中 legacy 文案未翻译的问题
+- 修复从系统级已安装位置运行安装器时，默认源目录误指向 `~/.codex/skills` / `~/.claude/skills` 的问题：现在优先从当前工作目录自动识别 `./pipelines/skills`、`./skills` 或当前目录
 
 ## 2026-01-12: Manifest 文件存储优化
 

@@ -7,8 +7,8 @@
 
 skill_info:
   name: git-commit              # 技能名称（与目录名一致）
-  version: 2.0.0                # 当前版本（新增审核/自动模式）
-  description: "仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji）"  # 技能描述（最大 1024 字符）
+  version: 2.1.0                # 当前版本（新增默认自动 push 功能）
+  description: "仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji），默认自动 push"  # 技能描述（最大 1024 字符）
   category: "git"               # 技能分类（normal/git/data-analysis/devops 等）
 
 # 工作模式配置
@@ -18,13 +18,17 @@ modes:
   # 自动模式行为
   auto:
     auto_stage: true            # 暂存区为空时自动 git add -A
+    auto_stage_untracked: true  # 暂存区非空但存在未跟踪文件时，自动补齐未跟踪文件到暂存区
     auto_split: true            # 达到阈值时自动拆分提交
     auto_commit: true           # 直接提交，不询问确认
+    auto_push: true             # 提交成功后自动 push
   # 审核模式行为（当传入 --review 参数时）
   review:
     prompt_stage: true          # 暂存区为空时提示用户选择
+    prompt_untracked: true      # 存在未跟踪文件时提示是否补齐（可选仅暂存未跟踪文件）
     prompt_split: true          # 给出拆分建议，询问是否接受
     prompt_commit: true         # 显示 commit message，询问是否确认
+    prompt_push: true           # 提交成功后询问是否推送
 
 # 提交类型定义
 commit_types:

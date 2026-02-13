@@ -1,12 +1,13 @@
 ---
 name: install-bensz-skills
-category: auxiliary
-description: 当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装和指定单一目标安装。支持远程安装模式（--remote --check/--auto），从 GitHub 仓库下载并安装技能。
+category: normal
+description: |
+  当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装和指定单一目标安装。支持远程安装模式（--remote --check/--auto），从 GitHub 仓库下载并安装技能。
 ---
 
 # Install Bensz Skills（系统级安装器）
 
-目的：把当前仓库 `pipelines/skills/` 中的所有 skills（不包括 `install-bensz-skills`）**复制安装**到：
+目的：把当前仓库 `pipelines/skills/` 中的所有 skills（**包括 install-bensz-skills 自身**）**复制安装**到：
 
 - Codex：`~/.codex/skills/`
 - Claude Code：`~/.claude/skills/`
@@ -30,12 +31,15 @@ description: 当需要把本仓库 pipelines/skills 下的所有 skills 安装�
 
 ## 你要做的事（触发后必须执行）
 
+执行时不要先做 `test -f ./install-bensz-skills/...` 之类的“脚本存在性检测”。直接运行安装脚本即可；若当前项目目录没有 `install-bensz-skills/`，就改用系统级已安装位置（`~/.codex/skills/` 或 `~/.claude/skills/`）的脚本运行，并在需要时用 `--source` 显式指定源目录。
+
 ### 本地安装
 
 1) 运行安装脚本：
 
 ```bash
 # 默认：同时安装到 Codex 和 Claude Code（仅安装有更新的）
+# 说明：脚本会优先从当前目录自动识别 skills 源目录（支持 ./pipelines/skills、./skills、或当前目录本身）
 python3 install-bensz-skills/scripts/install.py
 
 # 仅安装到 Claude Code
@@ -55,6 +59,19 @@ python3 install-bensz-skills/scripts/install.py --source /path/to/skills
 
 # 多个源目录（逗号分隔）
 python3 install-bensz-skills/scripts/install.py --source /path/skills-a,/path/skills-b
+```
+
+如果你在某个项目目录里只有 `skills/`（没有 `install-bensz-skills/`），但安装器已被系统级安装（通常在 `~/.codex/skills/` 或 `~/.claude/skills/`），可直接运行系统级脚本：
+
+```bash
+# Codex 安装位置（优先）
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py
+
+# 或 Claude Code 安装位置
+python3 ~/.claude/skills/install-bensz-skills/scripts/install.py
+
+# 若无法自动识别源目录，则显式指定
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills
 ```
 
 ### 远程安装
@@ -158,7 +175,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 ## 安装策略（脚本保证）
 
 - 仅安装"包含 `SKILL.md` 的目录"（即每个 skill 的根目录）。
-- **排除**：`install-bensz-skills`。
+- **技能类型控制**：通过 SKILL.md 中的 `category` 字段控制（`normal` 可安装，`auxiliary` 和 `test` 不安装）。
 - **MD5 版本检查**：优先检查 `.skill-manifest.{codex,claude}.json`，回退到重新计算
 - **直接替换**：发现到目标路径已存在同名目录且版本变化时，直接删除旧版本并安装新版本（不备份）
   - 理由：Git 已提供版本控制，可随时回退；新版本通常比旧版本更好

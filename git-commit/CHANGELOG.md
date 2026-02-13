@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-13
+
+### Added
+- **自动推送**：提交成功后默认自动执行 `git push`
+  - 自动模式：直接推送，无需确认
+  - 审核模式：询问是否推送
+  - 自动检测并设置上游分支（`git push -u origin <branch>`）
+- 新增 `--no-push` 参数，跳过自动推送（仅本地提交）
+
+### Changed
+- 工作流程增加"自动推送"步骤（步骤 6），原"安全回滚"调整为步骤 7
+- 更新重要约束，明确"默认推送"行为
+
+## [2.0.1] - 2026-02-11
+
+### Fixed
+- Auto stage now includes untracked files by default (even when the staging area is not empty), preventing “new files missing from commit”.
+
+### Added
+- `--no-untracked` option to disable automatic handling of untracked files.
+
 ## [2.0.0] - 2026-01-19
 
 ### Added

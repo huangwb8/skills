@@ -102,6 +102,71 @@ def _should_ignore_rel_path(rel_path: Path) -> bool:
     return False
 
 
+def _path_is_within(path: Path, root: Path) -> bool:
+    """Return True if path is root or inside root (after resolve)."""
+    try:
+        path = path.resolve()
+        root = root.resolve()
+    except OSError:
+        return False
+    return path == root or root in path.parents
+
+
+def _looks_like_skills_root(root: Path) -> bool:
+    """Heuristic: a skills root contains at least one immediate subdir with SKILL.md."""
+    try:
+        if not root.exists() or not root.is_dir():
+            return False
+        for child in root.iterdir():
+            if child.is_dir() and (child / "SKILL.md").is_file():
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def _detect_default_source_roots(script_path: Path) -> list[Path]:
+    """Detect a sensible default source root for local install.
+
+    Goal: allow running this installer from a system-installed location (e.g. ~/.codex/skills)
+    while still installing skills from the *current project* (cwd).
+    """
+    cwd = Path.cwd().resolve()
+    candidates: list[Path] = []
+
+    # Common layouts:
+    # - monorepo: {repo}/pipelines/skills
+    # - repo: {repo}/skills
+    # - already in skills root: {repo}/(skill dirs...)
+    for p in (cwd / "pipelines" / "skills", cwd / "skills", cwd):
+        if _looks_like_skills_root(p):
+            candidates.append(p)
+            break
+
+    # Fallback to "repo-local" layout when this script lives in the same checkout.
+    repo_candidate = script_path.parents[2]  # .../pipelines/skills/ (in this repo)
+    installed_roots = [
+        Path.home() / ".codex" / "skills",
+        Path.home() / ".claude" / "skills",
+    ]
+    if not any(_path_is_within(repo_candidate, r) for r in installed_roots):
+        if _looks_like_skills_root(repo_candidate):
+            candidates.append(repo_candidate)
+
+    # De-dup while keeping order.
+    deduped: list[Path] = []
+    seen: set[Path] = set()
+    for p in candidates:
+        try:
+            rp = p.resolve()
+        except OSError:
+            continue
+        if rp not in seen:
+            deduped.append(rp)
+            seen.add(rp)
+    return deduped
+
+
 def _print_skill_table(
     installed_skills: list[SkillInfo],
     skipped_skills: list[SkillInfo],
@@ -316,12 +381,9 @@ def _determine_skill_type(skill_dir: Path, skills_root: Path) -> str:
     # 优先级3：基于目录名的启发式规则
     dir_name = skill_dir.name.lower()
 
-    # 辅助技能识别规则（仅限真正用于开发/维护的辅助工具）
-    auxiliary_patterns = {
-        "install-bensz-skills",  # 安装器自身
-    }
-    if dir_name in auxiliary_patterns:
-        return SkillType.AUXILIARY
+    # 辅助技能识别规则（基于目录名，不包含特殊排除）
+    # 技能类型应优先通过 YAML frontmatter 中的 category 字段控制
+    # 此处仅作为后备识别规则
 
     # 测试技能识别规则（时间戳格式）
     import re
@@ -1386,7 +1448,6 @@ def main(argv: list[str]) -> int:
     install_claude = args.claude or (not args.codex and not args.claude)
 
     script_path = Path(__file__).resolve()
-    default_skills_root = script_path.parents[2]  # .../pipelines/skills/
 
     # 处理源目录：可以是单个目录或多个目录（用逗号分隔）
     if args.source:
@@ -1395,11 +1456,15 @@ def main(argv: list[str]) -> int:
         # 使用第一个指定的源目录作为主目录（用于版本控制等）
         skills_root = source_paths[0]
     else:
-        source_paths = [default_skills_root]
-        skills_root = default_skills_root
+        detected = _detect_default_source_roots(script_path)
+        if not detected:
+            print(t.get("error_source_root_not_found"))
+            return 1
+        skills_root = detected[0]
+        source_paths = [skills_root]
 
     # 按类型发现技能目录（支持多个源目录）
-    exclude = {"install-bensz-skills"}
+    # 不再硬编码排除任何技能——技能类型由 SKILL.md 中的 category 控制
 
     # 合并所有源目录的技能
     merged_skill_dirs_by_type: dict[str, list[Path]] = {
@@ -1413,7 +1478,7 @@ def main(argv: list[str]) -> int:
             print(f"⚠️  警告: 源目录不存在，跳过: {source_root}")
             continue
         print(f"🔍 扫描源目录: {source_root}")
-        skill_dirs_by_type = _find_skill_dirs(source_root, exclude_names=exclude)
+        skill_dirs_by_type = _find_skill_dirs(source_root, exclude_names=set())
         for skill_type in [SkillType.NORMAL, SkillType.AUXILIARY, SkillType.TEST]:
             merged_skill_dirs_by_type[skill_type].extend(skill_dirs_by_type[skill_type])
 

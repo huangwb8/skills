@@ -33,6 +33,7 @@ class Messages:
     # 错误消息
     error_no_skills_found: str
     error_skill_name_collision: str
+    error_source_root_not_found: str
 
     # 安装过程消息
     installing_to_target: str
@@ -114,6 +115,7 @@ MESSAGES_EN = Messages(
     arg_help_source_filter="Filter remote sources by ID (e.g., --general, --research).",
     error_no_skills_found="No installable skills found (scanned root: {root})",
     error_skill_name_collision="Detected skill directory name conflicts (basename duplicated), cannot install safely:",
+    error_source_root_not_found="Failed to auto-detect skills source root. Run this script inside a project that contains ./pipelines/skills or ./skills (or the skills root itself), or pass --source explicitly.",
     installing_to_target="Installing to {TARGET}: {root}",
     removed_legacy_symlink="removed legacy symlink: {path}",
     skip_legacy_path="skip legacy path (not a symlink): {path}",
@@ -187,6 +189,7 @@ MESSAGES_ZH = Messages(
     arg_help_source_filter="按 ID 过滤远程源（如 --general、--research）。",
     error_no_skills_found="未发现可安装的 skills（扫描根目录：{root}）",
     error_skill_name_collision="检测到 skill 目录名冲突（basename 重复），无法安全安装：",
+    error_source_root_not_found="未能自动识别 skills 源目录：请在包含 ./pipelines/skills 或 ./skills（或 skills 根目录本身）的项目目录中运行，或使用 --source 显式指定。",
     installing_to_target="正在安装到 {TARGET}: {root}",
     removed_legacy_symlink="已移除旧软链接: {path}",
     skip_legacy_path="跳过旧路径（非软链接）: {path}",

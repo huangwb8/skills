@@ -15,6 +15,21 @@
 python3 install-bensz-skills/scripts/install.py
 ```
 
+### 在任意目录运行（安装器已系统级安装时）
+
+如果当前项目目录里只有 `skills/`（没有 `install-bensz-skills/`），可以直接运行系统级已安装位置的脚本；必要时用 `--source` 指定源目录：
+
+```bash
+# Codex 安装位置（优先）
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py
+
+# 或 Claude Code 安装位置
+python3 ~/.claude/skills/install-bensz-skills/scripts/install.py
+
+# 显式指定源目录（示例：当前项目的 ./skills）
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills
+```
+
 ### 远程安装（从 GitHub 获取）
 
 ```bash
