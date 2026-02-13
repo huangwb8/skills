@@ -220,6 +220,14 @@ touch SKILL.md README.md config.yaml
 - [CLAUDE.md](CLAUDE.md) – Claude Code 特定说明
 - [技能目录](https://github.com/huangwb8/skills) – 浏览所有技能
 
+## 自动发布
+
+```
+/git-commit ; 创建新tag； 然后 /git-publish-release
+```
+
+
+
 ## 许可证
 
 MIT License – 详见 [LICENSE](LICENSE)。

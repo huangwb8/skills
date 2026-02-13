@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-13
+
+### Changed
+- **动态语言检测**：移除 `config.yaml` 中硬编码的 `default_language`，改为运行时动态检测
+  - 优先级：用户指定（`--lang`） > 最近 5 次 commit 主体语言 > 设备默认语言
+  - 最近 5 次 commit 以多数语言为准（如 3 中文 + 2 英文 → 中文）
+  - 平局时使用设备默认语言
+  - 无 commit 时使用设备默认语言（检测 `$LANG` 环境变量）
+
+### Added
+- 新增 `--lang <zh|en>` 参数，支持用户临时指定提交信息语言
+
 ## [2.1.0] - 2026-02-13
 
 ### Added

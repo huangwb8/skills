@@ -7,7 +7,7 @@
 
 skill_info:
   name: git-commit              # 技能名称（与目录名一致）
-  version: 2.1.0                # 当前版本（新增默认自动 push 功能）
+  version: 2.2.0                # 当前版本（动态语言检测）
   description: "仅用 Git 分析改动并生成 conventional commit 信息（可选 emoji），默认自动 push"  # 技能描述（最大 1024 字符）
   category: "git"               # 技能分类（normal/git/data-analysis/devops 等）
 
@@ -68,5 +68,18 @@ message_constraints:
   max_body_lines: 10        # 正文最大行数
   max_body_items: 3         # 正文列表项数量
 
-# 提交信息默认语言（zh/en）
-default_language: "en"
+# 提交信息语言检测策略
+#
+# 语言选择优先级（从高到低）：
+# 1. 用户明确指定：通过 --lang zh 或 --lang en 参数
+# 2. 最近 5 次 commit 的主体语言：统计最近 5 次提交信息的语言，以多数为准
+#    - 例如：3 次简体中文 + 2 次英文 → 使用简体中文
+#    - 例如：2 次中文 + 3 次英文 → 使用英文
+#    - 平局时优先使用用户设备默认语言
+# 3. 用户设备默认语言：检测操作系统的 locale 设置
+#    - macOS/Linux: $LANG 环境变量
+#    - Windows: 系统语言设置
+#    - 如检测到 zh_CN、zh_TW 等中文 locale → 使用简体中文
+#    - 其他情况 → 使用英文
+#
+# 注意：此配置项仅作文档说明，实际语言由 AI 在运行时动态检测
