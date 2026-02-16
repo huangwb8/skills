@@ -1,0 +1,53 @@
+skill_info:
+  name: parallel-vibe
+  version: 0.2.1
+  description: '当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多线程并行尝试多种方案 / 在多个独立工作区里同时推进"时使用。在用户当前工作目录创建 `.parallel_vibe/`，复制出多个独立工作区并按计划运行每个 thread 的 runner（默认串行、可选并行），最后在 `@main/summary.md` 汇总结果。⚠️ 不适用：用户只是想并行跑 shell 命令/单元测试/下载任务（应直接用并发工具或 CI）、没有明确"多工作区并行尝试/多方案对比"意图、要求强安全隔离或处理高度敏感数据（应使用容器/沙箱方案）。'
+  author: "Bensz Conan"
+  category: "workflow"
+
+defaults:
+  n_threads: 5
+  thread_id_width: 3
+  execution: "serial"  # serial|parallel（默认串行，避免资源争抢与 API 限流）
+  max_parallel: 3  # 仅当 execution=parallel 或 CLI --parallel 时生效
+  synthesize: true  # 是否在 threads 结束后再跑一次 synth 汇总（会额外调用一次 runner）
+  symlink_policy: "error"  # error|skip|keep（默认拒绝 symlink；避免击穿工作区边界假设）
+  copy_exclude:
+    - ".parallel_vibe"
+    - ".git"
+    - "node_modules"
+    - "__pycache__"
+    - ".DS_Store"
+    - "Thumbs.db"
+    - ".venv"
+    - "venv"
+    - ".pytest_cache"
+    - ".mypy_cache"
+    - ".ruff_cache"
+    - ".cache"
+    - ".tox"
+    - ".coverage"
+    - "dist"
+    - "build"
+    - "target"
+
+cli:
+  codex:
+    cmd: ["codex"]
+    exec_subcommand: ["exec"]
+    model_flag: "-m"  # 常见：-m / --model（以你本机 codex CLI 为准）
+  claude:
+    cmd: ["claude"]
+    print_subcommand: ["-p"]
+    model_flag: "--model"
+
+models:
+  # 为空表示“使用 CLI 默认模型”（推荐先保持为空，确认本机可用模型后再填）
+  codex:
+    default: ""
+    fast: ""
+    deep: ""
+  claude:
+    default: ""
+    fast: ""
+    deep: ""
