@@ -304,7 +304,7 @@ codex exec "列出所有可用的技能"
 
 2. **创建结构**：
    - 创建 `{skill_name}/` 目录
-   - 生成 `SKILL.md`（包含 YAML frontmatter）
+   - 生成 `SKILL.md`（包含 YAML frontmatter；必须包含 `metadata.author: Bensz Conan`）
    - 按需添加 `config.yaml`、`scripts/`、`references/`、`assets/`
 
 3. **质量检查**：
@@ -419,7 +419,12 @@ description: Brief description of what this Skill does and when to use it
 | `name` | 必需 | 小写字母、数字、连字符；最大 64 字符；推荐动名词形式 |
 | `description` | 必需 | **单行格式**（禁止使用 `\|` 多行展开）；最大 1024 字符；使用"当用户明确要求"句式；负向约束可内嵌于同一段落 |
 | `metadata.short-description` | 可选 | 单行概览（用于 UI 显示） |
+| `metadata.author` | 必需 | 固定为 `Bensz Conan`（本仓库统一作者口径；测试夹具/样例数据可按测试目的例外） |
 | `metadata.keywords` | 可选 | 3-5 个核心关键词；避免同义词和变体 |
+
+**本项目补充规则（强制）**：
+- 所有 `SKILL.md` 的 `metadata.keywords` 必须包含该 Skill 的 `name` 本身（建议作为第一个关键词），用于确保跨平台检索与触发一致性。（说明：测试夹具/样例数据中的 `SKILL.md` 可按测试目的例外。）
+- 所有 `SKILL.md` 的 `metadata.author` 必须固定为 `Bensz Conan`，并与 `config.yaml:skill_info.author` 保持一致（如该 skill 存在 config.yaml）。
 
 **description 精简规范**：
 
@@ -494,6 +499,7 @@ skill_info:
   name: skill-name          # 技能名称（与 SKILL.md 的 name 字段一致）
   version: 1.0.0            # 版本号（遵循语义化版本规范）
   description: "技能简短描述"  # 与 SKILL.md 的 description 保持一致
+  author: "Bensz Conan"     # 固定作者口径（与 SKILL.md:metadata.author 一致）
   category: "技能分类"       # 如：数据处理、文档生成、测试等
 
 # 可配置参数
