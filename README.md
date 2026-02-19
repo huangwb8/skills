@@ -96,7 +96,27 @@ skills/
 │   ├── config.yaml       # 配置参数
 │   └── scripts/          # 测试脚本
 │
-└── auto-test-project/     # 技能：项目级自动测试
+├── auto-test-project/     # 技能：项目级自动测试
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── config.yaml       # 配置参数
+│
+├── write-skill-readme/    # 技能：技能文档生成器
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── config.yaml       # 配置参数
+│
+├── awesome-code/          # 技能：多代理协作开发
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── config.yaml       # 配置参数
+│
+├── better-prompt/         # 技能：Prompt 优化
+│   ├── SKILL.md          # 技能定义
+│   ├── README.md         # 用户指南
+│   └── config.yaml       # 配置参数
+│
+└── parallel-vibe/         # 技能：并行 Vibe Coding
     ├── SKILL.md          # 技能定义
     ├── README.md         # 用户指南
     └── config.yaml       # 配置参数
@@ -157,6 +177,18 @@ python3 install-bensz-skills/scripts/install.py --claude --codex
 
 # 自动化测试
 "auto-test-skill 这个 skill 帮我测试 init-project 这个 skill"
+
+# 技能文档生成
+"write-skill-readme 这个 skill 帮我生成技能的 README.md"
+
+# Prompt 优化
+"better-prompt 这个 skill 帮我优化这个 prompt"
+
+# 多代理协作
+"awesome-code 这个 skill 帮我通过多代理协作开发"
+
+# 并行 Vibe Coding
+"parallel-vibe 这个 skill 帮我并行执行多个方案"
 ```
 
 **就是这么简单！** 自然语言编程才是 Vibe Coding 的灵魂！
@@ -219,14 +251,6 @@ touch SKILL.md README.md config.yaml
 - [AGENTS.md](AGENTS.md) – 项目指令和哲学
 - [CLAUDE.md](CLAUDE.md) – Claude Code 特定说明
 - [技能目录](https://github.com/huangwb8/skills) – 浏览所有技能
-
-## 自动发布
-
-```
-/git-commit ; 创建新tag； 然后 /git-publish-release
-```
-
-
 
 ## 许可证
 
