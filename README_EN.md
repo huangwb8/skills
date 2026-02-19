@@ -89,7 +89,27 @@ skills/
 │   ├── config.yaml       # Configuration parameters
 │   └── scripts/          # Testing scripts
 │
-└── auto-test-project/     # Skill: Project-level automated testing
+├── auto-test-project/     # Skill: Project-level automated testing
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── config.yaml       # Configuration parameters
+│
+├── write-skill-readme/    # Skill: Skill documentation generator
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── config.yaml       # Configuration parameters
+│
+├── awesome-code/          # Skill: Multi-agent collaborative development
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── config.yaml       # Configuration parameters
+│
+├── better-prompt/         # Skill: Prompt optimization
+│   ├── SKILL.md          # Skill definition
+│   ├── README.md         # User guide
+│   └── config.yaml       # Configuration parameters
+│
+└── parallel-vibe/         # Skill: Parallel Vibe Coding
     ├── SKILL.md          # Skill definition
     ├── README.md         # User guide
     └── config.yaml       # Configuration parameters
@@ -98,6 +118,21 @@ skills/
 ## Quick Start
 
 ### 🚀 How to Install Skills in This Project
+
+#### Method 1: One-click Installation (Recommended)
+
+**No need to clone – install with a single command!**
+
+| Platform | Command |
+|----------|---------|
+| **macOS / Linux / WSL** | `curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh \| bash` |
+| **Windows PowerShell** | `irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 \| iex` |
+
+Skills will be automatically installed to:
+- `~/.claude/skills/` (Claude Code)
+- `~/.codex/skills/` (OpenAI Codex)
+
+#### Method 2: Local Installation
 
 **Step 1: Clone this project**
 
@@ -112,6 +147,16 @@ cd skills
 
 That's it! All skills will be installed system-wide and available in any project.
 
+#### Method 3: Manual Installation
+
+```bash
+# Enter the project directory
+cd skills
+
+# Run the installation script
+python3 install-bensz-skills/scripts/install.py --claude --codex
+```
+
 ### 🎯 How to Use Skills in This Project
 
 **Open this project in Claude Code or Codex, then use natural language to trigger skills:**
@@ -125,6 +170,18 @@ That's it! All skills will be installed system-wide and available in any project
 
 # Automated testing
 "auto-test-skill this skill help me test init-project this skill"
+
+# Skill documentation generation
+"write-skill-readme this skill help me generate skill README.md"
+
+# Prompt optimization
+"better-prompt this skill help me optimize this prompt"
+
+# Multi-agent collaboration
+"awesome-code this skill help me develop via multi-agent collaboration"
+
+# Parallel Vibe Coding
+"parallel-vibe this skill help me run multiple solutions in parallel"
 ```
 
 **It's that simple!** Natural language programming is the soul of Vibe Coding!
