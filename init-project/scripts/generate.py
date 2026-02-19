@@ -459,7 +459,7 @@ class ProjectInitGenerator:
         3. 更新标准化章节：
            - ## 工程原则（更新为最新标准）
            - ## 默认语言（更新为检测值）
-           - ## 目录结构（更新为最新目录树）
+           - ## 目录结构（仅 CLAUDE.md：更新为最新目录树；AGENTS.md 已不再包含该章节）
            - 平台特定说明（Claude Code / Codex CLI 特定部分）
 
         Args:
@@ -501,16 +501,24 @@ class ProjectInitGenerator:
         # 2. 提取用户添加的自定义章节（不在标准模板中的）
         standard_sections = {
             "CLAUDE.md": ["项目目标", "核心工作流", "工程原则", "默认语言", "目录结构",
-                         "Claude Code 特定说明", "文件引用规范", "验证要点", "变更边界",
-                         "有机更新原则"],
-            "AGENTS.md": ["项目目标", "核心工作流", "工程原则", "默认语言", "目录结构",
-                        "Codex CLI 特定说明", "文件引用规范", "验证要点", "变更边界",
-                        "与 CLAUDE.md 的关系", "有机更新原则"]
+                          "Claude Code 特定说明", "文件引用规范", "验证要点", "变更边界",
+                          "有机更新原则"],
+            # 说明：AGENTS.md 不再包含「目录结构」章节；为兼容旧文件，合并时会主动丢弃旧的该章节。
+            "AGENTS.md": ["项目目标", "核心工作流", "工程原则", "默认语言",
+                          "Codex CLI 特定说明", "文件引用规范", "验证要点", "变更边界",
+                          "与 CLAUDE.md 的关系", "有机更新原则"]
+        }
+
+        legacy_drop_sections = {
+            "AGENTS.md": {"目录结构"},
         }
 
         # 找出所有章节标题
         all_sections = re.findall(r"^##\s+(.+)$", existing_content, re.MULTILINE)
         for section in all_sections:
+            # 丢弃历史遗留但已废弃的标准章节（避免被当作“自定义章节”回填到新文件里）
+            if section in legacy_drop_sections.get(file_type, set()):
+                continue
             if section not in standard_sections.get(file_type, []):
                 # 这是一个自定义章节，提取它的内容
                 pattern = rf"## {re.escape(section)}\s*\n+(.*?)(?=\n##|\Z)"
@@ -553,7 +561,7 @@ class ProjectInitGenerator:
             print("\n" + "="*60)
             print("💡 AGENTS.md 与 CLAUDE.md 的关系")
             print("="*60)
-            print("\n📋 新的维护工作流（v2.0.0）：")
+            print("\n📋 推荐维护工作流：")
             print("   1. 修改 AGENTS.md（唯一需要手动维护的文件）")
             print("   2. CLAUDE.md 通过 @./AGENTS.md 自动引用")
             print("   3. 无需运行任何同步命令")

@@ -9,6 +9,7 @@
 ### Changed（变更）
 
 - `init-project/SKILL.md` 按社区推荐格式瘦身：移除大段内嵌模板示例，改为引用 `init-project/templates/*.template`，确保 `SKILL.md` ≤ 500 行
+- **AGENTS.md 输出精简**：`init-project/templates/AGENTS.md.template` 不再生成 `## 目录结构` 章节；智能合并时会自动丢弃旧的该章节，避免被当作自定义内容回填
 
 ## [2.0.1] - 2026-01-18
 
