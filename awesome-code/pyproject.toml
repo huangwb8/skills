@@ -1,0 +1,267 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "awesome-code"
+version = "2.0.1"
+description = "智能多代理软件开发协调系统"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Bensz Conan"}
+]
+keywords = [
+    "multi-agent",
+    "coordination",
+    "tdd",
+    "testing",
+    "debugging",
+    "code-review",
+    "git",
+    "devops",
+    "security"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+lint = [
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+    "types-PyYAML",
+]
+
+[project.scripts]
+ac-coordinator = "awesome_code.scripts.agent_coordinator:main"
+ac-test = "awesome_code.scripts.test_runner:main"
+ac-analyze = "awesome_code.scripts.code_analyzer:main"
+ac-session = "awesome_code.scripts.create_test_session:main"
+
+[project.urls]
+Homepage = "https://github.com/agentskills/awesome-code"
+Repository = "https://github.com/agentskills/awesome-code"
+Issues = "https://github.com/agentskills/awesome-code/issues"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["awesome_code*"]
+exclude = ["tests*", "scripts*"]
+
+# ================================
+# Pytest Configuration
+# ================================
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# ================================
+# Coverage Configuration
+# ================================
+[tool.coverage.run]
+source = ["scripts"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstract",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ================================
+# Ruff Configuration (Linter)
+# ================================
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+indent-width = 4
+
+# Exclude directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.egg-info",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Enable pycodestyle (E, W), Pyflakes (F), isort (I), and more
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # Ruff-specific rules
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults
+    "SIM108", # Use ternary operator (can reduce readability)
+]
+
+# Allow autofix for all enabled rules (when `--fix` is provided)
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]  # Allow assert in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["awesome_code"]
+force-single-line = false
+lines-after-imports = 2
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 100
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# ================================
+# MyPy Configuration (Type Checker)
+# ================================
+[tool.mypy]
+# Specify the target Python version
+python_version = "3.10"
+
+# Specify the platform (linux, windows, darwin)
+platform = "darwin"
+
+# Paths to ignore
+exclude = [
+    "build/",
+    "dist/",
+    "*.egg-info/",
+]
+
+# Import discovery
+mypy_path = "scripts"
+namespace_packages = true
+explicit_package_bases = false
+ Honor .gitignore with respect to exclude
+ignore_missing_imports = true
+follow_imports = "normal"
+follow_imports_for_stubs = false
+no_site_packages = false
+no_silence_site_packages = false
+
+# Disallow dynamic typing
+disallow_dynamic_def = false
+disallow_any_unimported = false
+
+# Untyped definitions and calls
+check_untyped_defs = true
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+
+# None and Optional handling
+no_implicit_optional = true
+strict_optional = true
+
+# Configuring warnings
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_return_any = true
+warn_unreachable = false
+
+# Miscellaneous strictness flags
+allow_untyped_globals = false
+allow_redefinition = false
+local_partial_types = false
+implicit_reexport = true
+strict_equality = true
+
+# Error reporting
+show_error_context = true
+show_column_numbers = true
+show_error_codes = true
+pretty = true
+color_output = true
+error_summary = true
+show_absolute_path = false

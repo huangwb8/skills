@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import argparse
@@ -12,6 +13,12 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
+# 设置 UTF-8 编码，解决 Windows GBK 环境下的 emoji 显示问题
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 # 添加 scripts 目录到 Python 路径，以便导入 i18n
 _scripts_dir = Path(__file__).parent

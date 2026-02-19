@@ -1,0 +1,475 @@
+# Awesome Code 技能配置文件
+# 本配置遵循 Single Source of Truth 原则，是版本管理的唯一来源
+
+# ================================
+# 技能基本信息
+# ================================
+skill_info:
+  name: awesome-code
+  version: 2.4.1
+  description: "智能多代理软件开发协调系统"
+  category: "软件开发工具"
+  author: "Bensz Conan"
+  license: "MIT"
+
+# ================================
+# 多代理协调配置
+# ================================
+multi_agent:
+  # 代理根目录
+  agents_root: "agents"
+
+  # 自动任务识别
+  auto_task_detection: true
+
+  # 最大并行任务数
+  max_parallel_tasks: 5
+
+  # 单任务超时时间（秒）
+  timeout_per_task: 300
+
+  # 结果聚合策略：auto | manual
+  result_aggregation: auto
+
+  # 冲突解决策略：ask | abort | resume | current | incoming
+  conflict_resolution: ask
+
+  # 任务优先级：fifo | priority
+  task_priority: priority
+
+  # 代理优先级（数字越大优先级越高）
+  agent_priorities:
+    tdd-workflow: 8
+    systematic-debugging: 9
+    code-reviewer: 7
+    git-workflow: 6
+    frontend-specialist: 7
+    backend-specialist: 7
+    devops-specialist: 5
+    security-specialist: 10  # 安全优先级最高
+    documentation-specialist: 4
+    brainstorming: 8  # 设计阶段优先级高
+    multi-agent-coordinator: 3
+    context-optimizer: 2
+    mirror-optimizer: 7  # 镜像源优化，部署前重要
+    writing-plans: 6
+
+  # 代理启用状态
+  enabled_agents:
+    - tdd-workflow
+    - systematic-debugging
+    - code-reviewer
+    - git-workflow
+    - frontend-specialist
+    - backend-specialist
+    - devops-specialist
+    - security-specialist
+    - documentation-specialist
+    - context-optimizer
+    - brainstorming
+    - multi-agent-coordinator
+    - mirror-optimizer
+    - writing-plans
+
+# ================================
+# TDD（测试驱动开发）配置
+# ================================
+tdd:
+  # 测试框架：auto（自动检测）| pytest | jest | junit | go test
+  framework: auto
+
+  # 最低测试覆盖率要求（百分比）
+  min_coverage: 80
+
+  # 监视模式：自动运行测试
+  watch_mode: true
+
+  # 快速失败：第一个测试失败即停止
+  fail_fast: false
+
+  # 并行测试运行
+  parallel: true
+
+  # 测试报告格式：html | json | console
+  report_format: console
+
+# ================================
+# 代码审查配置
+# ================================
+code_review:
+  # 安全检查开关
+  security_checks: enabled
+
+  # 性能检查开关
+  performance_checks: enabled
+
+  # 圈复杂度阈值
+  complexity_threshold: 10
+
+  # 函数最大行数
+  max_function_length: 50
+
+  # 文件最大行数
+  max_file_length: 500
+
+  # 命名规范检查
+  naming_convention: enabled
+
+  # 代码重复度阈值（百分比）
+  duplication_threshold: 3
+
+  # 自定义审查规则
+  custom_rules: []
+
+# ================================
+# Git 工作流配置
+# ================================
+git:
+  # 提交信息风格：conventional | simple
+  commit_style: conventional
+
+  # PR 模板：default | custom
+  pr_template: default
+
+  # 分支命名规范
+  branch_naming:
+    feature: "feature/*"
+    bugfix: "bugfix/*"
+    hotfix: "hotfix/*"
+    release: "release/*"
+
+  # 提交前检查
+  pre_commit_checks:
+    - lint
+    - test
+    - security_scan
+
+  # 是否自动签名提交
+  sign_commits: false
+
+# ================================
+# 调试配置
+# ================================
+debugging:
+  # 日志级别：debug | info | warn | error
+  log_level: info
+
+  # 堆栈追踪深度
+  trace_depth: 5
+
+  # 自动捕获日志
+  auto_capture_logs: true
+
+  # 日志文件路径
+  log_paths:
+    - "logs/*.log"
+    - "*.log"
+    - "logs/**/*"
+
+  # 断点策略
+  breakpoint_strategy: auto  # auto | manual
+
+
+# ================================
+# 上下文优化配置
+# ================================
+context:
+  # 最大历史 token 数
+  max_history_tokens: 8000
+
+  # 压缩触发阈值（使用率百分比）
+  compression_threshold: 0.7
+
+  # 缓存策略：aggressive | moderate | minimal
+  cache_strategy: moderate
+
+  # 压缩方式：summary | extract | archive
+  compression_method: summary
+
+  # 信息保留优先级
+  retention_priority:
+    - "current_task"
+    - "decisions"
+    - "errors"
+    - "context"
+
+# ================================
+# 安全配置
+# ================================
+security:
+  # 敏感信息扫描
+  sensitive_data_scan: enabled
+
+  # 敏感文件模式
+  sensitive_patterns:
+    - "*.key"
+    - "*.pem"
+    - ".env"
+    - "credentials.*"
+    - "secrets.*"
+
+  # 禁止的 API 模式
+  forbidden_patterns:
+    - "hardcoded_password"
+    - "api_key.*=.*['\\\"]"
+    - "token.*=.*['\\\"]"
+
+  # 依赖漏洞扫描
+  dependency_scan: enabled
+
+# ================================
+# 报告配置
+# ================================
+reporting:
+  # 报告输出目录
+  output_dir: ".awesome-code/reports"
+
+  # 报告格式：markdown | html | json
+  format: markdown
+
+  # 包含时间戳
+  include_timestamp: true
+
+  # 自动生成报告
+  auto_generate: true
+
+# ================================
+# 集成配置
+# ================================
+integrations:
+  # 外部工具集成
+  tools:
+    - name: "eslint"
+      enabled: true
+      auto_fix: true
+
+    - name: "prettier"
+      enabled: true
+      auto_fix: true
+
+    - name: "pylint"
+      enabled: true
+      auto_fix: false
+
+  # CI/CD 集成
+  ci_cd:
+    platform: auto  # auto | github | gitlab | jenkins
+
+    # 自动生成 CI 配置
+    auto_config: false
+
+# ================================
+# A/B 轮测试优化配置
+# ================================
+ab_test_optimization:
+  # A 轮测试默认轮次
+  default_a_rounds: 1
+
+  # 最大 A 轮测试轮次（防止无限循环）
+  max_a_rounds: 10
+
+  # A 轮每轮必须提出的最小建议数量（P0 + P1 + P2 总和）
+  min_suggestions_per_round: 10
+
+  # A 轮建议数量目标范围
+  target_suggestions_range: [15, 20]
+
+  # A 轮 P0+P1 最小占比（百分比）- 确保问题有价值
+  min_p0_p1_ratio: 60
+
+  # A 轮系统性问题最小数量（架构/过度设计/一致/安全）
+  min_systemic_issues: 3
+
+  # B 轮是否为强制环节
+  b_round_mandatory: true
+
+  # B 轮必须提出的最小建议数量
+  b_round_min_suggestions: 10
+
+  # B 轮建议数量目标范围
+  b_round_target_suggestions_range: [15, 20]
+
+  # P0 问题修复率要求（百分比）
+  p0_fix_rate_required: 100
+
+  # P1 问题修复率要求（百分比）
+  p1_fix_rate_required: 80
+
+  # 测试会话配置
+  session_format: "v{year}{month}{day}{hour}{minute}"
+  plans_dir: "plans"
+  tests_dir: "tests"
+
+# ================================
+# 高级设置
+# ================================
+advanced:
+  # 调试模式
+  debug_mode: false
+
+  # 详细输出
+  verbose: false
+
+  # 实验性功能
+  experimental_features: []
+
+  # 插件系统
+  plugins: []
+
+# ================================
+# 新增：测试与质量配置
+# ================================
+testing:
+  # 测试框架
+  framework: "pytest"
+  # 最低覆盖率要求
+  min_coverage: 80
+  # 类型检查
+  type_checking:
+    enabled: true
+    tool: "mypy"
+    strict_mode: false
+  # 代码检查
+  linting:
+    enabled: true
+    tool: "ruff"
+
+# ================================
+# 新增：性能配置
+# ================================
+performance:
+  # 启用性能分析
+  profiling: true
+  # 慢查询阈值（毫秒）
+  slow_query_threshold: 1000
+  # 内存使用阈值（MB）
+  memory_threshold: 512
+  # N+1 查询检测
+  n_plus_one_detection: enabled
+  # 性能基准测试
+  benchmarking:
+    enabled: true
+    output_dir: ".awesome-code/benchmarks"
+    warmup_iterations: 3
+    benchmark_iterations: 100
+    regression_threshold: 0.2  # 20% 回归阈值
+
+# ================================
+# 新增：日志配置
+# ================================
+logging:
+  # 日志级别：debug | info | warning | error | critical
+  level: "info"
+  # 日志格式：simple | detailed | json
+  format: "detailed"
+  # 日志文件（可选）
+  file: null
+  # 输出目录
+  output_dir: ".awesome-code/logs"
+
+# ================================
+# 新增：缓存配置
+# ================================
+caching:
+  # 启用缓存
+  enabled: true
+  # LRU 缓存大小
+  lru_capacity: 256
+  # 文件缓存目录
+  cache_dir: ".awesome-code/cache"
+  # 缓存过期时间（秒）
+  ttl_seconds: 3600
+  # 自动清理过期缓存
+  auto_cleanup: true
+
+# ================================
+# 新增：镜像源优化配置
+# ================================
+mirror_optimization:
+  # 默认镜像源提供商
+  default_provider: "aliyun"  # aliyun | tencent | tsinghua | ustc
+
+  # 支持的镜像源提供商
+  providers:
+    aliyun:
+      name: "阿里云"
+      priority: 1
+      docker: "https://registry.cn-hangzhou.aliyuncs.com"
+      python: "https://mirrors.aliyun.com/pypi/simple/"
+      nodejs: "https://registry.npmmirror.com"
+      golang: "https://mirrors.aliyun.com/goproxy/"
+      java_maven: "https://maven.aliyun.com/repository/public"
+      java_gradle: "https://maven.aliyun.com/repository/public"
+      ruby: "https://gems.ruby-china.com"
+      rust: "https://mirrors.aliyun.com/crates.io-index/"
+    tencent:
+      name: "腾讯云"
+      priority: 2
+      docker: "https://mirror.ccs.tencentyun.com"
+      python: "https://mirrors.cloud.tencent.com/pypi/simple/"
+      nodejs: "https://mirrors.cloud.tencent.com/npm/"
+      golang: "https://mirrors.tencent.com/go/"
+      java_maven: "https://mirrors.cloud.tencent.com/nexus/repository/maven-public/"
+      java_gradle: "https://mirrors.cloud.tencent.com/nexus/repository/maven-public/"
+    tsinghua:
+      name: "清华大学"
+      priority: 3
+      docker: null  # 暂不支持 Docker 镜像源
+      python: "https://pypi.tuna.tsinghua.edu.cn/simple"
+      nodejs: null
+      golang: null
+      java_maven: null
+      java_gradle: null
+      rust: "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
+    ustc:
+      name: "中国科技大学"
+      priority: 4
+      docker: null
+      python: "https://mirrors.ustc.edu.cn/pypi/web/simple"
+      nodejs: null
+      golang: "https://go-mirror.ustc.edu.cn/"
+      rust: "https://mirrors.ustc.edu.cn/crates.io-index"
+
+  # 自动检测的包管理器
+  package_managers:
+    docker:
+      files: ["Dockerfile", "docker-compose.yml", "docker-compose.yaml", ".dockerignore"]
+      config_dir: "docker"
+      priority: 10
+    python:
+      files: ["requirements.txt", "pyproject.toml", "Pipfile", "setup.py", "setup.cfg", "poetry.lock"]
+      config_dir: "python"
+      priority: 9
+    nodejs:
+      files: ["package.json", "yarn.lock", "pnpm-lock.yaml", "package-lock.json"]
+      config_dir: "nodejs"
+      priority: 8
+    golang:
+      files: ["go.mod", "go.sum", "Gopkg.lock", "Gopkg.toml"]
+      config_dir: "golang"
+      priority: 7
+    java_maven:
+      files: ["pom.xml"]
+      config_dir: "java/maven"
+      priority: 6
+    java_gradle:
+      files: ["build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradle.properties"]
+      config_dir: "java/gradle"
+      priority: 6
+    ruby:
+      files: ["Gemfile", "gems.rb"]
+      config_dir: "ruby"
+      priority: 5
+    rust:
+      files: ["Cargo.toml", "Cargo.lock"]
+      config_dir: "rust"
+      priority: 4
+
+  # 配置文件输出目录
+  output_dir: ".mirror"
+
+  # 生成优化报告
+  generate_report: true
+
+  # 验证镜像源连通性
+  verify_connectivity: true

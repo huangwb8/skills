@@ -1,0 +1,84 @@
+# better-prompt 技能配置文件
+#
+# 说明：
+# - 本文件定义可配置参数，作为"精确端"（单一真相来源）
+# - SKILL.md 作为"模糊端"（工作文档），引用本文件的配置
+
+# ============================================================================
+# 技能基本信息
+# ============================================================================
+
+skill_info:
+  name: better-prompt
+  version: 0.2.0  # 本次优化后版本
+  description: "将简陋的 prompt 优化为符合社区最佳实践的高质量版本"
+  author: "Bensz Conan"
+  category: "内容优化"
+
+# ============================================================================
+# 优化配置
+# ============================================================================
+
+optimization:
+  # 默认目标模型类型（用户未指定时使用）
+  # 可选值：gpt（精确执行）| reasoning（复杂推理）
+  default_model_type: "gpt"
+
+  # 优化维度优先级
+  # 说明：数值 1-5 对应 SKILL.md 中的 P0/P1/P2（5=P0, 4=P1, 3=P2）
+  #       数值越高，优化时越优先关注
+  dimensions:
+    clarity: 5       # 清晰度（P0）
+    completeness: 5  # 完整性（P0）
+    structure: 4     # 结构化（P1）
+    examples: 3      # 示例性（P2）
+    constraints: 3   # 约束性（P2）
+
+  # 输出格式配置
+  # 说明：控制输出中是否包含各部分内容
+  output_format:
+    include_analysis: true    # 包含优化分析表格
+    include_evaluation: true  # 包含优化效果评估（新增）
+    include_suggestions: true # 包含使用建议
+
+  # 输入验证阈值
+  validation:
+    min_length: 10          # 最小输入字符数
+    quality_threshold: 8    # 已完善 prompt 的评分阈值（/10）
+
+# ============================================================================
+# 场景模板配置
+# ============================================================================
+
+# 说明：以下模板定义了不同场景下的优化重点
+#       在 SKILL.md 的"特殊场景处理"章节中引用
+
+templates:
+  code_generation:
+    # 代码生成类 prompt 的优化重点
+    focus_areas:
+      - language_framework  # 编程语言和框架
+      - coding_style        # 代码风格规范
+      - error_handling      # 错误处理要求
+      - edge_cases          # 边界条件示例
+
+  text_analysis:
+    # 文本分析类 prompt 的优化重点
+    focus_areas:
+      - output_format       # 输出格式
+      - analysis_dimensions # 分析维度
+      - classification_criteria  # 分类标准
+
+  creative_writing:
+    # 创意写作类 prompt 的优化重点
+    focus_areas:
+      - style_tone          # 风格和语调
+      - target_audience     # 目标受众
+      - length_constraints  # 长度约束
+
+  multi_turn_conversation:
+    # 多轮对话类 prompt 的优化重点
+    focus_areas:
+      - role_definition     # 角色定义
+      - state_management    # 状态管理
+      - exception_handling  # 异常处理
