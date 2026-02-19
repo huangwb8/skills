@@ -50,13 +50,13 @@
 | **🛠️ 集成工作流** | 无需上下文切换——编辑、测试、迭代在同一环境 |
 | **📝 智能文档维护** | AI 帮助维护 SKILL.md、README.md 和 config.yaml 之间的表头-正文一致性 |
 
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=116055804483400&bvid=BV1tpcezbERB&cid=36003450097&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+📺 [观看演示视频（Bilibili）](https://www.bilibili.com/video/BV1tpcezbERB)
 
 ### AI算力
 
 大家看这个视频即可：
 
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=116067800191453&bvid=BV1a7ZLBuE5z&cid=36055748012&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+📺 [观看 AI 算力介绍视频（Bilibili）](https://www.bilibili.com/video/BV1a7ZLBuE5z)
 
 ## 项目结构
 

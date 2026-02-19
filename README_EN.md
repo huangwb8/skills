@@ -50,6 +50,12 @@ For the best skill development experience, we recommend using **VS Code** with t
 | **🛠️ Integrated Workflow** | No context switching – edit, test, and iterate in one environment |
 | **📝 Smart Documentation** | AI helps maintain header-body alignment across SKILL.md, README.md, and config.yaml |
 
+📺 [Watch Demo Video (Bilibili)](https://www.bilibili.com/video/BV1tpcezbERB)
+
+### AI Computing Power
+
+📺 [Watch AI Computing Power Introduction (Bilibili)](https://www.bilibili.com/video/BV1a7ZLBuE5z)
+
 ## Project Structure
 
 ```
