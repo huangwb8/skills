@@ -1,4 +1,4 @@
-# Skills 开发流水线 - Claude Code 项目指令
+# skills - Claude Code 项目指令
 
 ## 核心指令
 
@@ -38,4 +38,4 @@
   - AGENTS.md 标准：https://agents.md/
   - Claude Code @ 引用语法：https://github.com/anthropics/claude-code/issues/990
 
-**提示**：修改 AGENTS.md 后，请立即在 [CHANGELOG.md](CHANGELOG.md) 中记录变更。这是项目管理的强制性要求，不是可选项。
+**提示**：修改 AGENTS.md 后，请立即在 `CHANGELOG.md` 中记录变更。这是项目管理的强制性要求，不是可选项。
