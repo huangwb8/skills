@@ -6,10 +6,37 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-02
+
+### Added（新增）
+
+- **智能 .gitignore 生成**：自动生成适合项目类型的 Git 忽略规则，确保向 GitHub 提交时安全
+  - 共性设置：操作系统生成文件、IDE 配置、环境变量和敏感信息（.env、*.pem、*.key）、日志和临时文件
+  - 个性化设置：根据项目类型（Python/Web/Rust/Go/Java/数据科学/文档）添加特定忽略规则
+  - 安全优先原则：宁可多忽略，不可漏掉敏感文件
+  - 智能合并策略：保留用户自定义规则，更新标准化部分
+- 新增 `--skip-gitignore` 命令行参数，可跳过 .gitignore 生成
+- 在 config.yaml 中添加 `gitignore_common` 和 `gitignore_by_type` 配置项
+- **配置加载优雅降级**：config.yaml 不存在或损坏时使用默认配置，而非崩溃
+- **输出目录安全验证**：阻止在系统敏感目录（/etc、/root 等）中创建文件
+
+### Fixed（修复）
+
+- 移除 Python gitignore 规则中的 `.gitignore` 条目（该规则会导致 .gitignore 文件忽略自己）
+- 修复 docs 项目类型检测过于宽泛的问题（移除 `*.md` 指标，避免误判）
+- 修复 YAML frontmatter 与 SKILL.md 正文对生成文件描述不一致的问题
+- 消除目录验证逻辑重复代码（提取为 `validate_output_dir` 公共方法）
+
+### Removed（移除）
+
+- 移除未使用的目录模板配置（default_directory_template、python_directory_template、web_directory_template）
+- 移除未使用的 template_placeholders 配置
+
 ### Changed（变更）
 
 - `init-project/SKILL.md` 按社区推荐格式瘦身：移除大段内嵌模板示例，改为引用 `init-project/templates/*.template`，确保 `SKILL.md` ≤ 500 行
 - **AGENTS.md 输出精简**：`init-project/templates/AGENTS.md.template` 不再生成 `## 目录结构` 章节；智能合并时会自动丢弃旧的该章节，避免被当作自定义内容回填
+- **.gitignore 配置迁移**：将 gitignore 规则从 config.yaml 迁移到 templates/gitignore.yaml，减少 config.yaml 篇幅约 230 行
 
 ## [2.0.1] - 2026-01-18
 

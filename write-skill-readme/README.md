@@ -10,19 +10,27 @@
 - 最推荐用法（生成标准风格 README）
 
 ```
-用 write-skill-readme 为 skills/your-skill 生成 README.md
+请使用 write-skill-readme skill 为 skills/your-skill 生成 README.md
+输入：skills/your-skill（技能目录）
+输出：skills/your-skill/README.md
 ```
 
 - 为已有技能更新 README（保留手动修改的内容）
 
 ```
-用 write-skill-readme 更新 skills/your-skill/README.md，保留我手动添加的内容
+请使用 write-skill-readme skill 更新 skills/your-skill/README.md
+输入：skills/your-skill（技能目录）+ 已有 README.md
+输出：更新后的 skills/your-skill/README.md（尽量保留你手动添加的内容）
 ```
 
 - 基于特定风格模板生成
 
 ```
-用 write-skill-readme 为 skills/your-skill 生成 README.md，使用"功能型技能"模板
+请使用 write-skill-readme skill 为 skills/your-skill 生成 README.md
+输入：skills/your-skill（技能目录）
+输出：skills/your-skill/README.md
+另外，还有下列参数约束：
+- 模板：功能型技能
 ```
 
 ---
@@ -31,7 +39,7 @@
 
 `write-skill-readme` 遵循以下核心原则：
 
-1. **Prompt 优先**：始终将"经典 Prompt + 场景化变异 Prompt"放在最前面
+1. **Prompt 优先**：快速开始默认给“常规 Prompt（skill+输入+输出）+ 进阶 Prompt（参数约束，可选）”，并按需补充少量场景化变体
 2. **小白友好**：用表格、对话式呈现、渐进式复杂度降低学习曲线
 3. **明确受众**：区分"使用者"和"维护者"，README 面向使用者
 4. **硬编码后置**：脚本命令放在"备选用法"章节
@@ -46,7 +54,7 @@
 | 特性 | 说明 |
 |------|------|
 | **智能模板选择** | 根据技能特性自动选择合适的 README 模板（功能型/工具型/混合型） |
-| **Prompt 优化** | 生成符合"经典 Prompt 优先 + 场景化变异"结构的 Prompt 示例 |
+| **Prompt 优化** | 生成“常规 Prompt（skill+输入+输出）+ 进阶 Prompt（参数约束，可选）”，并按需补充少量场景化变体 |
 | **小白友好设计** | 自动生成表格化决策指南、丰富别名、对话式呈现 |
 | **风格规范检查** | 确保生成的 README 符合项目的风格规范 |
 | **增量更新** | 支持更新已有 README，保留手动添加的内容 |
@@ -58,7 +66,9 @@
 ### 示例 1：为新建技能生成 README（最简单）
 
 ```
-用 write-skill-readme 为 skills/my-new-skill 生成 README.md
+请使用 write-skill-readme skill 为 skills/my-new-skill 生成 README.md
+输入：skills/my-new-skill（技能目录）
+输出：skills/my-new-skill/README.md
 ```
 
 **技能行为**：
@@ -72,7 +82,11 @@
 ### 示例 2：指定模板类型
 
 ```
-用 write-skill-readme 为 skills/data-processor 生成 README.md，使用"工具型技能"模板
+请使用 write-skill-readme skill 为 skills/data-processor 生成 README.md
+输入：skills/data-processor（技能目录）
+输出：skills/data-processor/README.md
+另外，还有下列参数约束：
+- 模板：工具型技能
 ```
 
 **技能行为**：
@@ -89,7 +103,9 @@
 ### 示例 3：更新已有 README
 
 ```
-用 write-skill-readme 更新 skills/existing-skill/README.md，保留我手动添加的内容
+请使用 write-skill-readme skill 更新 skills/existing-skill/README.md
+输入：skills/existing-skill（技能目录）+ 已有 README.md
+输出：更新后的 skills/existing-skill/README.md（尽量保留你手动添加的内容）
 ```
 
 **技能行为**：
@@ -103,7 +119,9 @@
 ### 示例 4：为技能系列批量生成 README
 
 ```
-用 write-skill-readme 为 skills/nsfc-* 系列技能批量生成 README.md
+请使用 write-skill-readme skill 为 skills/nsfc-* 系列技能批量生成 README.md
+输入：skills/nsfc-*（匹配到的技能目录集合）
+输出：每个目录下的 README.md
 ```
 
 **技能行为**：
@@ -116,7 +134,11 @@
 ### 示例 5：生成 README 并进行风格检查
 
 ```
-用 write-skill-readme 为 skills/complex-skill 生成 README.md，并运行完整风格检查
+请使用 write-skill-readme skill 为 skills/complex-skill 生成 README.md
+输入：skills/complex-skill（技能目录）
+输出：skills/complex-skill/README.md
+另外，还有下列参数约束：
+- 风格检查：运行完整清单，并报告需要手动调整的项目
 ```
 
 **技能行为**：
@@ -156,7 +178,7 @@
 本 README 面向**使用者**...
 
 ## 快速开始
-（经典 Prompt + 场景化变异 Prompt）
+（常规 Prompt + 进阶 Prompt；按需补充场景化变体）
 
 ## 设计理念
 （核心价值、工作原理）
@@ -195,7 +217,9 @@ A：默认情况下，如果 README.md 已存在，技能会：
 如果你希望完全重新生成，使用：
 
 ```
-用 write-skill-readme 为 skills/your-skill 重新生成 README.md（覆盖已有内容）
+请使用 write-skill-readme skill 为 skills/your-skill 重新生成 README.md
+输入：skills/your-skill（技能目录）
+输出：覆盖写入 skills/your-skill/README.md
 ```
 
 ---
@@ -220,7 +244,7 @@ A：不是。技能会：
 2. **分析 SKILL.md 的工作流** — 提取关键步骤和参数
 3. **分析 config.yaml** — 识别可配置参数及其默认值
 4. **分析 scripts/** — 如有脚本，生成对应的硬编码用法示例
-5. **生成场景化 Prompt** — 基于以上分析，生成 2-4 个不同场景的 Prompt 示例
+5. **生成 Prompt** — 默认生成“常规 Prompt + 进阶 Prompt（带参数约束）”，并按需补充 0-2 个不同场景的变体
 
 ---
 
@@ -242,7 +266,8 @@ A：确保以下文件质量高：
 A：技能会标注以下需要手动检查的内容：
 
 - [ ] **经典 Prompt 是否覆盖了最常用的场景？**
-- [ ] **变异 Prompt 是否覆盖了主要使用场景？**
+- [ ] **进阶 Prompt 是否用“参数约束”清晰表达可选控制项？**
+- [ ] **场景化变体（如有）是否覆盖主要使用场景？**
 - [ ] **FAQ 是否预测了小白用户的常见疑问？**
 - [ ] **表格化决策指南是否准确？**
 - [ ] **别名是否丰富且准确？**

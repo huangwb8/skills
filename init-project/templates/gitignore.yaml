@@ -1,0 +1,220 @@
+# .gitignore 配置模板
+# 说明：init-project 从此文件读取 .gitignore 生成规则
+# 版本：1.0.0
+
+# ============================================================================
+# 共性设置（所有项目类型都会添加）
+# ============================================================================
+common:
+  # 操作系统生成文件
+  - ".DS_Store"
+  - ".DS_Store?"
+  - "._*"
+  - ".Spotlight-V100"
+  - ".Trashes"
+  - "ehthumbs.db"
+  - "Thumbs.db"
+  - "desktop.ini"
+
+  # IDE 和编辑器
+  - ".idea/"
+  - ".vscode/"
+  - "*.swp"
+  - "*.swo"
+  - "*~"
+  - ".sublime-*"
+  - "*.sublime-workspace"
+
+  # 环境变量和敏感信息（安全关键）
+  - ".env"
+  - ".env.local"
+  - ".env.*.local"
+  - "*.pem"
+  - "*.key"
+  - "*.crt"
+  - "secrets/"
+  - "credentials/"
+  - ".credentials"
+
+  # 日志和临时文件
+  - "*.log"
+  - "*.tmp"
+  - "*.temp"
+  - "*.bak"
+  - "*.cache"
+  - "tmp/"
+  - "temp/"
+
+  # 压缩文件（通常不需要版本控制）
+  - "*.zip"
+  - "*.tar.gz"
+  - "*.rar"
+  - "*.7z"
+
+# ============================================================================
+# 项目类型特定设置
+# ============================================================================
+by_type:
+  python:
+    # Python 字节码和包
+    - "__pycache__/"
+    - "*.py[cod]"
+    - "*$py.class"
+    - "*.so"
+    - ".Python"
+    # 虚拟环境
+    - "venv/"
+    - ".venv/"
+    - "env/"
+    - ".env/"
+    - "ENV/"
+    # 分发和打包
+    - "build/"
+    - "develop-eggs/"
+    - "dist/"
+    - "downloads/"
+    - "eggs/"
+    - ".eggs/"
+    - "lib/"
+    - "lib64/"
+    - "parts/"
+    - "sdist/"
+    - "var/"
+    - "wheels/"
+    - "*.egg-info/"
+    - "*.egg"
+    - ".manifest"
+    # 测试和覆盖率
+    - ".pytest_cache/"
+    - ".coverage"
+    - "htmlcov/"
+    - ".tox/"
+    - ".nox/"
+    - "coverage.xml"
+    - "*.cover"
+    # Jupyter Notebook
+    - ".ipynb_checkpoints"
+    - "*.ipynb_checkpoints/"
+    # mypy
+    - ".mypy_cache/"
+    - ".dmypy.json"
+    - "dmypy.json"
+
+  web:
+    # 依赖目录
+    - "node_modules/"
+    - "jspm_packages/"
+    # 构建输出
+    - "dist/"
+    - "build/"
+    - "out/"
+    - ".next/"
+    - ".nuxt/"
+    - ".output/"
+    - ".cache/"
+    # 日志
+    - "npm-debug.log*"
+    - "yarn-debug.log*"
+    - "yarn-error.log*"
+    - "pnpm-debug.log*"
+    - "lerna-debug.log*"
+    # 运行时数据
+    - "pids"
+    - "*.pid"
+    - "*.seed"
+    - "*.pid.lock"
+    # TypeScript
+    - "*.tsbuildinfo"
+
+  rust:
+    # 编译输出
+    - "/target/"
+    - "**/*.rs.bk"
+    # IDE
+    - ".cargo/config.toml.bak"
+
+  go:
+    # 编译输出
+    - "*.exe"
+    - "*.exe~"
+    - "*.dll"
+    - "*.so"
+    - "*.dylib"
+    - "*.test"
+    - "*.out"
+    # 依赖目录
+    - "vendor/"
+    # Go 工作区文件
+    - "go.work"
+    - "go.work.sum"
+
+  java:
+    # 编译输出
+    - "target/"
+    - "*.class"
+    - "*.jar"
+    - "*.war"
+    - "*.ear"
+    # Maven
+    - ".mvn/"
+    - "mvnw"
+    - "mvnw.cmd"
+    # Gradle
+    - ".gradle/"
+    - "gradle-app.setting"
+    - "!gradle-wrapper.jar"
+    - ".gradle-build-cache/"
+    # IDE
+    - ".settings/"
+    - ".classpath"
+    - ".project"
+    - "*.iml"
+
+  data-science:
+    # Python 相关（继承 python 规则）
+    - "__pycache__/"
+    - "*.py[cod]"
+    - ".venv/"
+    - "venv/"
+    # Jupyter
+    - ".ipynb_checkpoints"
+    - "*.ipynb_checkpoints/"
+    # 数据文件（通常很大，不适合版本控制）
+    - "*.csv"
+    - "*.xlsx"
+    - "*.parquet"
+    - "*.h5"
+    - "*.hdf5"
+    - "*.pkl"
+    - "*.pickle"
+    - "*.npy"
+    - "*.npz"
+    # 模型文件
+    - "*.pt"
+    - "*.pth"
+    - "*.onnx"
+    - "*.model"
+    - "*.weights"
+    # 数据目录
+    - "data/raw/"
+    - "data/processed/"
+    - "models/"
+    - "checkpoints/"
+    - "outputs/"
+    # MLflow
+    - "mlruns/"
+    - "mlartifacts/"
+    # TensorBoard
+    - "runs/"
+    - "logs/"
+
+  docs:
+    # 构建输出
+    - "site/"
+    - "_site/"
+    - ".docusaurus/"
+    - ".cache/"
+    # Node 依赖
+    - "node_modules/"
+    # 临时文件
+    - "*.md.tmp"

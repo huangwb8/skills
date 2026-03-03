@@ -119,7 +119,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py \
 │   ├── prompt.txt           # 追加"软隔离护栏"后的完整提示词
 │   ├── thread.json          # 该 thread 的计划元数据（runner/model/title 等）
 │   ├── runner.log           # runner 的 stdout/stderr 合并日志
-│   ├── RESULT.md            # 从 workspace/RESULT.md 提取的结果摘要
+│   ├── RESULT.md            # 优先从 workspace/RESULT.md 提取；缺失时用 runner.log 生成兜底结果（便于汇总与 synth）
 │   ├── exit_code.txt
 │   └── done.json
 ├── 002/
@@ -140,7 +140,15 @@ python3 parallel-vibe/scripts/parallel_vibe.py \
 
 - 默认线程数、串行/并行默认值
 - `codex` / `claude` CLI 命令与 `model_flag`
+- `cli.*.global_args / subcommand_args / profile_args`：把 `--help` 的参数口径固化为”可执行命令模板”
 - `models.*`（可选）：填入你本机可用的 `model_id`
+
+**claude 默认 global_args 说明**：
+
+| 标志 | 作用 |
+|------|------|
+| `--dangerously-skip-permissions` | 绕过工具调用权限确认，防止 `-p` 模式下 thread 阻塞（对应 codex 的 `--ask-for-approval never`） |
+| `--no-session-persistence` | 不把 thread 运行写入会话历史，避免污染（仅在 `--print` 模式下生效） |
 
 **plan.json 中每个 thread 的 runner 支持**：
 
@@ -149,6 +157,8 @@ python3 parallel-vibe/scripts/parallel_vibe.py \
 | `type` | `codex` / `claude` / `shell` / `local` |
 | `profile` | `fast` / `deep` / `default`（用于从 config.yaml 解析真实 model_id） |
 | `model` | 显式 model_id（如填写，会覆盖 profile 解析结果） |
+| `args` | 全局参数（放在子命令前；适合 `codex -c ...`、`claude --effort ...`） |
+| `sub_args` | 子命令参数（放在子命令后、prompt 前；适合 `codex exec --some-flag ...`） |
 
 **推荐路由**（默认策略）：
 

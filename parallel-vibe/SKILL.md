@@ -62,8 +62,15 @@ metadata:
      - `claude`：规划/审查/风险与边界（强推理、强约束）
      - `codex`：实现/修改/测试与验证（代码落地）
    - **模型选择**：
-     - 用 `profile=fast|deep|default` 表达“任务强度”，再由 `parallel-vibe/config.yaml:models` 映射到你本机可用的 `model_id`
+     - 用 `profile=fast|deep|default` 表达”任务强度”，再由 `parallel-vibe/config.yaml:models` 映射到你本机可用的 `model_id`
      - 如你已经确定具体模型，也可在计划里直接写 `model=<model_id>` 覆盖 profile
+   - **effort 等级选择**（`low` / `medium` / `high`）：
+     - 若用户已明确指定，严格遵从用户要求
+     - 否则根据 thread 的实际 prompt 自主判断：
+       - `low`：指令简单明确，无歧义（如格式化、重命名、简单查询）
+       - `medium`：中等复杂度（如功能实现、代码重构、文档生成）
+       - `high`：需要深度推理（如架构设计、多步骤分析、有歧义需要深度理解的任务）
+     - 每个 thread 可独立设置不同的 effort 等级
 3. 在用户当前目录运行脚本（不要手写编排逻辑）：
 
 ```bash
@@ -124,12 +131,20 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 常见形态（以官方文档为准；具体参数以你本机 CLI 为准）：
 
 ```bash
-# OpenAI Codex CLI（非交互执行）
-codex -m <model_id> exec "你的指令内容"
+# OpenAI Codex CLI（非交互执行；全局参数通常放在子命令 exec 之前）
+# <effort> 由 AI 根据 prompt 复杂度自主选择：low / medium / high
+# 若用户已明确指定 effort，以用户要求为准
+codex -m <model_id> -c 'reasoning_effort="<effort>"' exec "你的指令内容"
 
 # Claude CLI / Claude Code（打印模式）
-claude --model <model_id> -p "你的指令内容"
+# <effort> 同上，AI 自主规划或遵从用户指定
+claude --model <model_id> --effort <effort> -p "你的指令内容"
 ```
+
+计划里 runner 参数约定（用于把 `--help` 中的参数安全落到“一条命令”）：
+
+- `runner.args`：全局参数（放在子命令前；适合 `codex -c ...`、`claude --effort ...`）
+- `runner.sub_args`：子命令参数（放在子命令后、prompt 前；适合 `codex exec --some-flag ...`）
 
 ## 清理方式
 

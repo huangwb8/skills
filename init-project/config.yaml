@@ -8,8 +8,8 @@
 
 skill_info:
   name: init-project
-  version: 2.0.2
-  description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md）
+  version: 2.1.0
+  description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md + .gitignore）
   author: "Bensz Conan"
   category: 项目初始化
 
@@ -69,47 +69,6 @@ principle_priority:
   - 扩展性
 
 # ============================================================================
-# 默认目录结构模板
-# ============================================================================
-
-# 通用项目目录模板
-default_directory_template: |
-  ├── AGENTS.md          # 跨平台通用项目指令（Single Source of Truth）
-  ├── CLAUDE.md          # Claude Code 特定适配（通过 @./AGENTS.md 引用）
-  ├── README.md          # 项目说明（可选）
-  ├── .git/              # 版本控制（可选）
-  ├── src/               # 源代码目录
-  ├── tests/             # 测试代码（可选）
-  ├── docs/              # 文档目录（可选）
-  ├── config/            # 配置文件（可选）
-  └── scripts/           # 脚本工具（可选）
-
-# Python 项目目录模板
-python_directory_template: |
-  ├── AGENTS.md
-  ├── CLAUDE.md
-  ├── README.md
-  ├── pyproject.toml     # Python 项目配置
-  ├── requirements.txt   # 依赖列表
-  ├── src/               # 源代码包
-  ├── tests/             # 测试代码
-  ├── docs/              # 文档
-  ├── notebooks/         # Jupyter 笔记本（可选）
-  └── scripts/           # 脚本工具
-
-# Web 项目目录模板
-web_directory_template: |
-  ├── AGENTS.md
-  ├── CLAUDE.md
-  ├── README.md
-  ├── package.json       # Node.js 配置
-  ├── src/               # 源代码
-  ├── public/            # 静态资源
-  ├── tests/             # 测试代码
-  ├── docs/              # 文档
-  └── config/            # 配置文件
-
-# ============================================================================
 # 文档生成配置
 # ============================================================================
 
@@ -155,16 +114,12 @@ changelog_required_sections:
 overwrite_prompt: "文件已存在，是否覆盖？"
 
 # ============================================================================
-# 模板变量占位符
+# .gitignore 配置
 # ============================================================================
 
-# 用于模板替换的占位符
-template_placeholders:
-  project_name: "{项目名称}"
-  project_description: "{项目描述}"
-  working_directory: "{工作目录}"
-  default_language: "{默认语言}"
-  workflow_description: "{工作流描述}"
-  directory_tree: "{目录树}"
-  custom_principles: "{自定义原则}"
-  platform_specific_notes: "{平台特定说明}"
+# 注意：.gitignore 规则已迁移到 templates/gitignore.yaml
+# 这样可以：
+# 1. 减少 config.yaml 的篇幅
+# 2. 让 .gitignore 配置更易于维护
+# 3. 支持独立版本控制
+

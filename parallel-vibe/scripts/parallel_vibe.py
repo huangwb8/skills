@@ -100,8 +100,28 @@ def _default_config() -> dict:
             # Prefer simple, stable command composition:
             # - codex: global flags first, then "exec"
             # - claude: global flags first, then "-p"
-            "codex": {"cmd": ["codex"], "exec_subcommand": ["exec"], "model_flag": "-m"},
-            "claude": {"cmd": ["claude"], "print_subcommand": ["-p"], "model_flag": "--model"},
+            "codex": {
+                "cmd": ["codex"],
+                "global_args": ["--ask-for-approval", "never", "--sandbox", "workspace-write"],
+                "exec_subcommand": ["exec"],
+                "subcommand_args": [],
+                "model_flag": "-m",
+                "profile_args": {
+                    "default": [],
+                    "fast": ["-c", 'reasoning_effort="low"'],
+                    "deep": ["-c", 'reasoning_effort="medium"'],
+                },
+            },
+            "claude": {
+                "cmd": ["claude"],
+                # --dangerously-skip-permissions: bypass tool permission prompts in non-interactive -p mode
+                # --no-session-persistence: avoid polluting session history with parallel thread runs
+                "global_args": ["--dangerously-skip-permissions", "--no-session-persistence"],
+                "print_subcommand": ["-p"],
+                "subcommand_args": [],
+                "model_flag": "--model",
+                "profile_args": {"default": [], "fast": ["--effort", "low"], "deep": ["--effort", "medium"]},
+            },
         },
         "models": {
             # Keep defaults empty to avoid hardcoding model IDs that may not exist in a user's environment.
@@ -112,19 +132,29 @@ def _default_config() -> dict:
     }
 
 
+def _deep_merge_dict(dst: dict, src: dict) -> dict:
+    """
+    Deep-merge dicts (dict values only). Lists/atoms are overwritten.
+
+    This keeps KISS while making config overrides robust:
+    users can override only one field (e.g. cli.codex.model_flag) without
+    losing newly-added defaults (e.g. cli.codex.global_args).
+    """
+    for k, v in (src or {}).items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            _deep_merge_dict(dst[k], v)  # type: ignore[index]
+        else:
+            dst[k] = v
+    return dst
+
+
 def load_config() -> dict:
     skill_root = Path(__file__).resolve().parents[1]
     cfg_path = skill_root / "config.yaml"
     cfg = _load_yaml_if_possible(cfg_path)
     if isinstance(cfg, dict):
         merged = _default_config()
-        # Shallow merge is enough for our current config shape.
-        for k, v in cfg.items():
-            if isinstance(v, dict) and isinstance(merged.get(k), dict):
-                merged[k].update(v)
-            else:
-                merged[k] = v
-        return merged
+        return _deep_merge_dict(merged, cfg)
     return _default_config()
 
 
@@ -235,17 +265,21 @@ def _build_shell_cmd_from_template(template: str, wrapped_prompt: str) -> List[s
 def _cmd_with_optional_model(
     *,
     base_cmd: Sequence[str],
+    global_args: Sequence[str],
     model_flag: str,
     model: str,
     subcommand: Sequence[str],
-    args: Sequence[str],
+    subcommand_args: Sequence[str],
+    prompt_arg: str,
 ) -> List[str]:
     cmd: List[str] = list(base_cmd)
+    cmd.extend(list(global_args))
     m = str(model or "").strip()
     if m:
         cmd.extend([model_flag, m])
     cmd.extend(list(subcommand))
-    cmd.extend(list(args))
+    cmd.extend(list(subcommand_args))
+    cmd.append(prompt_arg)
     return cmd
 
 
@@ -263,12 +297,27 @@ def _resolve_model_id(cfg: dict, *, runner_type: str, model: str, profile: str) 
     return str(models.get(prof) or models.get("default") or "").strip()
 
 
+def _resolve_profile_args(cfg: dict, *, runner_type: str, profile: str) -> List[str]:
+    rt = str(runner_type or "").strip().lower()
+    prof = str(profile or "").strip() or "default"
+    c = (cfg.get("cli", {}) or {}).get(rt, {}) or {}
+    profile_args = c.get("profile_args", {}) or {}
+    pa = profile_args.get(prof, None)
+    if pa is None:
+        pa = profile_args.get("default", None)
+    if isinstance(pa, list):
+        return [str(x) for x in pa if str(x).strip()]
+    return []
+
+
 def build_runner_cmd(
     *,
     runner_type: str,
     wrapped_prompt: str,
+    profile: str,
     model: str,
     runner_args: Optional[Sequence[str]],
+    runner_sub_args: Optional[Sequence[str]],
     runner_cmd_template: Optional[str],
     cfg: dict,
 ) -> List[str]:
@@ -282,19 +331,27 @@ def build_runner_cmd(
       - local: deterministic local runner for tests
     """
     t = runner_type.strip().lower()
-    extra = list(runner_args or [])
+    extra = [str(x) for x in (runner_args or [])]
+    sub_extra = [str(x) for x in (runner_sub_args or [])]
 
     if t == "codex":
         c = cfg.get("cli", {}).get("codex", {}) or {}
         base_cmd = list(c.get("cmd") or ["codex"])
         sub = list(c.get("exec_subcommand") or ["exec"])
         model_flag = str(c.get("model_flag") or "-m")
+        global_args = [str(x) for x in (c.get("global_args") or []) if str(x).strip()]
+        global_args.extend(_resolve_profile_args(cfg, runner_type="codex", profile=profile))
+        global_args.extend([x for x in extra if str(x).strip()])
+        sub_args = [str(x) for x in (c.get("subcommand_args") or []) if str(x).strip()]
+        sub_args.extend([x for x in sub_extra if str(x).strip()])
         return _cmd_with_optional_model(
             base_cmd=base_cmd,
+            global_args=global_args,
             model_flag=model_flag,
             model=model,
             subcommand=sub,
-            args=extra + [wrapped_prompt],
+            subcommand_args=sub_args,
+            prompt_arg=wrapped_prompt,
         )
 
     if t == "claude":
@@ -302,12 +359,19 @@ def build_runner_cmd(
         base_cmd = list(c.get("cmd") or ["claude"])
         sub = list(c.get("print_subcommand") or ["-p"])
         model_flag = str(c.get("model_flag") or "--model")
+        global_args = [str(x) for x in (c.get("global_args") or []) if str(x).strip()]
+        global_args.extend(_resolve_profile_args(cfg, runner_type="claude", profile=profile))
+        global_args.extend([x for x in extra if str(x).strip()])
+        sub_args = [str(x) for x in (c.get("subcommand_args") or []) if str(x).strip()]
+        sub_args.extend([x for x in sub_extra if str(x).strip()])
         return _cmd_with_optional_model(
             base_cmd=base_cmd,
+            global_args=global_args,
             model_flag=model_flag,
             model=model,
             subcommand=sub,
-            args=extra + [wrapped_prompt],
+            subcommand_args=sub_args,
+            prompt_arg=wrapped_prompt,
         )
 
     if t == "shell":
@@ -421,7 +485,8 @@ def _build_split_plan(
         prompt = (
             f"{user_prompt.strip()}\n\n"
             "你需要以本 thread 的角色独立完成上述任务，并遵守以下交付要求：\n"
-            "- 必须在当前工作目录写出 `RESULT.md`（Markdown）。\n"
+            "- 优先：在当前工作目录写出 `RESULT.md`（Markdown）。\n"
+            "- 如果你所在 runner 处于“只打印不落盘”的模式（例如 `claude -p`），请直接在输出中给出 `RESULT.md` 的完整内容（Markdown），以便上层把它落盘。\n"
             "- RESULT.md 必须包含：你做了什么、关键决策、你运行了哪些命令（如有）、如何验证、风险与下一步。\n"
             "- 如果你修改了代码：只在当前工作区内修改，并在 RESULT.md 里列出你改动的关键文件路径。\n"
             f"\n你的角色要求：{extra.strip()}\n"
@@ -566,6 +631,8 @@ def _validate_plan_obj(plan: dict, *, thread_id_width: int) -> None:
             # shell runner needs a template somewhere (thread or global)
             if not str(runner.get("cmd_template") or "").strip():
                 raise ValueError(f"thread {tid}: runner.cmd_template required when runner.type=shell")
+        if "sub_args" in runner and not isinstance(runner.get("sub_args"), list):
+            raise ValueError(f"thread {tid}: runner.sub_args must be a list when provided")
         if not str(t.get("prompt") or "").strip():
             raise ValueError(f"thread {tid}: prompt is required")
 
@@ -600,6 +667,7 @@ def _run_threads(
         cmd = build_runner_cmd(
             runner_type=str(runner.get("type") or ""),
             wrapped_prompt=wrapped_prompt,
+            profile=str(runner.get("profile") or "").strip(),
             model=_resolve_model_id(
                 cfg,
                 runner_type=str(runner.get("type") or ""),
@@ -607,6 +675,7 @@ def _run_threads(
                 profile=str(runner.get("profile") or ""),
             ),
             runner_args=runner.get("args") if isinstance(runner.get("args"), list) else [],
+            runner_sub_args=runner.get("sub_args") if isinstance(runner.get("sub_args"), list) else [],
             runner_cmd_template=str(runner.get("cmd_template") or "").strip() or None,
             cfg=cfg,
         )
@@ -689,6 +758,20 @@ def _run_threads(
                 td.result_md.write_text(_read_text_maybe(ws_result), encoding="utf-8")
             except Exception:
                 pass
+        elif td.runner_log.exists():
+            # Fallback: make sure we always have a per-thread RESULT.md even for "print-only" runners (e.g. claude -p).
+            try:
+                log_txt = _read_text_maybe(td.runner_log, max_chars=120_000)
+                td.result_md.write_text(
+                    "# Thread Result (Fallback)\n\n"
+                    "本 thread 未生成 `workspace/RESULT.md`，以下为 runner 的标准输出/错误（见 `runner.log`）。\n\n"
+                    "```text\n"
+                    f"{log_txt.rstrip()}\n"
+                    "```\n",
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
 
         _write_text(td.exit_code_txt, str(exit_code) + "\n")
         done = dict(meta)
@@ -713,12 +796,14 @@ def _run_threads(
                 done = {"thread_id": td.thread_id, "exit_code": 127, "error": f"FileNotFoundError: {e}", "start_at": _now_iso(), "end_at": _now_iso()}
                 _write_text(td.exit_code_txt, "127\n")
                 _write_json(td.done_json, done)
+                _write_text(td.result_md, f"# Thread Result\n\n- exit_code: 127\n- error: {done['error']}\n")
                 metas.append(done)
                 continue
             except Exception as e:
                 done = {"thread_id": td.thread_id, "exit_code": 1, "error": f"{type(e).__name__}: {e}", "start_at": _now_iso(), "end_at": _now_iso()}
                 _write_text(td.exit_code_txt, "1\n")
                 _write_json(td.done_json, done)
+                _write_text(td.result_md, f"# Thread Result\n\n- exit_code: 1\n- error: {done['error']}\n")
                 metas.append(done)
                 continue
             metas.append(finish_thread(td, p, log_f, meta))
@@ -737,11 +822,13 @@ def _run_threads(
                 done = {"thread_id": td.thread_id, "exit_code": 127, "error": f"FileNotFoundError: {e}", "start_at": _now_iso(), "end_at": _now_iso()}
                 _write_text(td.exit_code_txt, "127\n")
                 _write_json(td.done_json, done)
+                _write_text(td.result_md, f"# Thread Result\n\n- exit_code: 127\n- error: {done['error']}\n")
                 metas.append(done)
             except Exception as e:
                 done = {"thread_id": td.thread_id, "exit_code": 1, "error": f"{type(e).__name__}: {e}", "start_at": _now_iso(), "end_at": _now_iso()}
                 _write_text(td.exit_code_txt, "1\n")
                 _write_json(td.done_json, done)
+                _write_text(td.result_md, f"# Thread Result\n\n- exit_code: 1\n- error: {done['error']}\n")
                 metas.append(done)
 
         # Poll running processes; finish those that exited.
@@ -840,6 +927,46 @@ def render_summary(project_meta: dict, plan: dict, thread_metas: List[dict]) -> 
     lines.append("- 各 thread 结果：`{thread_id}/RESULT.md`（如果 runner 生成）")
     lines.append("")
     return "\n".join(lines)
+
+
+def _preflight_check_runners(cfg: dict, plan: dict, *, synth_enabled: bool) -> Optional[str]:
+    """
+    Return an error message if required runner executables are missing.
+    """
+    required: set[str] = set()
+    for t in plan.get("threads") or []:
+        if not isinstance(t, dict):
+            continue
+        runner = t.get("runner") or {}
+        rtype = str((runner or {}).get("type") or "").strip().lower()
+        if rtype and rtype not in {"shell", "local"}:
+            required.add(rtype)
+
+    if synth_enabled:
+        synth = plan.get("synthesis") or {}
+        sr = synth.get("runner") or {}
+        rtype = str((sr or {}).get("type") or "").strip().lower()
+        if rtype and rtype not in {"shell", "local"}:
+            required.add(rtype)
+
+    missing: List[str] = []
+    for rt in sorted(required):
+        c = (cfg.get("cli", {}) or {}).get(rt, {}) or {}
+        cmd = c.get("cmd") or []
+        exe = str(cmd[0]) if isinstance(cmd, list) and cmd else rt
+        if not shutil.which(exe):
+            missing.append(f"- runner={rt}: executable not found in PATH: {exe}")
+
+    if missing:
+        return (
+            "required runner executable(s) not found:\n"
+            + "\n".join(missing)
+            + "\n\n"
+            "Fix:\n"
+            "- install the missing CLI(s), or\n"
+            "- edit `@main/plan.json` and switch runner.type to an available runner (e.g. codex/shell/local).\n"
+        )
+    return None
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -987,6 +1114,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if bool(args.no_synthesize):
         synth_enabled = False
 
+    preflight_err = _preflight_check_runners(cfg, plan, synth_enabled=synth_enabled)
+    if preflight_err:
+        print(f"error: {preflight_err}", file=sys.stderr)
+        return 127
+
     project_meta = {
         "project_id": project_id,
         "created_at": created_at,
@@ -1115,6 +1247,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             cmd = build_runner_cmd(
                 runner_type=synth_runner_type,
                 wrapped_prompt=wrapped_prompt,
+                profile=str(synth_runner.get("profile") or "").strip(),
                 model=_resolve_model_id(
                     cfg,
                     runner_type=synth_runner_type,
@@ -1122,6 +1255,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     profile=str(synth_runner.get("profile") or ""),
                 ),
                 runner_args=synth_runner.get("args") if isinstance(synth_runner.get("args"), list) else [],
+                runner_sub_args=synth_runner.get("sub_args") if isinstance(synth_runner.get("sub_args"), list) else [],
                 runner_cmd_template=str(synth_runner.get("cmd_template") or "").strip() or None,
                 cfg=cfg,
             )

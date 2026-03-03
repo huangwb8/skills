@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-27
+
+### Fixed（修复）
+
+- `parallel-vibe/scripts/parallel_vibe.py` / `config.yaml`：修复 claude runner 在 `-p` 模式下因缺少权限绕过标志而可能阻塞 thread 的问题；`global_args` 新增 `--dangerously-skip-permissions`（对应 codex 的 `--ask-for-approval never`）和 `--no-session-persistence`（避免 thread 运行污染会话历史）
+
+## [0.3.0]
+
 ### Added（新增）
 
 - `parallel-vibe/references/cli_prompt_usage.md`：补齐 Codex / Claude “一条命令一次执行”的 CLI prompt 用法速查（用于 thread 规划落到可执行命令）
@@ -16,8 +24,9 @@
 
 ### Changed（变更）
 
+- `parallel-vibe/scripts/parallel_vibe.py`：runner 参数升级为“全局参数 + 子命令参数”两段式拼接（`runner.args` / `runner.sub_args`），并引入 `config.yaml:cli.*.global_args/profile_args/subcommand_args`（把 `codex -c reasoning_effort=...`、`claude --effort ...` 等 `--help` 口径稳定落到一条命令）；增加 runner 可用性预检（缺少 CLI 时早返回）；线程未落盘 `workspace/RESULT.md` 时自动用 `runner.log` 生成兜底 `RESULT.md`，确保每个 thread 都可被汇总与 synth 消费
 - `parallel-vibe/scripts/parallel_vibe.py`：彻底重构为“按计划拆分 threads + 每个 thread 一条 CLI 命令”；默认串行执行，支持 `--parallel/--max-parallel`；新增 `--src-dir/--out-dir` 与 `--plan-only/--plan-file`；汇总增强为 `@main/plan.json/plan.md/summary.md`，并可选 synth 汇总
-- `parallel-vibe/config.yaml`：移除“看似可配置但实际固定”的 `work_dir_name`；新增 `symlink_policy`；补齐更通用的 `copy_exclude`；版本号 `0.2.0 → 0.2.1`（Single Source of Truth）
+- `parallel-vibe/config.yaml`：新增 `cli.*.global_args/profile_args/subcommand_args` 并对齐 `runner.args/sub_args` 语义；版本号 `0.2.1 → 0.3.0`（Single Source of Truth）
 - `parallel-vibe/SKILL.md` / `parallel-vibe/README.md`：更新为“规划 thread → 单命令执行 → 汇总落盘”的新工作流，并强调默认串行策略
 - `parallel-vibe/SKILL.md` / `parallel-vibe/README.md`：统一口径为“工程隔离 + 软护栏（操作规范）”，补齐 symlink/shell runner 风险提示，并澄清 `--resume` 会重建各 thread/workspace
 - `parallel-vibe/docs/工作区隔离机制.md`：同步更新软护栏口径、symlink 策略与 `copy_exclude` 实践建议

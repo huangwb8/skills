@@ -19,7 +19,7 @@ https://docs.anthropic.com/en/docs/claude-code/sdk
 claude -p "你的指令内容"
 
 # 指定模型（示例形态；可用参数以 --help 为准）
-claude --model <model_id> -p "你的指令内容"
+claude --model <model_id> --effort medium -p "你的指令内容"
 
 # 从 stdin 提供上下文（文件内容），再给一个 query
 cat some_context.md | claude -p "请基于以上内容完成任务"
@@ -47,7 +47,16 @@ codex exec "你的指令内容"
 # 指定模型（常见形态；也可能支持 --model）
 codex -m <model_id> exec "你的指令内容"
 
+# 追加配置（示例：推理强度；注意 -c/--config 通常是全局参数，建议放在 exec 之前）
+codex -m <model_id> -c 'reasoning_effort="medium"' exec "你的指令内容"
+
 # 从 stdin 读取 prompt（PROMPT 为 "-"）
 cat synthesis_input.md | codex exec -
 ```
 
+## 参数放置约定（parallel-vibe 的计划字段）
+
+为避免“参数放错位置导致 CLI 不识别/把参数当作 prompt”的问题，`parallel-vibe` 约定：
+
+- `runner.args`：全局参数（子命令前）
+- `runner.sub_args`：子命令参数（子命令后、prompt 前）

@@ -126,9 +126,13 @@ python3 install-bensz-skills/scripts/install.py --force
 - 作者最喜欢用的一版
 
 ```
-请用 systematic-literature-review 写一篇"HER2-ADC在乳腺癌中的研究进展"的Premium级综述。
-参考文献以近2023-2025年为主，更早之前的文献，如果特别相关、特别重要的，也可以纳入。
-要有一个小节，专门讨论出未来3年较有前景的研究方向。工作目录名为 HER2-ADC-01。
+请使用 systematic-literature-review skill 写一篇"HER2-ADC在乳腺癌中的研究进展"的Premium级综述
+输入：主题（文字）
+输出：该 skill 的默认交付物（见该 skill 的 README/说明）
+另外，还有下列参数约束：
+- 参考范围：近 2023-2025 年为主（更早但特别重要的也可纳入）
+- 结构要求：增加“未来 3 年研究方向”小节
+- 输出控制：工作目录名为 HER2-ADC-01
 ```
 ```
 
@@ -194,7 +198,7 @@ python3 install-bensz-skills/scripts/install.py --force
 "帮我写个综述"
 
 ❌ 过于冗长：
-"请帮我写一篇关于HER2-ADC在乳腺癌中的研究进展的Premium级综述，参考文献以近2023-2025年为主，更早之前的文献如果特别相关特别重要的也可以纳入，要有一个小节专门讨论未来3年较有前景的研究方向，工作目录名为HER2-ADC-01，不要使用过时的文献，确保引用格式正确，输出PDF和Word版本..."
+"请使用 systematic-literature-review skill 写一篇关于HER2-ADC在乳腺癌中的研究进展的Premium级综述，参考文献以近2023-2025年为主，更早之前的文献如果特别相关特别重要的也可以纳入，要有一个小节专门讨论未来3年较有前景的研究方向，工作目录名为HER2-ADC-01，不要使用过时的文献，确保引用格式正确，输出PDF和Word版本..."
 ```
 
 ---
@@ -334,8 +338,9 @@ Premium 档位适用于您计划向 Nature Reviews、Chemical Reviews 等顶级�
 ### 内容完整性检查
 
 - [ ] 标题与受众声明
-- [ ] 快速开始章节（含经典 Prompt）
-- [ ] 场景化变异 Prompt（2-4 个）
+- [ ] 快速开始章节（含常规 Prompt）
+- [ ] 进阶 Prompt（带“参数约束”，可选）
+- [ ] 场景化变异 Prompt（按需补充 0-2 个）
 - [ ] 设计理念/功能概述
 - [ ] 使用示例（如有）
 - [ ] 输出文件说明

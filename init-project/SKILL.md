@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）。
+description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）、.gitignore（Git 忽略规则，安全优先）。
 metadata:
   author: Bensz Conan
   short-description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md）
@@ -34,6 +34,7 @@ metadata:
 | **CLAUDE.md** | Claude Code 特定适配 | Claude Code | **必须** | 自动引用 AGENTS.md |
 | **README.md** | 项目介绍与使用方法 | 通用 | 可选 | 手动维护 |
 | **CHANGELOG.md** | 项目变更记录 | 通用 | **必须** | 手动维护 |
+| **.gitignore** | Git 忽略规则（安全优先） | 通用 | 推荐 | 智能合并 |
 
 **重要说明**：
 
@@ -51,6 +52,12 @@ metadata:
    - 凡是项目的更新，都要统一在 CHANGELOG.md 文件里记录
    - 遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式
 
+4. **.gitignore 确保向 GitHub 提交时是安全的**
+   - 自动生成适合项目类型的忽略规则
+   - 包含共性设置（操作系统、IDE、敏感信息等）
+   - 包含项目类型特定的个性化设置
+   - 支持智能合并，保留用户自定义规则
+
 ## 核心特性
 
 - **完全自动化**：一键生成，无需手动输入信息
@@ -65,6 +72,7 @@ metadata:
 - **有机更新框架**：生成的文档本身遵循有机更新原则，便于未来迭代
 - **智能增量更新**：对已存在的 AGENTS.md，自动保留用户自定义内容，仅更新标准化部分
 - **符合社区标准**：遵循 [AGENTS.md 官方规范](https://agents.md/)，与 60k+ 开源项目保持一致
+- **智能 .gitignore 生成**：自动生成适合项目类型的 Git 忽略规则，确保向 GitHub 提交时安全
 
 ## AGENTS.md 与 CLAUDE.md 的关系
 
@@ -254,6 +262,43 @@ python3 init-project/scripts/generate.py --auto
   - **修改前**：先在 `[Unreleased]` 部分草拟变更内容
   - **修改后**：完善变更描述，添加具体细节和影响范围
 
+#### 7. 检查并生成 .gitignore（推荐）
+
+- 如果 .gitignore **不存在**：自动生成适合项目类型的忽略规则
+- 如果 .gitignore **已存在**：智能合并，保留用户自定义规则
+
+**.gitignore 生成策略**：
+
+**共性设置**（所有项目类型都会添加）：
+- 操作系统生成文件（.DS_Store、Thumbs.db 等）
+- IDE 和编辑器配置（.idea/、.vscode/ 等）
+- 环境变量和敏感信息（.env、*.pem、*.key、credentials/）
+- 日志和临时文件（*.log、*.tmp、tmp/）
+- 常见压缩文件（*.zip、*.tar.gz）
+
+**个性化设置**（根据项目类型添加）：
+
+| 项目类型 | 特定忽略规则 |
+|---------|-------------|
+| Python | \_\_pycache\_\_/、.venv/、*.pyc、.pytest\_cache/、.coverage |
+| Web | node\_modules/、dist/、.next/、*.tsbuildinfo |
+| Rust | /target/、**\*.rs.bk |
+| Go | \*.exe、\*.dll、vendor/ |
+| Java | target/、\*.class、.gradle/ |
+| 数据科学 | \*.csv、\*.pkl、models/、checkpoints/、data/raw/ |
+| 文档 | site/、node\_modules/、.cache/ |
+
+**安全优先原则**：
+- 宁可多忽略，不可漏掉敏感文件
+- 环境变量文件（.env）默认忽略
+- 密钥和证书文件（*.pem、*.key）默认忽略
+- 凭证目录（credentials/、secrets/）默认忽略
+
+**智能合并策略**：
+- 保留现有文件中的自定义规则
+- 更新共性设置和项目类型特定规则
+- 使用 `--overwrite` 可完全覆盖
+
 ### 手动模式流程（可选）
 
 如需手动指定信息，使用命令行参数：
@@ -342,8 +387,8 @@ python3 init-project/scripts/generate.py --auto
 
 # 输出示例：
 # ✅ 已生成项目初始化文档:
-#    - /path/to/project/AGENTS.md
-#    - /path/to/project/CLAUDE.md
+#    - AGENTS.md
+#    - CLAUDE.md
 #
 # 📊 项目分析结果:
 #    名称: my-project
@@ -357,11 +402,11 @@ python3 init-project/scripts/generate.py --auto
 python3 init-project/scripts/generate.py --auto
 
 # 输出示例：
-# 🔄 /path/to/project/CLAUDE.md 已智能更新（保留了自定义内容）
-# 🔄 /path/to/project/AGENTS.md 已智能更新（保留了自定义内容）
+# 🔄 CLAUDE.md 已智能更新（保留了自定义内容）
+# 🔄 AGENTS.md 已智能更新（保留了自定义内容）
 # ✅ 已生成 AI 项目指令文档:
-#    - /path/to/project/CLAUDE.md
-#    - /path/to/project/AGENTS.md
+#    - CLAUDE.md
+#    - AGENTS.md
 #
 # 📊 项目分析结果:
 #    名称: my-project
@@ -375,8 +420,8 @@ python3 init-project/scripts/generate.py --auto --overwrite
 
 # 输出示例：
 # ✅ 已生成 AI 项目指令文档:
-#    - /path/to/project/CLAUDE.md
-#    - /path/to/project/AGENTS.md
+#    - CLAUDE.md
+#    - AGENTS.md
 ```
 
 ## 验证清单（交付前）
@@ -390,6 +435,8 @@ python3 init-project/scripts/generate.py --auto --overwrite
 - [ ] **变更记录规范已明确**（CHANGELOG.md 强制性要求）
 - [ ] 文件已成功写入磁盘
 - [ ] CHANGELOG.md 已创建（强制性）
+- [ ] .gitignore 已生成或智能更新（推荐）
+- [ ] .gitignore 包含敏感文件忽略规则（安全检查）
 
 ## 有机更新原则
 

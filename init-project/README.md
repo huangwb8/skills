@@ -21,6 +21,7 @@ python3 init-project/scripts/generate.py --auto
 - 生成 AGENTS.md（OpenAI Codex CLI 适配版本）
 - 生成 README.md（如不存在）
 - 生成 CHANGELOG.md（AI 优化历史记录）
+- 生成 .gitignore（安全优先的 Git 忽略规则）
 
 ## 生成的文件
 
@@ -30,6 +31,7 @@ python3 init-project/scripts/generate.py --auto
 | **AGENTS.md** | OpenAI Codex CLI 项目指令 | Codex CLI |
 | **README.md** | 项目介绍与使用方法 | 通用 |
 | **CHANGELOG.md** | AI 优化历史记录 | 通用 |
+| **.gitignore** | Git 忽略规则（安全优先） | 通用 |
 
 ## 使用方式
 
@@ -67,6 +69,7 @@ python3 init-project/scripts/generate.py --auto --overwrite
 | `--overwrite` | 覆盖已存在的文件 |
 | `--skip-readme` | 跳过 README.md 生成 |
 | `--skip-changelog` | 跳过 CHANGELOG.md 生成 |
+| `--skip-gitignore` | 跳过 .gitignore 生成 |
 | `--only-readme` | 仅生成 README.md |
 | `--only-changelog` | 仅生成 CHANGELOG.md |
 | `--project-name` | 手动指定项目名称 |
@@ -89,11 +92,14 @@ python3 init-project/scripts/generate.py --auto
 #    - /path/to/project/AGENTS.md
 #    - /path/to/project/README.md
 #    - /path/to/project/CHANGELOG.md
+#    - /path/to/project/.gitignore
 #
 # 📊 项目分析结果:
 #    名称: my-awesome-project
 #    类型: Python 项目
 #    语言: 简体中文
+#
+# 🔒 已生成 .gitignore（包含安全和项目特定规则）
 ```
 
 ### 仅生成 AI 指令（跳过 README 和 CHANGELOG）
@@ -180,6 +186,21 @@ python3 init-project/scripts/generate.py --auto --skip-readme --skip-changelog
 
 A: 修改 CLAUDE.md 后，手动同步更新 AGENTS.md 的对应部分（核心内容保持一致，仅平台特定说明不同）。
 
+### Q: .gitignore 会自动处理敏感文件吗？
+
+A: 是的。.gitignore 默认忽略：
+- 环境变量文件（.env、.env.local）
+- 密钥和证书（*.pem、*.key、*.crt）
+- 凭证目录（credentials/、secrets/）
+- 操作系统和 IDE 配置
+- 项目类型特定的敏感文件
+
+使用 `--skip-gitignore` 可跳过生成。
+
+### Q: 已有 .gitignore，重新生成会覆盖吗？
+
+A: 不会。脚本会智能合并，保留你的自定义规则。使用 `--overwrite` 可完全覆盖。
+
 ## 验证生成结果
 
 生成后，检查以下内容：
@@ -188,6 +209,7 @@ A: 修改 CLAUDE.md 后，手动同步更新 AGENTS.md 的对应部分（核心�
 - [ ] `AGENTS.md` 存在且与 CLAUDE.md 核心内容一致
 - [ ] `README.md` 存在且包含项目介绍和使用方法（如生成）
 - [ ] `CHANGELOG.md` 存在且包含初始版本记录（如生成）
+- [ ] `.gitignore` 存在且包含敏感文件忽略规则（推荐）
 - [ ] 默认语言设置正确
 - [ ] 目录树与实际结构一致
 

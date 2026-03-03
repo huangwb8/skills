@@ -60,7 +60,7 @@ class ProjectAnalyzer:
             "name": "数据科学项目"
         },
         "docs": {
-            "indicators": ["*.md", "docs/", "_docs/", "mkdocs.yml", "docusaurus.config.js"],
+            "indicators": ["docs/", "_docs/", "mkdocs.yml", "docusaurus.config.js"],
             "default_dirs": ["docs/", "assets/", "static/"],
             "name": "文档项目"
         },
@@ -248,9 +248,81 @@ class ProjectInitGenerator:
         self.config_path = config_path or script_dir / "config.yaml"
         self.template_dir = script_dir / "templates"
 
-        # 加载配置
-        with open(self.config_path, 'r', encoding='utf-8') as f:
-            self.config = yaml.safe_load(f)
+        # 加载配置（支持优雅降级）
+        self.config = self._load_config()
+
+    def _load_config(self) -> dict:
+        """
+        加载配置文件，支持优雅降级
+
+        Returns:
+            配置字典
+        """
+        # 默认配置（当配置文件不存在或损坏时使用）
+        default_config = {
+            'language_mapping': {'default': '简体中文'},
+            'language_detection_commands': {
+                'darwin': ['locale | grep LANG'],
+                'linux': ['echo $LANG'],
+                'windows': ['echo $LANG']
+            },
+        }
+
+        try:
+            if not self.config_path.exists():
+                print(f"⚠️  配置文件 {self.config_path} 不存在，使用默认配置")
+                return default_config
+
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+
+            # 合并默认配置（确保关键字段存在）
+            for key, value in default_config.items():
+                if key not in config:
+                    config[key] = value
+
+            return config
+        except yaml.YAMLError as e:
+            print(f"⚠️  配置文件格式错误: {e}，使用默认配置")
+            return default_config
+        except Exception as e:
+            print(f"⚠️  加载配置失败: {e}，使用默认配置")
+            return default_config
+
+    @staticmethod
+    def validate_output_dir(output_dir: Path) -> Tuple[bool, Optional[str]]:
+        """
+        验证输出目录是否安全
+
+        Args:
+            output_dir: 输出目录路径
+
+        Returns:
+            (是否安全, 错误信息)
+        """
+        # 解析绝对路径
+        resolved = output_dir.resolve()
+
+        # 检查是否为系统敏感目录
+        sensitive_dirs = {
+            "/", "/etc", "/root", "/home", "/usr", "/bin", "/sbin",
+            "/var", "/sys", "/proc", "/dev", "/lib", "/lib64", "/opt"
+        }
+
+        resolved_str = str(resolved)
+        for sensitive in sensitive_dirs:
+            if resolved_str == sensitive:
+                return False, f"🚫 安全警告：禁止在系统目录 '{sensitive}' 中创建文件"
+
+        # 检查目录是否存在
+        if not output_dir.exists():
+            return False, f"错误: 目录 {output_dir} 不存在"
+
+        # 检查是否为有效目录
+        if not output_dir.is_dir():
+            return False, f"错误: {output_dir} 不是有效目录"
+
+        return True, None
 
     def detect_language(self) -> str:
         """
@@ -383,6 +455,186 @@ class ProjectInitGenerator:
         """
         template = self.load_template("CHANGELOG.md.template")
         return self.replace_placeholders(template, variables)
+
+    def _load_gitignore_config(self) -> dict:
+        """
+        加载 .gitignore 配置模板
+
+        从 templates/gitignore.yaml 读取配置，支持优雅降级
+
+        Returns:
+            gitignore 配置字典（包含 common 和 by_type）
+        """
+        gitignore_config_path = self.template_dir / "gitignore.yaml"
+
+        # 默认配置（当配置文件不存在或损坏时使用）
+        default_config = {
+            'common': [
+                '.DS_Store', '.idea/', '.vscode/', '*.log', '*.tmp',
+                '.env', '.env.local', '*.pem', '*.key', 'secrets/'
+            ],
+            'by_type': {}
+        }
+
+        try:
+            if not gitignore_config_path.exists():
+                print(f"⚠️  gitignore 配置文件 {gitignore_config_path} 不存在，使用默认配置")
+                return default_config
+
+            with open(gitignore_config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+
+            # 合并默认配置
+            for key, value in default_config.items():
+                if key not in config:
+                    config[key] = value
+
+            return config
+        except yaml.YAMLError as e:
+            print(f"⚠️  gitignore 配置文件格式错误: {e}，使用默认配置")
+            return default_config
+        except Exception as e:
+            print(f"⚠️  加载 gitignore 配置失败: {e}，使用默认配置")
+            return default_config
+
+    def generate_gitignore(self, project_type: str) -> str:
+        """
+        生成 .gitignore 内容
+
+        根据项目类型生成合适的 .gitignore 文件，包括：
+        1. 共性设置：所有项目通用的忽略规则
+        2. 个性化设置：根据项目类型添加特定规则
+
+        Args:
+            project_type: 项目类型键名（如 python、web、rust 等）
+
+        Returns:
+            .gitignore 内容
+        """
+        # 从 templates/gitignore.yaml 加载配置
+        gitignore_config = self._load_gitignore_config()
+
+        lines = ["# .gitignore - 自动生成", ""]
+        lines.append("# ========================================注意========================================")
+        lines.append("# 此文件由 init-project 自动生成，包含共性设置和项目特定规则。")
+        lines.append("# 如需添加自定义规则，请在文件末尾的「自定义规则」部分添加。")
+        lines.append("# ===================================================================================")
+        lines.append("")
+
+        # 1. 添加共性忽略规则
+        lines.append("# === 共性设置（所有项目通用）===")
+        lines.append("")
+        common_rules = gitignore_config.get('common', [])
+        for rule in common_rules:
+            lines.append(rule)
+        lines.append("")
+
+        # 2. 添加项目类型特定的忽略规则
+        type_mapping = {
+            "python": "python",
+            "web": "web",
+            "rust": "rust",
+            "go": "go",
+            "java": "java",
+            "data-science": "data-science",
+            "docs": "docs",
+            "generic": "python",  # 通用项目默认使用 python 规则作为基础
+        }
+
+        config_type = type_mapping.get(project_type, "python")
+        type_rules = gitignore_config.get('by_type', {}).get(config_type, [])
+
+        if type_rules:
+            type_names = {
+                "python": "Python",
+                "web": "Web / Node.js",
+                "rust": "Rust",
+                "go": "Go",
+                "java": "Java",
+                "data-science": "数据科学",
+                "docs": "文档项目",
+            }
+            lines.append(f"# === {type_names.get(config_type, '项目特定')} 设置 ===")
+            lines.append("")
+            for rule in type_rules:
+                lines.append(rule)
+            lines.append("")
+
+        # 3. 添加自定义规则区域
+        lines.append("# === 自定义规则（在下方添加项目特定的忽略规则）===")
+        lines.append("")
+        lines.append("# 示例：")
+        lines.append("# local-config.yml")
+        lines.append("# *.backup")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    def merge_gitignore(self, existing_path: Path, new_content: str) -> str:
+        """
+        智能合并现有 .gitignore 和新内容
+
+        策略：
+        1. 保留现有文件中的自定义规则（非自动生成的部分）
+        2. 更新共性设置和项目类型特定规则
+
+        Args:
+            existing_path: 现有 .gitignore 文件路径
+            new_content: 新生成的 .gitignore 内容
+
+        Returns:
+            合并后的内容
+        """
+        try:
+            with open(existing_path, 'r', encoding='utf-8') as f:
+                existing_content = f.read()
+        except Exception:
+            return new_content
+
+        # 检查是否是自动生成的文件
+        if "# .gitignore - 自动生成" not in existing_content:
+            # 非自动生成的文件，保留原内容并在末尾添加提示
+            if "# === 自定义规则（由 init-project 保留）===" not in existing_content:
+                return existing_content + "\n\n# === 自定义规则（由 init-project 保留）===\n# 以上内容为用户自定义，以下为新生成的规则\n\n" + new_content
+            return existing_content
+
+        # 提取现有自定义规则
+        custom_marker = "# === 自定义规则"
+        if custom_marker in existing_content:
+            # 找到自定义规则部分
+            parts = existing_content.split(custom_marker)
+            if len(parts) > 1:
+                custom_content = parts[1]
+                # 提取非空的自定义规则行
+                custom_lines = []
+                in_custom_section = False
+                for line in custom_content.split('\n'):
+                    if line.strip() and not line.strip().startswith('# 示例'):
+                        in_custom_section = True
+                    if in_custom_section and line.strip():
+                        custom_lines.append(line)
+
+                # 如果有自定义规则，追加到新内容
+                if custom_lines:
+                    # 移除新内容末尾的示例部分
+                    new_lines = new_content.split('\n')
+                    result_lines = []
+                    in_example = False
+                    for line in new_lines:
+                        if "# 示例：" in line:
+                            in_example = True
+                        if not in_example:
+                            result_lines.append(line)
+                        if in_example and not line.strip():
+                            in_example = False
+
+                    # 添加自定义规则
+                    result_lines.append("# === 自定义规则（用户添加）===")
+                    result_lines.append("")
+                    result_lines.extend(custom_lines)
+                    return '\n'.join(result_lines)
+
+        return new_content
 
     def append_changelog_entry(self, changelog_path: Path, entry: str) -> bool:
         """
@@ -580,6 +832,7 @@ class ProjectInitGenerator:
         overwrite: bool = False,
         skip_readme: bool = False,
         skip_changelog: bool = False,
+        skip_gitignore: bool = False,
         only_readme: bool = False,
         only_changelog: bool = False
     ) -> bool:
@@ -591,6 +844,7 @@ class ProjectInitGenerator:
             overwrite: 是否覆盖已存在的文件
             skip_readme: 跳过 README.md 生成
             skip_changelog: 跳过 CHANGELOG.md 生成
+            skip_gitignore: 跳过 .gitignore 生成
             only_readme: 仅生成 README.md
             only_changelog: 仅生成 CHANGELOG.md
 
@@ -599,12 +853,10 @@ class ProjectInitGenerator:
         """
         output_dir = output_dir or Path.cwd()
 
-        # 验证输出目录
-        if not output_dir.exists():
-            print(f"错误: 目录 {output_dir} 不存在")
-            return False
-        if not output_dir.is_dir():
-            print(f"错误: {output_dir} 不是有效目录")
+        # 验证输出目录（使用统一的安全验证方法）
+        is_safe, error_msg = self.validate_output_dir(output_dir)
+        if not is_safe:
+            print(error_msg)
             return False
 
         # 分析项目
@@ -631,14 +883,14 @@ class ProjectInitGenerator:
             if self.write_file(readme_path, readme_content, overwrite):
                 generated_files.append(readme_path)
             else:
-                print(f"⚠️  {readme_path} 已存在，使用 --overwrite 覆盖")
+                print(f"⚠️  {readme_path.name} 已存在，使用 --overwrite 覆盖")
                 success = False
         elif only_changelog:
             changelog_content = self.generate_changelog_md(variables)
             if self.write_file(changelog_path, changelog_content, overwrite):
                 generated_files.append(changelog_path)
             else:
-                print(f"⚠️  {changelog_path} 已存在，使用 --overwrite 覆盖")
+                print(f"⚠️  {changelog_path.name} 已存在，使用 --overwrite 覆盖")
                 success = False
         else:
             # 完整生成模式
@@ -648,9 +900,9 @@ class ProjectInitGenerator:
             if self.write_file(agents_path, agents_content, overwrite, merge=True):
                 generated_files.append(agents_path)
                 if agents_was_merged:
-                    print(f"🔄 {agents_path} 已智能更新（保留了自定义内容）")
+                    print(f"🔄 {agents_path.name} 已智能更新（保留了自定义内容）")
             else:
-                print(f"⚠️  {agents_path} 已存在，使用 --overwrite 覆盖")
+                print(f"⚠️  {agents_path.name} 已存在，使用 --overwrite 覆盖")
                 success = False
 
             # 2. 生成 CLAUDE.md（Claude Code 特定适配，使用 @./AGENTS.md 引用）
@@ -659,9 +911,9 @@ class ProjectInitGenerator:
             if self.write_file(claude_path, claude_content, overwrite, merge=True):
                 generated_files.append(claude_path)
                 if claude_was_merged:
-                    print(f"🔄 {claude_path} 已智能更新（保留了自定义内容）")
+                    print(f"🔄 {claude_path.name} 已智能更新（保留了自定义内容）")
             else:
-                print(f"⚠️  {claude_path} 已存在，使用 --overwrite 覆盖")
+                print(f"⚠️  {claude_path.name} 已存在，使用 --overwrite 覆盖")
                 success = False
 
             # 显示工作流提醒
@@ -674,7 +926,7 @@ class ProjectInitGenerator:
                     if self.write_file(readme_path, readme_content, overwrite):
                         generated_files.append(readme_path)
                 else:
-                    print(f"ℹ️  {readme_path} 已存在，跳过生成（使用 --overwrite 覆盖）")
+                    print(f"ℹ️  {readme_path.name} 已存在，跳过生成（使用 --overwrite 覆盖）")
 
             # 4. 生成或更新 CHANGELOG.md
             if not skip_changelog:
@@ -695,15 +947,34 @@ class ProjectInitGenerator:
 - 更新 `CLAUDE.md`（Claude Code 特定适配）
 """
                     if self.append_changelog_entry(changelog_path, entry):
-                        print(f"ℹ️  已更新 {changelog_path}")
+                        print(f"ℹ️  已更新 {changelog_path.name}")
                 else:
-                    print(f"ℹ️  {changelog_path} 已存在，跳过更新")
+                    print(f"ℹ️  {changelog_path.name} 已存在，跳过更新")
+
+            # 5. 生成或更新 .gitignore
+            gitignore_path = output_dir / ".gitignore"
+            if not skip_gitignore:
+                if not gitignore_path.exists():
+                    # 创建新的 .gitignore
+                    gitignore_content = self.generate_gitignore(analysis['type'])
+                    if self.write_file(gitignore_path, gitignore_content, True):
+                        generated_files.append(gitignore_path)
+                        print(f"🔒 已生成 {gitignore_path.name}（包含安全和项目特定规则）")
+                elif overwrite:
+                    # 覆盖模式：智能合并
+                    new_gitignore = self.generate_gitignore(analysis['type'])
+                    merged_gitignore = self.merge_gitignore(gitignore_path, new_gitignore)
+                    if self.write_file(gitignore_path, merged_gitignore, True):
+                        generated_files.append(gitignore_path)
+                        print(f"🔄 已更新 {gitignore_path.name}（保留自定义规则）")
+                else:
+                    print(f"ℹ️  {gitignore_path.name} 已存在，跳过更新（使用 --overwrite 更新）")
 
         # 输出结果
         if generated_files:
             print(f"✅ 已生成 AI 项目指令文档:")
             for f in generated_files:
-                print(f"   - {f}")
+                print(f"   - {f.name}")
             print(f"\n📊 项目分析结果:")
             print(f"   名称: {analysis['name']}")
             print(f"   类型: {analysis['type_info']['name']}")
@@ -779,7 +1050,7 @@ class ProjectInitGenerator:
         return {
             "项目名称": analysis['name'],
             "项目描述": analysis['description'] or f"{project_type}，遵循工程最佳实践",
-            "工作目录": str(output_dir),
+            "工作目录": "本项目",
             "默认语言": language,
             "项目用途": analysis['description'] or f"{project_type}开发与维护",
             "核心功能描述": analysis['description'] or f"{project_type}的核心功能开发与维护",
@@ -870,6 +1141,11 @@ def main():
         help="跳过 CHANGELOG.md 生成"
     )
     parser.add_argument(
+        "--skip-gitignore",
+        action="store_true",
+        help="跳过 .gitignore 生成"
+    )
+    parser.add_argument(
         "--only-readme",
         action="store_true",
         help="仅生成 README.md"
@@ -888,12 +1164,10 @@ def main():
     # 确定输出目录
     output_dir = Path(args.output_dir).resolve()
 
-    # 验证输出目录
-    if not output_dir.exists():
-        print(f"错误: 目录 {output_dir} 不存在")
-        return 1
-    if not output_dir.is_dir():
-        print(f"错误: {output_dir} 不是有效目录")
+    # 验证输出目录（使用统一的安全验证方法）
+    is_safe, error_msg = ProjectInitGenerator.validate_output_dir(output_dir)
+    if not is_safe:
+        print(error_msg)
         return 1
 
     claude_path = output_dir / "CLAUDE.md"
@@ -912,6 +1186,7 @@ def main():
             overwrite=args.overwrite,
             skip_readme=args.skip_readme,
             skip_changelog=args.skip_changelog,
+            skip_gitignore=args.skip_gitignore,
             only_readme=args.only_readme,
             only_changelog=args.only_changelog
         )
@@ -928,7 +1203,7 @@ def main():
     variables = {
         "项目名称": args.project_name,
         "项目描述": args.project_description,
-        "工作目录": os.path.abspath(args.output_dir),
+        "工作目录": os.path.relpath(args.output_dir) if args.output_dir != "." else "本项目",
         "默认语言": language,
         "项目用途": args.project_description,
         "核心功能描述": args.project_description,
@@ -949,22 +1224,22 @@ def main():
     # 使用智能合并模式
     agents_was_merged = agents_path.exists() and not args.overwrite
     if not generator.write_file(agents_path, agents_content, args.overwrite, merge=True):
-        print(f"错误: {agents_path} 已存在，使用 --overwrite 覆盖")
+        print(f"错误: {agents_path.name} 已存在，使用 --overwrite 覆盖")
         success = False
     elif agents_was_merged:
-        print(f"🔄 {agents_path} 已智能更新（保留了自定义内容）")
+        print(f"🔄 {agents_path.name} 已智能更新（保留了自定义内容）")
 
     claude_was_merged = claude_path.exists() and not args.overwrite
     if not generator.write_file(claude_path, claude_content, args.overwrite, merge=True):
-        print(f"错误: {claude_path} 已存在，使用 --overwrite 覆盖")
+        print(f"错误: {claude_path.name} 已存在，使用 --overwrite 覆盖")
         success = False
     elif claude_was_merged:
-        print(f"🔄 {claude_path} 已智能更新（保留了自定义内容）")
+        print(f"🔄 {claude_path.name} 已智能更新（保留了自定义内容）")
 
     if success:
         print(f"✅ 已生成:")
-        print(f"   - {agents_path}")
-        print(f"   - {claude_path}")
+        print(f"   - {agents_path.name}")
+        print(f"   - {claude_path.name}")
         print(f"\n默认语言: {language}")
         print(f"\n请根据实际情况编辑这些文件，填补 [待补充] 的内容")
 

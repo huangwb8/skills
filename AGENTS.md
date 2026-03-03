@@ -1,6 +1,6 @@
 # skills - 项目指令
 
-你正在 `/Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills` 中工作：该目录用于 文档项目，遵循工程最佳实践。
+本项目主要用于文档项目，遵循工程最佳实践。
 
 ## 项目目标
 
@@ -231,10 +231,10 @@ grep -A 3 "project_info:" config.yaml | grep "version"
    - 运行静态自检清单
 
 4. **生成用户文档**：
-   - 使用 **write-skill-readme** skill 生成用户友好的 README.md
+   - 使用 write-skill-readme skill 生成用户友好的 README.md
    - README.md 面向使用者，说明如何触发和使用技能
    - SKILL.md 面向 AI，定义执行规范和工作流
-   - 首次生成时，使用 **which-model** skill 为 README.md 添加 WHICHMODEL 章节，记录模型选择最佳实践
+   - 首次生成时，使用 which-model skill 为 README.md 添加 WHICHMODEL 章节，记录模型选择最佳实践
 
 5. **测试验证**：
    - 在 `tests/{test_name}/` 进行轻量测试
