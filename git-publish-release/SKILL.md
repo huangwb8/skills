@@ -29,48 +29,37 @@ metadata:
 1. **目标 tag**（如 `v3.0.0`）
    - 如未指定，列出最近 tags 供选择
 2. **项目路径**（可选，默认当前工作目录）
-3. **GitHub Token**
-   - 自动从当前目录的 `.env` 文件读取 `GH_TOKEN`
-   - 如 `.env` 不存在，自动创建并提示用户添加 token
-   - 自动将 `.env` 添加到 `.gitignore`（如未添加）
+
+> 认证通过 `gh auth login` 管理，无需手动配置 token。
+
+## 前置检查
+
+确认 `gh` CLI 已安装并已认证：
+
+```bash
+gh auth status
+```
+
+如未认证，提示用户运行：
+
+```bash
+gh auth login
+```
 
 ## 工作流程
 
-### 准备认证
-
-首先获取 GitHub Token：
-
-```bash
-# 确保 .env 存在、.gitignore 已配置，并读取 GH_TOKEN
-GH_TOKEN=$(bash scripts/get-github-token.sh)
-```
-
-脚本会自动处理：
-- `.env` 文件不存在时自动创建
-- `.env` 未在 `.gitignore` 中时自动添加
-- 读取并返回 `GH_TOKEN` 值
-
 ### 确认项目信息
 
-与用户确认后，获取项目基本信息：
-
 ```bash
-# 从 git remote 获取 owner/repo
-REPO=$(git config --get remote.origin.url | sed -E 's|.*github.com[/:]([^/]+)/([^/]+)\.git|\1/\2|')
+# 获取 owner/repo
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 ```
-
-支持的 remote 格式：
-- HTTPS: `https://github.com/owner/repo.git`
-- SSH: `git@github.com:owner/repo.git`
 
 ### 获取最新 Release 信息
 
-使用 GitHub API 获取最新发布的 release：
-
 ```bash
-curl -s -H "Authorization: token $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/releases" | \
-  jq -r '.[0] | {tag_name, published_at}'
+# 获取最近一次 release 的 tag
+PREVIOUS_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
 ```
 
 - 如果存在历史 release，比较范围为：`PREVIOUS_TAG..TARGET_TAG`
@@ -155,20 +144,26 @@ git log ${TARGET_TAG} --pretty=format:"%h|%s|%an|%ad" --date=short
 
 ### 创建 GitHub Release
 
-使用 GitHub API 创建 release：
-
 ```bash
-curl -X POST \
-  -H "Authorization: token $GH_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/$REPO/releases" \
-  -d "{
-    \"tag_name\": \"$TARGET_TAG\",
-    \"name\": \"$TARGET_TAG\",
-    \"body\": \"$RELEASE_NOTES\",
-    \"draft\": false,
-    \"prerelease\": $PRERELEASE
-  }"
+# 将 Release Notes 写入临时文件（避免 shell 转义问题）
+NOTES_FILE=$(mktemp /tmp/release-notes-XXXXXX.md)
+cat > "$NOTES_FILE" << 'NOTES_EOF'
+[生成的 Release Notes 内容]
+NOTES_EOF
+
+# 正式版
+gh release create "$TARGET_TAG" \
+  --title "$TARGET_TAG" \
+  --notes-file "$NOTES_FILE"
+
+# 预发布版（tag 含 alpha/beta/rc/pre 时）
+gh release create "$TARGET_TAG" \
+  --title "$TARGET_TAG" \
+  --notes-file "$NOTES_FILE" \
+  --prerelease
+
+# 清理临时文件
+rm -f "$NOTES_FILE"
 ```
 
 ## 输出格式
@@ -190,23 +185,22 @@ curl -X POST \
 
 - Release Notes 生成策略：[references/release-notes-strategy.md](references/release-notes-strategy.md)
 - Release Notes 示例模板：[references/release-templates.md](references/release-templates.md)
-- GitHub API 文档：https://docs.github.com/en/rest/releases/releases
+- GitHub CLI 文档：https://cli.github.com/manual/gh_release_create
 
 ## 错误处理
 
 | 场景 | 处理方式 |
 |------|---------|
-| .env 文件不存在 | 自动创建并提示用户添加 GH_TOKEN |
-| GH_TOKEN 未设置或无效 | 提示用户在 .env 文件中设置 token |
+| `gh` 未安装 | 提示安装：`brew install gh` 或访问 https://cli.github.com |
+| `gh` 未认证 | 提示运行 `gh auth login` |
 | Tag 不存在 | 提示用户可用的 tags 列表 |
 | 网络请求失败 | 重试 3 次，仍失败则报错并给出手动创建指南 |
-| 权限不足 | 提示检查 token 权限（需要 `repo` scope） |
-| Release 已存在 | 询问用户是否覆盖（更新现有 release） |
+| 权限不足 | 提示检查 `gh auth status` 及仓库权限 |
+| Release 已存在 | 询问用户是否覆盖（使用 `gh release edit`） |
 
 ## 实现注意事项
 
 1. **跨平台兼容**：始终使用正斜杠 `/` 处理路径
-2. **错误解决**：捕获 curl 错误并给出明确的错误信息
-3. **Git 远程解析**：处理 HTTPS 和 SSH 两种 remote URL 格式
-4. **Markdown 转义**：在 JSON 中传递 Release Notes 时正确处理特殊字符
-5. **Token 安全**：`.env` 文件自动加入 `.gitignore`，防止意外提交
+2. **Notes 转义**：使用 `--notes-file` 传递临时文件，避免 shell 特殊字符转义问题
+3. **Git 远程解析**：`gh repo view` 自动处理 HTTPS 和 SSH 两种 remote URL 格式
+4. **认证管理**：`gh` CLI 使用系统 keychain 或 `~/.config/gh/hosts.yml` 存储凭证，无需手动管理 token

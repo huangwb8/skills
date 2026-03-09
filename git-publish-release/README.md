@@ -22,16 +22,11 @@
 
 ### 前置要求
 
-1. **GitHub Token**：需要具有 `repo` 权限的 GitHub Personal Access Token
-   - 创建地址：https://github.com/settings/tokens
-   - 所需权限：`repo` (完整仓库访问权限)
+1. **GitHub CLI**：需要安装并认证 `gh` CLI
+   - 安装：`brew install gh`（macOS）或访问 https://cli.github.com
+   - 认证：`gh auth login`
 
-2. **设置环境变量**：
-   ```bash
-   export GH_TOKEN="your_github_token_here"
-   ```
-
-3. **Git 仓库**：项目必须是 Git 仓库，且有 GitHub remote
+2. **Git 仓库**：项目必须是 Git 仓库，且有 GitHub remote
 
 ### 使用方式
 
@@ -136,12 +131,13 @@
 
 ## ⚙️ 配置选项
 
-### 环境变量
+### 认证
 
-| 变量 | 必需 | 说明 |
-|------|------|------|
-| `GH_TOKEN` | 是 | GitHub Personal Access Token |
-| `GIT_REMOTE` | 否 | 指定 git remote（默认：origin） |
+通过 `gh auth login` 管理，无需手动配置 token。运行以下命令检查认证状态：
+
+```bash
+gh auth status
+```
 
 ### Git Remote 格式支持
 
@@ -150,14 +146,12 @@
 
 ## 🛠️ 故障排查
 
-### 问题：GH_TOKEN 未设置
+### 问题：gh 未认证
 
 **解决方案**：
 ```bash
-export GH_TOKEN="your_token_here"
+gh auth login
 ```
-
-或创建 token：https://github.com/settings/tokens
 
 ### 问题：Tag 不存在
 
@@ -169,7 +163,7 @@ git push origin v1.0.0
 
 ### 问题：权限不足
 
-**解决方案**：检查 token 权限，确保包含 `repo` scope
+**解决方案**：运行 `gh auth status` 检查认证状态及仓库权限
 
 ### 问题：Release 已存在
 
@@ -180,7 +174,7 @@ git push origin v1.0.0
 - [SKILL.md](SKILL.md) - 技能核心逻辑
 - [Release Notes 生成策略](references/release-notes-strategy.md)
 - [Release Notes 模板示例](references/release-templates.md)
-- [GitHub API 文档](https://docs.github.com/en/rest/releases/releases)
+- [GitHub CLI 文档](https://cli.github.com/manual/gh_release_create)
 
 ## WHICHMODEL - 模型选择最佳实践
 
