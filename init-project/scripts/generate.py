@@ -294,6 +294,11 @@ class ProjectInitGenerator:
         """
         验证输出目录是否安全
 
+        安全边界：
+        - 只允许在当前工作目录（或其子目录）内操作
+        - 禁止修改父目录或其它项目目录
+        - 禁止修改系统敏感目录
+
         Args:
             output_dir: 输出目录路径
 
@@ -302,8 +307,22 @@ class ProjectInitGenerator:
         """
         # 解析绝对路径
         resolved = output_dir.resolve()
+        current_dir = Path.cwd().resolve()
 
-        # 检查是否为系统敏感目录
+        # 1. 检查是否在当前工作目录内（最重要的安全检查）
+        try:
+            # 如果 resolved 是 current_dir 的子目录或就是 current_dir 本身，则安全
+            resolved.relative_to(current_dir)
+        except ValueError:
+            # 如果抛出 ValueError，说明 resolved 不在 current_dir 内
+            return False, (
+                f"🚫 安全警告：禁止在当前工作目录之外创建文件\n"
+                f"   当前工作目录: {current_dir}\n"
+                f"   尝试访问目录: {resolved}\n"
+                f"   本技能仅允许在当前项目目录内操作，以防止意外修改其它项目或系统文件"
+            )
+
+        # 2. 检查是否为系统敏感目录（额外的安全层）
         sensitive_dirs = {
             "/", "/etc", "/root", "/home", "/usr", "/bin", "/sbin",
             "/var", "/sys", "/proc", "/dev", "/lib", "/lib64", "/opt"
@@ -314,11 +333,11 @@ class ProjectInitGenerator:
             if resolved_str == sensitive:
                 return False, f"🚫 安全警告：禁止在系统目录 '{sensitive}' 中创建文件"
 
-        # 检查目录是否存在
+        # 3. 检查目录是否存在
         if not output_dir.exists():
             return False, f"错误: 目录 {output_dir} 不存在"
 
-        # 检查是否为有效目录
+        # 4. 检查是否为有效目录
         if not output_dir.is_dir():
             return False, f"错误: {output_dir} 不是有效目录"
 
