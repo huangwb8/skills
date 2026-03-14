@@ -263,7 +263,7 @@ touch SKILL.md README.md config.yaml
 ## 更新
 
 ```
-/git-commit 。 创建新的tag； 然后 /git-publish-release 。 
+创建新的tag。 /git-commit 。 /git-publish-release 。 
 ```
 
 ## 许可证
