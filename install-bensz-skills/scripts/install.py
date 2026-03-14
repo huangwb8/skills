@@ -86,18 +86,31 @@ _IGNORE_DIR_NAMES = {
     "plans",
 }
 _IGNORE_FILE_NAMES = {".DS_Store"}
+_IGNORE_ROOT_FILE_NAMES = {"readme.md", "changelog.md"}
 _IGNORE_GLOBS = ("*.pyc", "*.pyo")
 
 
-def _ignore_patterns():
-    return shutil.ignore_patterns(
-        *_IGNORE_FILE_NAMES,
-        *_IGNORE_GLOBS,
-        *_IGNORE_DIR_NAMES,
-    )
+def _copytree_ignore(src_root: Path):
+    """Return a copytree ignore callback based on installable relative paths."""
+
+    def _ignore(current_dir: str, names: list[str]) -> list[str]:
+        current_path = Path(current_dir)
+        ignored: list[str] = []
+        for name in names:
+            try:
+                rel_path = (current_path / name).relative_to(src_root)
+            except ValueError:
+                continue
+            if _should_ignore_rel_path(rel_path):
+                ignored.append(name)
+        return ignored
+
+    return _ignore
 
 
 def _should_ignore_rel_path(rel_path: Path) -> bool:
+    if len(rel_path.parts) == 1 and rel_path.name.lower() in _IGNORE_ROOT_FILE_NAMES:
+        return True
     if any(part.startswith(".") for part in rel_path.parts):
         return True
     if any(part in _IGNORE_DIR_NAMES for part in rel_path.parts):
@@ -1200,7 +1213,13 @@ def _copy_fresh(src: Path, dest: Path, dry_run: bool, t: get_translator().__clas
     """
     if dry_run:
         return f"{t.get('dry_run_prefix')}install: {src} -> {dest}"
-    shutil.copytree(src, dest, symlinks=False, dirs_exist_ok=False, ignore=_ignore_patterns())
+    shutil.copytree(
+        src,
+        dest,
+        symlinks=False,
+        dirs_exist_ok=False,
+        ignore=_copytree_ignore(src),
+    )
     return t.installed(dest=dest)
 
 

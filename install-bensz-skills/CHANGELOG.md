@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Changed
+- 安装输出与 MD5 计算现在统一排除 skill 根目录下给人看的 `README.md` 与 `CHANGELOG.md`
+  - 修改 `scripts/install.py`：复制时不再把这两个文件安装到 `~/.codex/skills/` / `~/.claude/skills/`
+  - 修改 `scripts/install.py`：MD5 也不再受这两个文件变化影响，避免纯文档改动触发重装
+  - 更新 `SKILL.md` 与 `README.md` 说明，并将版本号更新至 0.4.3（见 `config.yaml`）
 - **install-bensz-skills 自身现在也会被安装**：不再硬编码排除自身，改为通过 SKILL.md 中的 `category` 字段控制
   - 修改 SKILL.md：`category` 从 `auxiliary` 改为 `normal`，说明"包括 install-bensz-skills 自身"
   - 修改 install.py：移除硬编码的 `auxiliary_patterns = {"install-bensz-skills"}` 逻辑
