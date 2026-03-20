@@ -570,6 +570,24 @@ def _format_remote_source_label(source_config: dict) -> str:
     return f"{name} (@{branch}:{skills_path})"
 
 
+def _resolve_remote_skills_root(repo_root: Path, skills_path: str | None) -> Path | None:
+    """解析远程仓库中的 skills 根目录。
+
+    优先使用配置中的 skills_path；如果该路径不存在，但仓库根目录本身
+    就是一个 skills 根目录，则回退到仓库根目录。
+    """
+    raw_path = (skills_path or "").strip()
+    requested_path = repo_root if raw_path in {"", "."} else (repo_root / raw_path)
+
+    if requested_path.exists() and _looks_like_skills_root(requested_path):
+        return requested_path
+
+    if repo_root != requested_path and _looks_like_skills_root(repo_root):
+        return repo_root
+
+    return None
+
+
 def _download_remote_source(
     source_config: dict,
     temp_dir: Path,
@@ -625,8 +643,9 @@ def _download_remote_source(
     print(t.remote_download_complete(name=name))
 
     # 返回技能目录路径
-    skills_dir = clone_dir / "repo" / skills_path
-    if not skills_dir.exists():
+    repo_root = clone_dir / "repo"
+    skills_dir = _resolve_remote_skills_root(repo_root, skills_path)
+    if skills_dir is None:
         print(t.remote_skills_path_missing(name=name, path=skills_path))
         return None
 

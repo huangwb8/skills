@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- 修复 `general` 远程源的一键安装失败问题：当前仓库根目录本身就是 skills 根目录，不应再配置为 `skills_path: "skills"`
+  - 修改 `config.yaml`：将 `general` 源的 `skills_path` 更新为 `.`
+  - 修改 `scripts/install.py`：新增远程 skills 根目录解析回退逻辑；当配置路径不存在但仓库根目录本身就是 skills 根目录时，自动回退到仓库根目录
+  - 新增 `tests/test_install.py`：覆盖远程子目录优先与仓库根目录回退两种场景
+  - 更新版本号至 0.4.4（见 `config.yaml`）
+
 ### Changed
 - 安装输出与 MD5 计算现在统一排除 skill 根目录下给人看的 `README.md` 与 `CHANGELOG.md`
   - 修改 `scripts/install.py`：复制时不再把这两个文件安装到 `~/.codex/skills/` / `~/.claude/skills/`

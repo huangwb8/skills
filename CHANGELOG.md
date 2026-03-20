@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed
 - 修复 init-project 技能配置与脚本兼容性问题
+- 修复 `install-bensz-skills` 远程安装对“仓库根目录即 skills 根目录”布局的兼容性问题
+  - 安装器现在会在 `skills_path` 缺失时自动回退并识别仓库根目录
+  - 修正 `general` 远程源配置为 `skills_path: "."`，恢复 `@install` 默认远程安装链路
 
 ## [0.1.0] - 2025-01-25
 

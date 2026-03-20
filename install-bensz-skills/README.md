@@ -196,7 +196,7 @@ remote_sources:
     name: "通用技能"
     url: "https://github.com/huangwb8/skills"
     branch: "main"
-    skills_path: "skills"
+    skills_path: "."
     description: "通用技能，建议所有用户安装"
     recommended: true
 
@@ -218,6 +218,8 @@ remote_sources:
 | `url` | Git 仓库 URL | ✅ 必需 |
 | `branch` | 分支名称（默认 `main`） | ❌ 可选 |
 | `skills_path` | 技能目录相对于仓库根目录的路径 | ✅ 必需 |
+
+对于像 `huangwb8/skills` 这种“仓库根目录本身就是 skills 根目录”的仓库，`skills_path` 应写为 `.`。
 | `description` | 源描述（用于提示用户） | ❌ 可选 |
 | `recommended` | 是否推荐安装（影响默认提示行为） | ❌ 可选 |
 
