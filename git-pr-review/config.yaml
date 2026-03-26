@@ -1,0 +1,143 @@
+# git-pr-review 配置文件
+
+skill_info:
+  name: "git-pr-review"
+  version: "0.5.3"
+  description: "只读审查 GitHub Pull Request：理解其问题背景、方案优劣、恶意/安全风险与是否符合社区好 PR 标准，并输出是否建议 merge 的 Markdown 报告。"
+  author: "Bensz Conan"
+  category: "git-security-review"
+
+directories:
+  default_workspace: ".git-pr-review"
+  run_prefix: "run_"
+  raw: "raw"
+  notes: "notes"
+  evidence: "evidence"
+  logs: "logs"
+
+files:
+  manifest_name: "manifest.json"
+  raw_readme: "README.md"
+  user_context_note: "user_context.md"
+  community_note: "community_good_pr.md"
+  license_review_note: "license_review.md"
+  key_findings_note: "key_findings.md"
+  missing_items_note: "missing_items.md"
+
+dependencies:
+  parallel_vibe_script: "../parallel-vibe/scripts/parallel_vibe.py"
+
+output:
+  report_prefix: "Git-PR-Review"
+  report_extension: ".md"
+  default_report_dir: "."
+  timestamp_format: "%Y%m%d%H%M%S"
+  enforce_hidden_workspace_when_default: true
+  required_sections:
+    - "## 结论摘要"
+    - "## 独立评审综合结果"
+    - "## PR 在解决什么问题"
+    - "## 方案分析"
+    - "## 恶意/安全风险审查"
+    - "## License / 合规审查"
+    - "## 与“好 PR”社区标准的对照"
+    - "## 关键证据"
+    - "## 证据不足与待确认点"
+    - "## 建议的处理方式"
+
+parallel_review:
+  enabled: true
+  default_review_count: 5
+  min_review_count: 1
+  max_review_count: 9
+  thread_id_width: 3
+  workspace_dir: "parallel_review"
+  input_snapshot_dir: "input_snapshot"
+  parallel_out_dir: "parallel_runs"
+  plan_filename: "parallel_plan.json"
+  plan_markdown: "parallel_plan.md"
+  job_manifest_name: "parallel_review_job.json"
+  aggregate_markdown: "independent_review_summary.md"
+  aggregate_json: "independent_review_summary.json"
+  result_filename: "RESULT.md"
+  confidence_levels:
+    - "High"
+    - "Medium"
+    - "Low"
+  required_result_sections:
+    - "# Independent PR Review"
+    - "## Final Call"
+    - "## Problem Understanding"
+    - "## Strengths"
+    - "## Limitations"
+    - "## Security Review"
+    - "## License Review"
+    - "## Good PR Criteria Comparison"
+    - "## Key Evidence"
+    - "## Evidence Gaps"
+    - "## Suggested Disposition"
+  review_runner:
+    type: "claude"
+    profile: "deep"
+  synthesis:
+    enabled: false
+    runner:
+      type: "claude"
+      profile: "deep"
+  review_focuses:
+    - "整体问题理解与 merge 决策"
+    - "恶意/安全风险与供应链风险"
+    - "许可证兼容性、copyleft 风险与第三方归属"
+    - "可维护性、回滚性与作用域漂移"
+    - "测试、验证证据与 CI 信号"
+    - "社区好 PR 标准与 reviewer 体验"
+
+inputs:
+  required:
+    - github_repo
+    - github_pr
+  optional:
+    - extra_instructions
+    - review_count
+    - workspace_dir
+    - report_dir
+
+review_policy:
+  review_mode: "read_only"
+  bundled_good_pr_reference_required: true
+  online_refresh_for_good_pr: "explicit_or_insufficient"
+  min_external_sources: 2
+  min_official_or_maintainer_sources: 1
+  final_recommendations:
+    - "Merge"
+    - "Merge after fixes"
+    - "Request changes"
+    - "Do not merge"
+    - "Escalate security review"
+  risk_levels:
+    - "Low"
+    - "Medium"
+    - "High"
+    - "Critical"
+
+security_checks:
+  categories:
+    - "credential_exposure"
+    - "remote_execution_or_download"
+    - "permission_or_ci_change"
+    - "data_destruction_or_disable_guardrail"
+    - "obfuscation_or_hidden_payload"
+    - "scope_drift_or_social_engineering"
+
+read_only_sources:
+  preferred:
+    - "GitHub web pages"
+    - "GitHub API / .diff / .patch"
+    - "gh pr view"
+    - "gh pr diff"
+    - "gh api"
+  forbidden:
+    - "gh pr checkout"
+    - "execute PR branch code"
+    - "install PR-introduced dependencies"
+    - "merge / approve / rebase / squash"

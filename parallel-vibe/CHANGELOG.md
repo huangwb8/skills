@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- `parallel-vibe/README.md`：按 `write-skill-readme` 风格重构为面向使用者的指南，突出 Prompt 触发路径；新增 `thread` 数、`runner` 进程数、`max_parallel` 与 `synthesize` 的关系说明，明确“总调用次数”与“同时运行中的独立进程数”的区别，并移除对普通使用者无价值的硬编码使用细节
+- `parallel-vibe/README.md`：进一步收敛为以 `thread` 为中心的用户表述，弱化 `runner` 这一底层实现概念；把用户决策重点统一到 `thread` 数、`max_parallel` 与 `synthesize`
+
 ## [0.3.1] - 2026-02-27
 
 ### Fixed（修复）

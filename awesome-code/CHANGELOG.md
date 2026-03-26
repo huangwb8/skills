@@ -5,6 +5,22 @@ All notable changes to the `awesome-code` skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-03-18
+
+### Added（新增）
+- 在 `config.yaml` 中新增 `multi_agent.frontend_design_keywords`，把前端/UI 设计路由词集中到配置管理
+- 在 `config.yaml` 中新增 `multi_agent.frontend_design_companion_agents`，明确前端设计任务的默认陪跑代理
+
+### Changed（变更）
+- `agents/frontend-specialist/SKILL.md` 补充设计优先工作流、审美护栏、反模式清单与 design-to-code 口径，前端子代理从“能实现”升级为“先定方向再落地”
+- `agents/brainstorming/SKILL.md` 新增“自主模式/静默设计简报”，当用户明确要求自主推进时不再把追问流程变成阻塞
+- `scripts/agent_coordinator.py` 扩充 `frontend-specialist` 的 UI 设计关键词，并支持从 `config.yaml` 追加前端设计关键词/陪跑代理；前端设计任务会自动补齐 `brainstorming`，同时压制“登录页 UI”误命中调试/后端代理的问题
+- `SKILL.md` 与 `README.md` 明确前端/UI 任务的推荐编排口径：优先组合 `brainstorming + frontend-specialist`
+- 版本号从 `2.4.1` 升级到 `2.5.0`
+
+### Fixed（修复）
+- 修复 `pyproject.toml` 中一行缺少注释符号导致 `pytest` 无法解析配置文件的问题
+
 ## [2.4.1] - 2026-01-23
 
 ### Added（新增）

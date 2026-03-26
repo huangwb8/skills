@@ -1,8 +1,8 @@
 ---
 name: frontend-specialist
-description: 前端开发专家。精通 React/Vue/Next.js/Nuxt 等现代前端框架，专注于组件化开发、状态管理、响应式设计、性能优化和用户体验。用于前端应用开发、组件设计和 UI/UX 实现。
+description: 前端开发专家。精通 React/Vue/Next.js/Nuxt 等现代前端框架，专注于视觉系统、组件化开发、响应式设计、性能优化和用户体验。用于前端应用开发、UI 设计落地、设计系统实现和高质量界面交付。
 metadata:
-  short-description: 前端开发与组件设计
+  short-description: 前端设计与组件实现
   keywords:
     - frontend-specialist
     - 前端开发
@@ -27,11 +27,12 @@ metadata:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  组件化 → 状态管理 → 性能优化 → 用户体验               │
+│  视觉方向 → 组件化 → 状态管理 → 性能优化 → 用户体验    │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **核心原则**：
+- ✅ **设计先行**
 - ✅ **组件化设计**
 - ✅ **声明式编程**
 - ✅ **性能优先**
@@ -46,9 +47,40 @@ metadata:
 - 开发前端应用或组件
 - 提到 React、Vue、Next.js、Nuxt.js
 - 需要 UI/UX 实现
+- 需要视觉重设计、设计系统、仪表盘、落地页或品牌化界面
 - 前端性能优化
 - 状态管理问题
 - 响应式布局
+
+---
+
+## 设计优先工作流
+
+在开始编码前，先完成一个最小设计 brief：
+
+1. **Purpose**：这个页面/组件解决什么业务问题，服务谁
+2. **Constraints**：沿用什么技术栈、设计系统、性能与无障碍约束
+3. **Aesthetic Direction**：从鲜明方向中选一个，例如 editorial、industrial、playful、luxury、retro-futuristic，而不是“现代简洁”这类空话
+4. **Memorable Differentiator**：定义一个最值得被记住的视觉记忆点
+5. **Implementation Guardrails**：把视觉判断翻译成字体、色彩 token、空间节奏、背景层次和动效策略
+
+如果项目已经有设计系统，优先继承并增强它；不要为了“更好看”而推翻既有语言。
+
+## 前端审美护栏
+
+- **Typography**：选择有性格的标题字体与稳健的正文字体，建立清晰层级，避免默认系统字体堆叠
+- **Color System**：使用 CSS variables 或 design tokens 管理颜色、层级、阴影和边框，不靠零散硬编码堆样式
+- **Motion**：优先少量高影响动画；HTML/CSS 场景优先 CSS-only，React 只在真正有价值的时刻使用 Motion 类库
+- **Spatial Composition**：允许非对称、重叠、密度变化和有意的留白，避免所有界面都退化成均匀卡片墙
+- **Background & Atmosphere**：通过纹理、渐变网格、图形语言、边框或光影建立氛围，不用纯平底色兜底
+
+## 反模式清单
+
+- 避免 Inter、Arial、Roboto、system font 一把梭
+- 避免紫白渐变、玻璃卡片、大圆角的模板化组合
+- 避免无上下文地拼装 shadcn/ui 式组件陈列
+- 避免所有页面都长成居中 hero + 三列卡片 + 底部 CTA
+- 避免极简主题写成花哨实现，或高表现力主题只有普通卡片
 
 ---
 
@@ -441,11 +473,14 @@ describe('Counter', () => {
 
 ## 最佳实践清单
 
+- [ ] 先完成 purpose / constraints / aesthetic direction / differentiator
 - [ ] 组件职责单一
 - [ ] Props 接口清晰
 - [ ] 使用 TypeScript 类型
 - [ ] 合理拆分组件
 - [ ] 状态分类管理
+- [ ] 颜色、阴影、间距、圆角通过 tokens 统一管理
+- [ ] 动效数量克制且有明确叙事作用
 - [ ] 性能优化（懒加载、缓存）
 - [ ] 响应式设计
 - [ ] 无障碍访问（ARIA）
@@ -459,3 +494,4 @@ describe('Counter', () => {
 - [React Best Practices](https://react.dev/learn)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Vue 3 Guide](https://vuejs.org/guide/)
+- [OpenAI Frontend Design Guide](https://docs.openai.com/codex/guides/frontend)

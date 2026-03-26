@@ -30,7 +30,7 @@
 **开发者推荐 Prompt**：
 
 ```
-使用 auto-test-skill 对 xxx 这个skill进行1个A轮迭代优化。
+使用 auto-test-skill 对 xxx 这个skill进行1次迭代优化。
 ```
 
 补充要求（推荐）：每轮 A 轮为**独立评估**（不查看上一轮 `plans/`/`tests/`），并明确本轮审查范围与排除范围。

@@ -1,240 +1,176 @@
 # parallel-vibe — 用户使用指南
 
-本 README 面向**使用者**：如何触发并正确使用 `parallel-vibe` skill。
-执行规范见 `SKILL.md`；默认参数见 `config.yaml`。
+本 README 面向使用者：告诉你什么时候该用 `parallel-vibe`，以及怎样把 `thread` 数、并发上限和最终汇总说清楚。执行规范在 `SKILL.md`，默认配置在 `config.yaml`。
 
 ## 这是什么
 
-把同一条用户指令拆成多个独立 thread（任务视角），在多个**独立工作区**中执行，最后统一落盘并汇总结果。
+`parallel-vibe` 用来把同一条 Vibe Coding 指令拆成多个彼此隔离的尝试路径：
 
-**核心价值**：
-- 每个 thread 启动独立 runner 进程（如 `codex exec` / `claude -p`）
-- 独立工作区隔离，避免交叉污染
-- 默认串行执行（省资源、减少 API 限流）
-- 支持自定义 runner / 模型 / 提示词
+- 每个 `thread` 都有自己的独立工作区
+- 最终会把各条路径的结果汇总到 `.parallel_vibe/<project_id>/@main/summary.md`
 
-**适用场景**：
-- 多方案并行尝试，对比不同实现路径
-- 同一任务用不同模型/角色独立执行
-- 多工作区隔离开发
-
-**不适用场景**：
-- 只是想并行跑 shell 命令/单元测试/下载任务（应直接用并发工具或 CI）
-- 没有明确"多工作区并行尝试/多方案对比"的意图
-- 要求强安全隔离或处理高度敏感数据（应使用容器/沙箱方案）
+它适合“同一任务想并行试多种方案”的场景，不适合普通 shell 并发、批量下载、CI 跑测试这类任务。
 
 ## 快速开始
 
-### 最推荐：默认 5 threads
+推荐直接用 Prompt 触发，不需要关心脚本入口或硬编码命令。
 
-```
-用 parallel-vibe 把这个功能实现出来，并给出最小验证步骤
-```
+最小可用写法：
 
-或在目标项目根目录执行：
-
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --prompt "把这个功能实现出来，并给出最小验证步骤"
+```text
+请使用 parallel-vibe skill 并行尝试完成这项任务。
+输入：当前工作目录代码 + 我的需求描述
+输出：多个独立 thread 的结果，以及最终汇总结论
 ```
 
-### 查看结果
+如果你想明确控制规模，可以直接把要求说出来：
 
-执行后结果目录会打印到 stdout，例如：
-
+```text
+请使用 parallel-vibe skill 处理这个任务。
+输入：当前项目 + 需求说明
+输出：6 个独立 thread 的尝试结果和最终汇总
+另外，还有下列参数约束：
+- 用 6 个 thread
+- 开启并行
+- 并发上限为 2
+- 保留每个 thread 的独立结果，最后再做一次总汇总
 ```
-.parallel_vibe/<project_id>/
-```
 
-**优先查看**：`.parallel_vibe/<project_id>/@main/summary.md`
+## 先搞懂三个量
 
-## 使用场景
+这是使用 `parallel-vibe` 时最重要的部分。
 
-| 你的需求 | 推荐用法 | 说明 |
+| 名称 | 你可以怎样理解 | 直接影响什么 |
+|------|----------------|-------------|
+| `thread` 数 | 你要拆成多少条独立尝试路径 | 独立工作区数量、thread 级结果数量 |
+| `max_parallel` | 允许同时推进多少个 `thread` | 同一时刻的并发执行数量 |
+| `synthesize` | threads 结束后是否再做一次统一汇总 | 是否自动生成最终结论 |
+
+### 核心关系
+
+- 1 个 `thread` = 1 份独立工作区
+- `thread` 数决定总共要尝试多少条路径
+- `max_parallel` 决定这些路径会同时推进几条
+
+### 你真正需要关心的公式
+
+| 你设置的东西 | 结果 |
+|-------------|------|
+| `thread` 数 = `n` | 会创建 `n` 个独立工作区，并做 `n` 条独立尝试 |
+| 默认串行 | 同时最多只有 `1` 个 `thread` 在执行 |
+| 开启并行，`max_parallel = m` | 同时最多有 `min(n, m)` 个 `thread` 在执行 |
+| 开启 `synthesize` | 在所有 `thread` 跑完后，额外生成 1 份统一汇总 |
+
+### 最容易误解的一点
+
+如果你设置了 `6` 个 `thread`，并不代表会一直有 `6` 条路径同时推进。
+
+- 串行模式：总共会做 `6` 条尝试，但同一时刻只推进 `1` 条
+- 并行模式且 `max_parallel=2`：总共会做 `6` 条尝试，但同一时刻最多推进 `2` 条
+- 如果还开启了 `synthesize`：全部 `thread` 结束后，还会额外生成 `1` 份总汇总
+
+所以更准确地说：
+
+- `thread` 数决定“要做多少次独立尝试”
+- `max_parallel` 决定“同时会有多少条尝试路径正在进行”
+- `synthesize` 决定“最后是否再额外补 1 次汇总执行”
+
+## 什么时候怎么设
+
+| 你的需求 | 推荐设置 | 原因 |
 |---------|---------|------|
-| 默认多方案尝试 | 不指定参数 | 自动拆分为规划/实现/测试/审查等 5 个 thread |
-| 用户明确要求并行 | `--parallel --max-parallel 3` | 同时运行多个 thread |
-| 先生成计划再调整 | `--plan-only` | 只生成 plan.json，不执行 |
-| 精细控制每个 thread | 编辑 plan.json 后 `--resume` | 自定义 runner/模型/提示词 |
-| 避免污染当前目录 | `--src-dir` / `--out-dir` | 指定源目录和输出根目录 |
+| 先稳妥试一轮 | `5` 个 `thread`，默认串行 | 成本更稳，适合先看方案质量 |
+| 想控制资源占用 | 降低 `thread` 数，或保持串行 | 独立工作区、调用次数和等待压力都会更少 |
+| 想缩短等待时间 | 开启并行，并设置合适的 `max_parallel` | 能提高同时推进的 thread 数 |
+| 想保留多方案，再统一结论 | 保持 `synthesize` 开启 | 会在最后多做一次汇总 |
+| 只想先看拆分计划 | 让它先只生成计划，不执行 threads | 适合先审题、再决定是否开跑 |
 
-## 推荐用法
+## 常见使用场景
 
-### 默认 5 threads（推荐）
+### 场景 1：同一功能试多个实现方向
 
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --prompt "..."
+```text
+请使用 parallel-vibe skill，为这个功能提供 4 个独立 thread 的实现尝试。
+每个 thread 都要在独立工作区完成，并给出最小验证步骤。
+最后输出统一汇总，说明哪条路线最值得继续推进。
 ```
 
-默认按 5 个 thread 生成"规划/实现/实现B/测试/审查"拆分计划并执行。
+### 场景 2：我要更多独立方案，但不想一下子跑太多进程
 
-### 用户明确要求并行时再开启
-
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --prompt "..." --parallel --max-parallel 3
+```text
+请使用 parallel-vibe skill 处理这个重构任务。
+要求拆成 6 个 thread，但保持并发上限为 2。
+我要看到每个 thread 的结果，并最终汇总推荐方案。
 ```
 
-说明：默认串行执行（避免资源争抢和 API 限流），只有用户明确要求时才并行。
+### 场景 3：先只生成计划
 
-### 先生成计划，再手动调整
-
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --prompt "..." --plan-only
+```text
+请使用 parallel-vibe skill 先为这个任务生成并行计划。
+暂时不要执行 threads，只输出计划和建议的 thread 拆分方式。
 ```
 
-然后编辑：
+## 输出结果怎么看
 
-```
-.parallel_vibe/<project_id>/@main/plan.json
-```
+执行后你最该先看的是：
 
-再用同一个 `project_id` 续跑（复用 project 目录；每次运行仍会重建各 thread/workspace）：
+- `.parallel_vibe/<project_id>/@main/summary.md`
 
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --prompt "..." --project-id <32位md5> --resume
-```
+如果你要看某个独立尝试路径，再看：
 
-### 使用外部计划文件
+- `.parallel_vibe/<project_id>/<thread_id>/RESULT.md`
+- `.parallel_vibe/<project_id>/<thread_id>/workspace/`
 
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py --plan-file /path/to/plan.json --src-dir . --out-dir .
-```
+只有当你要排查某条路径为什么失败，才需要再看：
 
-### 自定义 src/out（避免污染当前目录）
+- `.parallel_vibe/<project_id>/<thread_id>/runner.log`
 
-```bash
-python3 parallel-vibe/scripts/parallel_vibe.py \
-  --prompt "..." \
-  --src-dir /path/to/your/project \
-  --out-dir /path/to/output/root
-```
+## 关键配置项
 
-## 产物结构
+你不需要背参数名，但知道它们的语义会很有帮助。
 
-`.parallel_vibe/{project_id}/` 结构：
+| 配置项 | 作用 | 对使用体验的影响 |
+|-------|------|---------------|
+| `n_threads` | 默认 `thread` 数 | 决定总共会创建多少条独立尝试路径 |
+| `execution` | 默认串行还是并行 | 决定默认是一条条跑，还是允许多条同时推进 |
+| `max_parallel` | 并行上限 | 决定同时最多推进多少个 `thread` |
+| `synthesize` | 是否做最终 AI 汇总 | 决定最后是否自动补一份统一结论 |
 
-```
-.parallel_vibe/{project_id}/
-├── 001/
-│   ├── workspace/           # thread 001 的独立工作区（从 --src-dir 复制）
-│   ├── prompt.txt           # 追加"软隔离护栏"后的完整提示词
-│   ├── thread.json          # 该 thread 的计划元数据（runner/model/title 等）
-│   ├── runner.log           # runner 的 stdout/stderr 合并日志
-│   ├── RESULT.md            # 优先从 workspace/RESULT.md 提取；缺失时用 runner.log 生成兜底结果（便于汇总与 synth）
-│   ├── exit_code.txt
-│   └── done.json
-├── 002/
-│   └── ...
-├── @main/
-│   ├── plan.json            # 机器可读执行计划（可编辑）
-│   ├── plan.md              # 人类可读计划
-│   ├── summary.md           # 汇总索引（始终生成）
-│   ├── synthesis_input.md   # synth 的输入（如启用 synth）
-│   ├── summary_ai.md        # synth 输出（如启用 synth）
-│   └── synthesis_meta.json  # synth 命令与元数据
-└── project.json
-```
+## FAQ
 
-## Runner 与模型配置
+### Q：`thread` 数和并发上限是两个独立参数吗？
 
-`parallel-vibe/config.yaml` 提供：
+是的，而且它们分别回答两个不同问题：
 
-- 默认线程数、串行/并行默认值
-- `codex` / `claude` CLI 命令与 `model_flag`
-- `cli.*.global_args / subcommand_args / profile_args`：把 `--help` 的参数口径固化为”可执行命令模板”
-- `models.*`（可选）：填入你本机可用的 `model_id`
+- 你设置 `thread` 数，本质上是在决定要做多少条独立尝试
+- 你设置 `max_parallel`，本质上是在决定这些尝试里，最多有多少条可以同时推进
 
-**claude 默认 global_args 说明**：
+### Q：我设了 `8` 个 `thread`，是不是就会同时跑 `8` 个进程？
 
-| 标志 | 作用 |
-|------|------|
-| `--dangerously-skip-permissions` | 绕过工具调用权限确认，防止 `-p` 模式下 thread 阻塞（对应 codex 的 `--ask-for-approval never`） |
-| `--no-session-persistence` | 不把 thread 运行写入会话历史，避免污染（仅在 `--print` 模式下生效） |
+不一定。
 
-**plan.json 中每个 thread 的 runner 支持**：
+- 串行模式：同时只跑 `1` 个
+- 并行模式：同时最多跑 `min(8, max_parallel)` 个
 
-| 字段 | 说明 |
-|------|------|
-| `type` | `codex` / `claude` / `shell` / `local` |
-| `profile` | `fast` / `deep` / `default`（用于从 config.yaml 解析真实 model_id） |
-| `model` | 显式 model_id（如填写，会覆盖 profile 解析结果） |
-| `args` | 全局参数（放在子命令前；适合 `codex -c ...`、`claude --effort ...`） |
-| `sub_args` | 子命令参数（放在子命令后、prompt 前；适合 `codex exec --some-flag ...`） |
+### Q：`synthesize` 会不会让并发峰值再多 `1`？
 
-**推荐路由**（默认策略）：
+通常不会。它是在所有 thread 完成后再单独执行一次汇总，所以会增加总调用次数，但不会把 thread 阶段的并发峰值再往上叠。
 
-| Runner | 适用任务 |
-|--------|---------|
-| `claude` | 规划/审查/风险与边界（强推理、强约束） |
-| `codex` | 实现/修改/测试与验证（代码落地） |
+### Q：什么时候应该少开几个 `thread`？
 
-注意：不同机器/账号可用的模型与 CLI 参数可能不同；建议先保持 `models.*` 为空，确认 CLI 可用后再填写。
+当你的仓库很大、复制工作区成本高，或者你担心模型调用成本、磁盘占用、等待时间时，就应该先减少 `thread` 数，必要时保持串行。
 
-## 常见问题
+### Q：我需要关心脚本入口或底层执行细节吗？
 
-### Q：什么时候用 parallel-vibe？
+一般不需要。对普通使用者来说，直接通过 Prompt 描述：
 
-当你需要"多方案并行尝试"或"多工作区隔离开发"时使用。例如：
-- 同一功能用不同技术栈实现，对比效果
-- 同一任务让不同角色（规划/实现/测试/审查）独立完成
+- 要拆成几个 `thread`
+- 是否开启并行
+- 并发上限是多少
+- 是否需要最终汇总
 
-### Q：默认为什么是串行？
-
-串行执行可以省资源、减少 API 限流风险。只有当你明确要求"并行"时才开启并行模式。
-
-### Q：大仓库复制很慢怎么办？
-
-`parallel-vibe` 会为每个 thread 复制一份 `workspace/`，因此大仓库会有明显的磁盘/IO 成本。建议：
-
-- 把 `--src-dir` 指向“最小必要子目录”（而不是整个 monorepo）
-- 视情况扩展 `--copy-exclude`（默认值见 `config.yaml:defaults.copy_exclude`）
-- 先用默认串行与较少 threads 验证思路，再按需加并发/加 thread
-
-### Q：如何查看每个 thread 的结果？
-
-查看 `.parallel_vibe/{project_id}/{thread_id}/RESULT.md`，或直接进入 `workspace/` 目录查看产物。
-
-### Q：如何清理生成的目录？
-
-在触发目录执行：
-
-```bash
-rm -rf .parallel_vibe
-```
-
-### Q：thread 执行失败怎么办？
-
-查看 `runner.log` 和 `exit_code.txt` 了解失败原因。可以修改 `plan.json` 后用 `--resume` 续跑。
-
-## 工作区隔离护栏（操作规范；非强安全边界）
-
-当你在某个 thread 的 `workspace/` 内工作时：
-
-- 只允许读写当前 `workspace/` 及其子目录
-- 禁止访问父目录（`..`）与任何绝对路径写入
-- 禁止读取/写入其他 thread 目录
-- 产物必须落盘到当前 `workspace/`
-
-说明：这是一种“工程隔离”（减少文件互相覆盖与相对路径污染），不是容器/沙箱级强安全隔离。默认拒绝 `--src-dir` 中的 symlink（可用 `--symlink-policy skip|keep` 覆盖，但存在越界风险）；不要把包含敏感文件（如 `.env`、SSH key）的目录作为 `--src-dir`。如计划使用 `runner.type=shell`，它会执行任意命令模板，仅对受信任 plan 使用。
-
-## 清理
-
-在触发目录执行：
-
-```bash
-rm -rf .parallel_vibe
-```
-
-## 配置说明
-
-配置文件位于 `config.yaml`：
-
-- `defaults.n_threads`：默认线程数
-- `defaults.execution`：串行/并行默认值
-- `defaults.symlink_policy`：`--src-dir` 下遇到 symlink 的处理策略（默认拒绝）
-- `defaults.copy_exclude`：复制到各 thread/workspace 时的默认排除项（减少缓存/构建产物带来的成本与噪声）
-- `cli`：codex/claude CLI 命令配置
-- `models`：模型 ID 映射（可选）
+就够了。底层执行细节可以留给 `SKILL.md`、`config.yaml` 和 `scripts/`。
 
 ---
 
-版本信息见 `config.yaml:skill_info.version`。
+版本信息见 `config.yaml` 中的 `skill_info.version`。

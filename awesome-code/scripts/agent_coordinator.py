@@ -28,6 +28,13 @@ STOPWORDS = {
     "需要", "请", "帮我", "进行", "实现", "修复", "优化",
 }
 
+AMBIGUOUS_AUTH_KEYWORDS = {"login", "登录"}
+FRONTEND_DESIGN_SIGNAL_KEYWORDS = {
+    "frontend", "ui", "前端", "界面", "dashboard", "landing", "visual", "aesthetic",
+    "layout", "motion", "animation", "typography", "design", "设计", "视觉", "审美",
+    "布局", "排版", "动效", "动画", "仪表盘", "落地页",
+}
+
 
 class AgentRole(Enum):
     """Agent roles and their specializations"""
@@ -65,7 +72,7 @@ AGENT_REGISTRY: Dict[AgentRole, AgentCapability] = {
         role=AgentRole.TDD_WORKFLOW,
         name="TDD Workflow",
         description="Test-driven development workflow expert",
-        keywords=["tdd", "test", "testing", "unit test", "test coverage", "测试", "单测", "覆盖率", "回归"],
+        keywords=["tdd", "test", "tests", "testing", "unit test", "test coverage", "测试", "单测", "覆盖率", "回归"],
         priority=8
     ),
     AgentRole.SYSTEMATIC_DEBUGGING: AgentCapability(
@@ -93,7 +100,13 @@ AGENT_REGISTRY: Dict[AgentRole, AgentCapability] = {
         role=AgentRole.FRONTEND_SPECIALIST,
         name="Frontend Specialist",
         description="Frontend development expert",
-        keywords=["frontend", "react", "vue", "ui", "css", "html", "前端", "界面", "组件"],
+        keywords=[
+            "frontend", "react", "vue", "ui", "css", "html", "dashboard", "landing",
+            "layout", "responsive", "animation", "motion", "theme", "typography",
+            "visual", "aesthetic", "design-system", "prototype", "wireframe",
+            "前端", "界面", "组件", "视觉", "审美", "布局", "排版", "动效", "动画",
+            "响应式", "仪表盘", "落地页", "设计系统",
+        ],
         priority=7
     ),
     AgentRole.BACKEND_SPECIALIST: AgentCapability(
@@ -304,6 +317,35 @@ class AgentCoordinator:
         enabled_set = set(enabled) if isinstance(enabled, list) else None
         priorities = get_nested(config, "multi_agent", "agent_priorities", default={})
         priorities = priorities if isinstance(priorities, dict) else {}
+        frontend_design_keywords = get_nested(
+            config,
+            "multi_agent",
+            "frontend_design_keywords",
+            default=[],
+        )
+        if not isinstance(frontend_design_keywords, list):
+            frontend_design_keywords = []
+        self.frontend_design_keywords = [
+            str(keyword).lower()
+            for keyword in frontend_design_keywords
+            if str(keyword).strip()
+        ]
+        frontend_design_companion_agents = get_nested(
+            config,
+            "multi_agent",
+            "frontend_design_companion_agents",
+            default=["brainstorming"],
+        )
+        if not isinstance(frontend_design_companion_agents, list):
+            frontend_design_companion_agents = ["brainstorming"]
+        self.frontend_design_companion_roles = {
+            role
+            for role in (
+                self._coerce_agent_role(str(agent_name))
+                for agent_name in frontend_design_companion_agents
+            )
+            if role is not None
+        }
 
         self.registry: Dict[AgentRole, AgentCapability] = {}
         for role, cap in AGENT_REGISTRY.items():
@@ -318,7 +360,7 @@ class AgentCoordinator:
                 role=cap.role,
                 name=cap.name,
                 description=cap.description,
-                keywords=list(cap.keywords),
+                keywords=self._build_keywords(cap),
                 priority=override_pri_int,
             )
 
@@ -339,6 +381,66 @@ class AgentCoordinator:
 
         self.matcher = AgentMatcher(registry=self.registry)
 
+    def _build_keywords(self, capability: AgentCapability) -> List[str]:
+        """Merge base keywords with config-driven extensions."""
+        keywords = list(capability.keywords)
+        if capability.role == AgentRole.FRONTEND_SPECIALIST:
+            keywords.extend(self.frontend_design_keywords)
+        return keywords
+
+    def _coerce_agent_role(self, value: str) -> Optional[AgentRole]:
+        """Convert config values into known agent roles."""
+        try:
+            return AgentRole(value)
+        except ValueError:
+            return None
+
+    def _is_frontend_design_task(self, task_keywords: set[str]) -> bool:
+        """Detect UI tasks that need design-first routing."""
+        if task_keywords & FRONTEND_DESIGN_SIGNAL_KEYWORDS:
+            return True
+        return bool(task_keywords & set(self.frontend_design_keywords))
+
+    def _should_suppress_for_frontend_design(self, assignment: AgentAssignment) -> bool:
+        """Drop auth/debug false positives for visual frontend redesign tasks."""
+        if assignment.agent_role not in {AgentRole.SYSTEMATIC_DEBUGGING, AgentRole.BACKEND_SPECIALIST}:
+            return False
+        return bool(assignment.matched_keywords) and set(assignment.matched_keywords) <= AMBIGUOUS_AUTH_KEYWORDS
+
+    def _frontend_design_matches(self, task_keywords: set[str]) -> List[str]:
+        """Return readable matched keywords for promoted design companions."""
+        matches = sorted((task_keywords & set(self.frontend_design_keywords)) or (task_keywords & FRONTEND_DESIGN_SIGNAL_KEYWORDS))
+        return matches[:3]
+
+    def _ensure_frontend_design_companions(
+        self,
+        task: Task,
+        task_keywords: set[str],
+        assignments: List[AgentAssignment],
+    ) -> List[AgentAssignment]:
+        """Ensure design tasks keep the intended design-thinking companion agents."""
+        has_frontend = any(a.agent_role == AgentRole.FRONTEND_SPECIALIST for a in assignments)
+        if not has_frontend:
+            return assignments
+
+        assigned_roles = {a.agent_role for a in assignments}
+        frontend_confidence = max(
+            (a.confidence for a in assignments if a.agent_role == AgentRole.FRONTEND_SPECIALIST),
+            default=0.22,
+        )
+        for role in sorted(self.frontend_design_companion_roles, key=lambda item: item.value):
+            if role in assigned_roles or role not in self.registry:
+                continue
+            assignments.append(
+                AgentAssignment(
+                    agent_role=role,
+                    task=task,
+                    confidence=round(max(0.18, frontend_confidence - 0.06), 3),
+                    matched_keywords=self._frontend_design_matches(task_keywords),
+                )
+            )
+        return assignments
+
     def analyze_task(self, task: Task) -> Dict[str, Any]:
         """
         Analyze a task and recommend appropriate agents
@@ -351,6 +453,20 @@ class AgentCoordinator:
         """
         # Match agents to task
         assignments = self.matcher.match_agents(task)
+        extracted_keywords = self.matcher._extract_keywords(task.description)
+        task_keywords = set(str(k).lower() for k in (task.keywords or []))
+        task_keywords.update(extracted_keywords)
+
+        if self._is_frontend_design_task(task_keywords):
+            assignments = [
+                assignment
+                for assignment in assignments
+                if not self._should_suppress_for_frontend_design(assignment)
+            ]
+            assignments = self._ensure_frontend_design_companions(task, task_keywords, assignments)
+            assignments.sort(
+                key=lambda a: (-a.confidence, -self.registry[a.agent_role].priority, a.agent_role.value)
+            )
 
         # Filter to top agents
         top_assignments = assignments[:5] if len(assignments) > 5 else assignments
@@ -359,7 +475,7 @@ class AgentCoordinator:
         analysis = {
             "task": task.description,
             # Keep keyword list stable (dedup while preserving order).
-            "keywords": list(dict.fromkeys(task.keywords + self.matcher._extract_keywords(task.description))),
+            "keywords": list(dict.fromkeys(task.keywords + extracted_keywords)),
             "recommended_agents": [],
             "coordination_strategy": self._determine_strategy(top_assignments),
             "execution_plan": self._create_execution_plan(top_assignments)

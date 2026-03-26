@@ -41,6 +41,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - 多代理协调：对独立子任务并行，对有依赖的子任务顺序执行
 - 专业化分工：每个子代理专注一个领域，降低单模型的认知负担
 - 渐进式信息披露：只在需要时加载对应子代理的 `SKILL.md`
+- 前端设计优先：UI/UX 任务先定视觉方向、布局策略与设计护栏，再进入真实代码实现
 
 ## 代理团队（14 个子代理）
 
@@ -73,6 +74,14 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
    - 统一口径（术语/目标/约束）
    - 标注 P0/P1/P2 优先级
    - 给出可执行的下一步（含验证方式）
+
+## 前端/UI 特殊编排
+
+当任务涉及 UI、设计系统、仪表盘、落地页或界面重设计时，优先按以下口径协调：
+
+- `brainstorming`：负责风格方向、信息层级、交互概念；用户要求自主推进时，先内部完成静默设计简报，不把提问变成阻塞
+- `frontend-specialist`：负责把设计判断落成真实前端代码，包括 typography、color tokens、layout、background 与 motion 策略
+- 如任务进一步扩展到复杂多组件 artifact，可借鉴 `frontend-design` 的设计优先方法与 `web-artifacts-builder` 的工程化思路，但默认仍由现有代理团队完成
 
 最小示例：
 

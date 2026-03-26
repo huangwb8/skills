@@ -221,7 +221,7 @@ exclude = [
 mypy_path = "scripts"
 namespace_packages = true
 explicit_package_bases = false
- Honor .gitignore with respect to exclude
+# Honor .gitignore with respect to exclude
 ignore_missing_imports = true
 follow_imports = "normal"
 follow_imports_for_stubs = false
