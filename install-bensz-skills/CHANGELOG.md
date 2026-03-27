@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- 新增 `legacy_skill_names` 配置节，允许在 `config.yaml` 中声明已弃用的旧 skill 名称
+- 新增 `scripts/remove_legacy_skills.py`：可单独清理 Codex / Claude Code 系统级目录中的 legacy skill 目录
+- 新增 `tests/test_install.py` 覆盖 legacy skill 配置读取与安装前自动清理行为
+
+### Changed
+- 本地安装与远程安装现在都会在正式安装前自动清理 `legacy_skill_names` 中声明的旧 skill 目录，避免 skill 改名后旧目录残留在 `~/.codex/skills/` / `~/.claude/skills/`
+  - 修改 `scripts/install.py`：接入 legacy skill 清理逻辑，并对当前仍在安装清单中的同名目录做保护，避免误删
+  - 修改 `scripts/i18n.py`：新增 legacy skill 清理提示文案
+  - 修改 `SKILL.md` 与 `README.md`：补充 legacy 清理说明与独立脚本用法
+  - 修改 `config.yaml`：默认 legacy skill 名单更新为 `make_latex_model`、`transfer_old_latex_to_new`、`write-paper-sci`、`explain-figures`，并将版本号更新至 0.5.1
+- 安装器运行期工作目录从 `~/.install-bensz-skills/` 迁移到 `~/.bensz-skills/installation/`
+  - 修改 `scripts/install.py`：远程安装临时目录与 manifest 目录统一改为新的 bensz 根目录分层结构
+  - 修改 `SKILL.md`、`README.md`、`references/install-report-template.md`：同步更新目录说明与示例路径
+  - 修改 `config.yaml`：版本号更新至 0.4.5
+
 ### Fixed
 - 修复 `general` 远程源的一键安装失败问题：当前仓库根目录本身就是 skills 根目录，不应再配置为 `skills_path: "skills"`
   - 修改 `config.yaml`：将 `general` 源的 `skills_path` 更新为 `.`

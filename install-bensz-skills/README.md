@@ -28,6 +28,7 @@
 
 - 把 skill 复制安装到 `~/.codex/skills/` 和 `~/.claude/skills/`。
 - 用 MD5 判断哪些 skill 真正发生了变化，避免无意义重装。
+- 根据 `config.yaml` 中的 `legacy_skill_names` 自动清理已弃用的旧 skill 名称。
 - 支持本地仓库安装、远程 GitHub 安装、平台定向安装和 dry-run 预览。
 - 让 skill 的可发现性不再依赖“当前 workdir 恰好在这个仓库里”。
 - 不适合当作普通的 README 浏览器或项目构建工具使用。
@@ -68,6 +69,7 @@
 - 系统级 skill 副本，默认安装到：
   - `~/.codex/skills/`
   - `~/.claude/skills/`
+- 运行期工作目录统一放在 `~/.bensz-skills/installation/`，其中安装历史记录位于 `~/.bensz-skills/installation/manifests/`。
 - 安装过程中的更新、跳过和失败信息。
 - dry-run 模式下只打印动作，不写文件。
 - 远程安装时会创建并清理临时目录。
@@ -77,6 +79,7 @@
 - 配置文件：`install-bensz-skills/config.yaml`
 - 关键配置节：
   - `remote_sources`
+  - `legacy_skill_names`
 - 高频参数：
   - `--codex`
   - `--claude`
@@ -106,6 +109,14 @@ python3 install-bensz-skills/scripts/install.py --force
 python3 install-bensz-skills/scripts/install.py --source /path/to/skills
 ```
 
+### 仅清理 legacy skill 名称
+
+```bash
+python3 install-bensz-skills/scripts/remove_legacy_skills.py
+python3 install-bensz-skills/scripts/remove_legacy_skills.py --codex
+python3 install-bensz-skills/scripts/remove_legacy_skills.py --claude --dry-run
+```
+
 ### 远程安装
 
 ```bash
@@ -127,6 +138,10 @@ A：它可以先告诉你哪些 skill 会安装、更新或跳过，避免误操
 ### Q：远程安装和本地安装有什么区别？
 
 A：本地安装直接复制你当前仓库里的 skill；远程安装会先从配置里的 GitHub 源下载再安装。
+
+### Q：skill 改名后，为什么旧名字也会被清理？
+
+A：因为安装器现在会读取 `legacy_skill_names`，把这些已弃用目录从系统级 skills 目录里删掉，避免旧名继续误触发。
 
 ### Q：为什么不是软链接？
 

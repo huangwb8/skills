@@ -26,6 +26,12 @@ if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
 from i18n import get_translator
+from remove_legacy_skills import (
+    load_legacy_skill_names as _load_legacy_skill_names,
+    remove_legacy_skills as _remove_legacy_skills,
+)
+
+_INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 
 
 @dataclass(frozen=True)
@@ -75,6 +81,16 @@ def _is_symlink(path: Path) -> bool:
         return path.is_symlink()
     except OSError:
         return False
+
+
+def _get_installation_root() -> Path:
+    """返回 install-bensz-skills 的统一工作根目录。"""
+    return Path.home().joinpath(*_INSTALLATION_ROOT_PARTS)
+
+
+def _get_installation_root_label() -> str:
+    """返回相对用户主目录的工作根目录标签。"""
+    return str(Path(*_INSTALLATION_ROOT_PARTS))
 
 
 _IGNORE_DIR_NAMES = {
@@ -532,7 +548,7 @@ def _create_temp_dir() -> Path:
     Returns:
         临时目录路径
     """
-    temp_dir = Path.home() / ".install-bensz-skills" / "tmp-remote-install"
+    temp_dir = _get_installation_root() / "tmp-remote-install"
     if temp_dir.exists():
         shutil.rmtree(temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -815,6 +831,7 @@ def _install_remote_skills(
     target: Target,
     force: bool,
     source_label: str,
+    legacy_skill_names: list[str],
     t: get_translator().__class__,
 ) -> InstallReport:
     """安装远程技能。
@@ -839,6 +856,14 @@ def _install_remote_skills(
         process_messages.append(legacy_msg)
 
     target.root.mkdir(parents=True, exist_ok=True)
+    process_messages.extend(
+        _remove_legacy_skills(
+            target_root=target.root,
+            legacy_skill_names=legacy_skill_names,
+            dry_run=False,
+            active_skill_names={comparison.name for comparison in comparisons},
+        )
+    )
 
     for comparison in comparisons:
         if comparison.status == "unchanged" and not force:
@@ -895,6 +920,7 @@ def _remote_install_main(
     install_claude: bool,
     source_filter: list[str] | None = None,
     available_source_ids: list[str] | None = None,
+    legacy_skill_names: list[str] | None = None,
     t: get_translator().__class__,
 ) -> int:
     """远程安装主流程。
@@ -1021,6 +1047,7 @@ def _remote_install_main(
                     target,
                     force=auto_mode,
                     source_label=source_label,
+                    legacy_skill_names=legacy_skill_names,
                     t=t,
                 )
                 all_reports.append(report)
@@ -1266,6 +1293,7 @@ def _install_to_target(
     skill_dirs_by_type: dict[str, list[Path]],
     dry_run: bool,
     force: bool = False,
+    legacy_skill_names: list[str] | None = None,
     t: get_translator().__class__,
 ) -> InstallReport:
     """安装 skills 到指定目标，返回安装报告。
@@ -1293,6 +1321,15 @@ def _install_to_target(
     legacy_msg = _safe_remove_legacy_symlink(target.legacy_link, dry_run=dry_run, t=t)
     if legacy_msg:
         process_messages.append(legacy_msg)
+
+    process_messages.extend(
+        _remove_legacy_skills(
+            target_root=target.root,
+            legacy_skill_names=legacy_skill_names or [],
+            dry_run=dry_run,
+            active_skill_names={src_dir.name for src_dir in skill_dirs_by_type[SkillType.NORMAL]},
+        )
+    )
 
     if not dry_run:
         target.root.mkdir(parents=True, exist_ok=True)
@@ -1380,12 +1417,12 @@ def _install_to_target(
 def _get_manifest_dir() -> Path:
     """获取 manifest 文件的专用存储目录。
 
-    目录位置：~/.install-bensz-skills/manifests/
+    目录位置：~/.bensz-skills/installation/manifests/
 
     Returns:
         manifest 存储目录路径
     """
-    manifest_dir = Path.home() / ".install-bensz-skills" / "manifests"
+    manifest_dir = _get_installation_root() / "manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     return manifest_dir
 
@@ -1394,7 +1431,7 @@ def _migrate_old_manifests() -> list[str]:
     """迁移旧位置的 manifest 文件到新目录。
 
     旧位置：~/.bensz-skills-install-manifest.*.json
-    新位置：~/.install-bensz-skills/manifests/
+    新位置：~/.bensz-skills/installation/manifests/
 
     Returns:
         迁移的文件列表
@@ -1439,6 +1476,7 @@ def main(argv: list[str]) -> int:
     # 加载配置以获取可用的源 ID（用于动态添加 --<id> 参数）
     config_path = Path(__file__).parents[1] / "config.yaml"
     available_source_ids: list[str] = []
+    legacy_skill_names: list[str] = []
     if config_path.exists():
         try:
             import yaml
@@ -1446,6 +1484,7 @@ def main(argv: list[str]) -> int:
                 config = yaml.safe_load(f) or {}
             remote_sources = config.get("remote_sources", [])
             available_source_ids = [s.get("id", "") for s in remote_sources if s.get("id")]
+            legacy_skill_names = _load_legacy_skill_names(config_path)
         except Exception:
             pass  # 如果加载失败，跳过动态参数
 
@@ -1485,6 +1524,7 @@ def main(argv: list[str]) -> int:
             install_claude=install_claude,
             source_filter=selected_source_ids if selected_source_ids else None,
             available_source_ids=available_source_ids,
+            legacy_skill_names=legacy_skill_names,
             t=t,
         )
 
@@ -1588,6 +1628,7 @@ def main(argv: list[str]) -> int:
             skill_dirs_by_type=merged_skill_dirs_by_type,
             dry_run=args.dry_run,
             force=args.force,
+            legacy_skill_names=legacy_skill_names,
             t=t,
         )
         reports.append(report)
@@ -1651,7 +1692,7 @@ def main(argv: list[str]) -> int:
     # 迁移旧位置的 manifest 文件
     migrated_files = _migrate_old_manifests()
     if migrated_files:
-        print(f"📦 迁移旧 manifest 文件到 {'.install-bensz-skills/manifests/'}:")
+        print(f"📦 迁移旧 manifest 文件到 {_get_installation_root_label() + '/manifests/'}:")
         for migration in migrated_files:
             print(f"   • {migration}")
 

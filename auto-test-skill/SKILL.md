@@ -13,6 +13,13 @@ metadata:
 
 # auto-test-skill（批判性思维驱动的测试优化技能）
 
+## 与 bensz-collect-bugs 的协作约定
+
+- 当用户环境中出现因本 skill 设计缺陷导致的 bug 时，优先使用 `bensz-collect-bugs` 按规范记录到 `~/.bensz-skills/bugs/`，严禁直接修改用户本地 Claude Code / Codex 中已安装的 skill 源码。
+- 若 AI 仍可通过 workaround 继续完成用户任务，应先记录 bug，再继续完成当前任务。
+- 当用户明确要求“report bensz skills bugs”等公开上报动作时，调用本地 `gh` 与 `bensz-collect-bugs`，仅上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个 bug 仓库。
+
+
 ## 你要产出的东西
 
 本 skill 的交付不是“口头建议”，而是一组可追溯的文件：

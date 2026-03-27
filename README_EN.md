@@ -9,248 +9,144 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-<strong>Reusable Agent Skills Library following the Agent Skills Open Standard</strong>
+<strong>Reusable Agent Skills library and development pipeline built on the Agent Skills Open Standard</strong>
 
 </div>
 
-A unified skills development pipeline for AI agents, maintaining reusable **Agent Skills** conforming to the [Agent Skills Open Standard](https://agentskills.io) for seamless cross-platform compatibility. Skills are **write-once, run-anywhere** – working identically across Claude Code, OpenAI Codex, Cursor, and other compatible platforms.
+This repository is a skills library and development pipeline built around the Agent Skills Open Standard. It covers skill creation, testing, documentation, installation, release, and bug reporting. The repo contains both reusable production skills and the instructions, scripts, and workflows used to maintain them.
 
-## Highlights
+## 🎯 Who This Repository Is For
 
-- **🔄 Unified Skill Library** – Single codebase for multiple agent platforms
-- **📋 Open Standard** – Follows [agentskills.io](https://agentskills.io) specifications
-- **🚀 System-wide Installation** – Skills available in any project via installer
-- **🎯 Organic Updates** – Guided by SOLID, KISS, YAGNI, DRY principles
-- **📚 Progressive Disclosure** – Three-layer architecture: metadata → operations → knowledge
-- **🔍 Semantic Discovery** – Skills trigger based on natural language intent
+- People who want to install a set of skills system-wide and trigger them from any project
+- Maintainers who want to build, refine, test, and publish their own skills
+- Teams who want to reuse the engineering rules, documentation conventions, and quality workflow in this repo
+- Anyone building on the Agent Skills standard across Claude Code, Codex, Cursor, and related platforms
 
-## Platform Compatibility
+## 💡 Recommended Development Environment
 
-| Platform | Status | Install Path |
-|----------|--------|--------------|
-| [Claude Code](https://code.anthropic.com) | ✅ Native | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com/index/introducing-codex/) | ✅ Native | `~/.codex/skills/` |
-| Cursor | ✅ Compatible | `~/.cursor/skills/` |
-| GitHub | ✅ Compatible | `.github/skills/` |
-| VS Code | ✅ Compatible | `.vscode/skills/` |
+### 🧰 VS Code + Claude Code / Codex Extension
 
-## Recommended Development Environment
-
-### 💡 VS Code + Claude Code / Codex Extension
-
-For the best skill development experience, we recommend using **VS Code** with the **Claude Code** or **Codex** extension.
-
-**Why this combination?**
+We recommend using VS Code together with the Claude Code or Codex extension for skill development, testing, and maintenance.
 
 | Benefit | Description |
 |---------|-------------|
-| **🎯 Native Skill Integration** | Extensions load skills from `~/.claude/skills/` or `~/.codex/skills/` automatically |
-| **⚡ Real-time Validation** | Test skill triggers instantly with natural language prompts |
-| **🔍 Context-Aware Editing** | AI understands your project structure and applies organic update principles |
-| **🛠️ Integrated Workflow** | No context switching – edit, test, and iterate in one environment |
-| **📝 Smart Documentation** | AI helps maintain header-body alignment across SKILL.md, README.md, and config.yaml |
+| Native skill integration | Loads installed skills directly from system-level skill directories |
+| Real-time validation | Test skill triggering and execution with natural language prompts |
+| Context-aware editing | Lets the AI understand relationships across skills, scripts, and docs |
+| Integrated workflow | Edit, test, install, and iterate in one place |
+| Documentation maintenance | Makes it easier to keep `SKILL.md`, `README.md`, `config.yaml`, and `CHANGELOG.md` in sync |
 
 📺 [Watch Demo Video (Bilibili)](https://www.bilibili.com/video/BV1tpcezbERB)
 
-### AI Computing Power
+## ⚡ AI Compute
 
-📺 [Watch AI Computing Power Introduction (Bilibili)](https://www.bilibili.com/video/BV1a7ZLBuE5z)
+For background on AI compute and the broader setup around this repository, see:
 
-## Project Structure
+📺 [Watch AI Compute Overview (Bilibili)](https://www.bilibili.com/video/BV1a7ZLBuE5z)
 
-```
-skills/
-├── AGENTS.md              # Core project instructions (engineering principles)
-├── CLAUDE.md              # Claude Code specific configuration
-├── README.md              # 中文文档
-├── README_EN.md           # English documentation (this file)
-│
-├── init-project/          # Skill: Project documentation generator
-│   ├── SKILL.md          # Skill definition (AI-facing)
-│   ├── README.md         # User guide (human-facing)
-│   ├── config.yaml       # Configuration parameters
-│   ├── scripts/          # Automation scripts
-│   │   └── generate.py   # Generate AGENTS.md + CLAUDE.md
-│   └── templates/        # Document templates
-│
-├── install-bensz-skills/  # Skill: System-wide installer
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   ├── CHANGELOG.md      # Changelog
-│   └── scripts/          # Installation scripts
-│
-├── git-commit/            # Skill: Smart Git commits
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── scripts/          # Automation scripts
-│
-├── git-publish-release/   # Skill: GitHub release publisher
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── scripts/          # Automation scripts
-│
-├── auto-test-skill/       # Skill: Skill-level automated testing
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   ├── config.yaml       # Configuration parameters
-│   └── scripts/          # Testing scripts
-│
-├── auto-test-project/     # Skill: Project-level automated testing
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── config.yaml       # Configuration parameters
-│
-├── write-skill-readme/    # Skill: Skill documentation generator
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── config.yaml       # Configuration parameters
-│
-├── awesome-code/          # Skill: Multi-agent collaborative development
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── config.yaml       # Configuration parameters
-│
-├── better-prompt/         # Skill: Prompt optimization
-│   ├── SKILL.md          # Skill definition
-│   ├── README.md         # User guide
-│   └── config.yaml       # Configuration parameters
-│
-└── parallel-vibe/         # Skill: Parallel Vibe Coding
-    ├── SKILL.md          # Skill definition
-    ├── README.md         # User guide
-    └── config.yaml       # Configuration parameters
-```
+## 🧩 Core Skills
 
-## Quick Start
+There are 12 installable skills at the repository root:
 
-### 🚀 How to Install Skills in This Project
+| Skill | Primary purpose | Typical use case |
+|-------|------------------|------------------|
+| `init-project` | Initialize project instruction files | Generate `AGENTS.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, and related bootstrap docs |
+| `install-bensz-skills` | Install skills system-wide | Copy this repo's skills into `~/.codex/skills/` and `~/.claude/skills/` |
+| `write-skill-readme` | Generate user-facing skill docs | Produce a `README.md` for a skill |
+| `auto-test-skill` | Skill-level critical testing | Evaluate a skill's workflow, output quality, and robustness |
+| `auto-test-project` | Project-level critical testing | Review an entire project through repeated finding, fixing, and verification rounds |
+| `better-prompt` | Prompt optimization | Rewrite rough prompts into clearer, more executable versions |
+| `awesome-code` | Multi-agent collaborative development | Break down work and coordinate specialized agents in parallel |
+| `parallel-vibe` | Multi-workspace parallel exploration | Run the same instruction across isolated workspaces to compare solutions |
+| `git-commit` | Git commit automation | Generate conventional commits and optionally push automatically |
+| `git-pr-review` | Read-only GitHub PR review | Decide whether a PR is worth merging and generate a structured report |
+| `git-publish-release` | GitHub release publishing | Generate release notes and create GitHub releases |
+| `bensz-collect-bugs` | Collect and report skill-design bugs | Record skill design issues and, when explicitly requested, report them via `gh` |
 
-#### Method 1: One-click Installation (Recommended)
+For detailed usage, open the corresponding `README.md` and `SKILL.md` inside each skill directory.
 
-**No need to clone – install with a single command!**
+## ✨ Repository Capabilities
+
+- A standardized way to build Agent Skills for multiple platforms
+- A set of reusable general-purpose skills
+- A full maintenance chain covering creation, testing, documentation, installation, release, and bug reporting
+- A system-level installation model that improves discoverability across projects
+- Long-term engineering guardrails built around KISS, YAGNI, DRY, Single Source of Truth, and organic updates
+
+## 🌐 Platform Compatibility
+
+Based on this repository's conventions and the surrounding Agent Skills ecosystem, the primary compatible platforms include:
+
+| Platform | Status | Common skill directory |
+|----------|--------|------------------------|
+| [Claude Code](https://code.anthropic.com) | Verified | `~/.claude/skills/` |
+| [OpenAI Codex](https://openai.com/index/introducing-codex/) | Verified | `~/.codex/skills/` |
+| Cursor | Compatible | `~/.cursor/skills/` |
+| GitHub | Compatible | `.github/skills/` |
+| VS Code | Compatible | `.vscode/skills/` |
+| Amp | Compatible | Platform-specific |
+| Letta | Compatible | Platform-specific |
+| Goose | Compatible | Platform-specific |
+
+## 🚀 Quick Start
+
+### ⚡ Method 1: One-Command Installation
+
+Install directly to system-level skill directories without cloning the repo first.
 
 | Platform | Command |
 |----------|---------|
-| **macOS / Linux / WSL** | `curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh \| bash` |
-| **Windows PowerShell** | `irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 \| iex` |
+| macOS / Linux / WSL | `curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh \| bash` |
+| Windows PowerShell | `irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 \| iex` |
 
-Skills will be automatically installed to:
-- `~/.claude/skills/` (Claude Code)
-- `~/.codex/skills/` (OpenAI Codex)
+By default, skills will be installed to:
 
-#### Method 2: Local Installation
+- `~/.claude/skills/`
+- `~/.codex/skills/`
 
-**Step 1: Clone this project**
+### 🛠️ Method 2: Clone the Repository and Install Locally
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
+python3 install-bensz-skills/scripts/install.py
 ```
 
-**Step 2: Open Claude Code or Codex in the project's root directory, then type:**
-
-> `"install-bensz-skills this skill install skills in this project to Codex and Claude Code"`
-
-That's it! All skills will be installed system-wide and available in any project.
-
-#### Method 3: Manual Installation
+If you only want one target platform:
 
 ```bash
-# Enter the project directory
-cd skills
-
-# Run the installation script
-python3 install-bensz-skills/scripts/install.py --claude --codex
+python3 install-bensz-skills/scripts/install.py --codex
+python3 install-bensz-skills/scripts/install.py --claude
 ```
 
-### 🎯 How to Use Skills in This Project
+### 🤖 Method 3: Ask the AI to Run the Installer Skill
 
-**Open this project in Claude Code or Codex, then use natural language to trigger skills:**
+After opening this repository in Claude Code or Codex, you can say:
 
 ```text
-# Project initialization
-"init-project this skill help me initialize project"
-
-# System-wide installation
-"install-bensz-skills this skill install skills in this project to Codex and Claude Code"
-
-# Automated testing
-"auto-test-skill this skill help me test init-project this skill"
-
-# Skill documentation generation
-"write-skill-readme this skill help me generate skill README.md"
-
-# Prompt optimization
-"better-prompt this skill help me optimize this prompt"
-
-# Multi-agent collaboration
-"awesome-code this skill help me develop via multi-agent collaboration"
-
-# Parallel Vibe Coding
-"parallel-vibe this skill help me run multiple solutions in parallel"
+Please use the install-bensz-skills skill to install the skills in this repository into the system-level skills directories so they can be discovered from any project.
 ```
 
-**It's that simple!** Natural language programming is the soul of Vibe Coding!
+This is useful if you want installation itself to stay inside a natural-language workflow.
 
-## Skill Development
+## 📘 Development Rules and Core Docs
 
-### File Structure
+- [AGENTS.md](AGENTS.md): Cross-platform project instructions and the single source of truth for repository-level rules
+- [CLAUDE.md](CLAUDE.md): Claude Code specific adaptation notes
+- [CHANGELOG.md](CHANGELOG.md): All important updates should be recorded under `Unreleased` first
 
-```
-my-skill/
-├── SKILL.md           # Required: AI instructions (includes YAML frontmatter)
-├── README.md          # Recommended: User guide
-├── config.yaml        # Recommended: Configuration parameters
-├── CHANGELOG.md       # Optional: Version history
-├── references/        # Optional: Detailed documentation
-│   └── advanced-guide.md
-└── scripts/           # Optional: Automation scripts
-    └── process.py
-```
+If you plan to change project instructions, workflow, or the README files, start with `AGENTS.md`. This repository expects documentation updates to stay aligned with engineering rules and to be recorded in `CHANGELOG.md`.
 
-### Quick Start
+## 🤝 Contribution Notes
 
-```bash
-mkdir my-new-skill
-cd my-new-skill
-touch SKILL.md README.md config.yaml
-```
+- Prefer improving existing assets over rewriting them from scratch
+- When changing a skill, check whether `SKILL.md`, `README.md`, and `config.yaml` still match
+- Record important repository-level updates in `CHANGELOG.md`
+- Validate system-level discoverability, not just behavior inside this repository
 
-### Architecture Layers
-
-| Layer | File/Directory | Purpose | When Loaded |
-|-------|---------------|---------|-------------|
-| **Metadata** | YAML Frontmatter | Skill discovery and activation | At session start |
-| **Operations** | SKILL.md | AI execution instructions | When skill triggers |
-| **Knowledge** | references/ | Detailed background and theory | On-demand |
-| **Tools** | scripts/ | Automation and computation | When needed |
-
-### Best Practices
-
-- **YAML Frontmatter** – Keep `description` clear and semantic
-- **Progressive Disclosure** – Keep SKILL.md lean (<500 lines), move details to references/
-- **Header-Body Alignment** – Sync metadata with actual behavior
-- **Lazy Loading** – Don't load everything at startup
-- **Platform Agnostic** – Avoid platform-specific code when possible
-
-For comprehensive development guidelines, see [AGENTS.md](AGENTS.md).
-
-## Contributing
-
-Contributions welcome! Please ensure:
-
-1. **Follow the Standard** – Comply with [agentskills.io](https://agentskills.io)
-2. **Complete Documentation** – SKILL.md + README.md at minimum
-3. **Organic Updates** – Maintain header-body consistency
-4. **Test Across Platforms** – Verify on Claude Code and Codex if possible
-
-## Resources
+## 🔗 Resources
 
 - [Agent Skills Open Standard](https://agentskills.io)
-- [AGENTS.md](AGENTS.md) – Project instructions and philosophy
-- [CLAUDE.md](CLAUDE.md) – Claude Code specific notes
-- [Skill Directory](https://github.com/huangwb8/skills) – Browse all skills
-
-## License
-
-MIT License – See [LICENSE](LICENSE) for details.
+- [AGENTS.md](AGENTS.md)
+- [CLAUDE.md](CLAUDE.md)
+- [install-bensz-skills User Guide](install-bensz-skills/README.md)

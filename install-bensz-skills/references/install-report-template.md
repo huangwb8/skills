@@ -183,8 +183,8 @@ CLAUUDE:
 
 ============================================================
 
-📝 安装清单已保存: .install-bensz-skills/manifests/install-manifest.20250121-120000.json
-💡 提示: 历史记录保存在 .install-bensz-skills/manifests/
+📝 安装清单已保存: .bensz-skills/installation/manifests/install-manifest.20250121-120000.json
+💡 提示: 历史记录保存在 .bensz-skills/installation/manifests/
 ```
 
 ## 版本历史

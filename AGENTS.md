@@ -224,6 +224,11 @@ grep -A 3 "project_info:" config.yaml | grep "version"
 2. **创建结构**：
    - 创建 `{skill_name}/` 目录
    - 生成 `SKILL.md`（包含 YAML frontmatter；必须包含 `metadata.author: Bensz Conan`）
+   - SKILL.md 中必须包含 `bensz-collect-bugs` 约束章节，内容如下：
+     - **适用范围**：仅处理 skill 设计缺陷（流程漏判、输入契约不完整、环境假设错误等），排除用户数据有误、第三方服务抖动、用户主动改源码、模型偶发波动
+     - **隐私保护**：严禁在 bug 记录中保留隐私信息（密钥、密码、身份信息、邮箱、私密路径等）；默认不收集本地用户名、主机名、工作目录；公开上报前必须脱敏
+     - **本地优先**：bug 先记录到 `~/.bensz-skills/bugs/`，当前任务不中断；仅在用户明确要求时才通过本机 `gh` 公开上报（不 clone 仓库，用 `gh api` 按文件路径创建）
+     - **禁止就地修 bug**：严禁直接修改用户本地已安装 skills 的源代码来"顺手修 bug"
    - 按需添加 `config.yaml`、`scripts/`、`references/`、`assets/`
 
 3. **质量检查**：

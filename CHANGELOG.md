@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
   - 重构 AGENTS.md，优化工程原则和工作流说明
   - 精简 CLAUDE.md，通过 `@./AGENTS.md` 引用核心指令
   - 统一文档格式规范：层级标题不使用序号前缀
+- **README.md 首页重构**：
+  - 按当前仓库状态重写首页结构，突出“技能库 + 技能开发流水线”的双重定位
+  - 刷新核心技能清单，补充 `bensz-collect-bugs`、`git-pr-review` 等新增能力
+  - 优化快速开始、安装方式、项目结构和维护流程说明，降低新读者理解成本
+  - 保留演示视频与 AI 算力视频入口，维持首页导览信息完整性
+  - 同步对齐 `README_EN.md`，使中英文首页结构与信息范围保持一致
+  - 为中英文首页标题补充克制风格的 emoji，提高辨识度与视觉质感
 - **git-commit 技能增强**：
   - 实现动态语言检测，自动识别项目主要语言
   - 新增 `--lang` 参数，支持手动指定提交信息语言

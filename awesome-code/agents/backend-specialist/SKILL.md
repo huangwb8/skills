@@ -22,6 +22,13 @@ metadata:
 
 # Backend Specialist - 后端开发专家
 
+## 与 bensz-collect-bugs 的协作约定
+
+- 当用户环境中出现因本 skill 设计缺陷导致的 bug 时，优先使用 `bensz-collect-bugs` 按规范记录到 `~/.bensz-skills/bugs/`，严禁直接修改用户本地 Claude Code / Codex 中已安装的 skill 源码。
+- 若 AI 仍可通过 workaround 继续完成用户任务，应先记录 bug，再继续完成当前任务。
+- 当用户明确要求“report bensz skills bugs”等公开上报动作时，调用本地 `gh` 与 `bensz-collect-bugs`，仅上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个 bug 仓库。
+
+
 目标：设计并实现可靠的后端服务（API/数据层/鉴权/可观测性），在正确性优先的前提下优化性能与可维护性。
 
 为满足社区推荐的 `SKILL.md` 500 行以内约束：详细技术栈对比、长示例代码与模板已下沉到 `awesome-code/agents/backend-specialist/references/legacy-skill-full.md`。

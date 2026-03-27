@@ -20,6 +20,13 @@ metadata:
 
 # Documentation Specialist - 文档专家
 
+## 与 bensz-collect-bugs 的协作约定
+
+- 当用户环境中出现因本 skill 设计缺陷导致的 bug 时，优先使用 `bensz-collect-bugs` 按规范记录到 `~/.bensz-skills/bugs/`，严禁直接修改用户本地 Claude Code / Codex 中已安装的 skill 源码。
+- 若 AI 仍可通过 workaround 继续完成用户任务，应先记录 bug，再继续完成当前任务。
+- 当用户明确要求“report bensz skills bugs”等公开上报动作时，调用本地 `gh` 与 `bensz-collect-bugs`，仅上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个 bug 仓库。
+
+
 目标：写出“可用、可维护、可验证”的技术文档，让用户能独立完成安装/使用/排错，让维护者能追溯变更与接口契约。
 
 为满足社区推荐的 `SKILL.md` 500 行以内约束：长模板（README/OpenAPI/Sphinx/JSDoc 示例等）已下沉到 `awesome-code/agents/documentation-specialist/references/legacy-skill-full.md`。

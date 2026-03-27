@@ -1,0 +1,76 @@
+# bensz-collect-bugs 配置文件
+
+skill_info:
+  name: "bensz-collect-bugs"
+  version: "0.3.1"
+  description: "记录与公开上报 Bensz 系列 skills 在真实用户环境中暴露出的设计缺陷类 bug；本地落盘到 ~/.bensz-skills/bugs/，公开阶段使用 gh 直传 huangwb8/bensz-bugs"
+  author: "Bensz Conan"
+  category: "normal"
+
+storage:
+  local_root: "~/.bensz-skills/bugs"
+  context_filename: "bug-context.json"
+  report_filename: "BUG_REPORT.md"
+  path_pattern: "{skill_name}/{reporter}/{bug_hash}"
+
+github:
+  owner: "huangwb8"
+  repo: "bensz-bugs"
+  api_host: "github.com"
+
+hashing:
+  algorithm: "sha256"
+  version: "1"
+  stable_fields:
+    - "skill.name"
+    - "skill.author"
+    - "bug.summary"
+    - "bug.expected_behavior"
+    - "bug.actual_behavior"
+    - "environment.os"
+    - "environment.runtime.agent_runtime"
+    - "environment.software_versions"
+
+defaults:
+  reporter_fallback: "pending-github-identity"
+  anonymous_reporter: "anonymous-reporter"
+  device_type: "unknown"
+  agent_runtime: "unknown"
+  severity: "important"
+  schema_version: "1.0.0"
+  impact_text: "这是由 skill 设计缺陷导致的真实环境问题，需要纳入后续修复闭环。"
+
+templates:
+  bug_report: "templates/BUG_REPORT_TEMPLATE.md"
+
+reporting:
+  commit_message_template: "Report bug {bug_hash} for {skill_name}"
+  redacted_placeholder: "redacted"
+  privacy_notice: "Sensitive user data is auto-redacted before storage and public reporting."
+
+privacy:
+  auto_redact_sensitive_text: true
+  redaction_placeholder: "[redacted:{kind}]"
+  collect_local_username: false
+  collect_hostnames: false
+  collect_working_directory: false
+  store_local_path: false
+
+environment:
+  version_commands:
+    - key: "python3"
+      command: ["python3", "--version"]
+    - key: "git"
+      command: ["git", "--version"]
+    - key: "gh"
+      command: ["gh", "--version"]
+    - key: "rg"
+      command: ["rg", "--version"]
+    - key: "node"
+      command: ["node", "--version"]
+    - key: "npm"
+      command: ["npm", "--version"]
+    - key: "codex"
+      command: ["codex", "--version"]
+    - key: "claude"
+      command: ["claude", "--version"]

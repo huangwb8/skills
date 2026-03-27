@@ -10,6 +10,13 @@ metadata:
 
 # Install Bensz Skills（系统级安装器）
 
+## 与 bensz-collect-bugs 的协作约定
+
+- 当用户环境中出现因本 skill 设计缺陷导致的 bug 时，优先使用 `bensz-collect-bugs` 按规范记录到 `~/.bensz-skills/bugs/`，严禁直接修改用户本地 Claude Code / Codex 中已安装的 skill 源码。
+- 若 AI 仍可通过 workaround 继续完成用户任务，应先记录 bug，再继续完成当前任务。
+- 当用户明确要求“report bensz skills bugs”等公开上报动作时，调用本地 `gh` 与 `bensz-collect-bugs`，仅上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个 bug 仓库。
+
+
 目的：把当前仓库 `pipelines/skills/` 中的所有 skills（**包括 install-bensz-skills 自身**）**复制安装**到：
 
 - Codex：`~/.codex/skills/`
@@ -93,7 +100,7 @@ python3 install-bensz-skills/scripts/install.py --remote --check --codex
 ```
 
 流程：
-1. 创建临时目录 `~/.install-bensz-skills/tmp-remote-install`
+1. 创建临时目录 `~/.bensz-skills/installation/tmp-remote-install`
 2. 询问是否安装每个远程源（根据配置文件）
 3. 下载远程技能到临时目录
 4. 与本地已安装技能对比，生成更新报告
@@ -116,6 +123,18 @@ python3 install-bensz-skills/scripts/install.py --remote --auto --claude
 2. 直接下载所有远程技能（无确认）
 3. 强制安装/更新（无对比，无确认）
 4. 清理临时目录
+
+### Legacy 技能清理
+
+安装前会先读取 `install-bensz-skills/config.yaml` 中的 `legacy_skill_names`，并从 `~/.codex/skills/` / `~/.claude/skills/` 删除这些已弃用旧名，避免 skill 改名后旧目录继续留在系统级目录里干扰触发。
+
+如果只想单独执行清理，可直接运行：
+
+```bash
+python3 install-bensz-skills/scripts/remove_legacy_skills.py
+python3 install-bensz-skills/scripts/remove_legacy_skills.py --codex
+python3 install-bensz-skills/scripts/remove_legacy_skills.py --claude --dry-run
+```
 
 ### 验证
 
@@ -184,6 +203,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 - **直接替换**：发现到目标路径已存在同名目录且版本变化时，直接删除旧版本并安装新版本（不备份）
   - 理由：Git 已提供版本控制，可随时回退；新版本通常比旧版本更好
 - 若存在旧的 `pipeline-skills` 软链接：会移除该软链接（不删除真实目录）。
+- 若 `config.yaml` 声明了 `legacy_skill_names`：安装前会先删除这些已弃用旧 skill 名称对应的系统级目录。
 
 ## 命令行参数
 
@@ -235,6 +255,12 @@ remote_sources:
     skills_path: "skills"
     description: "科研相关技能，建议有科研需要的用户安装"
     recommended: false
+
+legacy_skill_names:
+  - "make_latex_model"
+  - "transfer_old_latex_to_new"
+  - "write-paper-sci"
+  - "explain-figures"
 ```
 
 配置字段说明：
@@ -247,6 +273,7 @@ remote_sources:
 如果远程仓库的根目录本身就是 skills 根目录，`skills_path` 应写为 `.`。
 - `description`：源描述（用于提示用户）
 - `recommended`：是否推荐安装（影响默认提示行为）
+- `legacy_skill_names`：需要从系统级目录主动清理的旧 skill 名称列表
 
 ## 常见问题
 
@@ -261,5 +288,6 @@ remote_sources:
 
 - **如何添加新的远程源**：编辑 `config.yaml`，在 `remote_sources` 数组中添加新的源配置。
 - **远程安装失败**：检查网络连接和 Git 是否安装。某些网络环境可能需要配置代理。
-- **临时目录未清理**：手动删除 `~/.install-bensz-skills/tmp-remote-install` 目录。
+- **临时目录未清理**：手动删除 `~/.bensz-skills/installation/tmp-remote-install` 目录。
+- **安装记录与临时目录在哪里**：统一保存在 `~/.bensz-skills/installation/` 下；其中 manifest 在 `~/.bensz-skills/installation/manifests/`，远程安装临时目录在 `~/.bensz-skills/installation/tmp-remote-install`。
 - **远程技能与本地冲突**：远程安装会覆盖本地同名技能，建议先备份或使用 `--check` 模式预览变更。

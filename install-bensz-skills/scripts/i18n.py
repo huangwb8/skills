@@ -38,6 +38,7 @@ class Messages:
     # 安装过程消息
     installing_to_target: str
     removed_legacy_symlink: str
+    removed_legacy_skill: str
     skip_legacy_path: str
     removed_existing: str
     installed: str
@@ -118,6 +119,7 @@ MESSAGES_EN = Messages(
     error_source_root_not_found="Failed to auto-detect skills source root. Run this script inside a project that contains ./pipelines/skills or ./skills (or the skills root itself), or pass --source explicitly.",
     installing_to_target="Installing to {TARGET}: {root}",
     removed_legacy_symlink="removed legacy symlink: {path}",
+    removed_legacy_skill="removed legacy skill: {path}",
     skip_legacy_path="skip legacy path (not a symlink): {path}",
     removed_existing="removed: {dest}",
     installed="installed: {dest}",
@@ -192,6 +194,7 @@ MESSAGES_ZH = Messages(
     error_source_root_not_found="未能自动识别 skills 源目录：请在包含 ./pipelines/skills 或 ./skills（或 skills 根目录本身）的项目目录中运行，或使用 --source 显式指定。",
     installing_to_target="正在安装到 {TARGET}: {root}",
     removed_legacy_symlink="已移除旧软链接: {path}",
+    removed_legacy_skill="已移除 legacy 技能: {path}",
     skip_legacy_path="跳过旧路径（非软链接）: {path}",
     removed_existing="已删除: {dest}",
     installed="已安装: {dest}",
