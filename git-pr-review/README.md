@@ -1,9 +1,9 @@
-# git-pr-review — 用户使用指南
+# git-pr-review
 
 本 README 面向**使用者**：如何触发并正确使用 `git-pr-review` skill。  
 执行规范在 `SKILL.md`；默认参数与命名规则在 `config.yaml`。
 
-## 快速开始
+## 用法
 
 推荐用法：
 

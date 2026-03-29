@@ -1,8 +1,8 @@
-# Init Project — 用户使用指南
+# Init Project
 
 这个 skill 用来为当前项目初始化标准化的 AI 协作文档和基础仓库文件，适合新项目起步或已有项目补齐指令体系；它只应该在当前项目目录内工作，不应越界修改其它目录。
 
-## 快速开始
+## 用法
 
 ### 最推荐用法
 
@@ -24,7 +24,7 @@
 - 不修改当前目录之外的文件
 ```
 
-## 这个 skill 会帮你做什么
+## 能做什么
 
 - 为项目生成 `AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md` 和 `.gitignore`。
 - 把 `AGENTS.md` 作为跨平台通用指令的单一真相来源。
@@ -63,7 +63,7 @@
 - 只更新 README
 ```
 
-## 输出结果
+## 输出
 
 - `AGENTS.md`：跨平台通用项目指令，应该被长期维护。
 - `CLAUDE.md`：Claude Code 适配层，核心内容应与 `AGENTS.md` 保持一致。
@@ -71,7 +71,7 @@
 - `CHANGELOG.md`：项目变更记录。
 - `.gitignore`：默认的安全与项目类型忽略规则。
 
-## 配置与参数
+## 配置
 
 - 配置文件：`init-project/config.yaml`
 - 关键配置节：

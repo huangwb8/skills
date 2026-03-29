@@ -1,11 +1,11 @@
-# Write Skill README — 用户使用指南
+# Write Skill README
 
 本 README 面向**使用者**：如何触发并正确使用 `write-skill-readme` skill。
 执行指令与硬性规范在 `SKILL.md`。
 
 ---
 
-## 快速开始
+## 用法
 
 - 最推荐用法（生成标准风格 README）
 
@@ -177,7 +177,7 @@
 
 本 README 面向**使用者**...
 
-## 快速开始
+## 用法
 （常规 Prompt + 进阶 Prompt；按需补充场景化变体）
 
 ## 设计理念

@@ -175,7 +175,7 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --dry-run
 - `agent_runtime`
 - `skill_source_path`
 
-## 输出结果
+## 输出
 
 ### 本地记录输出
 

@@ -15,6 +15,7 @@ legacy_skill_names:
   - "transfer_old_latex_to_new"
   - "write-paper-sci"
   - "explain-figures"
+  - "complete_example"
 
 # 远程技能源配置
 # 每个源代表一个可从中下载技能的 Git 仓库

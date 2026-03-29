@@ -1,4 +1,4 @@
-# GitHub Release 发布 — 用户使用指南
+# GitHub Release 发布
 
 智能分析项目历史变化，自动生成吸引人的 Release Notes 并发布到 GitHub。
 

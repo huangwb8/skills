@@ -1,8 +1,8 @@
-# bensz-collect-bugs — 用户使用指南
+# bensz-collect-bugs
 
 这个 skill 用来处理你开发的 Bensz 系列 skills 在真实用户环境里暴露出的“设计缺陷类 bug”。它先把 bug 规范化记到本地，再在你明确要求时用本机 `gh` 轻量公开上报到 `huangwb8/bensz-bugs`。
 
-## 快速开始
+## 用法
 
 ### 最推荐用法：先本地记录 bug
 
@@ -113,7 +113,7 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --skill-name "example-skill"
 - `gh auth status` 能通过
 - 如果还没登录，先运行 `gh auth login`
 
-## 输出结果
+## 输出
 
 - 本地记录阶段：生成 `bug-context.json` 与 `BUG_REPORT.md`
 - 公开上报阶段：把新 bug 上传到 `https://github.com/huangwb8/bensz-bugs`

@@ -1,11 +1,11 @@
-# Git Commit — 用户使用指南
+# Git Commit
 
 本 README 面向**使用者**：如何触发并正确使用 `git-commit` skill。
 执行指令与硬性规范在 [`SKILL.md`](SKILL.md)；默认参数在 [`config.yaml`](config.yaml)。
 
 ---
 
-## 快速开始 🚀
+## 用法 🚀
 
 ### 最推荐用法（自动模式）
 
