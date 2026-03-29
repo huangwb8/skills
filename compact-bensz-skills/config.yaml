@@ -1,0 +1,61 @@
+skill_info:
+  name: "compact-bensz-skills"
+  version: "0.3.0"
+  description: "压缩 Agent Skill 中的工作型 Markdown 文档，在不改变功能与安全边界的前提下降低上下文体积。"
+  author: "Bensz Conan"
+  category: "skill-maintenance"
+
+workspace:
+  hidden_dir: ".compact-bensz-skills"
+  run_prefix: "run-"
+  timestamp_format: "%Y%m%d%H%M%S%f"
+  latest_run_pointer: "latest-run.txt"
+  keep_intermediates_inside_hidden_dir: true
+  subdirs:
+    - "snapshots"
+    - "analysis"
+    - "reports"
+  before_snapshot_dir: "snapshots/before"
+
+directories:
+  default_test_dir: "tests/compact-bensz-skills"
+
+source_files:
+  markdown_extensions:
+    - ".md"
+  ignore_dirs:
+    - "tests"
+    - "plans"
+    - ".compact-bensz-skills"
+    - ".git"
+    - "__pycache__"
+  ignore_globs:
+    - ".DS_Store"
+    - "*.pyc"
+  ignore_file_names:
+    - "README.md"
+    - "CHANGELOG.md"
+
+preservation:
+  required_skill_frontmatter_fields:
+    - "name"
+    - "description"
+    - "metadata.author"
+  required_skill_keywords_include_name: true
+  keep_code_blocks: true
+  keep_commands_and_paths: true
+  keep_safety_constraints: true
+  keep_user_visible_outputs: true
+
+reports:
+  inventory_json: "analysis/file-inventory.json"
+  plan_markdown: "analysis/compaction-plan.md"
+  size_before_json: "reports/size-before.json"
+  size_after_json: "reports/size-after.json"
+  size_delta_markdown: "reports/size-delta.md"
+  validation_json: "reports/validation.json"
+
+scripts:
+  init_workspace: "scripts/init_workspace.py"
+  measure_markdown: "scripts/measure_markdown.py"
+  validate_compaction: "scripts/validate_compaction.py"
