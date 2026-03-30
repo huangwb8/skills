@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: Git 工作流专家。规范化版本控制，确保提交历史清晰可追溯。支持 Conventional Commits 规范、Pull Request 最佳实践、分支管理策略和自动化工作流。
+description: "Use when making git commits, creating pull requests, managing branches, or performing version control operations. Enforces Conventional Commits, atomic commits, and PR best practices to maintain a clean, traceable history."
 metadata:
   short-description: Git 工作流与版本控制
   keywords:
@@ -18,401 +18,162 @@ metadata:
 
 # Git Workflow - Git 工作流专家
 
+规范化版本控制，确保提交历史清晰可追溯。
+
+**核心原则**：
+- 提交历史即文档
+- 原子提交，单一职责
+- 清晰的可追溯性
+- 易于 Code Review
+
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-## 核心理念
-
-**良好的 Git 实践** 是团队协作的基础：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  规范提交 → 清晰历史 → 易于回溯 → 高效协作              │
-└─────────────────────────────────────────────────────────┘
-```
-
-**核心原则**：
-- ✅ **提交历史即文档**
-- ✅ **原子提交，单一职责**
-- ✅ **清晰的可追溯性**
-- ✅ **易于 Code Review**
+- 只有用户明确要求"report bensz skills bugs"等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
 ---
 
-## 何时使用本技能
+## Workflow
 
-在以下场景时激活：
+Follow these steps for every git commit, branch, or PR operation.
 
-- 需要 Git 提交（commit）
-- 创建 Pull Request / Merge Request
-- 代码分支管理
-- 版本发布
-- 提到"git"、"提交"、"分支"、"PR"
+### Step 1: Analyze the Change
 
----
+Review staged/unstaged changes to understand scope and purpose.
 
-## Conventional Commits 规范
-
-### 提交格式
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
+```bash
+git status
+git diff --stat
 ```
 
-### Type 类型
+**Validation:** Confirm changes are related and serve a single purpose. If changes span multiple concerns, plan to split into separate commits.
+
+### Step 2: Determine Commit Type and Scope
+
+Select the appropriate Conventional Commits type:
 
 | Type | 说明 | 示例 |
 |------|------|------|
 | `feat` | 新功能 | `feat(auth): add OAuth2 login` |
 | `fix` | Bug 修复 | `fix(api): resolve timeout issue` |
 | `docs` | 文档变更 | `docs(readme): update installation` |
-| `style` | 代码格式 | `style(lint): fix indentation` |
 | `refactor` | 重构 | `refactor(utils): extract validator` |
 | `perf` | 性能优化 | `perf(db): add query index` |
 | `test` | 测试相关 | `test(user): add login tests` |
 | `chore` | 构建/工具 | `chore(deps): upgrade to v2.0` |
+| `style` | 代码格式 | `style(lint): fix indentation` |
 | `revert` | 回滚提交 | `revert: feat(auth)` |
 
-### 提交示例
+**Validation:** Type must match the actual change. Scope should identify the affected module or component.
 
-```bash
-# 简单提交
-feat(auth): add JWT token validation
+### Step 3: Craft the Commit Message
 
-# 完整提交
+Format: `<type>(<scope>): <subject>`
+
+Rules:
+- Subject line: imperative mood, lowercase, no trailing period, max 72 characters
+- Body (optional): explain **why**, not what; wrap at 72 characters
+- Footer (optional): reference issues with `Closes #123` or `Related #456`
+
+```
 feat(payment): integrate Stripe payment gateway
 
 Implement credit card payment processing using Stripe API.
 Add webhook handling for payment status updates.
 
-- Add Stripe client initialization
-- Implement payment intent creation
-- Add webhook endpoint for status updates
-- Handle payment success/failure scenarios
-
 Closes #123
-Related #456
 ```
+
+**Validation:**
+- Subject follows `<type>(<scope>): <subject>` format
+- Subject is under 72 characters
+- Body explains motivation, not just listing files
+
+### Step 4: Stage and Commit
+
+Stage only the files relevant to this commit — avoid `git add .` when changes span multiple concerns.
+
+```bash
+git add src/auth/login.py src/auth/middleware.py
+git commit -m "feat(auth): add JWT token validation"
+```
+
+**Validation:**
+- Each commit has a single responsibility
+- Commit size is reasonable (ideally < 400 lines changed)
+- No sensitive information (secrets, credentials) included
+- No unrelated files staged
+
+### Step 5: Create Pull Request (when applicable)
+
+PR title follows the same Conventional Commits format as the commit message.
+
+PR description must include:
+1. **变更说明** — what and why
+2. **变更内容** — key files changed
+3. **测试** — how it was tested
+4. **相关链接** — linked issues
+
+See [references/git-conventions.md](references/git-conventions.md) for a full PR description template.
+
+**Validation:**
+- PR title matches Conventional Commits format
+- Description is complete with all required sections
+- Branch naming follows convention (`feature/*`, `bugfix/*`, `hotfix/*`, `release/*`)
+- No merge conflicts with target branch
+- Documentation updated if behavior changed
 
 ---
 
-## 提交最佳实践
+## 分支管理
 
-### 1. 原子提交原则
-
-```bash
-# ❌ 不好的做法：一次提交多个变更
-git commit -m "feat: add user feature and fix bugs and update docs"
-
-# ✅ 好的做法：每个提交一个职责
-git commit -m "feat(user): add registration"
-git commit -m "fix(auth): resolve session timeout"
-git commit -m "docs(readme): update examples"
-```
-
-### 2. 提交大小控制
-
-| 类型 | 行数变化 | 建议 |
-|------|----------|------|
-| **小型** | < 100 行 | ✅ 理想 |
-| **中型** | 100-400 行 | ⚠️ 可接受 |
-| **大型** | > 400 行 | ❌ 应拆分 |
-
-### 3. 提交信息质量
+Create branches from `main` with descriptive names:
 
 ```bash
-# ❌ 不好的提交信息
-git commit -m "update"
-git commit -m "fix bug"
-git commit -m "wip"
-
-# ✅ 好的提交信息
-git commit -m "fix(auth): resolve JWT validation error"
-git commit -m "feat(api): add rate limiting middleware"
-git commit -m "docs(guide): explain authentication flow"
-```
-
----
-
-## 分支管理策略
-
-### 分支命名规范
-
-| 类型 | 格式 | 示例 |
-|------|------|------|
-| **功能** | `feature/*` | `feature/user-auth` |
-| **修复** | `bugfix/*` | `bugfix/login-timeout` |
-| **热修复** | `hotfix/*` | `hotfix/security-patch` |
-| **发布** | `release/*` | `release/v1.2.0` |
-| **实验** | `experiment/*` | `experiment/new-ui` |
-
-### 分支工作流
-
-```
-main (生产)
-  ↑
-  ├── release/v1.2.0 (发布准备)
-  │     ↑
-  │     ├── feature/user-auth (功能开发)
-  │     ├── feature/payment-api (功能开发)
-  │     └── bugfix/login-issue (Bug 修复)
-  │
-  └── hotfix/security-patch (紧急修复)
-```
-
-### 分支最佳实践
-
-```bash
-# 1. 从 main 创建功能分支
-git checkout main
-git pull origin main
+git checkout main && git pull origin main
 git checkout -b feature/user-auth
-
-# 2. 开发并提交
-git add .
-git commit -m "feat(auth): add login endpoint"
-
-# 3. 同步上游变更
-git fetch origin main
-git rebase origin/main
-
-# 4. 推送到远程
+# ... develop and commit ...
+git fetch origin main && git rebase origin/main
 git push origin feature/user-auth
-
-# 5. 创建 Pull Request
-# (通过 GitHub/GitLab 界面)
 ```
+
+Branch naming: `feature/*`, `bugfix/*`, `hotfix/*`, `release/*`, `experiment/*`
 
 ---
 
-## Pull Request 最佳实践
+## Example: End-to-End Commit
 
-### PR 标题格式
+Scenario: Added a rate limiting middleware to the API.
 
-与 Conventional Commits 保持一致：
-
-```markdown
-feat(auth): add OAuth2 login support
-
-fix(api): resolve timeout issue
-
-docs(readme): update installation guide
 ```
+# 1. Check what changed
+$ git diff --stat
+ src/middleware/rate-limit.py | 45 +++++++++++++++
+ tests/test_rate_limit.py    | 30 ++++++++++
+ 2 files changed, 75 insertions(+)
 
-### PR 描述模板
+# 2. Type: feat, Scope: api
 
-```markdown
-## 📝 变更类型
-- [x] ✨ feat 新功能
-- [ ] 🐛 fix Bug修复
-- [ ] ♻️  refactor 重构
-- [ ] 📚 docs 文档
-- [ ] 💄 style 代码格式
-- [ ] ⚡ perf 性能优化
-- [ ] ✅ test 测试
-- [ ] 🔧 chore 构建/工具
+# 3. Craft message
+# Subject: feat(api): add rate limiting middleware
+# Body: Protect endpoints from abuse with configurable per-IP limits.
 
-## 🎯 变更说明
-<!-- 简要描述这个 PR 的目的和实现方式 -->
+# 4. Stage and commit
+$ git add src/middleware/rate-limit.py tests/test_rate_limit.py
+$ git commit -m "feat(api): add rate limiting middleware
 
-这个 PR 实现了用户认证功能，包括：
-- JWT token 生成和验证
-- 登录/登出端点
-- 中间件保护路由
+Protect endpoints from abuse with configurable per-IP limits.
+Default: 100 requests per minute per IP.
 
-## 🔄 变更内容
-<!-- 列出主要的文件变更 -->
+Closes #234"
 
-- `src/auth/login.py` - 登录逻辑
-- `src/auth/middleware.py` - 认证中间件
-- `tests/test_auth.py` - 测试用例
-
-## 🧪 测试
-<!-- 描述测试情况 -->
-
-- [x] 添加了单元测试
-- [x] 添加了集成测试
-- [x] 手动测试通过
-- [ ] 性能测试通过
-
-## ✅ 检查清单
-<!-- 完成前确认 -->
-
-- [x] 代码符合团队规范
-- [x] 自我审查完成
-- [x] 注释充分且准确
-- [x] 文档已更新
-- [x] 测试覆盖充分
-- [x] 无合并冲突
-
-## 📸 截图/演示
-<!-- 如果适用，添加截图或 GIF -->
-
-![登录界面](screenshots/login.png)
-
-## 🔗 相关链接
-- Closes #123
-- Related #456
-- Depends on #789
-
-## ⚠️ 注意事项
-<!-- 审查者需要注意的事项 -->
-
-需要特别注意 JWT secret 的配置，已在 .env.example 中说明。
+# 5. Push and open PR
+$ git push origin feature/rate-limiting
 ```
-
-### PR 审查响应
-
-```markdown
-## 审查反馈
-
-### 需要修改
-- [ ] 安全问题：SQL 注入风险 (user_service.py:45)
-- [ ] 性能问题：N+1 查询 (api.py:78)
-
-### 建议改进
-- [ ] 命名：`d()` → `double_value()` (utils.py:12)
-- [ ] 注释：补充复杂逻辑说明 (payment.py:34)
-
-### LGTM with suggestions
-- [ ] 可以合并，但建议后续优化
-```
-
----
-
-## Git Hooks 自动化
-
-### Pre-commit Hook
-
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
-
-# 运行 linter
-npm run lint
-if [ $? -ne 0 ]; then
-    echo "❌ Lint failed, please fix before committing"
-    exit 1
-fi
-
-# 运行测试
-npm test
-if [ $? -ne 0 ]; then
-    echo "❌ Tests failed, please fix before committing"
-    exit 1
-fi
-
-echo "✅ Pre-commit checks passed"
-```
-
-### Commit Message Hook
-
-```bash
-#!/bin/bash
-# .git/hooks/commit-msg
-
-# 验证提交信息格式
-commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|revert)(\(.+\))?: .{1,50}'
-
-if ! grep -qE "$commit_regex" "$1"; then
-    echo "❌ Invalid commit message format"
-    echo "✅ Expected format: <type>(<scope>): <subject>"
-    exit 1
-fi
-
-echo "✅ Commit message format valid"
-```
-
----
-
-## 常见操作
-
-### 修改最后一次提交
-
-```bash
-# 添加遗漏的文件
-git add forgotten_file.py
-
-# 修改提交信息
-git commit --amend
-
-# 修改提交内容但不改信息
-git commit --amend --no-edit
-```
-
-### 撤销提交
-
-```bash
-# 撤销最后一次提交（保留变更）
-git reset --soft HEAD~1
-
-# 撤销最后一次提交（丢弃变更）
-git reset --hard HEAD~1
-
-# 撤销多次提交
-git reset --soft HEAD~3
-```
-
-### 交互式变基
-
-```bash
-# 变基最近 3 个提交
-git rebase -i HEAD~3
-
-# 命令：
-# pick  - 保留提交
-# reword - 修改提交信息
-# edit - 编辑提交
-# squash - 合并到前一个提交
-# drop - 删除提交
-```
-
-### 解决合并冲突
-
-```bash
-# 1. 开始变基
-git rebase origin/main
-
-# 2. 遇到冲突时
-git status  # 查看冲突文件
-
-# 3. 手动解决冲突
-# 编辑冲突文件，删除 <<<<<<< ======= >>>>>>> 标记
-
-# 4. 标记冲突已解决
-git add <resolved-files>
-
-# 5. 继续变基
-git rebase --continue
-
-# 6. 如果需要放弃
-git rebase --abort
-```
-
----
-
-## 验证清单
-
-提交或 PR 前，检查：
-
-- [ ] 提交信息符合 Conventional Commits 规范
-- [ ] 每个提交职责单一
-- [ ] 提交大小合理（< 400 行）
-- [ ] 分支命名符合规范
-- [ ] 无敏感信息泄露
-- [ ] 关联 Issue/PR
-- [ ] 代码已通过测试
-- [ ] 文档已更新
 
 ---
 
 ## 相关参考
 
-- [Git 工作流规范](../references/git-workflow.md)
+- [Git Conventions Reference](references/git-conventions.md) — 详细的类型表、分支策略、PR 模板、Git Hooks、常见操作
 - [Conventional Commits](https://www.conventionalcommits.org/)

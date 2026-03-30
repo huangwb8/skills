@@ -1,6 +1,6 @@
 ---
 name: context-optimizer
-description: 上下文优化专家。专注于长对话中的上下文管理、token 效率和性能优化。解决 lost-in-middle、context poisoning 等问题，提升 AI 代理在复杂任务中的表现。
+description: "Use when long conversations degrade AI performance, context windows approach limits, or the agent forgets earlier information. Diagnoses lost-in-middle, context poisoning, and distraction problems, then applies compression, masking, or caching strategies to restore token efficiency."
 metadata:
   short-description: 上下文管理与优化
   keywords:
@@ -22,443 +22,89 @@ metadata:
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-## 核心理念
-
-**上下文优化** 是长对话性能的关键：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  识别问题 → 压缩历史 → 掩码加载 → 缓存重用 → 性能提升  │
-└─────────────────────────────────────────────────────────┘
-```
-
-**核心问题**：
-- ❌ **Lost-in-Middle**：关键信息被中间内容淹没
-- ❌ **Context Poisoning**：冲突信息干扰判断
-- ❌ **Distraction**：无关信息浪费 token
-- ❌ **Context Clash**：多信息源冲突
-
----
+- 只有用户明确要求"report bensz skills bugs"等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
-## 何时使用本技能
-
-在以下场景时激活：
+## 工作流程
 
-- 长对话导致性能下降
-- Context window 接近限制
-- AI 遗忘之前的信息
-- 提到"上下文"、"token 限制"、"效率"
-
----
-
-## 上下文问题识别
-
-### 问题 1：Lost-in-Middle
-
-**表现**：
-- AI 遗忘对话中间的关键信息
-- 首尾信息记住，中间信息遗忘
-- 需要重复提供相同信息
-
-**检测**：
-```python
-def detect_lost_in_middle(conversation: list) -> bool:
-    """检测是否出现 lost-in-middle 问题"""
-    # 1. 检查对话长度
-    if len(conversation) < 10:
-        return False
-
-    # 2. 检查是否有重复提问
-    questions = [msg for msg in conversation if '?' in msg]
-    unique_questions = set(questions)
-    if len(questions) > len(unique_questions) * 1.5:
-        return True  # 存在重复提问
-
-    # 3. 检查中间内容是否被引用
-    middle_start = len(conversation) // 3
-    middle_end = len(conversation) * 2 // 3
-    middle_content = conversation[middle_start:middle_end]
-
-    # 检查后续对话是否引用中间内容
-    later_refs = sum(
-        1 for msg in conversation[middle_end:]
-        if any(keyword in msg for keyword in extract_keywords(middle_content))
-    )
-
-    if later_refs < len(middle_content) * 0.1:
-        return True  # 中间内容被遗忘
-
-    return False
-```
-
-### 问题 2：Context Poisoning
-
-**表现**：
-- AI 产生矛盾的回答
-- 错误信息影响判断
-- 不同来源信息冲突
-
-**检测**：
-```python
-def detect_context_poisoning(conversation: list) -> list:
-    """检测上下文污染"""
-    conflicts = []
-
-    # 1. 提取所有事实陈述
-    facts = extract_facts(conversation)
-
-    # 2. 检测矛盾
-    for fact1, fact2 in combinations(facts, 2):
-        if are_contradictory(fact1, fact2):
-            conflicts.append({
-                'type': 'contradiction',
-                'fact1': fact1,
-                'fact2': fact2,
-                'severity': 'high'
-            })
-
-    # 3. 检测信息源冲突
-    sources = group_by_source(facts)
-    for source, source_facts in sources.items():
-        if has_internal_conflicts(source_facts):
-            conflicts.append({
-                'type': 'source_conflict',
-                'source': source,
-                'severity': 'medium'
-            })
-
-    return conflicts
-```
-
----
-
-## 优化策略
-
-### 策略 1：压缩策略
-
-#### 历史压缩
-
-```python
-class ContextCompressor:
-    """上下文压缩器"""
-
-    def compress_history(
-        self,
-        conversation: list,
-        max_tokens: int,
-        retention_priority: list[str] = None
-    ) -> list:
-        """
-        压缩对话历史
-
-        Args:
-            conversation: 对话历史
-            max_tokens: 最大 token 数
-            retention_priority: 保留优先级 ["current_task", "decisions", "errors"]
-
-        Returns:
-            压缩后的对话
-        """
-        priority = retention_priority or ["current_task", "decisions", "errors"]
-
-        # 1. 分类消息
-        categorized = self._categorize_messages(conversation)
-
-        # 2. 按优先级保留
-        retained = []
-        current_tokens = 0
-
-        for category in priority:
-            messages = categorized.get(category, [])
-
-            for msg in messages:
-                tokens = self._count_tokens(msg)
-                if current_tokens + tokens > max_tokens:
-                    # 尝试压缩
-                    compressed = self._compress_message(msg)
-                    if current_tokens + self._count_tokens(compressed) <= max_tokens:
-                        retained.append(compressed)
-                        current_tokens += self._count_tokens(compressed)
-                else:
-                    retained.append(msg)
-                    current_tokens += tokens
-
-        return retained
-
-    def _categorize_messages(self, conversation: list) -> dict:
-        """分类消息"""
-        categories = {
-            'current_task': [],
-            'decisions': [],
-            'errors': [],
-            'context': []
-        }
-
-        for msg in conversation:
-            if self._is_task_related(msg):
-                categories['current_task'].append(msg)
-            elif self._is_decision(msg):
-                categories['decisions'].append(msg)
-            elif self._is_error(msg):
-                categories['errors'].append(msg)
-            else:
-                categories['context'].append(msg)
-
-        return categories
-
-    def _compress_message(self, message: str) -> str:
-        """压缩单条消息"""
-        # 提取关键信息
-        key_points = extract_key_points(message)
-
-        # 生成摘要
-        summary = summarize(key_points)
-
-        return f"[摘要] {summary}"
-
-    def _count_tokens(self, text: str) -> int:
-        """估算 token 数量"""
-        return len(text.split()) * 1.3  # 粗略估计
-```
-
-#### 增量摘要
-
-```python
-class IncrementalSummarizer:
-    """增量摘要器"""
-
-    def __init__(self, summary_interval: int = 10):
-        self.summary_interval = summary_interval
-        self.summaries = []
-
-    def add_messages(self, messages: list) -> str:
-        """添加消息并生成摘要"""
-        # 每隔 N 条消息生成一次摘要
-        if len(messages) % self.summary_interval == 0:
-            summary = self._generate_summary(messages[-self.summary_interval:])
-            self.summaries.append(summary)
-
-        # 返回完整的摘要历史
-        return "\n\n".join(self.summaries)
-
-    def _generate_summary(self, messages: list) -> str:
-        """生成消息摘要"""
-        # 提取关键信息
-        key_info = {
-            'tasks': self._extract_tasks(messages),
-            'decisions': self._extract_decisions(messages),
-            'errors': self._extract_errors(messages),
-            'outcomes': self._extract_outcomes(messages)
-        }
-
-        # 格式化摘要
-        summary_parts = []
-        if key_info['tasks']:
-            summary_parts.append(f"任务: {', '.join(key_info['tasks'])}")
-        if key_info['decisions']:
-            summary_parts.append(f"决策: {', '.join(key_info['decisions'])}")
-        if key_info['errors']:
-            summary_parts.append(f"错误: {', '.join(key_info['errors'])}")
-        if key_info['outcomes']:
-            summary_parts.append(f"结果: {', '.join(key_info['outcomes'])}")
-
-        return " | ".join(summary_parts)
-```
-
-### 策略 2：掩码策略
-
-#### 按需加载
-
-```python
-class LazyContextLoader:
-    """懒加载上下文"""
-
-    def __init__(self):
-        self.loaded_references = {}
-        self.reference_metadata = {}
-
-    def load_reference(
-        self,
-        ref_name: str,
-        force: bool = False
-    ) -> str | None:
-        """
-        按需加载参考文档
-
-        Args:
-            ref_name: 参考文档名称
-            force: 是否强制重新加载
-        """
-        # 已加载且不强制
-        if ref_name in self.loaded_references and not force:
-            return self.loaded_references[ref_name]
-
-        # 检查元数据
-        metadata = self.reference_metadata.get(ref_name)
-        if not metadata:
-            return None
-
-        # 按需决策
-        if self._should_load(metadata):
-            content = self._load_from_disk(ref_name)
-            self.loaded_references[ref_name] = content
-            return content
-
-        return None
-
-    def _should_load(self, metadata: dict) -> bool:
-        """判断是否应该加载"""
-        # 判断逻辑：
-        # 1. 是否被明确请求
-        # 2. 相关性分数
-        # 3. 当前 token 使用率
-
-        relevance = metadata.get('relevance', 0)
-        token_usage = metadata.get('token_usage', 0)
-
-        return relevance > 0.7 or token_usage < 0.8
-```
-
-### 策略 3：缓存策略
-
-#### 智能缓存
-
-```python
-class SmartCache:
-    """智能缓存系统"""
-
-    def __init__(self, max_size: int = 100):
-        self.cache = {}
-        self.max_size = max_size
-        self.access_count = {}
-
-    def get(self, key: str) -> any:
-        """获取缓存"""
-        if key in self.cache:
-            # 更新访问计数
-            self.access_count[key] = self.access_count.get(key, 0) + 1
-            return self.cache[key]
-        return None
-
-    def set(self, key: str, value: any, priority: int = 1):
-        """设置缓存"""
-        # 缓存已满，清理低优先级项
-        if len(self.cache) >= self.max_size:
-            self._evict_low_priority()
-
-        self.cache[key] = value
-        self.access_count[key] = 0
-
-    def _evict_low_priority(self):
-        """淘汰低优先级缓存"""
-        # 按 (访问次数 * 优先级) 排序
-        items = list(self.cache.items())
-        items.sort(key=lambda x: self.access_count.get(x[0], 0) * x[1].get('priority', 1))
-
-        # 移除最低分项
-        if items:
-            key_to_remove = items[0][0]
-            del self.cache[key_to_remove]
-            del self.access_count[key_to_remove]
-
-# 使用示例
-cache = SmartCache()
-
-# 缓存解析结果
-code_structure = parse_code('main.py')
-cache.set('code:main.py', code_structure, priority=2)
-
-# 获取缓存
-cached = cache.get('code:main.py')
-if cached:
-    use_cached_structure(cached)
-```
-
----
-
-## 优化检查清单
-
-### 问题诊断
-
-- [ ] 对话长度是否合理
-- [ ] 是否有重复提问
-- [ ] 中间信息是否被遗忘
-- [ ] 是否存在信息冲突
-
-### 压缩策略
-
-- [ ] 历史对话已摘要
-- [ ] 关键决策已保留
-- [ ] 错误信息已保留
-- [ ] 无关信息已过滤
-
-### 掩码策略
-
-- [ ] 参考文档按需加载
-- [ ] 详细信息延迟加载
-- [ ] 避免一次性加载所有内容
-
-### 缓存策略
-
-- [ ] 解析结果已缓存
-- [ ] 频繁访问内容已缓存
-- [ ] 缓存有淘汰机制
-
----
+按以下步骤执行上下文优化：
+
+### Step 1：诊断问题
+
+检查对话是否存在以下症状：
+
+| 问题类型 | 症状 | 严重程度 |
+|---------|------|---------|
+| **Lost-in-Middle** | AI 遗忘对话中间的关键信息；首尾记住但中间遗忘；用户需重复提问 | 高 |
+| **Context Poisoning** | AI 产生矛盾回答；错误信息影响判断；不同来源信息冲突 | 高 |
+| **Distraction** | 无关信息浪费 token；响应速度变慢 | 中 |
+| **Context Clash** | 多信息源冲突；无法确定哪个版本正确 | 中 |
+
+### Step 2：选择策略
+
+根据诊断结果选择对应策略：
+
+- **对话过长、token 接近上限** → 压缩策略
+- **需要引用大量参考文档** → 掩码策略（按需加载）
+- **反复查询相同内容** → 缓存策略
+- **多种问题并存** → 按优先级组合使用：压缩 → 掩码 → 缓存
+
+### Step 3：应用策略
+
+#### 压缩策略
+
+将对话历史按优先级分类并压缩：
+
+1. 按 `current_task > decisions > errors > context` 优先级分类消息
+2. 高优先级消息完整保留
+3. 低优先级消息生成摘要（格式：`[摘要] 关键内容`）
+4. 每 10 条消息生成一次增量摘要，保留任务、决策、错误、结果
+
+#### 掩码策略
+
+按需加载参考文档，避免一次性加载所有内容：
+
+1. 仅加载相关性 > 0.7 的参考文档
+2. 当前 token 使用率 < 80% 时才加载新内容
+3. 已加载的内容复用，不重复加载
+
+#### 缓存策略
+
+缓存频繁访问的解析结果和内容：
+
+1. 代码解析结果、配置数据等高频内容优先缓存
+2. 按 `访问次数 × 优先级` 排序，淘汰低分项
+3. 设置缓存上限，防止缓存本身成为负担
+
+> 各策略的详细实现代码见 [references/strategies.md](references/strategies.md)。
+
+### Step 4：验证效果
+
+应用策略后，检查以下指标：
+
+- [ ] 对话长度是否合理（token 使用率 < 80%）
+- [ ] 关键决策和错误信息是否保留
+- [ ] AI 是否仍能正确引用之前的信息
+- [ ] 无关信息是否已过滤
+- [ ] 参考文档是否按需加载（非一次性全部加载）
+- [ ] 频繁访问内容是否已缓存
 
 ## 最佳实践
 
-### 1. 分阶段处理
+- **分阶段处理**：大文件先获取结构，再按 section 逐步加载分析，避免一次性读取全部内容
+- **渐进式信息披露**：提供概述 + 文档链接（约 100 tokens），而非完整文档（10000+ tokens）
+- **保留关键上下文**：压缩时始终保留当前任务、已做决策、已知错误
 
-```python
-# ❌ 一次性处理所有信息
-def process_large_file(filename):
-    content = read_file(filename)  # 可能很大
-    result = analyze(content)
-    return result
+## 示例
 
-# ✅ 分阶段处理
-def process_large_file(filename):
-    # 第一阶段：获取结构
-    structure = get_file_structure(filename)
+**场景**：用户在 50 轮对话后，AI 遗忘了第 15 轮确定的数据库选型决策。
 
-    # 第二阶段：按需加载
-    for section in structure.sections:
-        content = load_section(filename, section)
-        result = analyze_section(content)
-
-    return aggregate_results(results)
-```
-
-### 2. 渐进式信息披露
-
-```python
-# ❌ 一次性提供所有信息
-def provide_context():
-    return """
-    这是项目的完整文档，包括架构、API、配置等...
-    （可能 10000+ tokens）
-    """
-
-# ✅ 渐进式披露
-def provide_context():
-    return """
-    项目概述：这是一个 Web 应用
-
-    需要详细信息时，可查阅：
-    - [架构设计](docs/architecture.md)
-    - [API 文档](docs/api.md)
-    - [配置指南](docs/config.md)
-
-    （约 100 tokens）
-    """
-```
-
----
+1. **诊断**：Lost-in-Middle — 中间决策被后续讨论淹没
+2. **选择**：压缩策略 — 对话过长，需要精简历史
+3. **应用**：将前 40 轮压缩为增量摘要，保留"决策：使用 PostgreSQL，原因是事务支持和 JSON 查询需求"，过滤无关的调试讨论
+4. **验证**：压缩后 token 使用率从 95% 降至 60%，AI 能正确引用数据库选型决策
 
 ## 相关参考
 
+- [策略详细实现](references/strategies.md)
 - [上下文优化策略](../references/context-optimization.md)
 - [多代理协调模式](../multi-agent-coordinator/SKILL.md)

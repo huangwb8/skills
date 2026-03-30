@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: 当用户明确要求"使用 brainstorming"或"使用 awesome-code"时使用。⚠️ 不适用：用户只是想优化/改进某个功能（应直接修改）、只是询问技能问题（应直接回答）、没有明确使用 brainstorming/awesome-code 的一般性开发。
+description: "Use when the user explicitly requests 'brainstorming' or 'awesome-code' to facilitate interactive design optimization through Socratic questioning before implementation begins. The agent guides requirement discovery, alternative exploration, and incremental design validation."
 metadata:
   short-description: 交互式设计优化
   keywords:
@@ -15,11 +15,6 @@ metadata:
 ---
 
 # Brainstorming - 交互式设计优化
-
-## 与 bensz-collect-bugs 的协作约定
-
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
 ## 铁律
 
@@ -47,18 +42,7 @@ NO IMPLEMENTATION WITHOUT DESIGN DISCUSSION FIRST
 | "这很简单不需要设计" | 简单功能也可能有复杂交互。设计5分钟节省调试5小时 |
 | "我理解用户意图" | 你理解的≠用户想要的。确认总比假设好 |
 
----
-
-## 红色标志 - 停止并重新开始
-
-- "需求很明确，直接开始"
-- "先写个原型再说"
-- "用户没时间讨论"
-- "这很简单不需要设计"
-- "我理解用户意图"
-- 跳过设计讨论直接编码
-
-**所有这些意味着：停止编码。回到设计讨论阶段。**
+**红色标志**：如果你发现自己使用以上任何借口，**立即停止编码，回到设计讨论阶段。**
 
 ---
 
@@ -119,6 +103,8 @@ NO IMPLEMENTATION WITHOUT DESIGN DISCUSSION FIRST
 
 **目标**：建立上下文，避免重复提问
 
+**转入步骤 2 的条件**：项目结构和现有文档已检查完毕，上下文已建立。
+
 ---
 
 ### 步骤 2：逐一提问
@@ -150,6 +136,8 @@ NO IMPLEMENTATION WITHOUT DESIGN DISCUSSION FIRST
        - 优势：最简单
        - 劣势：无安全控制
      - **推荐方案 A**，因为你的项目需要支持移动端。
+
+**转入步骤 3 的条件**：用户已回答所有关键需求问题，核心功能、约束条件和技术选型方向已确认。
 
 ---
 
@@ -191,6 +179,8 @@ NO IMPLEMENTATION WITHOUT DESIGN DISCUSSION FIRST
 - ✅ 提供具体示例
 - ❌ 不一次性呈现完整设计
 
+**转入步骤 4 的条件**：所有设计段落（概述、数据模型、API、技术选型）已逐段呈现并获得用户确认。
+
 ---
 
 ### 步骤 4：YAGNI 无情移除
@@ -218,6 +208,8 @@ NO IMPLEMENTATION WITHOUT DESIGN DISCUSSION FIRST
 - ✅ 提供"延后实现"选项
 - ✅ 推荐最简单可行方案
 - ❌ 不保留"可能有需要"的功能
+
+**转入步骤 5 的条件**：YAGNI 检查已完成，用户已确认哪些功能保留、哪些移除或延后。
 
 ---
 
@@ -300,24 +292,7 @@ docs/plans/YYYY-MM-DD--[feature-name]-design.md
 
 ---
 
-## 提问模板库
-
-### 功能需求提问
-
-```
-你想要实现什么功能？
-
-A. 用户可以 [具体行为]（推荐）
-B. 系统自动 [具体行为]
-C. 其他（请说明）
-
-这个功能的主要用户是谁？
-A. 终端用户（推荐：关注易用性）
-B. 管理员（推荐：关注效率）
-C. 开发者（推荐：关注可扩展性）
-```
-
-### 技术选型提问
+## 提问模板
 
 ```
 对于 [功能]，我建议考虑以下方案：
@@ -333,63 +308,17 @@ C. 开发者（推荐：关注可扩展性）
 你倾向于哪个方案？或者有其他想法？
 ```
 
-### YAGNI 检查提问
-
-```
-我注意到设计中包含了 [功能 X]。
-
-**问题**：这个功能是否是 MVP 必需？
-A. 是的，必须有（请说明原因）
-B. 可以延后到 v2.0（推荐：简化 MVP）
-C. 完全不需要（YAGNI：移除）
-```
-
 ---
 
 ## 常见问题
 
 ### Q1: 用户说"没时间讨论"怎么办？
 
-**A**: 宁可等待也不浪费开发时间。
-
-**回应策略**：
-```markdown
-我理解时间紧迫。但错误实现浪费的时间远超设计讨论时间。
-
-我建议：
-1. 用 5 分钟快速确认核心需求（只问关键问题）
-2. 我提供 2-3 个方案供你选择（选择题，快速决策）
-3. 确认后立即开始实现
-
-这样可以避免"开发两周后发现方向错误"的情况。
-```
+宁可等待也不浪费开发时间。用 5 分钟快速确认核心需求（只问关键问题），提供 2-3 个方案供选择，确认后立即开始实现。
 
 ### Q2: 用户说"你看着办"怎么办？
 
-**A**: "看着办"≠"任意办"。仍需确认核心决策。
-
-**回应策略**：
-```markdown
-我理解你希望我自主决策。但在开始前，我需要确认几个关键点：
-
-1. **核心目标**：这个功能主要解决什么问题？
-2. **约束条件**：有时间/技术/资源限制吗？
-3. **优先级**：速度优先还是质量优先？
-
-确认这些后，我会提供完整的设计方案供你确认。
-```
-
-### Q3: 设计讨论需要多长时间？
-
-**A**:
-- **简单功能**：5-10 分钟（3-5 个问题）
-- **中等功能**：15-20 分钟（5-10 个问题）
-- **复杂功能**：30+ 分钟（多轮讨论）
-
-**节省时间技巧**：
-- 使用选择题（快速响应）
-- 分段确认（避免返工）
-- YAGNI 移除（减少实现时间）
+"看着办"≠"任意办"。仍需确认核心决策：核心目标（解决什么问题）、约束条件（时间/技术/资源限制）、优先级（速度 vs 质量）。确认后切换至自主模式。
 
 ---
 
@@ -406,6 +335,29 @@ C. 完全不需要（YAGNI：移除）
 - [ ] YAGNI 检查已完成（移除非必要功能）
 - [ ] 设计文档已保存到 `docs/plans/`
 - [ ] 用户已最终确认设计
+
+---
+
+## 端到端示例
+
+以下是一个简短的 brainstorming 流程示例（用户要求"使用 brainstorming 设计用户通知功能"）：
+
+1. **步骤 1（理解项目状态）**：检查项目结构，发现已有 `users` 表和 REST API，无现有通知系统。
+2. **步骤 2（逐一提问）**：
+   - Agent: "通知的触发场景是什么？A. 系统事件（推荐）B. 用户间消息 C. 定时提醒 D. 其他"
+   - 用户: "A"
+   - Agent: "通知渠道你希望用哪种？A. 应用内通知（推荐：最简单）B. 邮件 C. 推送 D. 多渠道"
+   - 用户: "A，先做应用内"
+3. **步骤 3（分段呈现）**：呈现概述（用户确认）→ 数据模型 `notifications` 表设计（用户确认）→ API 设计 `GET /notifications`, `PATCH /notifications/:id/read`（用户确认）。
+4. **步骤 4（YAGNI 检查）**：Agent 质疑"是否需要通知分组？" → 用户同意移除，延后到 v2。
+5. **步骤 5（保存）**：保存至 `docs/plans/2025-01-15--notification-design.md`。
+
+---
+
+## 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求"report bensz skills bugs"等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
 ---
 
