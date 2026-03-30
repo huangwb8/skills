@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
   - `better-prompt`: Prompt 优化技能，基于 OpenAI 和 Anthropic 最佳实践
   - `parallel-vibe`: 并行 Vibe Coding 技能，支持多工作区并行尝试
   - `write-skill-readme`: 技能文档生成器，自动生成用户友好的 README.md
+- **PR 审查归档**：
+  - `docs/pr-reviews/Git-PR-Review_huangwb8_skills_pr-1_20260330184127.md`：新增对 `huangwb8/skills#1` 的评估报告，记录对外部 Tessl 评分优化 PR 的审查结论与证据
 - **@install/**: 新增快速安装脚本目录
   - `install.sh`: macOS/Linux/WSL 一键安装脚本
   - `install.ps1`: Windows PowerShell 一键安装脚本
