@@ -8,7 +8,7 @@
 
 skill_info:
   name: init-project
-  version: 2.1.0
+  version: 2.2.0
   description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md + .gitignore）
   author: "Bensz Conan"
   category: 项目初始化
@@ -81,9 +81,7 @@ agents_required_sections:
   - 默认语言
   - 联网与搜索
   - Codex CLI 特定说明
-  - 变更边界
-  - 变更记录规范
-  - 版本号管理规范
+  - 变更记录与版本
   - 有机更新原则
 
 # CLAUDE.md 必需章节（Claude Code 特定适配）
@@ -122,4 +120,3 @@ overwrite_prompt: "文件已存在，是否覆盖？"
 # 1. 减少 config.yaml 的篇幅
 # 2. 让 .gitignore 配置更易于维护
 # 3. 支持独立版本控制
-

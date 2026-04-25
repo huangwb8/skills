@@ -50,13 +50,13 @@ There are 12 installable skills at the repository root:
 
 | Skill | Primary purpose | Typical use case |
 |-------|------------------|------------------|
-| `init-project` | Initialize project instruction files | Generate `AGENTS.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, and related bootstrap docs |
+| `init-project` | Initialize project instruction files | Generate `AGENTS.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, `.gitignore`, plus `docs/` and `docs/plans/` |
 | `install-bensz-skills` | Install skills system-wide | Copy this repo's skills into `~/.codex/skills/` and `~/.claude/skills/` |
 | `write-skill-readme` | Generate user-facing skill docs | Produce a `README.md` for a skill |
 | `auto-test-skill` | Skill-level critical testing | Evaluate a skill's workflow, output quality, and robustness |
 | `auto-test-project` | Project-level critical testing | Review an entire project through repeated finding, fixing, and verification rounds |
 | `better-prompt` | Prompt optimization | Rewrite rough prompts into clearer, more executable versions |
-| `awesome-code` | Multi-agent collaborative development | Break down work and coordinate specialized agents in parallel |
+| `awesome-code` | Multi-agent collaborative development | Break down work, classify agents into three dispatch levels, enforce required-agent gates, and coordinate parallel execution |
 | `parallel-vibe` | Multi-workspace parallel exploration | Run the same instruction across isolated workspaces to compare solutions |
 | `git-commit` | Git commit automation | Generate conventional commits and optionally push automatically |
 | `git-pr-review` | Read-only GitHub PR review | Decide whether a PR is worth merging and generate a structured report |
@@ -90,21 +90,46 @@ Based on this repository's conventions and the surrounding Agent Skills ecosyste
 
 ## 🚀 Quick Start
 
-### ⚡ Method 1: One-Command Installation
+### ⚡ Recommended: One-Line Remote Installation
 
-Install directly to system-level skill directories without cloning the repo first.
+Install directly to system-level skill directories with `@install/install.py`, without cloning the repo first. This is a single-file Python installer that uses only the standard library; it downloads GitHub zip archives, skips unchanged skills by MD5, and writes install manifests.
 
 | Platform | Command |
 |----------|---------|
-| macOS / Linux / WSL | `curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh \| bash` |
-| Windows PowerShell | `irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 \| iex` |
+| All platforms with Python | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
+| macOS / Linux fallback | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
 
-By default, skills will be installed to:
+Default remote sources:
+
+- `general`: general-purpose skills from `huangwb8/skills`
+- `research`: research skills from `huangwb8/ChineseResearchLaTeX`
+- `anthropic-docs`: document-processing skills from `anthropics/skills`
+
+Default install locations:
 
 - `~/.claude/skills/`
 - `~/.codex/skills/`
 
-### 🛠️ Method 2: Clone the Repository and Install Locally
+Common options:
+
+```bash
+# Install only the general skills from this repository
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --source general
+
+# Install only to Codex or Claude Code
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --codex
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --claude
+
+# Preview actions without writing files
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --check
+
+# Print installer output in Chinese
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --lang zh
+```
+
+### 🛠️ Local Development Installation
+
+If you have cloned this repository, or you are actively developing these skills, use the local installer. It auto-detects `pipelines/skills/`, `skills/`, or the current directory as the source root.
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
@@ -119,7 +144,14 @@ python3 install-bensz-skills/scripts/install.py --codex
 python3 install-bensz-skills/scripts/install.py --claude
 ```
 
-### 🤖 Method 3: Ask the AI to Run the Installer Skill
+If the installer skill is already installed system-wide, you can also call it from another project and point it at a local source directory:
+
+```bash
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills
+python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills
+```
+
+### 🤖 Ask the AI to Run the Installer Skill
 
 After opening this repository in Claude Code or Codex, you can say:
 

@@ -9,7 +9,7 @@
 ```text
 请使用 init-project skill 为本项目进行初始化。
 输入：当前项目根目录
-输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`
+输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`、`docs/`、`docs/plans/`
 ```
 
 ### 进阶用法
@@ -26,7 +26,7 @@
 
 ## 能做什么
 
-- 为项目生成 `AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md` 和 `.gitignore`。
+- 为项目生成 `AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`，并初始化 `docs/` 与 `docs/plans/`。
 - 把 `AGENTS.md` 作为跨平台通用指令的单一真相来源。
 - 让 `CLAUDE.md` 成为面向 Claude Code 的轻量适配层。
 - 自动分析项目结构、项目类型和默认语言。
@@ -47,7 +47,7 @@
 ```text
 请使用 init-project skill 初始化这个已有仓库。
 输入：当前项目根目录
-输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`
+输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`、`docs/`、`docs/plans/`
 另外，还有下列参数约束：
 - 尽量保留已有 README 的有效信息
 - 不破坏现有项目结构
@@ -70,6 +70,8 @@
 - `README.md`：项目介绍、快速开始和目录说明。
 - `CHANGELOG.md`：项目变更记录。
 - `.gitignore`：默认的安全与项目类型忽略规则。
+- `docs/`：项目文档根目录。
+- `docs/plans/`：计划文档固定目录；其余 `docs/` 文档在代码变化时也应及时同步更新。
 
 ## 配置
 

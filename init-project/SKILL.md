@@ -1,9 +1,9 @@
 ---
 name: init-project
-description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成文件包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）、.gitignore（Git 忽略规则，安全优先）。
+description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成结果包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）、.gitignore（Git 忽略规则，安全优先），并在完整初始化时自动补齐 `docs/` 与 `docs/plans/`。
 metadata:
   author: Bensz Conan
-  short-description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md）
+  short-description: 完全自动生成 AI 项目指令文档并初始化标准 docs 目录
   keywords:
     - init-project
     - 项目初始化
@@ -40,6 +40,8 @@ metadata:
 | **README.md** | 项目介绍与使用方法 | 通用 | 可选 | 手动维护 |
 | **CHANGELOG.md** | 项目变更记录 | 通用 | **必须** | 手动维护 |
 | **.gitignore** | Git 忽略规则（安全优先） | 通用 | 推荐 | 智能合并 |
+| **docs/** | 项目文档根目录 | 通用 | 推荐 | 自动初始化 |
+| **docs/plans/** | 计划文档固定目录 | 通用 | 推荐 | 自动初始化 |
 
 **重要说明**：
 
@@ -73,6 +75,7 @@ metadata:
 - **目录结构推断**：分析现有文件和目录，自动生成目录树（用于 README.md；CLAUDE.md 仍可包含，AGENTS.md 默认不再包含）
 - **README 解析与生成**：从 README.md 提取信息，或自动生成项目介绍
 - **强制变更记录**：自动创建 CHANGELOG.md，**这是项目管理的强制性要求**
+- **标准 docs 目录**：完整初始化时自动补齐 `docs/` 与 `docs/plans/`
 - **工程原则内置**：基于 SOLID、KISS、DRY、YAGNI、关注点分离等原则
 - **有机更新框架**：生成的文档本身遵循有机更新原则，便于未来迭代
 - **智能增量更新**：对已存在的 AGENTS.md，自动保留用户自定义内容，仅更新标准化部分
@@ -87,6 +90,7 @@ metadata:
 
 - ✅ **在当前工作目录内创建/修改文件**：
   - 生成 AGENTS.md、CLAUDE.md、README.md、CHANGELOG.md、.gitignore
+  - 初始化 `docs/` 与 `docs/plans/`
   - 所有文件操作仅限于用户当前所在的项目目录
 
 - ✅ **只读访问（仅在必要时）**：
@@ -127,15 +131,12 @@ metadata:
 │   ├── 核心工作流
 │   ├── 工程原则
 │   ├── 默认语言
-│   ├── 变更边界
+│   ├── 变更记录与版本
 │   └── 有机更新原则
 │
 └── CLAUDE.md              # Claude Code 特定适配（自动引用）
     ├── @./AGENTS.md       # 自动引用 AGENTS.md 的全部内容
-    └── Claude Code 特定说明
-        ├── 文件引用规范（markdown 链接语法）
-        ├── 任务管理（TodoWrite 工具）
-        └── 代码变更规范（Read/Edit 工具）
+    └── Claude Code 特定说明（文件引用、任务管理、精确编辑）
 ```
 
 ### 维护工作流
@@ -199,6 +200,7 @@ python3 init-project/scripts/generate.py --auto
 6. 生成 CLAUDE.md（使用 `@./AGENTS.md` 引用 + Claude Code 特定适配）
 7. 检查并生成 README.md（如不存在）
 8. 检查并生成 CHANGELOG.md（如不存在）
+9. 初始化 `docs/` 与 `docs/plans/`（若已存在则忽略）
 
 ### 方式二：通过 Claude Code 触发
 
@@ -368,7 +370,7 @@ python3 scripts/generate.py \
 **CHANGELOG.md 更新规则（强制性）**：
 - 每次修改 CLAUDE.md 或 AGENTS.md 时，**必须**追加记录
 - 记录修改原因、具体变更内容、影响范围
-- 使用语义化版本号（推荐）
+- 版本号以配置文件为唯一来源，并使用语义化版本号（推荐）
 - 记录时机：修改前草拟，修改后完善
 - 记录质量：清晰具体、可追溯、格式统一、及时更新
 
@@ -468,11 +470,11 @@ python3 init-project/scripts/generate.py --auto --overwrite
 
 - [ ] 语言检测正确或用户已覆盖
 - [ ] 项目信息完整（名称、目标、用途）
-- [ ] AGENTS.md 包含所有必需章节（包括变更记录规范）
+- [ ] AGENTS.md 包含所有必需章节（包括变更记录与版本）
 - [ ] CLAUDE.md 与 AGENTS.md 引用关系正确
 - [ ] 工程原则章节完整
 - [ ] 有机更新原则已包含
-- [ ] **变更记录规范已明确**（CHANGELOG.md 强制性要求）
+- [ ] **变更记录与版本规范已明确**（CHANGELOG.md 强制性要求）
 - [ ] 文件已成功写入磁盘
 - [ ] CHANGELOG.md 已创建（强制性）
 - [ ] .gitignore 已生成或智能更新（推荐）

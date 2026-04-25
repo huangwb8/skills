@@ -1,99 +1,83 @@
-# @install - 快速安装脚本
+# @install - standard-library installer
 
-此目录包含用于快速安装 bensz 技能的脚本。支持通过一行命令从 GitHub 下载并自动安装所有技能。
+`@install/install.py` is the single cross-platform installer for bensz skills.
+It uses only the Python standard library: no Git, no PyYAML, no shell-specific
+bootstrap logic.
 
-## 使用方法
+## Quick Start
 
-### macOS / Linux / WSL
-
-```bash
-# 使用 curl
-curl -fsSL https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh | bash
-
-# 或使用 wget
-wget -qO- https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.sh | bash
-```
-
-### Windows PowerShell
-
-```powershell
-# 方法 1: 使用 irm (推荐)
-irm https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 | iex
-
-# 方法 2: 使用 iwr
-. { iwr -useb https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.ps1 } | iex
-```
-
-### Windows CMD
-
-```cmd
-REM 由于 CMD 不支持直接管道下载执行，需要先下载后运行
-bitsadmin /transfer myDownloadJob /download /priority normal https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.bat %TEMP%\install.bat && %TEMP%\install.bat
-```
-
-## 默认行为
-
-所有脚本默认执行以下命令（相当于）：
+Download and run the installer:
 
 ```bash
-python3 install-bensz-skills/scripts/install.py --remote --auto
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"
 ```
 
-这将：
-- 从 GitHub 远程仓库下载技能
-- 自动安装到 `~/.claude/skills/` 和 `~/.codex/skills/`
-- 无需用户确认，自动安装所有推荐的技能
+If your system exposes Python as `python3`, use:
 
-## 系统要求
+```bash
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"
+```
 
-- **Python 3.7 或更高版本**
-- **网络连接**（用于从 GitHub 下载）
-- **Git**（用于克隆远程技能仓库）
+You can also download the file first, then run it:
 
-## 安装位置
+```bash
+python install.py
+```
 
-| 平台 | Claude Code | OpenAI Codex |
-|------|-------------|--------------|
-| Unix | `~/.claude/skills/` | `~/.codex/skills/` |
-| Windows | `%USERPROFILE%\.claude\skills\` | `%USERPROFILE%\.codex\skills\` |
+## Default Behavior
 
-## 远程源配置
+Running the installer with no arguments will:
 
-脚本使用以下远程源（定义在 `install-bensz-skills/config.yaml`）：
+- Check that Python is new enough for the installer.
+- Download remote sources as GitHub zip archives.
+- Install changed production skills into both `~/.codex/skills/` and `~/.claude/skills/`.
+- Skip unchanged skills by MD5.
+- Remove configured legacy skill names.
+- Save an install manifest under `~/.bensz-skills/installation/manifests/`.
+- Print installer output in English by default.
 
-| 源 ID | 名称 | 描述 | 推荐安装 |
-|-------|------|------|---------|
-| `general` | 通用技能 | 通用技能，建议所有用户安装 | 是 |
-| `research` | 科研技能 | 科研相关技能，建议有科研需要的用户安装 | 否 |
+## Requirements
 
-## 故障排除
+- Python 3.8 or newer
+- Network access to GitHub
 
-### Python 未找到
+No third-party Python package is required.
 
-请先安装 Python 3.7+：
-- macOS: `brew install python3`
+## Options
+
+```bash
+python install.py --codex                 # Install to Codex only
+python install.py --claude                # Install to Claude Code only
+python install.py --force                 # Reinstall even when MD5 is unchanged
+python install.py --dry-run               # Print actions without writing files
+python install.py --check                 # Alias for --dry-run
+python install.py --lang zh               # Use Chinese installer messages
+python install.py --source general        # Install one source
+python install.py --source general,research
+```
+
+Available source IDs:
+
+| ID | Repository | Skills path |
+|----|------------|-------------|
+| `general` | `huangwb8/skills` | `.` |
+| `research` | `huangwb8/ChineseResearchLaTeX` | `skills` |
+| `anthropic-docs` | `anthropics/skills` | `skills` |
+
+## Install Locations
+
+| Tool | Unix/macOS | Windows |
+|------|------------|---------|
+| Codex | `~/.codex/skills/` | `%USERPROFILE%\.codex\skills\` |
+| Claude Code | `~/.claude/skills/` | `%USERPROFILE%\.claude\skills\` |
+
+## Troubleshooting
+
+If Python is not found, install Python 3.8+ first:
+
+- macOS: `brew install python`
 - Ubuntu/Debian: `sudo apt install python3`
-- Windows: 从 [python.org](https://www.python.org/downloads/) 下载安装
+- Windows: install Python from `https://www.python.org/downloads/` and enable "Add Python to PATH"
 
-### PyYAML 依赖缺失
-
-脚本会尝试自动安装 PyYAML。如果失败，请手动安装：
-
-```bash
-pip install pyyaml --user
-```
-
-### PowerShell 执行策略限制
-
-如果遇到执行策略错误，运行：
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-然后再执行安装命令。
-
-## 相关链接
-
-- [主仓库](https://github.com/huangwb8/skills)
-- [问题反馈](https://github.com/huangwb8/skills/issues)
+If the one-line command is blocked by your shell policy, download `install.py`
+with a browser or command-line downloader and run `python install.py`.

@@ -6,7 +6,7 @@
 # ================================
 skill_info:
   name: awesome-code
-  version: 2.5.0
+  version: 2.6.0
   description: "智能多代理软件开发协调系统"
   category: "软件开发工具"
   author: "Bensz Conan"
@@ -101,6 +101,80 @@ multi_agent:
   # 前端/UI 设计任务的陪跑代理
   frontend_design_companion_agents:
     - brainstorming
+
+  dispatch_policy:
+    enabled: true
+    fail_on_missing_required_agent: true
+    design_direction_keywords:
+      - direction
+      - concept
+      - brief
+      - strategy
+      - explore
+      - 方向
+      - 方案
+      - 概念
+      - 简报
+      - 先出
+    required_routes:
+      security:
+        agents:
+          - security-specialist
+        keywords:
+          - security
+          - vulnerability
+          - auth
+          - injection
+          - sql
+          - xss
+          - csrf
+          - 安全
+          - 漏洞
+          - 鉴权
+          - 权限
+          - 注入
+      debugging:
+        agents:
+          - systematic-debugging
+        keywords:
+          - bug
+          - debug
+          - error
+          - regression
+          - root
+          - cause
+          - 根因
+          - 调试
+          - 回归
+          - 排查
+      tdd:
+        agents:
+          - tdd-workflow
+        keywords:
+          - tdd
+          - test-first
+          - regression-test
+          - 测试驱动
+          - 回归测试
+      frontend_redesign:
+        agents:
+          - frontend-specialist
+        keywords:
+          - redesign
+          - dashboard
+          - landing
+          - ui
+          - visual
+          - typography
+          - motion
+          - aesthetic
+          - 仪表盘
+          - 落地页
+          - 重设计
+          - 界面
+          - 视觉
+          - 排版
+          - 动效
 
 # ================================
 # TDD（测试驱动开发）配置

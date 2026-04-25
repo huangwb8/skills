@@ -5,6 +5,50 @@ All notable changes to the `awesome-code` skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.6.0] - 2026-04-19
+
+### Added（新增）
+- 新增 `plans/2026-04-19-subagent-invocation-guarantee.md`，规划把 `awesome-code` 从“推荐合适子 agent”升级为“必要时强制进入调度链、缺失则阻塞并留痕”的实现路线
+- 新增 `scripts/subagent_policy.py`：把任务命中结果升级为 `required / preferred / optional` 三层 dispatch requirement
+- 新增 `scripts/subagent_dispatch_audit.py`：生成 `dispatch_manifest` 并校验 `dispatch_receipts`
+- 新增单元测试 `tests/unit/test_subagent_policy.py`、`tests/unit/test_subagent_dispatch_audit.py`、`tests/unit/test_dispatch_policy_integration.py`
+- 为 6 个子代理新增 `references/legacy-skill-full.md`：保留完整长文档内容，同时让子代理 `SKILL.md` 保持精简（≤ 500 行）
+
+### Changed（变更）
+- `config.yaml` 新增 `multi_agent.dispatch_policy`，集中管理 required route、design direction keyword 和缺失 required agent 的阻塞开关
+- `scripts/agent_coordinator.py` 从“推荐代理”升级为“分层分派 + 门禁 + 留痕”，输出 `required_agents`、`preferred_agents`、`optional_agents`、`dispatch_gate`、`dispatch_manifest`
+- `awesome-code/SKILL.md`、`README.md` 与 `agents/multi-agent-coordinator/SKILL.md` 同步更新为策略驱动口径，明确 required agent 缺失时必须阻塞
+- `awesome-code/SKILL.md` 与 6 个超长子代理 `SKILL.md`（multi-agent-coordinator/devops-specialist/security-specialist/backend-specialist/code-reviewer/documentation-specialist）按社区最佳实践瘦身到 ≤ 500 行；长模板/示例下沉到各自 `references/legacy-skill-full.md`
+- `awesome-code/references/INDEX.md` 移除版本历史与本地 markdown 链接，避免形成多层引用链；相关引用改为代码路径形式
+- **新增硬编码引导步骤**：`get_path.py` 脚本，用于动态获取技能真实安装路径，解决 AI 无法预知技能安装位置的问题
+- 优化脚本调用说明：区分 AI 调用流程（三步骤：获取路径→解析 JSON→使用绝对路径）和用户手动调用（直接调用/shell 别名）
+- 新增 shell 别名推荐配置，简化日常使用（`ac-coordinator`/`ac-test`/`ac-analyze`/`ac-git`/`ac-session`）
+- 新增 `references/SCRIPT_PATH_STRATEGY.md`：详细说明脚本路径策略与技术实现
+- README.md"快速开始"章节新增"开放性探索"用法，指导用户如何让 AI 自主决定项目优化方向
+- `agent_coordinator.py` 改为从 `config.yaml` 读取 `enabled_agents` 与 `agent_priorities`，减少硬编码与配置漂移
+- `agent_coordinator.py` 增强可解释性：输出 `matched_keywords`/`priority`，并改进置信度算法（减少仅凭 priority 的误报）
+- `agent_coordinator.py` 增强中文可用性：补充中文关键词与简单 CJK 2 字滑窗启发式（不引入分词依赖）
+- `agent_coordinator.py` JSON 输出改为 `ensure_ascii=False`，中文更可读
+- `create_test_session.py` 改为从 `config.yaml` 读取 `ab_test_optimization.plans_dir/tests_dir`，支持目录结构可配置
+- 新增 `templates/`：为 A/B 轮会话与报告提供标准模板，减少 fallback 产物质量波动
+- `SKILL.md` 移除过期的 config 示例块，明确以 `config.yaml` 为准
+- 版本号从 `2.5.0` 升级到 `2.6.0`，并同步 `pyproject.toml`
+
+### Fixed（修复）
+- 修复 `create_test_session.py` 的测试 ID 校验与路径遍历风险（严格要求 `vYYYYMMDDHHMM`，并增加越界防护）
+- 修复 `create_test_session.py` 在校验越界前就创建目录的问题（先校验再 mkdir，避免 config 误配导致越界写入）
+- 修复 `create_test_session.py` 的 B 轮可追溯性：新增 `--a-test-id`，无模板时也会写入关联信息
+- 修复 `create_test_session.py` 时间源不一致问题：统一使用单次 `now` 生成 id/时间字段
+- 修复 `test_runner.py` 子进程调用解释器不稳定问题：改用 `sys.executable`，并补齐 watch 模式返回码
+- 修复 `test_runner.py` watch 模式的稳定性与性能：忽略常见重目录并处理文件竞态异常
+- 修复 `code_analyzer.py` 常量命名检查不可达问题（可捕获混合大小写疑似常量）
+- 修复 `SKILL.md` 的时间/规模硬编码宣传语（提升通用性）
+- 修复 `SKILL.md` B 轮维度描述与模板不一致问题：更新为"八大原则"（含配置集中化）
+- 修复 templates 在 A 轮生成时可能残留 `{{A_TEST_ID}}` 的问题：从通用 TEST_PLAN/REPORT 模板移除该变量
+- 修复 `pyproject.toml` 与 `config.yaml` 版本号漂移问题
+
 ## [2.5.0] - 2026-03-18
 
 ### Added（新增）
@@ -149,43 +193,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 类型检查：mypy strict 模式
 - 代码风格：ruff（替代 flake8 + isort）
 - 缓存策略：LRU 内存缓存 + 文件持久化缓存
-
----
-
-## [Unreleased]
-
-### Added（新增）
-- 为 6 个子代理新增 `references/legacy-skill-full.md`：保留完整长文档内容，同时让子代理 `SKILL.md` 保持精简（≤ 500 行）
-
-### Changed（变更）
-- `awesome-code/SKILL.md` 与 6 个超长子代理 `SKILL.md`（multi-agent-coordinator/devops-specialist/security-specialist/backend-specialist/code-reviewer/documentation-specialist）按社区最佳实践瘦身到 ≤ 500 行；长模板/示例下沉到各自 `references/legacy-skill-full.md`
-- `awesome-code/references/INDEX.md` 移除版本历史与本地 markdown 链接，避免形成多层引用链；相关引用改为代码路径形式
-- **新增硬编码引导步骤**：`get_path.py` 脚本，用于动态获取技能真实安装路径，解决 AI 无法预知技能安装位置的问题
-- 优化脚本调用说明：区分 AI 调用流程（三步骤：获取路径→解析 JSON→使用绝对路径）和用户手动调用（直接调用/shell 别名）
-- 新增 shell 别名推荐配置，简化日常使用（`ac-coordinator`/`ac-test`/`ac-analyze`/`ac-git`/`ac-session`）
-- 新增 `references/SCRIPT_PATH_STRATEGY.md`：详细说明脚本路径策略与技术实现
-- README.md"快速开始"章节新增"开放性探索"用法，指导用户如何让 AI 自主决定项目优化方向
-- `agent_coordinator.py` 改为从 `config.yaml` 读取 `enabled_agents` 与 `agent_priorities`，减少硬编码与配置漂移
-- `agent_coordinator.py` 增强可解释性：输出 `matched_keywords`/`priority`，并改进置信度算法（减少仅凭 priority 的误报）
-- `agent_coordinator.py` 增强中文可用性：补充中文关键词与简单 CJK 2 字滑窗启发式（不引入分词依赖）
-- `agent_coordinator.py` JSON 输出改为 `ensure_ascii=False`，中文更可读
-- `create_test_session.py` 改为从 `config.yaml` 读取 `ab_test_optimization.plans_dir/tests_dir`，支持目录结构可配置
-- 新增 `templates/`：为 A/B 轮会话与报告提供标准模板，减少 fallback 产物质量波动
-- `SKILL.md` 移除过期的 config 示例块，明确以 `config.yaml` 为准
-
-### Fixed（修复）
-- 修复 `create_test_session.py` 的测试 ID 校验与路径遍历风险（严格要求 `vYYYYMMDDHHMM`，并增加越界防护）
-- 修复 `create_test_session.py` 在校验越界前就创建目录的问题（先校验再 mkdir，避免 config 误配导致越界写入）
-- 修复 `create_test_session.py` 的 B 轮可追溯性：新增 `--a-test-id`，无模板时也会写入关联信息
-- 修复 `create_test_session.py` 时间源不一致问题：统一使用单次 `now` 生成 id/时间字段
-- 修复 `test_runner.py` 子进程调用解释器不稳定问题：改用 `sys.executable`，并补齐 watch 模式返回码
-- 修复 `test_runner.py` watch 模式的稳定性与性能：忽略常见重目录并处理文件竞态异常
-- 修复 `code_analyzer.py` 常量命名检查不可达问题（可捕获混合大小写疑似常量）
-- 修复 `SKILL.md` 的时间/规模硬编码宣传语（提升通用性）
-- 修复 `SKILL.md` B 轮维度描述与模板不一致问题：更新为"八大原则"（含配置集中化）
-- 修复 templates 在 A 轮生成时可能残留 `{{A_TEST_ID}}` 的问题：从通用 TEST_PLAN/REPORT 模板移除该变量
-
----
 
 ## [2.0.1] - 2026-01-16
 

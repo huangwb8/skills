@@ -35,6 +35,7 @@ metadata:
 - 任务拆分要原子：每个任务有明确输入/输出/验收标准
 - 每个任务用“全新子代理”：降低上下文污染与确认偏差
 - 任务之间强制门禁：至少一次代码审查；必要时补回归测试
+- 若上游分析已把某个 agent 标记为 `required`，该 agent 必须真的进入调度链；缺失时停止推进
 - 结果必须可聚合：统一术语、接口约定、日志口径与错误处理风格
 
 ## 何时使用
@@ -52,6 +53,8 @@ metadata:
 ## 输出
 
 - 一个可执行的“任务编排表”（任务 → 负责人子代理 → 依赖 → 验收）
+- 一份 `dispatch_manifest`，明确哪些 agent 属于 `required / preferred / optional`
+- 一组 `dispatch_receipts` 或缺失说明，证明 required agent 是否真的被调用
 - 每个任务的结果摘要（改动点、风险、验证）
 - 最终聚合报告（P0/P1/P2 风险 + 下一步）
 
@@ -67,6 +70,9 @@ metadata:
    - pipeline：强依赖链；按阶段推进（例如：设计→实现→测试→文档）
 
 3. 分派任务（可并行）
+   - 先读取上游 `dispatch_gate`
+   - 若 `dispatch_gate.can_proceed = false`，立即停止，不要绕过 required agent 继续执行
+   - 若 `dispatch_gate.can_proceed = true`，优先调度 `required_agents`，再补 `preferred_agents`
    - 并行仅限“文件/模块不重叠”或“改动可安全合并”的任务
    - 明确要求：输出必须包含（a）改动说明（b）验证方式（c）潜在回滚点
 
@@ -77,6 +83,7 @@ metadata:
 5. 聚合与冲突解决
    - 先合并“口径/接口/命名/日志风格”，再合并代码
    - 如出现冲突：优先保持正确性与可读性；无法判定时暂停并向用户确认
+   - required agent 未产生 receipt 时，不能把任务标记为已完成
 
 6. 最终交付检查
    - 关键路径功能可跑通
@@ -90,4 +97,4 @@ metadata:
 - [ ] 并行任务是否有清晰的依赖边界？
 - [ ] 每个任务是否经过最小审查与验证？
 - [ ] 聚合后是否统一了术语与接口风格？
-
+- [ ] `required_agents` 是否都在 `dispatch_manifest` 中出现并拿到 receipt？

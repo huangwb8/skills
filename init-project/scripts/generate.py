@@ -7,6 +7,9 @@ Project Init Generator - 生成脚本
 - CLAUDE.md（Claude Code 特定适配 - 通过 @./AGENTS.md 引用）
 - README.md（项目介绍与使用方法 - 可选）
 - CHANGELOG.md（项目变更记录 - 强制性）
+并在完整初始化时补齐标准文档目录：
+- docs/
+- docs/plans/
 
 支持语言检测、模板变量替换、自定义配置和自动项目分析。
 
@@ -475,6 +478,31 @@ class ProjectInitGenerator:
         template = self.load_template("CHANGELOG.md.template")
         return self.replace_placeholders(template, variables)
 
+    def ensure_docs_structure(self, output_dir: Path) -> List[Path]:
+        """
+        确保项目具备标准 docs 目录结构。
+
+        会创建：
+        - docs/
+        - docs/plans/
+
+        如果目录已存在，则静默跳过。
+        """
+        docs_dir = output_dir / "docs"
+        plans_dir = docs_dir / "plans"
+        created_dirs = []
+
+        for directory in [docs_dir, plans_dir]:
+            if directory.exists():
+                if not directory.is_dir():
+                    raise ValueError(f"{directory} 已存在但不是目录，无法初始化标准 docs 结构")
+                continue
+
+            directory.mkdir(parents=True, exist_ok=True)
+            created_dirs.append(directory)
+
+        return created_dirs
+
     def _load_gitignore_config(self) -> dict:
         """
         加载 .gitignore 配置模板
@@ -776,7 +804,8 @@ class ProjectInitGenerator:
                           "有机更新原则"],
             # 说明：AGENTS.md 不再包含「目录结构」章节；为兼容旧文件，合并时会主动丢弃旧的该章节。
             "AGENTS.md": ["项目目标", "核心工作流", "工程原则", "默认语言",
-                          "Codex CLI 特定说明", "文件引用规范", "验证要点", "变更边界",
+                          "Codex CLI 特定说明", "文件与输出", "编辑原则", "变更边界",
+                          "变更记录规范", "版本号管理规范", "变更记录与版本",
                           "与 CLAUDE.md 的关系", "有机更新原则"]
         }
 
@@ -803,7 +832,16 @@ class ProjectInitGenerator:
         # 替换保留的章节
         for section_name, section_content in preserved_sections.items():
             pattern = rf"(## {re.escape(section_name)}\s*\n+)(.*?)(?=\n##|\Z)"
-            merged_content = re.sub(pattern, rf"\1{section_content}\n", merged_content, count=1, flags=re.DOTALL)
+            if re.search(pattern, merged_content, re.DOTALL):
+                merged_content = re.sub(pattern, rf"\1{section_content}\n", merged_content, count=1, flags=re.DOTALL)
+            elif section_name == "变更边界":
+                merged_content = re.sub(
+                    r"(### 编辑原则\s*\n+)(.*?)(?=\n##|\Z)",
+                    rf"\1\2\n{section_content}\n",
+                    merged_content,
+                    count=1,
+                    flags=re.DOTALL,
+                )
 
         # 添加自定义章节到文件末尾（在有机更新原则之前）
         if custom_sections:
@@ -889,6 +927,7 @@ class ProjectInitGenerator:
 
         success = True
         generated_files = []
+        created_dirs = []
 
         # 定义文件路径
         claude_path = output_dir / "CLAUDE.md"
@@ -912,6 +951,17 @@ class ProjectInitGenerator:
                 print(f"⚠️  {changelog_path.name} 已存在，使用 --overwrite 覆盖")
                 success = False
         else:
+            # 完整初始化时补齐标准 docs 目录，但不让其影响项目类型检测结果
+            try:
+                created_dirs = self.ensure_docs_structure(output_dir)
+            except ValueError as e:
+                print(f"❌ {e}")
+                return False
+
+            if created_dirs:
+                analysis["directory_tree"] = ProjectAnalyzer._generate_tree(output_dir, max_depth=2)
+                variables = self._prepare_variables(analysis, language, output_dir)
+
             # 完整生成模式
             # 1. 生成 AGENTS.md（跨平台通用项目指令 - Single Source of Truth）
             agents_content = self.generate_agents_md(variables)
@@ -994,6 +1044,10 @@ class ProjectInitGenerator:
             print(f"✅ 已生成 AI 项目指令文档:")
             for f in generated_files:
                 print(f"   - {f.name}")
+            if created_dirs:
+                print(f"\n📁 已初始化文档目录:")
+                for directory in created_dirs:
+                    print(f"   - {directory.relative_to(output_dir)}/")
             print(f"\n📊 项目分析结果:")
             print(f"   名称: {analysis['name']}")
             print(f"   类型: {analysis['type_info']['name']}")
@@ -1229,7 +1283,16 @@ def main():
         "工作流描述": args.workflow or "[待补充工作流描述]",
         "目录树": "[请根据实际项目结构补充]",
         "项目类型": "[项目类型，如：数据分析、Web开发等]",
+        "版本号": "1.0.0",
+        "一句话概括项目的价值主张": args.project_description,
     }
+
+    # 手动模式也补齐标准 docs 目录
+    try:
+        created_dirs = generator.ensure_docs_structure(output_dir)
+    except ValueError as e:
+        print(f"错误: {e}")
+        return 1
 
     # 生成文件
     agents_content = generator.generate_agents_md(variables)
@@ -1259,6 +1322,9 @@ def main():
         print(f"✅ 已生成:")
         print(f"   - {agents_path.name}")
         print(f"   - {claude_path.name}")
+        if created_dirs:
+            for directory in created_dirs:
+                print(f"   - {directory.relative_to(output_dir)}/")
         print(f"\n默认语言: {language}")
         print(f"\n请根据实际情况编辑这些文件，填补 [待补充] 的内容")
 

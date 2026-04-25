@@ -9,12 +9,18 @@ It implements the orchestrator pattern for multi-agent coordination.
 import json
 import re
 import sys
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from _config import get_nested, load_skill_config
+from subagent_dispatch_audit import build_dispatch_manifest
+from subagent_policy import (
+    DispatchRequirement,
+    classify_dispatch_requirements,
+    missing_required_agents,
+)
 
 ASCII_MIN_TOKEN_LEN = 3
 NON_ASCII_MIN_TOKEN_LEN = 2
@@ -313,10 +319,20 @@ class AgentCoordinator:
         self.agents_root = agents_root or (self.skill_root / "agents")
 
         config = load_skill_config(self.skill_root)
+        self.config = config
         enabled = get_nested(config, "multi_agent", "enabled_agents", default=None)
         enabled_set = set(enabled) if isinstance(enabled, list) else None
         priorities = get_nested(config, "multi_agent", "agent_priorities", default={})
         priorities = priorities if isinstance(priorities, dict) else {}
+        self.fail_on_missing_required_agent = bool(
+            get_nested(
+                config,
+                "multi_agent",
+                "dispatch_policy",
+                "fail_on_missing_required_agent",
+                default=True,
+            )
+        )
         frontend_design_keywords = get_nested(
             config,
             "multi_agent",
@@ -347,7 +363,7 @@ class AgentCoordinator:
             if role is not None
         }
 
-        self.registry: Dict[AgentRole, AgentCapability] = {}
+        self.policy_registry: Dict[AgentRole, AgentCapability] = {}
         for role, cap in AGENT_REGISTRY.items():
             if enabled_set is not None and role.value not in enabled_set:
                 continue
@@ -356,13 +372,15 @@ class AgentCoordinator:
                 override_pri_int = int(override_pri)
             except Exception:
                 override_pri_int = cap.priority
-            self.registry[role] = AgentCapability(
+            self.policy_registry[role] = AgentCapability(
                 role=cap.role,
                 name=cap.name,
                 description=cap.description,
                 keywords=self._build_keywords(cap),
                 priority=override_pri_int,
             )
+
+        self.registry: Dict[AgentRole, AgentCapability] = dict(self.policy_registry)
 
         # Validate agent SKILL.md existence; drop missing ones to avoid emitting broken paths.
         if self.agents_root.exists():
@@ -377,9 +395,10 @@ class AgentCoordinator:
                     file=sys.stderr,
                 )
         else:
+            self.registry = {}
             print(f"[awesome-code] warning: agents_root does not exist: {self.agents_root}", file=sys.stderr)
 
-        self.matcher = AgentMatcher(registry=self.registry)
+        self.matcher = AgentMatcher(registry=self.policy_registry)
 
     def _build_keywords(self, capability: AgentCapability) -> List[str]:
         """Merge base keywords with config-driven extensions."""
@@ -429,7 +448,7 @@ class AgentCoordinator:
             default=0.22,
         )
         for role in sorted(self.frontend_design_companion_roles, key=lambda item: item.value):
-            if role in assigned_roles or role not in self.registry:
+            if role in assigned_roles or role not in self.policy_registry:
                 continue
             assignments.append(
                 AgentAssignment(
@@ -451,11 +470,10 @@ class AgentCoordinator:
         Returns:
             Analysis dictionary with agent recommendations
         """
-        # Match agents to task
-        assignments = self.matcher.match_agents(task)
         extracted_keywords = self.matcher._extract_keywords(task.description)
         task_keywords = set(str(k).lower() for k in (task.keywords or []))
         task_keywords.update(extracted_keywords)
+        assignments = self.matcher.match_agents(task)
 
         if self._is_frontend_design_task(task_keywords):
             assignments = [
@@ -465,20 +483,77 @@ class AgentCoordinator:
             ]
             assignments = self._ensure_frontend_design_companions(task, task_keywords, assignments)
             assignments.sort(
-                key=lambda a: (-a.confidence, -self.registry[a.agent_role].priority, a.agent_role.value)
+                key=lambda a: (
+                    -a.confidence,
+                    -self.policy_registry[a.agent_role].priority,
+                    a.agent_role.value,
+                )
             )
 
-        # Filter to top agents
-        top_assignments = assignments[:5] if len(assignments) > 5 else assignments
+        available_assignments = [
+            assignment
+            for assignment in assignments
+            if assignment.agent_role in self.registry
+        ]
+        top_assignments = available_assignments[:5] if len(available_assignments) > 5 else available_assignments
+        requirements = classify_dispatch_requirements(
+            task_keywords,
+            self.config,
+            self.policy_registry,
+        )
+        required_roles = {item.role for item in requirements["required"]}
+        preferred_roles = {item.role for item in requirements["preferred"]}
+        optional_requirements = list(requirements["optional"])
 
-        # Build analysis
+        for assignment in top_assignments:
+            role = assignment.agent_role.value
+            if role in required_roles or role in preferred_roles:
+                continue
+            optional_requirements.append(
+                DispatchRequirement(
+                    role=role,
+                    dispatch_level="optional",
+                    reason="matched task keywords and available for dispatch",
+                    policy_source="agent_coordinator.matcher",
+                    matched_keywords=assignment.matched_keywords,
+                )
+            )
+
+        required_agents = [
+            self._serialize_requirement(item)
+            for item in requirements["required"]
+        ]
+        preferred_agents = [
+            self._serialize_requirement(item)
+            for item in requirements["preferred"]
+        ]
+        optional_agents = [
+            self._serialize_requirement(item)
+            for item in optional_requirements
+        ]
+        required_agents = self._order_required_agents(required_agents)
+        dispatch_gate = self._build_dispatch_gate(requirements["required"])
+        coordination_strategy = (
+            "blocked"
+            if not dispatch_gate["can_proceed"]
+            else self._determine_strategy_with_requirements(
+                top_assignments,
+                required_agents,
+            )
+        )
+
         analysis = {
             "task": task.description,
-            # Keep keyword list stable (dedup while preserving order).
             "keywords": list(dict.fromkeys(task.keywords + extracted_keywords)),
             "recommended_agents": [],
-            "coordination_strategy": self._determine_strategy(top_assignments),
-            "execution_plan": self._create_execution_plan(top_assignments)
+            "required_agents": required_agents,
+            "preferred_agents": preferred_agents,
+            "optional_agents": optional_agents,
+            "dispatch_gate": dispatch_gate,
+            "dispatch_manifest": [],
+            "dispatch_receipts": [],
+            "coordination_strategy": coordination_strategy,
+            "execution_plan": [],
         }
 
         for assignment in top_assignments:
@@ -493,7 +568,87 @@ class AgentCoordinator:
                 "skill_path": str(self.agents_root / assignment.agent_role.value / "SKILL.md")
             })
 
+        analysis["dispatch_manifest"] = build_dispatch_manifest(analysis)
+        analysis["execution_plan"] = self._create_execution_plan(
+            top_assignments,
+            analysis["dispatch_gate"],
+            analysis["dispatch_manifest"],
+            required_agents,
+        )
+
         return analysis
+
+    def _order_required_agents(
+        self,
+        required_agents: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        required_roles = {agent["role"] for agent in required_agents}
+        if {"brainstorming", "frontend-specialist"} <= required_roles:
+            brainstorming = [agent for agent in required_agents if agent["role"] == "brainstorming"]
+            frontend = [agent for agent in required_agents if agent["role"] == "frontend-specialist"]
+            rest = [
+                agent
+                for agent in required_agents
+                if agent["role"] not in {"brainstorming", "frontend-specialist"}
+            ]
+            rest.sort(key=self._dispatch_priority_key)
+            return brainstorming + frontend + rest
+
+        ordered = list(required_agents)
+        ordered.sort(key=self._dispatch_priority_key)
+        return ordered
+
+    def _dispatch_priority_key(self, agent: Dict[str, Any]) -> tuple[int, str]:
+        role = self._coerce_agent_role(agent["role"])
+        priority = 0
+        if role is not None and role in self.policy_registry:
+            priority = self.policy_registry[role].priority
+        return (-priority, agent["role"])
+
+    def _determine_strategy_with_requirements(
+        self,
+        assignments: List[AgentAssignment],
+        required_agents: List[Dict[str, Any]],
+    ) -> str:
+        if len(required_agents) > 1:
+            return "sequential"
+        return self._determine_strategy(assignments)
+
+    def _serialize_requirement(self, requirement: DispatchRequirement) -> Dict[str, Any]:
+        capability = self.policy_registry.get(self._coerce_agent_role(requirement.role))
+        available_capability = self.registry.get(self._coerce_agent_role(requirement.role))
+        skill_path = None
+        if available_capability is not None:
+            skill_path = str(self.agents_root / requirement.role / "SKILL.md")
+        return {
+            "role": requirement.role,
+            "name": capability.name if capability else requirement.role,
+            "description": capability.description if capability else "",
+            "dispatch_level": requirement.dispatch_level,
+            "reason": requirement.reason,
+            "policy_source": requirement.policy_source,
+            "matched_keywords": requirement.matched_keywords,
+            "available": available_capability is not None,
+            "skill_path": skill_path,
+        }
+
+    def _build_dispatch_gate(
+        self,
+        required_requirements: List[DispatchRequirement],
+    ) -> Dict[str, Any]:
+        missing_agents = missing_required_agents(required_requirements, self.registry)
+        can_proceed = not (
+            self.fail_on_missing_required_agent and missing_agents
+        )
+        blocking_reason = ""
+        if not can_proceed:
+            blocking_reason = "required agent unavailable"
+        return {
+            "can_proceed": can_proceed,
+            "blocking_reason": blocking_reason,
+            "missing_agents": missing_agents,
+            "runtime_capability_required": bool(required_requirements),
+        }
 
     def _determine_strategy(self, assignments: List[AgentAssignment]) -> str:
         """Determine the best coordination strategy"""
@@ -518,9 +673,24 @@ class AgentCoordinator:
 
     def _create_execution_plan(
         self,
-        assignments: List[AgentAssignment]
+        assignments: List[AgentAssignment],
+        dispatch_gate: Dict[str, Any],
+        dispatch_manifest: List[Dict[str, Any]],
+        required_agents: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Create an execution plan for the agents"""
+        if not dispatch_gate.get("can_proceed", True):
+            return [
+                {
+                    "stage": 1,
+                    "type": "blocked",
+                    "action": "install_or_enable_required_agents",
+                    "missing_agents": dispatch_gate.get("missing_agents", []),
+                    "dispatch_manifest": dispatch_manifest,
+                }
+            ]
+        if len(required_agents) > 1:
+            return self._create_required_first_plan(assignments, dispatch_manifest, required_agents)
         strategy = self._determine_strategy(assignments)
 
         if strategy == "parallel":
@@ -529,6 +699,38 @@ class AgentCoordinator:
             return self._create_sequential_plan(assignments)
         else:
             return self._create_single_plan(assignments[0] if assignments else None)
+
+    def _create_required_first_plan(
+        self,
+        assignments: List[AgentAssignment],
+        dispatch_manifest: List[Dict[str, Any]],
+        required_agents: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        assignment_by_role = {assignment.agent_role.value: assignment for assignment in assignments}
+        ordered_roles = [agent["role"] for agent in required_agents]
+        ordered_roles.extend(
+            entry["role"]
+            for entry in dispatch_manifest
+            if entry["role"] not in ordered_roles
+        )
+
+        plan: List[Dict[str, Any]] = []
+        for index, role in enumerate(ordered_roles, start=1):
+            assignment = assignment_by_role.get(role)
+            if assignment is None:
+                continue
+            plan.append(
+                {
+                    "stage": index,
+                    "type": "sequential",
+                    "agent": {
+                        "role": assignment.agent_role.value,
+                        "task": assignment.task.description,
+                        "confidence": assignment.confidence,
+                    },
+                }
+            )
+        return plan
 
     def _create_parallel_plan(
         self,
