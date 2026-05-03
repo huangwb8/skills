@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added（新增）
+- 新增 `plans/2026-04-25-karpathy-coding-discipline-optimization.md`，规划将 andrej-karpathy-skills 的“先澄清、保持简单、外科手术式修改、目标驱动验证”转化为 `awesome-code` 的调度门禁、执行纪律和子代理协作规范。
+- `agent_coordinator.py` 新增 `coordination_scope`、`ambiguity_gate`、`minimal_change_scope`、`success_criteria`、`verification_plan` 输出，帮助小任务避免过度分派，并让宽泛/高风险任务先明确目标、边界和验收标准。
+- `tests/unit/test_dispatch_policy_integration.py` 新增轻量集成测试，覆盖小任务 `single-pass`、安全漏洞 `multi-agent`、宽泛重构歧义阻塞与明确验证命令放行。
+
+### Changed（变更）
+- `SKILL.md`、`README.md`、计划模板与重点子代理同步“少分派优先、外科手术式修改、目标驱动验证”纪律。
+- `agents/writing-plans/SKILL.md` 改为按风险缩放计划长度，小任务输出短闭环计划，复杂任务才展开完整任务树。
+- `agents/code-reviewer/SKILL.md` 增加无关改动、过度抽象和缺失验收标准检查。
+- `agents/systematic-debugging/SKILL.md` 强化一次只验证一个假设和最小修复范围。
+- 版本号从 `2.6.0` 升级到 `2.6.1`，并同步 `pyproject.toml`。
+
 ## [2.6.0] - 2026-04-19
 
 ### Added（新增）

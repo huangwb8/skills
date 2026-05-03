@@ -16,7 +16,7 @@ metadata:
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write implementation plans sized to the task risk. Small, localized work should get a short closed-loop plan; complex or high-risk work should get the full task tree with explicit tests, affected files, dependencies, and rollback/verification notes. DRY. YAGNI. TDD. Frequent commits.
 
 Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
@@ -35,6 +35,14 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 - "Run the tests and make sure they pass" - step
 - "Commit" - step
 
+## Risk-Scaled Plan Depth
+
+- Low risk / single-file / docs-only: produce a compact plan with goal, minimal change scope, success criteria, verification command, and 2-4 execution steps.
+- Medium risk / one specialty: include affected files, one focused test path, implementation steps, and review checklist.
+- High risk / cross-module / security / data changes: include assumptions, non-goals, dependency order, rollback notes, required agents, success criteria, and a verification matrix.
+
+Do not inflate a small task into a large plan just because the planning skill is active.
+
 ## Plan Document Header
 
 **Every plan MUST start with this header:**
@@ -49,6 +57,12 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
+
+**Minimal Change Scope:** [Allowed paths and explicit avoid list]
+
+**Success Criteria:** [Observable checks that prove completion]
+
+**Verification Plan:** [Exact commands or manual checks]
 
 ---
 ```

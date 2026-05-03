@@ -8,6 +8,10 @@
 - 新增 `tests/test_install.py` 覆盖 legacy skill 配置读取与安装前自动清理行为
 
 ### Changed
+- 系统级安装器查找策略改为“系统目录优先且唯一入口”：触发 skill 时不再先检查当前项目目录下的 `./install-bensz-skills/scripts/install.py`，而是直接从 `~/.codex/skills/install-bensz-skills/scripts/install.py` 或 `~/.claude/skills/install-bensz-skills/scripts/install.py` 查找脚本
+  - 修改 `SKILL.md`：更新触发后必须执行的脚本入口规则，并将本地/远程安装示例统一改为系统级 `$INSTALLER`
+  - 修改 `README.md`：同步脚本硬编码用法，避免用户继续采用本地脚本优先路径
+  - 修改 `config.yaml`：版本号更新至 0.5.2
 - 本地安装与远程安装现在都会在正式安装前自动清理 `legacy_skill_names` 中声明的旧 skill 目录，避免 skill 改名后旧目录残留在 `~/.codex/skills/` / `~/.claude/skills/`
   - 修改 `scripts/install.py`：接入 legacy skill 清理逻辑，并对当前仍在安装清单中的同名目录做保护，避免误删
   - 修改 `scripts/i18n.py`：新增 legacy skill 清理提示文案

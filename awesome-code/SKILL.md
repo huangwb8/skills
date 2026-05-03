@@ -43,6 +43,10 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 ## 核心理念
 
 - 智能任务识别：用脚本把“需求描述”转成可执行的任务拆解/策略建议
+- 少分派优先：小而明确的任务保持 `single-pass`，只有专业风险或跨模块依赖才升级为子代理协作
+- 歧义先拦截：目标、边界或验收标准不清楚的高风险/宽泛任务，先输出 `ambiguity_gate`，不要过早实现
+- 外科手术式修改：每轮输出 `minimal_change_scope`，把改动限制在服务用户目标的最小范围内
+- 目标驱动验证：每轮输出 `success_criteria` 与 `verification_plan`，先知道怎样算完成再动手
 - 多代理协调：对独立子任务并行，对有依赖的子任务顺序执行
 - 分层分派：把子代理分成 `required / preferred / optional` 三层，而不是只给一组泛化推荐
 - 强制门禁：命中 required 路由时，若对应 agent 缺失、禁用或不可调度，必须通过 `dispatch_gate` 阻塞继续执行
@@ -73,22 +77,28 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 ## 核心工作流（AI 执行）
 
 1. 运行 `get_path.py`，拿到 `executable_scripts.agent_coordinator` 的绝对路径。
-2. 调用 `agent_coordinator.py` 进行任务分析，读取 `required_agents`、`preferred_agents`、`optional_agents`、`dispatch_gate` 与 `dispatch_manifest`。
-3. 若 `dispatch_gate.can_proceed = false`：
+2. 调用 `agent_coordinator.py` 进行任务分析，读取 `coordination_scope`、`ambiguity_gate`、`minimal_change_scope`、`success_criteria`、`verification_plan`、`required_agents`、`preferred_agents`、`optional_agents`、`dispatch_gate` 与 `dispatch_manifest`。
+3. 若 `ambiguity_gate.can_proceed = false`：
+   - 停止进入实现阶段，不把宽泛需求伪装成明确任务
+   - 明确说明 `blocking_reason` 与 `open_questions`
+   - 只给出澄清范围、目标和验收标准的下一步
+4. 若 `dispatch_gate.can_proceed = false`：
    - 停止继续执行，不要假装已经进入实现阶段
    - 明确说明 `blocking_reason` 与 `missing_agents`
    - 只给出“如何补齐 required agent / 配置 / 运行条件”的下一步
-4. 若 `dispatch_gate.can_proceed = true`：
+5. 若两个门禁都允许继续：
+   - 先按 `coordination_scope.level` 决定是否需要子代理：`single-pass` 直接完成，`focused-agent` 调一个主代理，`multi-agent` 才进入多代理编排
+   - 执行时遵守 `minimal_change_scope`
    - 先按需加载 required agents 的 `awesome-code/agents/{role}/SKILL.md`
    - 再按任务复杂度补充 preferred / optional agents
    - 按协调策略执行：
    - 并行：相互独立的任务（例如“写测试 + 改文档 + 做静态检查”）
    - 顺序：存在依赖链的任务（例如“先修 bug → 再补测试 → 再重构”）
-5. 聚合结果并留痕：
+6. 聚合结果并留痕：
    - 统一口径（术语/目标/约束）
    - 标注 P0/P1/P2 优先级
    - 为实际调用的 agent 回填 `dispatch_receipts`
-   - 给出可执行的下一步（含验证方式）
+   - 对照 `success_criteria` 与 `verification_plan` 给出验证结果
 
 ## 强制路由语义
 
@@ -103,6 +113,12 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 
 当前门禁输出至少包含：
 
+- `ambiguity_gate.can_proceed`
+- `ambiguity_gate.open_questions`
+- `coordination_scope.level`
+- `minimal_change_scope`
+- `success_criteria`
+- `verification_plan`
 - `dispatch_gate.can_proceed`
 - `dispatch_gate.blocking_reason`
 - `dispatch_gate.missing_agents`

@@ -39,37 +39,52 @@ metadata:
 
 ## 你要做的事（触发后必须执行）
 
-执行时不要先做 `test -f ./install-bensz-skills/...` 之类的“脚本存在性检测”。直接运行安装脚本即可；若当前项目目录没有 `install-bensz-skills/`，就改用系统级已安装位置（`~/.codex/skills/` 或 `~/.claude/skills/`）的脚本运行，并在需要时用 `--source` 显式指定源目录。
+执行时不要检查当前项目目录下是否存在 `./install-bensz-skills/scripts/install.py`，也不要把本地脚本作为优先入口。触发本 skill 后，直接从系统级已安装位置查找安装器脚本：优先 `~/.codex/skills/install-bensz-skills/scripts/install.py`，其次 `~/.claude/skills/install-bensz-skills/scripts/install.py`。安装源目录仍由脚本从当前工作目录自动识别；无法自动识别时，再用 `--source` 显式指定。
 
 ### 本地安装
 
-1) 运行安装脚本：
+1) 先定位系统级安装器脚本：
+
+```bash
+CODEX_INSTALLER="$HOME/.codex/skills/install-bensz-skills/scripts/install.py"
+CLAUDE_INSTALLER="$HOME/.claude/skills/install-bensz-skills/scripts/install.py"
+if [ -f "$CODEX_INSTALLER" ]; then
+  INSTALLER="$CODEX_INSTALLER"
+elif [ -f "$CLAUDE_INSTALLER" ]; then
+  INSTALLER="$CLAUDE_INSTALLER"
+else
+  echo "未找到系统级 install-bensz-skills 安装器" >&2
+  exit 1
+fi
+```
+
+2) 运行安装脚本：
 
 ```bash
 # 默认：同时安装到 Codex 和 Claude Code（仅安装有更新的）
 # 说明：脚本会优先从当前目录自动识别 skills 源目录（支持 ./pipelines/skills、./skills、或当前目录本身）
-python3 install-bensz-skills/scripts/install.py
+python3 "$INSTALLER"
 
 # 仅安装到 Claude Code
-python3 install-bensz-skills/scripts/install.py --claude
+python3 "$INSTALLER" --claude
 
 # 仅安装到 Codex
-python3 install-bensz-skills/scripts/install.py --codex
+python3 "$INSTALLER" --codex
 
 # 强制重新安装所有 skills（忽略版本检查）
-python3 install-bensz-skills/scripts/install.py --force
+python3 "$INSTALLER" --force
 
 # 预览模式（不实际安装）
-python3 install-bensz-skills/scripts/install.py --dry-run
+python3 "$INSTALLER" --dry-run
 
 # 指定额外 skills 源目录
-python3 install-bensz-skills/scripts/install.py --source /path/to/skills
+python3 "$INSTALLER" --source /path/to/skills
 
 # 多个源目录（逗号分隔）
-python3 install-bensz-skills/scripts/install.py --source /path/skills-a,/path/skills-b
+python3 "$INSTALLER" --source /path/skills-a,/path/skills-b
 ```
 
-如果你在某个项目目录里只有 `skills/`（没有 `install-bensz-skills/`），但安装器已被系统级安装（通常在 `~/.codex/skills/` 或 `~/.claude/skills/`），可直接运行系统级脚本：
+也可以直接运行某个系统级脚本路径：
 
 ```bash
 # Codex 安装位置（优先）
@@ -88,13 +103,13 @@ python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skill
 
 ```bash
 # 检查并交互式安装远程技能
-python3 install-bensz-skills/scripts/install.py --remote --check
+python3 "$INSTALLER" --remote --check
 
 # 仅对 Claude Code 执行远程检查
-python3 install-bensz-skills/scripts/install.py --remote --check --claude
+python3 "$INSTALLER" --remote --check --claude
 
 # 仅对 Codex 执行远程检查
-python3 install-bensz-skills/scripts/install.py --remote --check --codex
+python3 "$INSTALLER" --remote --check --codex
 ```
 
 流程：
@@ -110,10 +125,10 @@ python3 install-bensz-skills/scripts/install.py --remote --check --codex
 
 ```bash
 # 自动下载并强制安装所有远程技能（无确认）
-python3 install-bensz-skills/scripts/install.py --remote --auto
+python3 "$INSTALLER" --remote --auto
 
 # 仅对 Claude Code 执行自动安装
-python3 install-bensz-skills/scripts/install.py --remote --auto --claude
+python3 "$INSTALLER" --remote --auto --claude
 ```
 
 流程：
@@ -129,9 +144,9 @@ python3 install-bensz-skills/scripts/install.py --remote --auto --claude
 如果只想单独执行清理，可直接运行：
 
 ```bash
-python3 install-bensz-skills/scripts/remove_legacy_skills.py
-python3 install-bensz-skills/scripts/remove_legacy_skills.py --codex
-python3 install-bensz-skills/scripts/remove_legacy_skills.py --claude --dry-run
+python3 "${INSTALLER%install.py}remove_legacy_skills.py"
+python3 "${INSTALLER%install.py}remove_legacy_skills.py" --codex
+python3 "${INSTALLER%install.py}remove_legacy_skills.py" --claude --dry-run
 ```
 
 ### 验证

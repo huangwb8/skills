@@ -27,6 +27,9 @@
 ## 能做什么
 
 - 先分析任务，再匹配合适的子代理，而不是一上来盲目开工。
+- 对小任务输出 `coordination_scope.level = single-pass`，避免把简单修改升级成多代理编排。
+- 对宽泛且缺少验收标准的高风险任务输出 `ambiguity_gate`，先澄清目标、边界和成功标准。
+- 输出 `minimal_change_scope`、`success_criteria` 和 `verification_plan`，让改动范围与验证方式可追溯。
 - 会把子代理分成 `required / preferred / optional`，避免“看起来推荐了，但真正需要时没人兜底”。
 - 命中安全、系统化调试、TDD/test-first、明确 UI 重设计等高专长路线时，会强制调对应 agent。
 - 若 required agent 缺失、禁用或不可调度，会通过 `dispatch_gate` 阻塞并说明原因。
@@ -77,6 +80,11 @@
 - `required_agents`：必须实际调用的 agent；缺失时不得继续执行。
 - `preferred_agents`：强烈建议调用；缺失时可以降级，但应说明影响。
 - `optional_agents`：补充覆盖面或效率，不构成门禁。
+- `coordination_scope`：建议使用 `single-pass`、`focused-agent` 还是 `multi-agent`。
+- `ambiguity_gate`：说明需求是否清晰到可以安全推进。
+- `minimal_change_scope`：约束允许修改的范围与应避免的无关改动。
+- `success_criteria`：本轮交付需要满足的可检查标准。
+- `verification_plan`：推荐的最小验证命令或检查步骤。
 - `dispatch_gate`：说明当前是否可继续、为什么阻塞、缺哪些 agent。
 - `dispatch_manifest`：本轮应调度哪些 agent 的清单；执行后可补 `dispatch_receipts` 做留痕。
 - 协调策略说明：单任务、顺序执行、并行推进，或 `blocked`。
@@ -120,9 +128,13 @@ python3 "$AGENT_COORDINATOR" \
 - `preferred_agents`
 - `optional_agents`
 - `dispatch_gate`
+- `ambiguity_gate`
+- `coordination_scope`
+- `success_criteria`
+- `verification_plan`
 - `dispatch_manifest`
 
-如果 `dispatch_gate.can_proceed` 是 `false`，先补齐 required agent，再继续实现。
+如果 `ambiguity_gate.can_proceed` 是 `false`，先澄清目标、边界和验收标准；如果 `dispatch_gate.can_proceed` 是 `false`，先补齐 required agent，再继续实现。
 
 ### 常用辅助脚本
 

@@ -91,38 +91,53 @@
 
 ## 备选用法（脚本/硬编码）
 
-这个 skill 的脚本入口是高频主用法之一，适合你明确知道自己要装什么、装到哪里时直接使用。
+这个 skill 的脚本入口是高频主用法之一，适合你明确知道自己要装什么、装到哪里时直接使用。脚本入口应直接来自系统级 skill 目录，不再先检查当前项目目录是否存在本地安装脚本。
+
+### 定位系统级安装器
+
+```bash
+CODEX_INSTALLER="$HOME/.codex/skills/install-bensz-skills/scripts/install.py"
+CLAUDE_INSTALLER="$HOME/.claude/skills/install-bensz-skills/scripts/install.py"
+if [ -f "$CODEX_INSTALLER" ]; then
+  INSTALLER="$CODEX_INSTALLER"
+elif [ -f "$CLAUDE_INSTALLER" ]; then
+  INSTALLER="$CLAUDE_INSTALLER"
+else
+  echo "未找到系统级 install-bensz-skills 安装器" >&2
+  exit 1
+fi
+```
 
 ### 本地安装
 
 ```bash
-python3 install-bensz-skills/scripts/install.py
-python3 install-bensz-skills/scripts/install.py --codex
-python3 install-bensz-skills/scripts/install.py --claude
-python3 install-bensz-skills/scripts/install.py --dry-run
-python3 install-bensz-skills/scripts/install.py --force
+python3 "$INSTALLER"
+python3 "$INSTALLER" --codex
+python3 "$INSTALLER" --claude
+python3 "$INSTALLER" --dry-run
+python3 "$INSTALLER" --force
 ```
 
 ### 指定额外源目录
 
 ```bash
-python3 install-bensz-skills/scripts/install.py --source /path/to/skills
+python3 "$INSTALLER" --source /path/to/skills
 ```
 
 ### 仅清理 legacy skill 名称
 
 ```bash
-python3 install-bensz-skills/scripts/remove_legacy_skills.py
-python3 install-bensz-skills/scripts/remove_legacy_skills.py --codex
-python3 install-bensz-skills/scripts/remove_legacy_skills.py --claude --dry-run
+python3 "${INSTALLER%install.py}remove_legacy_skills.py"
+python3 "${INSTALLER%install.py}remove_legacy_skills.py" --codex
+python3 "${INSTALLER%install.py}remove_legacy_skills.py" --claude --dry-run
 ```
 
 ### 远程安装
 
 ```bash
-python3 install-bensz-skills/scripts/install.py --remote --check
-python3 install-bensz-skills/scripts/install.py --remote --auto
-python3 install-bensz-skills/scripts/install.py --remote --check --research
+python3 "$INSTALLER" --remote --check
+python3 "$INSTALLER" --remote --auto
+python3 "$INSTALLER" --remote --check --research
 ```
 
 ## 常见问题

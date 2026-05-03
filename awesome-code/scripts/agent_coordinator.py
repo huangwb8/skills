@@ -40,6 +40,27 @@ FRONTEND_DESIGN_SIGNAL_KEYWORDS = {
     "layout", "motion", "animation", "typography", "design", "设计", "视觉", "审美",
     "布局", "排版", "动效", "动画", "仪表盘", "落地页",
 }
+SMALL_LOCALIZED_KEYWORDS = {
+    "readme", "docs", "documentation", "example", "typo", "copy", "button", "style",
+    "css", "single-file", "localized", "文档", "示例", "错别字", "按钮", "样式", "单文件",
+}
+HIGH_RISK_KEYWORDS = {
+    "security", "vulnerability", "auth", "authentication", "authorization", "permission",
+    "payment", "migration", "database", "production", "安全", "漏洞", "鉴权", "认证",
+    "权限", "支付", "迁移", "数据库", "生产",
+}
+BROAD_SCOPE_KEYWORDS = {
+    "entire", "whole", "all", "everything", "project", "system", "backend", "frontend",
+    "整个", "全部", "所有", "全量", "项目", "系统", "后端", "前端",
+}
+VAGUE_CHANGE_KEYWORDS = {
+    "refactor", "rewrite", "optimize", "improve", "cleanup", "rework",
+    "重构", "重写", "优化", "改造", "清理",
+}
+CLARITY_KEYWORDS = {
+    "verify", "test", "pytest", "acceptance", "criteria", "scope", "unchanged",
+    "compatible", "keep", "验证", "测试", "验收", "标准", "范围", "保持", "兼容",
+}
 
 
 class AgentRole(Enum):
@@ -533,14 +554,26 @@ class AgentCoordinator:
         ]
         required_agents = self._order_required_agents(required_agents)
         dispatch_gate = self._build_dispatch_gate(requirements["required"])
-        coordination_strategy = (
-            "blocked"
-            if not dispatch_gate["can_proceed"]
-            else self._determine_strategy_with_requirements(
+        ambiguity_gate = self._build_ambiguity_gate(task.description, task_keywords)
+        coordination_scope = self._build_coordination_scope(
+            task_keywords,
+            required_agents,
+            preferred_agents,
+            top_assignments,
+            ambiguity_gate,
+        )
+        minimal_change_scope = self._build_minimal_change_scope(task_keywords)
+        success_criteria = self._build_success_criteria(task_keywords, ambiguity_gate)
+        verification_plan = self._build_verification_plan(task.description, task_keywords)
+        if not dispatch_gate["can_proceed"] or not ambiguity_gate["can_proceed"]:
+            coordination_strategy = "blocked"
+        elif coordination_scope["level"] == "single-pass":
+            coordination_strategy = "single_pass"
+        else:
+            coordination_strategy = self._determine_strategy_with_requirements(
                 top_assignments,
                 required_agents,
             )
-        )
 
         analysis = {
             "task": task.description,
@@ -550,6 +583,11 @@ class AgentCoordinator:
             "preferred_agents": preferred_agents,
             "optional_agents": optional_agents,
             "dispatch_gate": dispatch_gate,
+            "ambiguity_gate": ambiguity_gate,
+            "coordination_scope": coordination_scope,
+            "minimal_change_scope": minimal_change_scope,
+            "success_criteria": success_criteria,
+            "verification_plan": verification_plan,
             "dispatch_manifest": [],
             "dispatch_receipts": [],
             "coordination_strategy": coordination_strategy,
@@ -572,11 +610,173 @@ class AgentCoordinator:
         analysis["execution_plan"] = self._create_execution_plan(
             top_assignments,
             analysis["dispatch_gate"],
+            analysis["ambiguity_gate"],
+            analysis["coordination_scope"],
             analysis["dispatch_manifest"],
             required_agents,
         )
 
         return analysis
+
+    def _build_ambiguity_gate(self, description: str, task_keywords: set[str]) -> Dict[str, Any]:
+        """Block only when the task is too broad or risky to proceed safely."""
+        lowered = description.lower()
+        broad = bool(task_keywords & BROAD_SCOPE_KEYWORDS)
+        vague = bool(task_keywords & VAGUE_CHANGE_KEYWORDS)
+        risky = bool(task_keywords & HIGH_RISK_KEYWORDS)
+        has_clarity = bool(task_keywords & CLARITY_KEYWORDS) or bool(
+            re.search(r"\b(pytest|npm test|pnpm test|yarn test|go test|cargo test)\b", lowered)
+        )
+
+        open_questions: List[str] = []
+        assumptions: List[str] = []
+        if broad and vague and not has_clarity:
+            open_questions.extend([
+                "What concrete outcome should this broad change achieve?",
+                "Which paths or modules are in scope?",
+                "What command or observable behavior proves the change is complete?",
+            ])
+        if risky and vague and not has_clarity:
+            open_questions.append("What compatibility or safety constraints must be preserved?")
+
+        can_proceed = not open_questions
+        if can_proceed:
+            assumptions.append("Preserve existing public behavior unless the user explicitly requested otherwise.")
+            assumptions.append("Keep changes limited to the files needed for the stated goal.")
+
+        return {
+            "can_proceed": can_proceed,
+            "assumptions": assumptions,
+            "open_questions": list(dict.fromkeys(open_questions)),
+            "blocking_reason": None if can_proceed else "task scope or acceptance criteria unclear",
+        }
+
+    def _build_coordination_scope(
+        self,
+        task_keywords: set[str],
+        required_agents: List[Dict[str, Any]],
+        preferred_agents: List[Dict[str, Any]],
+        assignments: List[AgentAssignment],
+        ambiguity_gate: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Recommend the smallest coordination mode that can safely satisfy the task."""
+        high_risk = bool(task_keywords & HIGH_RISK_KEYWORDS)
+        broad = bool(task_keywords & BROAD_SCOPE_KEYWORDS)
+        vague = bool(task_keywords & VAGUE_CHANGE_KEYWORDS)
+        small_localized = bool(task_keywords & SMALL_LOCALIZED_KEYWORDS)
+
+        if not ambiguity_gate["can_proceed"]:
+            return {
+                "level": "multi-agent" if high_risk or broad else "focused-agent",
+                "reason": "blocked until broad or risky requirements have concrete scope and acceptance criteria",
+                "risk": "high" if high_risk or broad else "medium",
+            }
+        if high_risk or len(required_agents) > 1 or (broad and vague):
+            return {
+                "level": "multi-agent",
+                "reason": "task touches high-risk or cross-cutting behavior that benefits from specialized checks",
+                "risk": "high" if high_risk else "medium",
+            }
+        if small_localized and not required_agents:
+            return {
+                "level": "single-pass",
+                "reason": "task appears small, localized, and directly verifiable without extra agent coordination",
+                "risk": "low",
+            }
+        if required_agents or preferred_agents or len(assignments) == 1:
+            return {
+                "level": "focused-agent",
+                "reason": "task maps to one primary specialty and should avoid broader orchestration",
+                "risk": "medium" if required_agents else "low",
+            }
+        if len(assignments) > 1:
+            return {
+                "level": "multi-agent",
+                "reason": "multiple specialties appear relevant and may need coordination",
+                "risk": "medium",
+            }
+        return {
+            "level": "single-pass",
+            "reason": "no strong specialist route was detected",
+            "risk": "low",
+        }
+
+    def _build_minimal_change_scope(self, task_keywords: set[str]) -> Dict[str, Any]:
+        """Describe the intended change boundary for downstream agents."""
+        if task_keywords & {"readme", "docs", "documentation", "文档", "示例"}:
+            allowed_paths = ["requested README/docs files", "nearby examples referenced by those docs"]
+            rationale = "documentation-only tasks should not drift into implementation changes"
+        elif task_keywords & HIGH_RISK_KEYWORDS:
+            allowed_paths = ["security/auth-related implementation", "narrow regression tests for the affected path"]
+            rationale = "high-risk behavior needs focused fixes and targeted regression coverage"
+        elif task_keywords & FRONTEND_DESIGN_SIGNAL_KEYWORDS or task_keywords & SMALL_LOCALIZED_KEYWORDS:
+            allowed_paths = ["the directly affected UI/component/style files", "targeted UI regression checks if present"]
+            rationale = "localized UI fixes should avoid unrelated component rewrites"
+        else:
+            allowed_paths = ["files directly required by the requested behavior", "tests that prove the requested behavior"]
+            rationale = "default to the smallest observable change that satisfies the user goal"
+
+        return {
+            "allowed_paths": allowed_paths,
+            "avoid": [
+                "unrelated formatting",
+                "opportunistic refactors",
+                "new abstractions without repeated complexity",
+                "changes outside the stated goal without evidence",
+            ],
+            "rationale": rationale,
+        }
+
+    def _build_success_criteria(
+        self,
+        task_keywords: set[str],
+        ambiguity_gate: Dict[str, Any],
+    ) -> List[str]:
+        if not ambiguity_gate["can_proceed"]:
+            return [
+                "scope, target files/modules, and acceptance criteria are clarified before implementation",
+                "no implementation work starts while ambiguity_gate.can_proceed is false",
+            ]
+
+        criteria = [
+            "requested behavior is implemented without unrelated changes",
+            "minimal_change_scope is respected unless evidence requires expanding it",
+        ]
+        if task_keywords & HIGH_RISK_KEYWORDS:
+            criteria.append("security-sensitive behavior has a focused regression or verification step")
+        if task_keywords & {"readme", "docs", "documentation", "文档", "示例"}:
+            criteria.append("documentation examples remain accurate and runnable where applicable")
+        criteria.append("verification_plan steps pass or any skipped step is explicitly explained")
+        return criteria
+
+    def _build_verification_plan(self, description: str, task_keywords: set[str]) -> List[str]:
+        lowered = description.lower()
+        explicit_command = re.search(
+            r"\b(pytest|npm test|pnpm test|yarn test|go test|cargo test)\b[^\n。;]*",
+            lowered,
+        )
+        if explicit_command:
+            return [explicit_command.group(0).strip()]
+
+        if task_keywords & {"readme", "docs", "documentation", "文档", "示例"}:
+            return [
+                "review the changed documentation for accurate paths, commands, and examples",
+                "run any referenced command if it is lightweight and available",
+            ]
+        if task_keywords & HIGH_RISK_KEYWORDS:
+            return [
+                "run the narrowest existing security/auth regression test for the touched path",
+                "manually verify the vulnerable path no longer reproduces if no test exists",
+            ]
+        if task_keywords & FRONTEND_DESIGN_SIGNAL_KEYWORDS or task_keywords & SMALL_LOCALIZED_KEYWORDS:
+            return [
+                "run the narrowest existing UI/component test for the touched path",
+                "inspect the changed UI state or snapshot if available",
+            ]
+        return [
+            "run the narrowest relevant test command for touched files",
+            "run the existing lint/build command if the touched area has one",
+        ]
 
     def _order_required_agents(
         self,
@@ -675,10 +875,30 @@ class AgentCoordinator:
         self,
         assignments: List[AgentAssignment],
         dispatch_gate: Dict[str, Any],
+        ambiguity_gate: Dict[str, Any],
+        coordination_scope: Dict[str, Any],
         dispatch_manifest: List[Dict[str, Any]],
         required_agents: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Create an execution plan for the agents"""
+        if not ambiguity_gate.get("can_proceed", True):
+            return [
+                {
+                    "stage": 1,
+                    "type": "blocked",
+                    "action": "clarify_scope_and_acceptance_criteria",
+                    "open_questions": ambiguity_gate.get("open_questions", []),
+                }
+            ]
+        if coordination_scope.get("level") == "single-pass":
+            return [
+                {
+                    "stage": 1,
+                    "type": "single_pass",
+                    "action": "handle_directly_without_agent_dispatch",
+                    "reason": coordination_scope.get("reason", ""),
+                }
+            ]
         if not dispatch_gate.get("can_proceed", True):
             return [
                 {

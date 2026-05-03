@@ -1,7 +1,7 @@
 ## 更新
 
 ```
-创建新的tag v4.0.0。 /git-commit 。 /git-publish-release 。 
+创建新的tag v4.0.1。 /git-commit 。 /git-publish-release 。 
 ```
 
 # 日常
