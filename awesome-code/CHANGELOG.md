@@ -8,11 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added（新增）
+- 新增 `plans/2026-05-03-ai-autonomous-planning.md`，规划将 `awesome-code` 从关键词硬编码分派重构为 AI 自主规划上下文收集器，并同步更新测试与配置边界。
+- 新增轻量测试目录 `tests/2026-05-03-ai-autonomous-planning.md/`，包含测试规划文档、pytest 输出与测试报告，验证自主规划模式的基础流程可运行。
 - 新增 `plans/2026-04-25-karpathy-coding-discipline-optimization.md`，规划将 andrej-karpathy-skills 的“先澄清、保持简单、外科手术式修改、目标驱动验证”转化为 `awesome-code` 的调度门禁、执行纪律和子代理协作规范。
 - `agent_coordinator.py` 新增 `coordination_scope`、`ambiguity_gate`、`minimal_change_scope`、`success_criteria`、`verification_plan` 输出，帮助小任务避免过度分派，并让宽泛/高风险任务先明确目标、边界和验收标准。
 - `tests/unit/test_dispatch_policy_integration.py` 新增轻量集成测试，覆盖小任务 `single-pass`、安全漏洞 `multi-agent`、宽泛重构歧义阻塞与明确验证命令放行。
 
 ### Changed（变更）
+- `scripts/agent_coordinator.py` 改为扫描 `agents/*/SKILL.md`、读取 frontmatter 摘要与配置约束，只输出 `available_agents`、`config_constraints`、`dispatch_gate` 和 `dispatch_guidance`，不再输出关键词推荐结果。
+- `scripts/subagent_policy.py` 移除关键词分类逻辑，保留 required route 配置读取与缺失 Agent 校验。
+- `config.yaml` 删除 `agent_priorities`、`frontend_design_keywords`、`frontend_design_companion_agents` 和 `design_direction_keywords`，版本号升级到 `3.0.0`。
+- `SKILL.md` 与 `README.md` 同步改写为“脚本收集上下文 + AI 自主规划”的工作流口径。
+- `tests/unit/test_agent_coordinator.py`、`tests/unit/test_dispatch_policy_integration.py` 和 `tests/unit/test_subagent_policy.py` 改为验证新的上下文输出与门禁契约。
+- `pyproject.toml` 版本号同步升级到 `3.0.0`。
 - `SKILL.md`、`README.md`、计划模板与重点子代理同步“少分派优先、外科手术式修改、目标驱动验证”纪律。
 - `agents/writing-plans/SKILL.md` 改为按风险缩放计划长度，小任务输出短闭环计划，复杂任务才展开完整任务树。
 - `agents/code-reviewer/SKILL.md` 增加无关改动、过度抽象和缺失验收标准检查。

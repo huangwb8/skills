@@ -1,6 +1,6 @@
 # Awesome Code
 
-这个 skill 是复杂开发任务的协调器：它会先分析任务，再把专业代理分成 `required / preferred / optional` 三层，再决定用单任务、顺序还是并行策略推进；如果命中了 required 路由但 agent 缺失，它会先阻塞而不是假装能继续开工。如果只是一个很小的改动，通常不需要动用它。
+这个 skill 是复杂开发任务的协调器：脚本先收集可用 Agent 摘要、配置约束与 required route 门禁，再由 AI 自主决定是否使用子代理、使用哪些子代理，以及采用单任务、顺序还是并行策略推进。如果配置中的 required route agent 缺失，它会先阻塞而不是假装能继续开工。
 
 ## 用法
 
@@ -9,7 +9,7 @@
 ```text
 请使用 awesome-code skill 辅助规划、优化。所有问题都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它功能。要保证最终成品能正常、稳定、高效地工作。
 输入：当前项目与任务目标
-输出：分层代理分工、`dispatch_gate` 门禁、执行策略，以及落地后的改进结果
+输出：Agent 选择依据、`dispatch_gate` 门禁、执行策略，以及落地后的改进结果
 ```
 
 ### 进阶用法
@@ -17,7 +17,7 @@
 ```text
 请使用 awesome-code skill 协调处理这个复杂开发任务。
 输入：当前项目、目标需求和重点风险
-输出：任务拆解、`required_agents` / `preferred_agents` / `optional_agents`、执行顺序和最终验证结果
+输出：任务拆解、自主选择的 Agent 分工、执行顺序和最终验证结果
 另外，还有下列参数约束：
 - 优先级：先修阻塞问题，再补测试和文档
 - 协作方式：能并行的任务尽量并行
@@ -26,14 +26,12 @@
 
 ## 能做什么
 
-- 先分析任务，再匹配合适的子代理，而不是一上来盲目开工。
-- 对小任务输出 `coordination_scope.level = single-pass`，避免把简单修改升级成多代理编排。
-- 对宽泛且缺少验收标准的高风险任务输出 `ambiguity_gate`，先澄清目标、边界和成功标准。
-- 输出 `minimal_change_scope`、`success_criteria` 和 `verification_plan`，让改动范围与验证方式可追溯。
-- 会把子代理分成 `required / preferred / optional`，避免“看起来推荐了，但真正需要时没人兜底”。
-- 命中安全、系统化调试、TDD/test-first、明确 UI 重设计等高专长路线时，会强制调对应 agent。
-- 若 required agent 缺失、禁用或不可调度，会通过 `dispatch_gate` 阻塞并说明原因。
-- 根据任务依赖关系自动选择 `single`、`sequential` 或 `parallel` 协调策略。
+- 先收集可用 Agent 摘要和配置约束，再由 AI 自主规划，而不是用硬编码关键词替 AI 做语义判断。
+- 小任务可直接 `single-pass`，避免把简单修改升级成多代理编排。
+- 对宽泛且缺少验收标准的高风险任务，AI 先澄清目标、边界和成功标准，或记录保守假设。
+- 执行前确定最小变更范围、成功标准和验证计划，让改动范围与验证方式可追溯。
+- 若配置中的 required route agent 缺失、禁用或不可调度，会通过 `dispatch_gate` 阻塞并说明原因。
+- 根据任务依赖关系自主选择 `focused-agent`、`sequential` 或 `parallel` 协调策略。
 - 适合复杂 bug 修复、大规模重构、多模块改造、前后端协作和多步骤验证。
 - 对 UI/前端任务会优先考虑设计方向、信息层级和实现策略。
 - 不适合非常简单的单文件小改或纯概念问答。
@@ -45,7 +43,7 @@
 ```text
 请使用 awesome-code skill 协调重构这个项目。
 输入：当前代码库，目标是减少重复逻辑并补齐验证
-输出：任务拆解、代理分层和最终改动结果
+输出：任务拆解、Agent 选择依据和最终改动结果
 ```
 
 ### 示例 2：系统化调试
@@ -77,17 +75,11 @@
 
 ## 输出
 
-- `required_agents`：必须实际调用的 agent；缺失时不得继续执行。
-- `preferred_agents`：强烈建议调用；缺失时可以降级，但应说明影响。
-- `optional_agents`：补充覆盖面或效率，不构成门禁。
-- `coordination_scope`：建议使用 `single-pass`、`focused-agent` 还是 `multi-agent`。
-- `ambiguity_gate`：说明需求是否清晰到可以安全推进。
-- `minimal_change_scope`：约束允许修改的范围与应避免的无关改动。
-- `success_criteria`：本轮交付需要满足的可检查标准。
-- `verification_plan`：推荐的最小验证命令或检查步骤。
+- `planning_mode`：当前为 `autonomous`。
+- `available_agents`：从 `agents/*/SKILL.md` 读取的可用 Agent 摘要。
+- `config_constraints`：启用 Agent、required routes、TDD 与代码审查阈值等配置约束。
 - `dispatch_gate`：说明当前是否可继续、为什么阻塞、缺哪些 agent。
-- `dispatch_manifest`：本轮应调度哪些 agent 的清单；执行后可补 `dispatch_receipts` 做留痕。
-- 协调策略说明：单任务、顺序执行、并行推进，或 `blocked`。
+- `dispatch_guidance`：AI 自主规划时应遵守的最小变更边界与调度留痕规则。
 
 ## 配置
 
@@ -97,8 +89,6 @@
 - 任务优先级策略：`priority`
 - 关键配置节：
   - `multi_agent.enabled_agents`
-  - `multi_agent.agent_priorities`
-  - `multi_agent.frontend_design_keywords`
   - `multi_agent.dispatch_policy`
   - `tdd`
   - `code_review`
@@ -114,7 +104,7 @@
 python3 awesome-code/scripts/get_path.py
 ```
 
-### 第二步：分析任务并读取门禁结果
+### 第二步：收集规划上下文并读取门禁结果
 
 ```bash
 AGENT_COORDINATOR=$(python3 awesome-code/scripts/get_path.py | python3 -c 'import json,sys; print(json.load(sys.stdin)["executable_scripts"]["agent_coordinator"])')
@@ -124,17 +114,13 @@ python3 "$AGENT_COORDINATOR" \
 
 重点看这些字段：
 
-- `required_agents`
-- `preferred_agents`
-- `optional_agents`
+- `planning_mode`
+- `available_agents`
+- `config_constraints`
 - `dispatch_gate`
-- `ambiguity_gate`
-- `coordination_scope`
-- `success_criteria`
-- `verification_plan`
-- `dispatch_manifest`
+- `dispatch_guidance`
 
-如果 `ambiguity_gate.can_proceed` 是 `false`，先澄清目标、边界和验收标准；如果 `dispatch_gate.can_proceed` 是 `false`，先补齐 required agent，再继续实现。
+如果 `dispatch_gate.can_proceed` 是 `false`，先补齐 required route agent，再继续实现；如果门禁通过，由 AI 根据 Agent 摘要和任务描述自主决定分工。
 
 ### 常用辅助脚本
 
@@ -152,7 +138,7 @@ A：不是。它更适合复杂任务、跨模块任务和需要明确协作策�
 
 ### Q：为什么有些任务会强制调 agent？
 
-A：因为这类任务一旦不走专长代理，错误率会明显升高。比如安全漏洞、根因排查、TDD/test-first、明确 UI 重设计，都属于“少了对应 agent 就容易做错”的路线，所以会进入 `required_agents`。
+A：脚本不再用关键词直接强制当前任务分派；它会暴露配置中的 required routes 和可用 Agent，AI 判断 route 是否适用。若适用，该 route 的 Agent 就是 required。
 
 ### Q：为什么有时会被阻塞？
 

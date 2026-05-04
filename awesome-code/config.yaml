@@ -6,8 +6,8 @@
 # ================================
 skill_info:
   name: awesome-code
-  version: 2.6.1
-  description: "智能多代理软件开发协调系统"
+  version: 3.0.0
+  description: "AI 自主规划多代理软件开发协调系统"
   category: "软件开发工具"
   author: "Bensz Conan"
   license: "MIT"
@@ -37,23 +37,6 @@ multi_agent:
   # 任务优先级：fifo | priority
   task_priority: priority
 
-  # 代理优先级（数字越大优先级越高）
-  agent_priorities:
-    tdd-workflow: 8
-    systematic-debugging: 9
-    code-reviewer: 7
-    git-workflow: 6
-    frontend-specialist: 7
-    backend-specialist: 7
-    devops-specialist: 5
-    security-specialist: 10  # 安全优先级最高
-    documentation-specialist: 4
-    brainstorming: 8  # 设计阶段优先级高
-    multi-agent-coordinator: 3
-    context-optimizer: 2
-    mirror-optimizer: 7  # 镜像源优化，部署前重要
-    writing-plans: 6
-
   # 代理启用状态
   enabled_agents:
     - tdd-workflow
@@ -71,51 +54,9 @@ multi_agent:
     - mirror-optimizer
     - writing-plans
 
-  # 前端/UI 设计任务附加关键词（在基础关键词之外追加）
-  frontend_design_keywords:
-    - design
-    - design-system
-    - visual
-    - aesthetic
-    - dashboard
-    - landing
-    - layout
-    - responsive
-    - animation
-    - motion
-    - typography
-    - prototype
-    - wireframe
-    - 设计
-    - 视觉
-    - 审美
-    - 仪表盘
-    - 落地页
-    - 布局
-    - 排版
-    - 动效
-    - 动画
-    - 响应式
-    - 设计系统
-
-  # 前端/UI 设计任务的陪跑代理
-  frontend_design_companion_agents:
-    - brainstorming
-
   dispatch_policy:
     enabled: true
     fail_on_missing_required_agent: true
-    design_direction_keywords:
-      - direction
-      - concept
-      - brief
-      - strategy
-      - explore
-      - 方向
-      - 方案
-      - 概念
-      - 简报
-      - 先出
     required_routes:
       security:
         agents:
