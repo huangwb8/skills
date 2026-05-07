@@ -1,0 +1,172 @@
+# auto-test-code 配置文件
+#
+# 注意：
+# - `scripts/create_session.py` 仅解析 `directories.tmp`、`directories.tests` 与 `templates.*`。
+# - 其余字段用于 A/B 轮规划口径，供 AI/人类参考。
+
+# ============================================================================
+# Skill 信息
+# ============================================================================
+
+skill_info:
+  name: "auto-test-code"
+  version: "0.5.0"
+  description: "批判性思维驱动的代码自审查与优化技能 - 支持多轮 A 轮静态/动态分析、安全漏洞分类审查与 B 轮代码质量原则检查（文档统一沉淀在 tmp/run_{timestamp}/tests/ 隔离工作区）"
+  author: "Bensz Conan"
+  category: "normal"
+
+# ============================================================================
+# 目录与命名规范
+# ============================================================================
+
+directories:
+  tmp: "tmp"
+  tests: "tests"
+
+# ============================================================================
+# 文档模板配置
+# ============================================================================
+
+templates:
+  code_review: "templates/CODE_REVIEW_TEMPLATE.md"
+  session_test_plan: "templates/SESSION_TEST_PLAN_TEMPLATE.md"
+  session_test_run: "templates/SESSION_TEST_RUN_TEMPLATE.md"
+  session_test_report: "templates/SESSION_TEST_REPORT_TEMPLATE.md"
+  b_round_quality: "templates/B_ROUND_CODE_QUALITY_TEMPLATE.md"
+
+# ============================================================================
+# 轮次控制
+# ============================================================================
+
+test_rounds:
+  default_a_rounds: 1
+  max_a_rounds: 10
+  min_suggestions_per_round: 10
+  target_suggestions_range: [15, 20]
+  min_p0_p1_ratio: 60
+  min_systemic_issues: 3
+
+# ============================================================================
+# A轮审查范围
+# ============================================================================
+
+a_round_check:
+  independent_review:
+    enabled: true
+    exclude_patterns:
+      - "tmp/**"
+      - "node_modules/**"
+      - "venv/**"
+      - "__pycache__/**"
+      - ".git/**"
+      - "dist/**"
+      - "build/**"
+      - "*.egg-info/**"
+    # 默认扫描模式（可根据项目类型调整）
+    scan_patterns:
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.ts"
+      - "**/*.java"
+      - "**/*.go"
+      - "**/*.rs"
+      - "**/*.c"
+      - "**/*.cpp"
+      - "**/*.h"
+      - "**/*.hpp"
+      - "**/Cargo.toml"
+      - "**/package.json"
+      - "**/requirements.txt"
+      - "**/setup.py"
+      - "**/pyproject.toml"
+      - "**/pom.xml"
+      - "**/build.gradle"
+      - "**/Dockerfile"
+      - "**/Dockerfile.*"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - "**/.github/workflows/*.yml"
+      - "**/.github/workflows/*.yaml"
+      - "**/.gitlab-ci.yml"
+      - "**/.circleci/config.yml"
+      - "**/Jenkinsfile"
+      - "**/*.tf"
+      - "**/Chart.yaml"
+      - "**/values*.yaml"
+      - "**/package-lock.json"
+      - "**/pnpm-lock.yaml"
+      - "**/yarn.lock"
+      - "**/poetry.lock"
+      - "**/uv.lock"
+      - "**/go.sum"
+      - "**/Gemfile.lock"
+    # 核心文件必须审查
+    required_files: []
+  dimensions:
+    - name: "algorithm_complexity"
+      label: "算法复杂度分析"
+      description: "检查时间复杂度、空间复杂度、算法设计合理性、数据结构选择合理性、逻辑正确性"
+    - name: "boundary_coverage"
+      label: "边界条件覆盖"
+      description: "检查空输入、单元素、极大输入、特殊字符等边界情况"
+    - name: "exception_handling"
+      label: "异常处理完整性"
+      description: "检查错误处理、异常传播、资源释放"
+    - name: "resource_management"
+      label: "资源管理"
+      description: "检查内存泄漏、文件关闭、连接释放、句柄管理"
+    - name: "concurrency_safety"
+      label: "并发安全性"
+      description: "检查竞态条件、死锁、线程安全、原子操作"
+    - name: "security_vulnerability_analysis"
+      label: "安全漏洞分类审查"
+      description: "按 CWE 根因、OWASP 风险、STRIDE 威胁、七大王国、供应链/配置/密码学/认证授权/DoS/内存安全等分类检查漏洞风险"
+    - name: "code_readability"
+      label: "代码可读性与可维护性"
+      description: "检查命名、注释、函数复杂度、代码重复"
+    - name: "test_coverage"
+      label: "测试覆盖充分性"
+      description: "检查单元测试覆盖、边界测试、异常测试"
+    - name: "design_quality"
+      label: "设计质量"
+      description: "检查可扩展性、架构合理性、API 设计、状态管理、领域建模、耦合/内聚、设计模式使用是否恰当"
+
+# ============================================================================
+# B轮代码质量检查
+# ============================================================================
+
+b_round_check:
+  mandatory: true
+  min_suggestions: 10
+  target_suggestions_range: [15, 20]
+  constructive_suggestion_required: true
+  p0_fix_rate_required: 100
+  p1_fix_rate_required: 80
+  dimensions:
+    - name: "algorithm_complexity"
+      label: "算法复杂度分析"
+      description: "检查时间复杂度、空间复杂度、算法设计合理性、数据结构选择合理性、逻辑正确性"
+    - name: "boundary_coverage"
+      label: "边界条件覆盖"
+      description: "检查空输入、单元素、极大输入、特殊字符等边界情况"
+    - name: "exception_handling"
+      label: "异常处理完整性"
+      description: "检查错误处理、异常传播、资源释放"
+    - name: "resource_management"
+      label: "资源管理"
+      description: "检查内存泄漏、文件关闭、连接释放、句柄管理"
+    - name: "concurrency_safety"
+      label: "并发安全性"
+      description: "检查竞态条件、死锁、线程安全、原子操作"
+    - name: "security_vulnerability_analysis"
+      label: "安全漏洞分类审查"
+      description: "按 CWE 根因、OWASP 风险、STRIDE 威胁、七大王国、供应链/配置/密码学/认证授权/DoS/内存安全等分类检查漏洞风险"
+    - name: "code_readability"
+      label: "代码可读性与可维护性"
+      description: "检查命名、注释、函数复杂度、代码重复"
+    - name: "test_coverage"
+      label: "测试覆盖充分性"
+      description: "检查单元测试覆盖、边界测试、异常测试"
+    - name: "design_quality"
+      label: "设计质量"
+      description: "检查可扩展性、架构合理性、API 设计、状态管理、领域建模、耦合/内聚、设计模式使用是否恰当"
