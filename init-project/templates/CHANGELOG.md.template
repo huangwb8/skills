@@ -10,6 +10,7 @@
 
 - 初始化 AI 项目指令文件：生成 `AGENTS.md`、`CLAUDE.md`、`README.md` 与 `.gitignore`
 - 配置项目工程原则、工作流和变更记录规范
+- {贡献记录变更说明}
 
 ### Changed（变更）
 

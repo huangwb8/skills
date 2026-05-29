@@ -20,11 +20,16 @@ import os
 import sys
 import platform
 import subprocess
-import yaml
 import re
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 class ProjectAnalyzer:
@@ -239,6 +244,14 @@ class ProjectAnalyzer:
 class ProjectInitGenerator:
     """项目初始化文档生成器"""
 
+    DEFAULT_BAC_CONFIG = {
+        "enabled_by_default": True,
+        "default_bac_file": "docs/contribution.bac",
+        "install_spec": "git+https://github.com/huangwb8/bensz-auto-contribution.git",
+        "min_python_version": "3.10",
+        "project_url": "https://github.com/huangwb8/bensz-auto-contribution",
+    }
+
     def __init__(self, config_path: str = None):
         """
         初始化生成器
@@ -275,6 +288,9 @@ class ProjectInitGenerator:
             if not self.config_path.exists():
                 print(f"⚠️  配置文件 {self.config_path} 不存在，使用默认配置")
                 return default_config
+            if yaml is None:
+                print("⚠️  未安装 PyYAML，使用默认配置")
+                return default_config
 
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f) or {}
@@ -285,7 +301,7 @@ class ProjectInitGenerator:
                     config[key] = value
 
             return config
-        except yaml.YAMLError as e:
+        except getattr(yaml, "YAMLError", Exception) as e:
             print(f"⚠️  配置文件格式错误: {e}，使用默认配置")
             return default_config
         except Exception as e:
@@ -419,7 +435,7 @@ class ProjectInitGenerator:
         # 使用简单的启发式方法：检查非代码块区域的占位符
         remaining = re.findall(r'\{([^}\s]+)\}', result)
         # 过滤掉常见的代码模式（如 {key}、{value} 等在代码示例中）
-        code_patterns = {'key', 'value', 'year', 'month', 'day', 'hour', 'minute', 'version'}
+        code_patterns = {'key', 'value', 'year', 'month', 'day', 'hour', 'minute', 'version', '时间戳'}
         real_remaining = [p for p in remaining if p not in code_patterns and not p.startswith('项目')]
         if real_remaining:
             print(f"⚠️  以下占位符可能未被替换: {set(real_remaining)}")
@@ -503,6 +519,145 @@ class ProjectInitGenerator:
 
         return created_dirs
 
+    def get_bac_config(self) -> dict:
+        """读取 BAC 贡献记录配置。"""
+        config = dict(self.DEFAULT_BAC_CONFIG)
+        config.update(self.config.get("bac_contribution", {}) or {})
+        return config
+
+    @staticmethod
+    def _parse_version(version: str) -> Tuple[int, ...]:
+        parts = []
+        for item in version.split("."):
+            try:
+                parts.append(int(item))
+            except ValueError:
+                break
+        return tuple(parts) or (0,)
+
+    @staticmethod
+    def _is_bac_importable() -> bool:
+        return importlib.util.find_spec("bac") is not None
+
+    def ensure_bac_dependency(self) -> bool:
+        """确保当前 Python 环境可调用 bac 包。"""
+        bac_config = self.get_bac_config()
+        min_version = self._parse_version(str(bac_config.get("min_python_version", "3.10")))
+
+        if sys.version_info[: len(min_version)] < min_version:
+            print(
+                "❌ BAC 贡献记录需要 Python "
+                f"{bac_config.get('min_python_version', '3.10')}+；当前为 "
+                f"{platform.python_version()}。如需跳过，请使用 --disable-bac。"
+            )
+            return False
+
+        if self._is_bac_importable():
+            print("✅ 已检测到 bac 包")
+            return True
+
+        install_spec = str(bac_config.get("install_spec", self.DEFAULT_BAC_CONFIG["install_spec"]))
+        print("📦 未检测到 bac 包，正在安装强制依赖：")
+        print(f"   {sys.executable} -m pip install {install_spec}")
+
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", install_spec],
+                text=True,
+                timeout=300,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            print(f"❌ bac 包安装失败：{e}")
+            print("   如项目决定暂不启用贡献记录，可使用 --disable-bac 显式关闭。")
+            return False
+
+        if result.returncode != 0:
+            print("❌ bac 包安装失败")
+            print("   如项目决定暂不启用贡献记录，可使用 --disable-bac 显式关闭。")
+            return False
+
+        importlib.invalidate_caches()
+        if not self._is_bac_importable():
+            print("❌ bac 包安装后仍不可导入")
+            return False
+
+        print("✅ bac 包已安装")
+        return True
+
+    @staticmethod
+    def resolve_bac_file(output_dir: Path, bac_file: str) -> Optional[Path]:
+        """解析并验证 BAC 文件路径，防止写出项目目录。"""
+        candidate = Path(bac_file)
+        if not candidate.is_absolute():
+            candidate = output_dir / candidate
+
+        resolved = candidate.resolve()
+        try:
+            resolved.relative_to(output_dir.resolve())
+        except ValueError:
+            print("🚫 安全警告：BAC 贡献记录文件必须位于目标项目目录内")
+            print(f"   目标项目目录: {output_dir.resolve()}")
+            print(f"   尝试写入位置: {resolved}")
+            return None
+
+        return resolved
+
+    def setup_bac_contribution(self, output_dir: Path, bac_file: str) -> Tuple[bool, Optional[Path], bool]:
+        """
+        初始化或验证 BAC 贡献记录文件。
+
+        Returns:
+            (是否成功, BAC 文件路径, 是否新建)
+        """
+        bac_path = self.resolve_bac_file(output_dir, bac_file)
+        if bac_path is None:
+            return False, None, False
+
+        if not self.ensure_bac_dependency():
+            return False, bac_path, False
+
+        relative_bac_file = str(bac_path.relative_to(output_dir.resolve()))
+        bac_path.parent.mkdir(parents=True, exist_ok=True)
+
+        created = not bac_path.exists()
+
+        if not created:
+            print(f"ℹ️  已存在 BAC 贡献记录文件：{relative_bac_file}")
+            command = [
+                sys.executable,
+                "-m",
+                "bac",
+                "--root",
+                str(output_dir),
+                "--bac-file",
+                relative_bac_file,
+                "verify",
+                "--json",
+            ]
+        else:
+            print(f"🧾 正在初始化 BAC 贡献记录文件：{relative_bac_file}")
+            command = [
+                sys.executable,
+                "-m",
+                "bac",
+                "--root",
+                str(output_dir),
+                "--bac-file",
+                relative_bac_file,
+                "init",
+                "--json",
+            ]
+
+        result = subprocess.run(command, text=True)
+        if result.returncode != 0:
+            print("❌ BAC 贡献记录初始化/验证失败")
+            print("   如项目决定暂不启用贡献记录，可使用 --disable-bac 显式关闭。")
+            return False, bac_path, False
+
+        print("✅ BAC 贡献记录已启用")
+        print("   可随时通过 --disable-bac 显式关闭 init-project 的 BAC 初始化步骤。")
+        return True, bac_path, created
+
     def _load_gitignore_config(self) -> dict:
         """
         加载 .gitignore 配置模板
@@ -527,6 +682,9 @@ class ProjectInitGenerator:
             if not gitignore_config_path.exists():
                 print(f"⚠️  gitignore 配置文件 {gitignore_config_path} 不存在，使用默认配置")
                 return default_config
+            if yaml is None:
+                print("⚠️  未安装 PyYAML，.gitignore 使用默认配置")
+                return default_config
 
             with open(gitignore_config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f) or {}
@@ -537,7 +695,7 @@ class ProjectInitGenerator:
                     config[key] = value
 
             return config
-        except yaml.YAMLError as e:
+        except getattr(yaml, "YAMLError", Exception) as e:
             print(f"⚠️  gitignore 配置文件格式错误: {e}，使用默认配置")
             return default_config
         except Exception as e:
@@ -804,6 +962,7 @@ class ProjectInitGenerator:
                           "有机更新原则"],
             # 说明：AGENTS.md 不再包含「目录结构」章节；为兼容旧文件，合并时会主动丢弃旧的该章节。
             "AGENTS.md": ["项目目标", "核心工作流", "工程原则", "默认语言",
+                          "联网与搜索", "贡献记录", "代码优化与修改",
                           "Codex CLI 特定说明", "文件与输出", "编辑原则", "变更边界",
                           "变更记录规范", "版本号管理规范", "变更记录与版本",
                           "与 CLAUDE.md 的关系", "有机更新原则"]
@@ -891,7 +1050,9 @@ class ProjectInitGenerator:
         skip_changelog: bool = False,
         skip_gitignore: bool = False,
         only_readme: bool = False,
-        only_changelog: bool = False
+        only_changelog: bool = False,
+        enable_bac: Optional[bool] = None,
+        bac_file: str = None
     ) -> bool:
         """
         完全自动生成：分析当前目录并生成文档
@@ -923,7 +1084,12 @@ class ProjectInitGenerator:
         language = self.detect_language()
 
         # 准备变量
-        variables = self._prepare_variables(analysis, language, output_dir)
+        bac_config = self.get_bac_config()
+        bac_file = bac_file or bac_config.get("default_bac_file", "docs/contribution.bac")
+        if enable_bac is None:
+            enable_bac = bool(bac_config.get("enabled_by_default", True))
+
+        variables = self._prepare_variables(analysis, language, output_dir, bac_file, enable_bac)
 
         success = True
         generated_files = []
@@ -960,7 +1126,16 @@ class ProjectInitGenerator:
 
             if created_dirs:
                 analysis["directory_tree"] = ProjectAnalyzer._generate_tree(output_dir, max_depth=2)
-                variables = self._prepare_variables(analysis, language, output_dir)
+                variables = self._prepare_variables(analysis, language, output_dir, bac_file, enable_bac)
+
+            if enable_bac:
+                bac_success, bac_path, bac_created = self.setup_bac_contribution(output_dir, bac_file)
+                if not bac_success:
+                    success = False
+                elif bac_created and bac_path:
+                    generated_files.append(bac_path)
+            else:
+                print("ℹ️  BAC 贡献记录已通过 --disable-bac 显式关闭；之后可移除该参数重新启用。")
 
             # 完整生成模式
             # 1. 生成 AGENTS.md（跨平台通用项目指令 - Single Source of Truth）
@@ -1055,10 +1230,28 @@ class ProjectInitGenerator:
 
         return success
 
-    def _prepare_variables(self, analysis: dict, language: str, output_dir: Path) -> dict:
+    def _prepare_variables(
+        self,
+        analysis: dict,
+        language: str,
+        output_dir: Path,
+        bac_file: str = None,
+        bac_enabled: bool = True
+    ) -> dict:
         """准备模板变量"""
         project_type = analysis['type_info']['name']
         today = datetime.now().strftime("%Y-%m-%d")
+        bac_file = bac_file or self.get_bac_config().get("default_bac_file", "docs/contribution.bac")
+        if bac_enabled:
+            bac_init_note = "初始化项目时应检查 Python 环境、确认 `bac` 包可用，并在需要时安装该强制依赖"
+            bac_toggle_note = "默认开启贡献记录；用户可以随时显式关闭，例如运行初始化脚本时传入 `--disable-bac`，或在项目负责人确认后移除此章节约束"
+            bac_readme_note = f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`"
+            bac_changelog_note = f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`"
+        else:
+            bac_init_note = "本次初始化已显式关闭 BAC 自动安装与账本初始化，之后可移除关闭开关重新启用"
+            bac_toggle_note = "贡献记录当前处于关闭状态；用户可以随时重新开启，例如运行初始化脚本时不要传入 `--disable-bac`"
+            bac_readme_note = f"本次初始化已显式关闭 BAC 贡献记录；默认托管文件仍建议使用 `{bac_file}`，后续可重新启用"
+            bac_changelog_note = "本次初始化显式关闭 BAC 贡献记录，未创建默认 `.bac` 文件"
 
         # 根据项目类型生成默认工作流描述
         workflow_templates = {
@@ -1130,6 +1323,11 @@ class ProjectInitGenerator:
             "工作流描述": workflow_templates.get(project_type, workflow_templates["通用项目"]),
             "目录树": analysis['directory_tree'],
             "项目类型": project_type,
+            "贡献记录文件": bac_file,
+            "贡献记录初始化说明": bac_init_note,
+            "贡献记录开关说明": bac_toggle_note,
+            "贡献记录README说明": bac_readme_note,
+            "贡献记录变更说明": bac_changelog_note,
             # README.md 专用变量
             "项目特性": feature_templates.get(project_type, feature_templates["通用项目"]),
             "环境要求": env_templates.get(project_type, env_templates["通用项目"]),
@@ -1156,6 +1354,9 @@ def main():
 
   # 自动生成并覆盖现有文件
   python3 generate.py --auto --overwrite
+
+  # 显式关闭默认 BAC 贡献记录初始化
+  python3 generate.py --auto --disable-bac
 
   # 仅生成 AGENTS.md 和 CLAUDE.md（跳过 README 和 CHANGELOG）
   python3 generate.py --auto --skip-readme --skip-changelog
@@ -1228,6 +1429,16 @@ def main():
         action="store_true",
         help="仅生成 CHANGELOG.md"
     )
+    parser.add_argument(
+        "--disable-bac",
+        action="store_true",
+        help="显式关闭默认启用的 BAC 贡献记录依赖检查与初始化"
+    )
+    parser.add_argument(
+        "--bac-file",
+        default=None,
+        help="BAC 贡献记录文件路径（默认 docs/contribution.bac，必须位于目标项目目录内）"
+    )
 
     args = parser.parse_args()
 
@@ -1261,7 +1472,9 @@ def main():
             skip_changelog=args.skip_changelog,
             skip_gitignore=args.skip_gitignore,
             only_readme=args.only_readme,
-            only_changelog=args.only_changelog
+            only_changelog=args.only_changelog,
+            enable_bac=False if args.disable_bac else None,
+            bac_file=args.bac_file
         )
         return 0 if success else 1
 
@@ -1273,6 +1486,20 @@ def main():
     language = args.language or generator.detect_language()
 
     # 准备变量
+    bac_config = generator.get_bac_config()
+    bac_file = args.bac_file or bac_config.get("default_bac_file", "docs/contribution.bac")
+    bac_enabled = bool(bac_config.get("enabled_by_default", True)) and not args.disable_bac
+    if bac_enabled:
+        bac_init_note = "初始化项目时应检查 Python 环境、确认 `bac` 包可用，并在需要时安装该强制依赖"
+        bac_toggle_note = "默认开启贡献记录；用户可以随时显式关闭，例如运行初始化脚本时传入 `--disable-bac`，或在项目负责人确认后移除此章节约束"
+        bac_readme_note = f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`"
+        bac_changelog_note = f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`"
+    else:
+        bac_init_note = "本次初始化已显式关闭 BAC 自动安装与账本初始化，之后可移除关闭开关重新启用"
+        bac_toggle_note = "贡献记录当前处于关闭状态；用户可以随时重新开启，例如运行初始化脚本时不要传入 `--disable-bac`"
+        bac_readme_note = f"本次初始化已显式关闭 BAC 贡献记录；默认托管文件仍建议使用 `{bac_file}`，后续可重新启用"
+        bac_changelog_note = "本次初始化显式关闭 BAC 贡献记录，未创建默认 `.bac` 文件"
+
     variables = {
         "项目名称": args.project_name,
         "项目描述": args.project_description,
@@ -1283,6 +1510,11 @@ def main():
         "工作流描述": args.workflow or "[待补充工作流描述]",
         "目录树": "[请根据实际项目结构补充]",
         "项目类型": "[项目类型，如：数据分析、Web开发等]",
+        "贡献记录文件": bac_file,
+        "贡献记录初始化说明": bac_init_note,
+        "贡献记录开关说明": bac_toggle_note,
+        "贡献记录README说明": bac_readme_note,
+        "贡献记录变更说明": bac_changelog_note,
         "版本号": "1.0.0",
         "一句话概括项目的价值主张": args.project_description,
     }
@@ -1293,6 +1525,13 @@ def main():
     except ValueError as e:
         print(f"错误: {e}")
         return 1
+
+    if bac_enabled:
+        bac_success, bac_path, bac_created = generator.setup_bac_contribution(output_dir, bac_file)
+        if not bac_success:
+            return 1
+    else:
+        print("ℹ️  BAC 贡献记录已通过 --disable-bac 显式关闭；之后可移除该参数重新启用。")
 
     # 生成文件
     agents_content = generator.generate_agents_md(variables)

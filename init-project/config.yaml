@@ -8,10 +8,21 @@
 
 skill_info:
   name: init-project
-  version: 2.2.0
+  version: 2.3.0
   description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md + .gitignore）
   author: "Bensz Conan"
   category: 项目初始化
+
+# ============================================================================
+# BAC 贡献记录配置
+# ============================================================================
+
+bac_contribution:
+  enabled_by_default: true
+  default_bac_file: docs/contribution.bac
+  install_spec: git+https://github.com/huangwb8/bensz-auto-contribution.git
+  min_python_version: "3.10"
+  project_url: https://github.com/huangwb8/bensz-auto-contribution
 
 # ============================================================================
 # 语言映射配置
@@ -80,6 +91,7 @@ agents_required_sections:
   - 工程原则
   - 默认语言
   - 联网与搜索
+  - 贡献记录
   - Codex CLI 特定说明
   - 变更记录与版本
   - 有机更新原则

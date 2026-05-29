@@ -30,6 +30,7 @@
 - 把 `AGENTS.md` 作为跨平台通用指令的单一真相来源。
 - 让 `CLAUDE.md` 成为面向 Claude Code 的轻量适配层。
 - 自动分析项目结构、项目类型和默认语言。
+- 默认启用 BAC 贡献记录：检查 Python 环境和 `bac` 包，必要时安装，并初始化 `docs/contribution.bac`。
 - 不适合拿来扫描父目录、批量改多个项目，或无边界地覆盖已有文件。
 
 ## 使用示例
@@ -72,12 +73,14 @@
 - `.gitignore`：默认的安全与项目类型忽略规则。
 - `docs/`：项目文档根目录。
 - `docs/plans/`：计划文档固定目录；其余 `docs/` 文档在代码变化时也应及时同步更新。
+- `docs/contribution.bac`：默认 BAC 贡献托管文件；用户可通过 `--bac-file` 指定其它项目内路径。
 
 ## 配置
 
 - 配置文件：`init-project/config.yaml`
 - 关键配置节：
   - `language_mapping`
+  - `bac_contribution`
   - `agents_required_sections`
   - `claude_required_sections`
   - `readme_required_sections`
@@ -116,6 +119,21 @@ python3 init-project/scripts/generate.py \
   --skip-changelog \
   --skip-gitignore
 ```
+
+### BAC 贡献记录
+
+```bash
+# 默认开启：检查/安装 bac，并初始化 docs/contribution.bac
+python3 init-project/scripts/generate.py --auto
+
+# 指定项目内的其它 BAC 文件
+python3 init-project/scripts/generate.py --auto --bac-file docs/audit/contribution.bac
+
+# 随时显式关闭 BAC 初始化步骤
+python3 init-project/scripts/generate.py --auto --disable-bac
+```
+
+BAC 基于 <https://github.com/huangwb8/bensz-auto-contribution>，用于客观记录人类与 AI 的协作过程和证据，不替代最终署名、责任或合规判断。
 
 ## 常见问题
 

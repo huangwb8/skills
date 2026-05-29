@@ -20,471 +20,155 @@ metadata:
     - SingleSourceofTruth
 ---
 
-# Init Project（项目初始化文档生成器）
+# Init Project
 
 ## 与 bensz-collect-bugs 的协作约定
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
-## 目标
+## 目标与边界
 
-为全新项目快速生成规范的 AI 项目指令文档，使 AI 助手（Claude Code / OpenAI Codex CLI）能够理解项目目标、遵循工程原则、按预期行为协作。
+为当前项目生成标准 AI 协作文档，让 Claude Code / OpenAI Codex CLI 等工具理解项目目标、工程原则、变更记录规则与协作边界。
 
-## 生成文件
+只允许在当前工作目录及其子目录内创建或修改文件。禁止写入父目录、其它项目、系统目录或用户级配置。脚本会在写入前校验输出路径，失败时立即停止。
 
-| 文件 | 用途 | 平台适配 | 强制性 | 维护方式 |
-|------|------|----------|--------|----------|
-| **AGENTS.md** | 跨平台通用项目指令 | 20+ AI 编码工具 | **必须** | 手动维护（Single Source of Truth） |
-| **CLAUDE.md** | Claude Code 特定适配 | Claude Code | **必须** | 自动引用 AGENTS.md |
-| **README.md** | 项目介绍与使用方法 | 通用 | 可选 | 手动维护 |
-| **CHANGELOG.md** | 项目变更记录 | 通用 | **必须** | 手动维护 |
-| **.gitignore** | Git 忽略规则（安全优先） | 通用 | 推荐 | 智能合并 |
-| **docs/** | 项目文档根目录 | 通用 | 推荐 | 自动初始化 |
-| **docs/plans/** | 计划文档固定目录 | 通用 | 推荐 | 自动初始化 |
+## 输出文件
 
-**重要说明**：
+| 文件/目录 | 用途 | 默认行为 |
+|---|---|---|
+| `AGENTS.md` | 跨平台通用项目指令，Single Source of Truth | 必生成，智能合并 |
+| `CLAUDE.md` | Claude Code 适配层，核心为 `@./AGENTS.md` | 必生成，智能合并 |
+| `README.md` | 项目介绍与快速开始 | 不存在时生成，`--overwrite` 可覆盖 |
+| `CHANGELOG.md` | 项目变更记录 | 不存在时生成；项目变更必须维护 |
+| `.gitignore` | 安全优先的忽略规则 | 不存在时生成，覆盖模式下智能合并 |
+| `docs/`、`docs/plans/` | 文档根目录与计划文档目录 | 完整初始化时自动补齐 |
+| `docs/contribution.bac` | BAC 贡献记录账本 | 默认启用；`--bac-file` 可改，`--disable-bac` 可关 |
 
-1. **AGENTS.md 是唯一需要手动维护的项目指令文件**
-   - 包含跨平台通用的核心指令
-   - 符合 [AGENTS.md 标准](https://agents.md/)（60k+ 开源项目采用）
-   - 支持 OpenAI Codex、Google Jules、Cursor、Devin、Windsurf 等 20+ 工具
+## 核心约束
 
-2. **CLAUDE.md 通过 `@./AGENTS.md` 语法自动引用**
-   - 修改 AGENTS.md 后，CLAUDE.md 自动生效
-   - 无需运行任何同步命令
-   - 仅包含 Claude Code 特定的适配内容
+- `AGENTS.md` 是唯一需要长期手动维护的通用指令源；`CLAUDE.md` 只做 Claude Code 适配，并通过 `@./AGENTS.md` 自动引用。
+- 生成模板统一放在 `init-project/templates/`：`AGENTS.md.template`、`CLAUDE.md.template`、`README.md.template`、`CHANGELOG.md.template`、`gitignore.yaml`。
+- 配置统一放在 `init-project/config.yaml`，版本号以 `skill_info.version` 为准；当前 BAC 配置在 `bac_contribution`。
+- 完整初始化必须补齐 `docs/` 与 `docs/plans/`；计划文档固定放在 `./docs/plans/`。
+- 代码变化导致 `docs/` 中非 `plans/` 文档过时时，生成的项目指令必须要求同步更新。
+- 影响项目行为、结构、工作流、工程原则、指令文件或关键配置的变更，必须写入 `CHANGELOG.md` 的 `[Unreleased]`。
 
-3. **CHANGELOG.md 是项目管理的强制性要求**
-   - 凡是项目的更新，都要统一在 CHANGELOG.md 文件里记录
-   - 遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式
+## BAC 贡献记录
 
-4. **.gitignore 确保向 GitHub 提交时是安全的**
-   - 自动生成适合项目类型的忽略规则
-   - 包含共性设置（操作系统、IDE、敏感信息等）
-   - 包含项目类型特定的个性化设置
-   - 支持智能合并，保留用户自定义规则
+默认基于 `bensz-auto-contribution` / `bac` 记录人类、AI 与工具贡献证据：
 
-## 核心特性
+- 默认仓库：`https://github.com/huangwb8/bensz-auto-contribution`
+- 默认安装源：`git+https://github.com/huangwb8/bensz-auto-contribution.git`
+- 默认文件：`docs/contribution.bac`
+- Python 要求：`config.yaml:bac_contribution.min_python_version`，当前为 `3.10`
+- 默认开启；用户可随时通过 `--disable-bac` 显式关闭。关闭时生成的文档也必须说明当前已关闭且可重新启用。
+- 用户通过 `--bac-file` 指定项目内其它路径时，以用户指定为准；禁止把 `.bac` 文件写到项目目录外。
 
-- **完全自动化**：一键生成，无需手动输入信息
-- **智能项目分析**：自动检测项目类型（Python/Web/Rust/Go/Java/数据科学/文档等）
-- **跨平台通用**：生成符合 AGENTS.md 标准的跨平台指令文件
-- **零维护成本**：CLAUDE.md 通过 `@./AGENTS.md` 自动引用，修改 AGENTS.md 即可
-- **自动语言检测**：检测操作系统默认语言并设为对话默认语言
-- **目录结构推断**：分析现有文件和目录，自动生成目录树（用于 README.md；CLAUDE.md 仍可包含，AGENTS.md 默认不再包含）
-- **README 解析与生成**：从 README.md 提取信息，或自动生成项目介绍
-- **强制变更记录**：自动创建 CHANGELOG.md，**这是项目管理的强制性要求**
-- **标准 docs 目录**：完整初始化时自动补齐 `docs/` 与 `docs/plans/`
-- **工程原则内置**：基于 SOLID、KISS、DRY、YAGNI、关注点分离等原则
-- **有机更新框架**：生成的文档本身遵循有机更新原则，便于未来迭代
-- **智能增量更新**：对已存在的 AGENTS.md，自动保留用户自定义内容，仅更新标准化部分
-- **符合社区标准**：遵循 [AGENTS.md 官方规范](https://agents.md/)，与 60k+ 开源项目保持一致
-- **智能 .gitignore 生成**：自动生成适合项目类型的 Git 忽略规则，确保向 GitHub 提交时安全
+BAC 是过程记录与辅助审计材料，不替代最终署名、责任或合规判断；不得记录敏感密钥、完整私有提示词或无关个人隐私。
 
-## 安全性声明
+## 推荐执行
 
-**工作边界**：本技能严格遵循"当前文件夹隔离"原则，确保操作安全可控。
-
-### 允许的操作
-
-- ✅ **在当前工作目录内创建/修改文件**：
-  - 生成 AGENTS.md、CLAUDE.md、README.md、CHANGELOG.md、.gitignore
-  - 初始化 `docs/` 与 `docs/plans/`
-  - 所有文件操作仅限于用户当前所在的项目目录
-
-- ✅ **只读访问（仅在必要时）**：
-  - 读取当前目录的现有文件（如 README.md、pyproject.toml）以提取项目信息
-  - 扫描当前目录结构以检测项目类型
-  - 读取模板文件（位于 init-project/templates/）
-
-### 禁止的操作
-
-- ❌ **修改当前目录之外的任何文件或文件夹**
-- ❌ **删除当前目录之外的任何内容**
-- ❌ **在父目录或其他项目目录中创建文件**
-- ❌ **修改系统级配置文件**（如 ~/.gitconfig、~/.bashrc）
-
-### 风险说明
-
-违反上述边界可能导致：
-1. **用户不知情的文件修改**：用户可能不知道 AI 修改了其它地方的文件
-2. **其它项目崩溃**：修改其它项目的文件可能导致依赖关系破坏
-3. **数据丢失风险**：误删或覆盖重要文件
-
-### 执行保障
-
-- 脚本默认使用相对路径（`./`）确保操作限定在当前目录
-- 所有文件写入前会验证目标路径是否在当前工作目录内
-- 不使用 `cd` 命令切换到其它目录进行操作
-
-## AGENTS.md 与 CLAUDE.md 的关系
-
-**核心原则**：AGENTS.md 是跨平台通用项目指令（Single Source of Truth），CLAUDE.md 通过 `@./AGENTS.md` 语法自动引用。
-
-### 架构设计
-
-```
-项目根目录/
-├── AGENTS.md              # 跨平台通用指令（手动维护）
-│   ├── 项目目标
-│   ├── 核心工作流
-│   ├── 工程原则
-│   ├── 默认语言
-│   ├── 变更记录与版本
-│   └── 有机更新原则
-│
-└── CLAUDE.md              # Claude Code 特定适配（自动引用）
-    ├── @./AGENTS.md       # 自动引用 AGENTS.md 的全部内容
-    └── Claude Code 特定说明（文件引用、任务管理、精确编辑）
-```
-
-### 维护工作流
-
-**标准流程**：
-1. **修改 AGENTS.md**（唯一需要手动维护的文件）
-2. **CLAUDE.md 自动生效**（无需任何操作）
-3. **记录变更到 CHANGELOG.md**
-
-**优势**：
-- ✅ 零维护成本：修改 AGENTS.md 后，CLAUDE.md 自动生效
-- ✅ Single Source of Truth：AGENTS.md 是唯一的事实来源
-- ✅ 符合社区标准：遵循 [AGENTS.md 官方规范](https://agents.md/)
-- ✅ 跨平台兼容：AGENTS.md 支持 20+ AI 编码工具
-
-### Claude Code 的 @ 引用语法
-
-根据 [Claude Code Issue #990](https://github.com/anthropics/claude-code/issues/990)，Claude Code 支持 `@` 语法来引用其他文件：
-
-```markdown
-# CLAUDE.md
-
-## 核心指令
-
-@./AGENTS.md
-
-## Claude Code 特定说明
-...
-```
-
-**工作原理**：
-- Claude Code 启动时，会自动将 `@./AGENTS.md` 引用的文件内容"拉入"上下文
-- 修改 AGENTS.md 后，CLAUDE.md 会自动读取最新内容
-- 无需运行任何同步命令或构建步骤
-
-## 触发条件
-
-用户明确表示要：
-- 初始化一个新项目
-- 创建项目配置文件
-- 生成 AGENTS.md / CLAUDE.md
-- 为现有项目补全项目指令文档
-- 自动生成项目文档
-
-## 执行方式
-
-### 方式一：完全自动化（推荐）
-
-直接运行脚本，自动分析当前目录并生成文档：
+在目标项目根目录运行：
 
 ```bash
 python3 init-project/scripts/generate.py --auto
 ```
 
-**脚本会自动完成**：
-1. 检测项目类型（通过 pyproject.toml、package.json、Cargo.toml 等标志文件）
-2. 从 README.md 提取项目名称和描述（如存在）
-3. 生成目录树（自动过滤 .git、node_modules、__pycache__ 等）
-4. 检测操作系统语言
-5. 生成 AGENTS.md（跨平台通用项目指令）
-6. 生成 CLAUDE.md（使用 `@./AGENTS.md` 引用 + Claude Code 特定适配）
-7. 检查并生成 README.md（如不存在）
-8. 检查并生成 CHANGELOG.md（如不存在）
-9. 初始化 `docs/` 与 `docs/plans/`（若已存在则忽略）
-
-### 方式二：通过 Claude Code 触发
-
-在 Claude Code 中触发本 skill 后：
-
-1. **运行自动模式**：
-   ```bash
-   python3 init-project/scripts/generate.py --auto
-   ```
-
-2. **如需覆盖现有文件**：
-   ```bash
-   python3 init-project/scripts/generate.py --auto --overwrite
-   ```
-
-3. **仅生成指定文件**：
-   ```bash
-   # 仅生成 AGENTS.md 和 CLAUDE.md（CHANGELOG.md 仍会生成，因为它是强制性的）
-   python3 init-project/scripts/generate.py --auto --skip-readme
-
-   # 仅更新 README.md
-   python3 init-project/scripts/generate.py --auto --only-readme
-
-   # 注意：不建议使用 --skip-changelog，因为 CHANGELOG.md 是强制性的
-   ```
-
-## 工作流程
-
-### 自动模式流程
-
-当使用 `--auto` 参数时，脚本执行以下流程：
-
-#### 1. 项目类型检测
-
-扫描目录中的标志性文件，自动识别项目类型：
-
-| 项目类型 | 标志文件 |
-|---------|---------|
-| Python | pyproject.toml, requirements.txt, setup.py |
-| Web | package.json, yarn.lock, webpack.config.js |
-| Rust | Cargo.toml, Cargo.lock |
-| Go | go.mod, go.sum |
-| Java | pom.xml, build.gradle |
-| 数据科学 | *.ipynb, *.R, environment.yml |
-| 文档 | docs/, mkdocs.yml, docusaurus.config.js |
-
-#### 2. 项目信息提取
-
-- **项目名称**：优先从 README.md 的标题提取，回退到目录名
-- **项目描述**：从 README.md 第一段提取，回退到默认模板
-- **目录树**：自动生成（最大深度 2 层），过滤常见忽略项
-
-#### 3. 语言检测
-
-自动检测操作系统语言并映射到对话语言。
-
-#### 4. 生成 AI 指令文档
-
-根据检测到的项目类型，使用对应的工作流模板：
-
-| 项目类型 | 默认工作流 |
-|---------|-----------|
-| Python | 代码开发 → 单元测试 → 文档更新 → 版本发布 |
-| Web | 功能开发 → 组件测试 → 构建部署 → 监控反馈 |
-| 数据科学 | 数据获取 → 探索分析 → 模型训练 → 验证评估 |
-| Rust | API 设计 → 实现 → 单元测试 → 文档 → 发布 |
-| Go | 需求分析 → API 设计 → 实现 → 集成测试 → 部署 |
-| 通用 | 需求分析 → 设计 → 实现 → 验证 → 交付 |
-
-**生成顺序**：
-1. **AGENTS.md**：跨平台通用项目指令（Single Source of Truth）
-2. **CLAUDE.md**：使用 `@./AGENTS.md` 引用 + Claude Code 特定适配
-
-#### 5. 检查并生成 README.md
-
-- 如果 README.md **不存在**：自动生成项目介绍
-- 如果 README.md **已存在**：跳过（除非使用 `--overwrite`）
-
-**README.md 内容**：
-- 项目名称和描述
-- 主要功能和特性
-- 快速开始指南
-- 目录结构说明
-- AI 辅助开发说明（如何使用 Claude Code / Codex）
-
-#### 6. 检查并生成 CHANGELOG.md（强制性）
-
-- 如果 CHANGELOG.md **不存在**：自动创建初始版本
-- 如果 CHANGELOG.md **已存在**：追加新的更改记录
-
-**CHANGELOG.md 是项目管理的强制性要求**：
-- **重要原则**：凡是项目的更新，都要统一在 CHANGELOG.md 文件里记录
-- 记录范围：
-  - 项目指令文件变更（CLAUDE.md、AGENTS.md 的任何修改）
-  - 项目结构变更（新增/删除/重命名目录或关键文件）
-  - 工作流变更（核心工作流程的调整）
-  - 工程原则变更（新增、修改或删除工程原则）
-  - 重要配置变更（影响项目行为的配置文件修改）
-- 遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式
-- 记录时机：
-  - **修改前**：先在 `[Unreleased]` 部分草拟变更内容
-  - **修改后**：完善变更描述，添加具体细节和影响范围
-
-#### 7. 检查并生成 .gitignore（推荐）
-
-- 如果 .gitignore **不存在**：自动生成适合项目类型的忽略规则
-- 如果 .gitignore **已存在**：智能合并，保留用户自定义规则
-
-**.gitignore 生成策略**：
-
-**共性设置**（所有项目类型都会添加）：
-- 操作系统生成文件（.DS_Store、Thumbs.db 等）
-- IDE 和编辑器配置（.idea/、.vscode/ 等）
-- 环境变量和敏感信息（.env、*.pem、*.key、credentials/）
-- 日志和临时文件（*.log、*.tmp、tmp/）
-- 常见压缩文件（*.zip、*.tar.gz）
-
-**个性化设置**（根据项目类型添加）：
-
-| 项目类型 | 特定忽略规则 |
-|---------|-------------|
-| Python | \_\_pycache\_\_/、.venv/、*.pyc、.pytest\_cache/、.coverage |
-| Web | node\_modules/、dist/、.next/、*.tsbuildinfo |
-| Rust | /target/、**\*.rs.bk |
-| Go | \*.exe、\*.dll、vendor/ |
-| Java | target/、\*.class、.gradle/ |
-| 数据科学 | \*.csv、\*.pkl、models/、checkpoints/、data/raw/ |
-| 文档 | site/、node\_modules/、.cache/ |
-
-**安全优先原则**：
-- 宁可多忽略，不可漏掉敏感文件
-- 环境变量文件（.env）默认忽略
-- 密钥和证书文件（*.pem、*.key）默认忽略
-- 凭证目录（credentials/、secrets/）默认忽略
-
-**智能合并策略**：
-- 保留现有文件中的自定义规则
-- 更新共性设置和项目类型特定规则
-- 使用 `--overwrite` 可完全覆盖
-
-### 手动模式流程（可选）
-
-如需手动指定信息，使用命令行参数：
+常用参数：
 
 ```bash
-python3 scripts/generate.py \
+# 覆盖/强制更新已有文件
+python3 init-project/scripts/generate.py --auto --overwrite
+
+# 指定 BAC 文件，必须位于项目目录内
+python3 init-project/scripts/generate.py --auto --bac-file docs/audit/contribution.bac
+
+# 显式关闭默认 BAC 初始化
+python3 init-project/scripts/generate.py --auto --disable-bac
+
+# 只生成单类文档
+python3 init-project/scripts/generate.py --auto --only-readme
+python3 init-project/scripts/generate.py --auto --only-changelog
+
+# 跳过可选输出
+python3 init-project/scripts/generate.py --auto --skip-readme --skip-gitignore
+```
+
+手动模式只在用户明确给出项目信息时使用：
+
+```bash
+python3 init-project/scripts/generate.py \
   --project-name "my-project" \
   --project-description "数据科学项目" \
   --workflow "数据获取 → 分析 → 可视化"
 ```
 
-## 输出规范
+## 自动模式流程
 
-生成的文档包含以下内容：
+`--auto` 会依次完成：
 
-### 模板来源（Single Source of Truth）
+1. 验证输出目录必须位于当前工作目录内。
+2. 分析项目：从 README 提取名称/描述，按标志文件识别 Python/Web/Rust/Go/Java/数据科学/文档/通用项目，生成最多 2 层目录树。
+3. 检测默认语言，失败时回退到简体中文。
+4. 完整初始化时创建 `docs/` 与 `docs/plans/`。
+5. 按配置决定是否启用 BAC：检查 Python 与 `bac` 包，必要时安装，初始化或验证 `.bac` 文件。
+6. 生成或智能合并 `AGENTS.md`、`CLAUDE.md`。
+7. 按条件生成 `README.md`、`CHANGELOG.md`、`.gitignore`。
+8. 输出生成文件、目录与项目分析摘要。
 
-为避免在 `SKILL.md` 内堆叠大段模板文本（社区推荐：`SKILL.md` ≤ 500 行），本技能的输出模板统一放在 `init-project/templates/`：
+项目类型识别标志：
 
-- **AGENTS.md**：`init-project/templates/AGENTS.md.template`
-- **CLAUDE.md**：`init-project/templates/CLAUDE.md.template`（核心：`@./AGENTS.md` 引用 AGENTS.md）
-- **README.md**：`init-project/templates/README.md.template`
-- **CHANGELOG.md**：`init-project/templates/CHANGELOG.md.template`
-
-脚本会基于项目分析结果替换模板占位符；当目标文件已存在时，按本文后续的“智能合并策略”处理。
-
-**CHANGELOG.md 更新规则（强制性）**：
-- 每次修改 CLAUDE.md 或 AGENTS.md 时，**必须**追加记录
-- 记录修改原因、具体变更内容、影响范围
-- 版本号以配置文件为唯一来源，并使用语义化版本号（推荐）
-- 记录时机：修改前草拟，修改后完善
-- 记录质量：清晰具体、可追溯、格式统一、及时更新
-
-## 配置参数（config.yaml）
-
-本技能使用 `config.yaml` 管理语言映射和默认模板。
-
-## 错误处理
-
-- **CLAUDE.md / AGENTS.md 已存在**：默认启用智能合并模式
-  - **保留**：用户自定义的项目目标、核心工作流、变更边界、自定义章节
-  - **更新**：工程原则、默认语言、平台特定说明（目录结构仅适用于仍包含该章节的文件，如 CLAUDE.md）
-  - **强制覆盖**：使用 `--overwrite` 参数完全替换现有内容
-- **README.md 已存在**：默认跳过，使用 `--overwrite` 覆盖
-- **语言检测失败**：回退到简体中文
-- **无法识别项目类型**：使用通用项目模板
+| 类型 | 标志 |
+|---|---|
+| Python | `pyproject.toml`、`requirements.txt`、`setup.py`、`setup.cfg`、`__init__.py` |
+| Web | `package.json`、`yarn.lock`、`pnpm-lock.yaml`、`webpack.config.js` |
+| Rust | `Cargo.toml`、`Cargo.lock` |
+| Go | `go.mod`、`go.sum` |
+| Java | `pom.xml`、`build.gradle`、`build.gradle.kts` |
+| 数据科学 | `*.ipynb`、`*.R`、`environment.yml` |
+| 文档 | `docs/`、`_docs/`、`mkdocs.yml`、`docusaurus.config.js` |
 
 ## 智能合并策略
 
-当 CLAUDE.md 或 AGENTS.md 已存在时，脚本会自动进行智能合并：
+当 `AGENTS.md` 或 `CLAUDE.md` 已存在时，默认智能合并而非直接覆盖。
 
-### 保留的用户自定义内容
-- `## 项目目标` 章节中的自定义描述（排除默认模板内容）
-- `## 核心工作流` 章节中的自定义工作流
-- `## 变更边界` 章节中的自定义规则
-- 用户添加的自定义章节（不在标准模板中的章节）
+保留：
 
-### 更新的标准化内容
-- `## 工程原则`：更新为最新的工程原则标准
-- `## 默认语言`：更新为检测到的语言
-- `## 目录结构`：仅对仍包含该章节的文件更新为最新目录树（AGENTS.md 默认不再包含该章节）
-- 平台特定说明：Claude Code / Codex CLI 特定部分
+- 用户自定义的 `## 项目目标`、`## 核心工作流`、`## 变更边界`
+- 不属于标准模板的用户自定义章节
 
-### 示例
+更新：
 
-假设用户已在 CLAUDE.md 中自定义了项目目标和工作流：
+- 工程原则、默认语言、平台适配说明
+- `AGENTS.md` 必需章节清单对应的标准章节
+- `CLAUDE.md` 的 `@./AGENTS.md` 引用关系
 
-```markdown
-## 项目目标
-开发一个高性能的数据处理引擎，支持实时流处理和批量处理。
-（这是用户自定义的内容）
+兼容处理：
 
-## 核心工作流
-需求分析 → 架构设计 → 核心开发 → 性能测试 → 部署上线
-（这是用户自定义的工作流）
-```
+- `AGENTS.md` 中历史遗留的 `## 目录结构` 会被丢弃，避免回填为自定义章节。
+- 合并不符合预期时，提示用户用 `--overwrite` 完全覆盖。
 
-再次运行 `init-project` 时，这些自定义内容会被保留，而工程原则、默认语言、平台特定说明等标准化内容会被更新（AGENTS.md 的旧「目录结构」章节会被移除）。
+## .gitignore 策略
 
-## 使用示例
+从 `templates/gitignore.yaml` 读取规则；缺少 PyYAML 或配置损坏时使用默认规则兜底。安全优先，默认忽略系统文件、IDE 配置、日志、临时文件、环境变量、密钥、凭证目录和常见构建/缓存产物。已有 `.gitignore` 在覆盖模式下会保留用户自定义规则。
 
-**场景 1：全新项目（完全自动化）**
-```bash
-# 在项目根目录执行
-python3 init-project/scripts/generate.py --auto
+## 错误处理
 
-# 输出示例：
-# ✅ 已生成项目初始化文档:
-#    - AGENTS.md
-#    - CLAUDE.md
-#
-# 📊 项目分析结果:
-#    名称: my-project
-#    类型: Python 项目
-#    语言: 简体中文
-```
+- 输出目录越界、目标目录不存在或不是目录：停止。
+- `docs` / `docs/plans` 已存在但不是目录：停止。
+- BAC 安装、导入、初始化或验证失败：停止，并提示可用 `--disable-bac` 显式关闭。
+- 语言检测失败：回退到简体中文。
+- 项目类型无法识别：使用通用项目模板。
+- `PyYAML` 缺失：脚本继续运行，配置与 `.gitignore` 使用默认值。
 
-**场景 2：现有项目补全文档（智能合并）**
-```bash
-# 在现有项目目录执行（CLAUDE.md 和 AGENTS.md 已存在）
-python3 init-project/scripts/generate.py --auto
+## 交付前检查
 
-# 输出示例：
-# 🔄 CLAUDE.md 已智能更新（保留了自定义内容）
-# 🔄 AGENTS.md 已智能更新（保留了自定义内容）
-# ✅ 已生成 AI 项目指令文档:
-#    - CLAUDE.md
-#    - AGENTS.md
-#
-# 📊 项目分析结果:
-#    名称: my-project
-#    类型: Python 项目
-#    语言: 简体中文
-```
+- [ ] `AGENTS.md` 包含必需章节：项目目标、核心工作流、工程原则、默认语言、联网与搜索、贡献记录、Codex CLI 特定说明、变更记录与版本、有机更新原则。
+- [ ] `CLAUDE.md` 正确通过 `@./AGENTS.md` 引用通用指令。
+- [ ] `docs/`、`docs/plans/` 已存在或无需本模式创建。
+- [ ] BAC 已初始化/验证，或用户已显式使用 `--disable-bac`。
+- [ ] `.gitignore` 已生成/合并，且包含敏感文件忽略规则。
+- [ ] `CHANGELOG.md` 已创建或变更已记录。
+- [ ] 未写入当前项目目录之外的文件。
 
-**场景 3：覆盖现有文档（完全替换）**
-```bash
-python3 init-project/scripts/generate.py --auto --overwrite
-
-# 输出示例：
-# ✅ 已生成 AI 项目指令文档:
-#    - CLAUDE.md
-#    - AGENTS.md
-```
-
-## 验证清单（交付前）
-
-- [ ] 语言检测正确或用户已覆盖
-- [ ] 项目信息完整（名称、目标、用途）
-- [ ] AGENTS.md 包含所有必需章节（包括变更记录与版本）
-- [ ] CLAUDE.md 与 AGENTS.md 引用关系正确
-- [ ] 工程原则章节完整
-- [ ] 有机更新原则已包含
-- [ ] **变更记录与版本规范已明确**（CHANGELOG.md 强制性要求）
-- [ ] 文件已成功写入磁盘
-- [ ] CHANGELOG.md 已创建（强制性）
-- [ ] .gitignore 已生成或智能更新（推荐）
-- [ ] .gitignore 包含敏感文件忽略规则（安全检查）
-
-## 有机更新原则
-
-当需要更新本文档时：
-
-1. **理解意图**：用户真正想解决什么问题？
-2. **定位生态位**：更新应该放在哪个位置？
-3. **协调更新**：同步更新相关章节（如有）
-4. **保持一致性**：术语、示例、引用保持统一

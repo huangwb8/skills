@@ -8,6 +8,11 @@
 
 ### Added（新增）
 
+- **BAC 贡献记录默认集成**：初始化项目时默认检查 Python 环境和 `bac` 包，必要时安装 `git+https://github.com/huangwb8/bensz-auto-contribution.git`，并初始化贡献托管文件
+  - 默认托管文件为 `docs/contribution.bac`
+  - 新增 `--bac-file` 参数，允许用户指定项目内其它 `.bac` 文件路径
+  - 新增 `--disable-bac` 参数，允许用户随时显式关闭 BAC 初始化步骤
+  - 生成的 `AGENTS.md` 新增“贡献记录”章节，声明基于 auto-contribution 客观记录人类/AI 协作贡献边界
 - **安全性声明章节**：在 SKILL.md 中新增"安全性声明"章节，明确技能的工作边界
   - 允许的操作：在当前工作目录内创建/修改文件，只读访问当前目录
   - 禁止的操作：修改当前目录之外的任何文件或文件夹
@@ -19,6 +24,8 @@
 
 ### Changed（变更）
 
+- **SKILL.md 工作型文档压缩**：使用 `compact-bensz-skills` 精简 `SKILL.md` 正文，合并重复解释与长示例，保留触发语义、路径安全、BAC 默认集成、docs 初始化、智能合并和验证清单等硬约束
+- **BAC 仓库地址同步**：将默认安装源、项目链接与生成模板中的仓库地址从 `huangwb8/auto-contribution` 更新为 `huangwb8/bensz-auto-contribution`，匹配上游仓库改名后的正式地址
 - **增强路径验证**：改进 `validate_output_dir()` 方法，新增"当前工作目录边界检查"
   - 使用 `Path.relative_to()` 验证输出目录必须在当前工作目录内
   - 如果尝试访问当前目录之外的路径，立即终止并显示详细警告信息
@@ -28,6 +35,11 @@
 - **必需章节同步**：更新 `agents_required_sections` 与智能合并白名单，兼容旧版 `## 变更边界` 内容迁移到新版编辑原则
 - **CHANGELOG.md 模板压缩**：将教程式记录规范改为最小维护规则，保留初始记录、Keep a Changelog 和 SemVer 约束
 - **CLAUDE.md 模板压缩**：将 Claude Code 专属说明进一步合并为 4 条短规则，保留 `@./AGENTS.md` 引用和必要适配
+
+### Fixed（修复）
+
+- **占位符误报**：将模板示例中的 `{时间戳}` 识别为代码示例占位符，避免初始化时出现无效未替换警告
+- **裸 Python 启动**：`PyYAML` 缺失时不再导入崩溃，改为使用内置默认配置和默认 `.gitignore` 规则兜底
 
 ## [2.1.0] - 2026-03-02
 
