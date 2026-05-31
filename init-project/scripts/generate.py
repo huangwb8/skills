@@ -1243,8 +1243,8 @@ class ProjectInitGenerator:
         today = datetime.now().strftime("%Y-%m-%d")
         bac_file = bac_file or self.get_bac_config().get("default_bac_file", "docs/contribution.bac")
         if bac_enabled:
-            bac_init_note = "初始化项目时应检查 Python 环境、确认 `bac` 包可用，并在需要时安装该强制依赖"
-            bac_toggle_note = "默认开启贡献记录；用户可以随时显式关闭，例如运行初始化脚本时传入 `--disable-bac`，或在项目负责人确认后移除此章节约束"
+            bac_init_note = "初始化项目时必须检查 Python 环境、确认 `bac` 包可用；若环境未配置好，必须自动安装该 Python 依赖并初始化账本"
+            bac_toggle_note = "BAC 是默认强制执行步骤；除非项目负责人明确要求使用脚本级 `--disable-bac` 逃生开关，否则不得跳过依赖检查、安装与账本初始化"
             bac_readme_note = f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`"
             bac_changelog_note = f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`"
         else:
@@ -1490,8 +1490,8 @@ def main():
     bac_file = args.bac_file or bac_config.get("default_bac_file", "docs/contribution.bac")
     bac_enabled = bool(bac_config.get("enabled_by_default", True)) and not args.disable_bac
     if bac_enabled:
-        bac_init_note = "初始化项目时应检查 Python 环境、确认 `bac` 包可用，并在需要时安装该强制依赖"
-        bac_toggle_note = "默认开启贡献记录；用户可以随时显式关闭，例如运行初始化脚本时传入 `--disable-bac`，或在项目负责人确认后移除此章节约束"
+        bac_init_note = "初始化项目时必须检查 Python 环境、确认 `bac` 包可用；若环境未配置好，必须自动安装该 Python 依赖并初始化账本"
+        bac_toggle_note = "BAC 是默认强制执行步骤；除非项目负责人明确要求使用脚本级 `--disable-bac` 逃生开关，否则不得跳过依赖检查、安装与账本初始化"
         bac_readme_note = f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`"
         bac_changelog_note = f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`"
     else:

@@ -503,6 +503,58 @@ def _find_skill_dirs(skills_root: Path, exclude_names: set[str]) -> dict[str, li
     return skill_dirs_by_type
 
 
+def _parse_skill_filter(raw_values: list[str] | None) -> list[str]:
+    """解析 --skill 参数，支持重复传入和逗号分隔。"""
+    if not raw_values:
+        return []
+
+    skill_names: list[str] = []
+    seen: set[str] = set()
+    for raw_value in raw_values:
+        for part in raw_value.split(","):
+            skill_name = part.strip()
+            if not skill_name or skill_name in seen:
+                continue
+            skill_names.append(skill_name)
+            seen.add(skill_name)
+    return skill_names
+
+
+def _filter_skill_dirs_by_names(
+    skill_dirs_by_type: dict[str, list[Path]],
+    skill_names: list[str],
+) -> tuple[dict[str, list[Path]], list[str], list[str]]:
+    """按 skill 目录名过滤扫描结果。
+
+    Returns:
+        (过滤后的目录、未找到的名称、存在但不可安装的名称)
+    """
+    if not skill_names:
+        return skill_dirs_by_type, [], []
+
+    selected_names = set(skill_names)
+    existing_names: set[str] = set()
+    normal_names = {path.name for path in skill_dirs_by_type[SkillType.NORMAL]}
+
+    filtered: dict[str, list[Path]] = {
+        SkillType.NORMAL: [],
+        SkillType.AUXILIARY: [],
+        SkillType.TEST: [],
+    }
+    for skill_type in [SkillType.NORMAL, SkillType.AUXILIARY, SkillType.TEST]:
+        for skill_dir in skill_dirs_by_type[skill_type]:
+            existing_names.add(skill_dir.name)
+            if skill_dir.name in selected_names:
+                filtered[skill_type].append(skill_dir)
+
+    missing_names = [name for name in skill_names if name not in existing_names]
+    not_installable_names = [
+        name for name in skill_names
+        if name in existing_names and name not in normal_names
+    ]
+    return filtered, missing_names, not_installable_names
+
+
 # ============================================================================
 # 远程安装相关函数
 # ============================================================================
@@ -673,6 +725,7 @@ def _compare_remote_skills(
     local_target: Path,
     target: Target,
     t: get_translator().__class__,
+    skill_names: list[str] | None = None,
 ) -> list[SkillComparison]:
     """对比远程技能与本地已安装技能。
 
@@ -688,9 +741,14 @@ def _compare_remote_skills(
     comparisons: list[SkillComparison] = []
 
     # 发现远程技能
-    remote_skill_dirs = _find_skill_dirs(remote_skills_dir, exclude_names=set())
+    remote_skill_dirs_by_type = _find_skill_dirs(remote_skills_dir, exclude_names=set())
+    if skill_names:
+        remote_skill_dirs_by_type, _, _ = _filter_skill_dirs_by_names(
+            remote_skill_dirs_by_type,
+            skill_names,
+        )
 
-    for remote_skill_dir in remote_skill_dirs.get(SkillType.NORMAL, []):
+    for remote_skill_dir in remote_skill_dirs_by_type.get(SkillType.NORMAL, []):
         skill_name = remote_skill_dir.name
         remote_md5 = _calculate_skill_md5(remote_skill_dir)
         local_skill_dir = local_target / skill_name
@@ -919,6 +977,7 @@ def _remote_install_main(
     install_codex: bool,
     install_claude: bool,
     source_filter: list[str] | None = None,
+    skill_filter: list[str] | None = None,
     available_source_ids: list[str] | None = None,
     legacy_skill_names: list[str] | None = None,
     t: get_translator().__class__,
@@ -930,6 +989,7 @@ def _remote_install_main(
         install_codex: 是否安装到 Codex
         install_claude: 是否安装到 Claude Code
         source_filter: 要安装的源 ID 列表（None 表示安装所有源）
+        skill_filter: 要安装的 skill 名称列表（None 表示安装所有 skill）
         available_source_ids: 配置中可用的源 ID 列表
         t: 翻译器
 
@@ -1001,6 +1061,7 @@ def _remote_install_main(
         ))
 
     all_reports: list[InstallReport] = []
+    matched_skill_names: set[str] = set()
 
     try:
         # 遍历每个远程源
@@ -1026,10 +1087,18 @@ def _remote_install_main(
                 print(f"{'=' * 60}")
 
                 # 对比远程与本地技能
-                comparisons = _compare_remote_skills(remote_skills_dir, target.root, target, t)
+                comparisons = _compare_remote_skills(
+                    remote_skills_dir,
+                    target.root,
+                    target,
+                    t,
+                    skill_names=skill_filter,
+                )
+                matched_skill_names.update(comparison.name for comparison in comparisons)
 
                 if not comparisons:
-                    print(t.error_no_skills_found(root=remote_skills_dir))
+                    if not skill_filter:
+                        print(t.error_no_skills_found(root=remote_skills_dir))
                     continue
 
                 # 打印对比报告（check 模式）
@@ -1047,7 +1116,7 @@ def _remote_install_main(
                     target,
                     force=auto_mode,
                     source_label=source_label,
-                    legacy_skill_names=legacy_skill_names,
+                    legacy_skill_names=[] if skill_filter else legacy_skill_names,
                     t=t,
                 )
                 all_reports.append(report)
@@ -1077,6 +1146,12 @@ def _remote_install_main(
         print(t.summary_skipped_count(count=total_skipped))
 
         print(f"{'=' * 60}\n")
+
+    if skill_filter:
+        missing_names = [name for name in skill_filter if name not in matched_skill_names]
+        if missing_names:
+            print(t.error_skill_filter_missing(skills=", ".join(missing_names)))
+            return 1
 
     return 0
 
@@ -1468,6 +1543,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--codex", action="store_true", help=t.get("arg_help_codex"))
     parser.add_argument("--claude", action="store_true", help=t.get("arg_help_claude"))
     parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
+    parser.add_argument("--skill", action="append", default=[], help=t.get("arg_help_skill"))
     parser.add_argument("--source", type=str, default=None, help="指定额外的 skills 源目录路径")
     parser.add_argument("--remote", action="store_true", help=t.get("arg_help_remote"))
     parser.add_argument("--check", action="store_true", help=t.get("arg_help_check"))
@@ -1498,6 +1574,7 @@ def main(argv: list[str]) -> int:
         )
 
     args = parser.parse_args(argv)
+    selected_skill_names = _parse_skill_filter(args.skill)
 
     # 远程安装模式
     if args.remote:
@@ -1523,6 +1600,7 @@ def main(argv: list[str]) -> int:
             install_codex=install_codex,
             install_claude=install_claude,
             source_filter=selected_source_ids if selected_source_ids else None,
+            skill_filter=selected_skill_names or None,
             available_source_ids=available_source_ids,
             legacy_skill_names=legacy_skill_names,
             t=t,
@@ -1566,6 +1644,18 @@ def main(argv: list[str]) -> int:
         skill_dirs_by_type = _find_skill_dirs(source_root, exclude_names=set())
         for skill_type in [SkillType.NORMAL, SkillType.AUXILIARY, SkillType.TEST]:
             merged_skill_dirs_by_type[skill_type].extend(skill_dirs_by_type[skill_type])
+
+    if selected_skill_names:
+        merged_skill_dirs_by_type, missing_names, not_installable_names = _filter_skill_dirs_by_names(
+            merged_skill_dirs_by_type,
+            selected_skill_names,
+        )
+        if missing_names:
+            print(t.error_skill_filter_missing(skills=", ".join(missing_names)))
+            return 1
+        if not_installable_names:
+            print(t.error_skill_filter_not_installable(skills=", ".join(not_installable_names)))
+            return 1
 
     normal_skill_dirs = merged_skill_dirs_by_type[SkillType.NORMAL]
 
@@ -1628,7 +1718,7 @@ def main(argv: list[str]) -> int:
             skill_dirs_by_type=merged_skill_dirs_by_type,
             dry_run=args.dry_run,
             force=args.force,
-            legacy_skill_names=legacy_skill_names,
+            legacy_skill_names=[] if selected_skill_names else legacy_skill_names,
             t=t,
         )
         reports.append(report)

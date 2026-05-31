@@ -24,7 +24,8 @@
 
 ### Changed（变更）
 
-- **SKILL.md 工作型文档压缩**：使用 `compact-bensz-skills` 精简 `SKILL.md` 正文，合并重复解释与长示例，保留触发语义、路径安全、BAC 默认集成、docs 初始化、智能合并和验证清单等硬约束
+- **AGENTS.md BAC 默认口径**：生成的 `AGENTS.md` 将 BAC 贡献记录声明为默认强制执行步骤；初始化时必须检查 Python 环境与 `bac` 包，环境未配置好时自动安装并初始化账本。脚本级 `--disable-bac` 逃生开关保留，但模板不再把 BAC 描述为普通可选项
+- **SKILL.md 工作型文档压缩**：使用 `compact-bensz-skills` 精简 `SKILL.md` 正文，并二次轻量压缩表格与合并策略说明；保留触发语义、路径安全、BAC 默认集成、docs 初始化、智能合并和验证清单等硬约束
 - **BAC 仓库地址同步**：将默认安装源、项目链接与生成模板中的仓库地址从 `huangwb8/auto-contribution` 更新为 `huangwb8/bensz-auto-contribution`，匹配上游仓库改名后的正式地址
 - **增强路径验证**：改进 `validate_output_dir()` 方法，新增"当前工作目录边界检查"
   - 使用 `Path.relative_to()` 验证输出目录必须在当前工作目录内

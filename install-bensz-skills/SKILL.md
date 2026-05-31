@@ -1,7 +1,7 @@
 ---
 name: install-bensz-skills
 category: normal
-description: "当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。"
+description: "当需要把本仓库 pipelines/skills 下的所有 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。"
 metadata:
   author: Bensz Conan
   keywords:
@@ -74,6 +74,9 @@ python3 "$INSTALLER" --codex
 # 强制重新安装所有 skills（忽略版本检查）
 python3 "$INSTALLER" --force
 
+# 仅安装/更新指定 skill（不存在则新安装，已存在则按 MD5 判断更新或跳过）
+python3 "$INSTALLER" --skill nsfc-bib-manager
+
 # 预览模式（不实际安装）
 python3 "$INSTALLER" --dry-run
 
@@ -129,6 +132,9 @@ python3 "$INSTALLER" --remote --auto
 
 # 仅对 Claude Code 执行自动安装
 python3 "$INSTALLER" --remote --auto --claude
+
+# 仅安装/更新远程源中的指定 skill
+python3 "$INSTALLER" --remote --check --general --skill git-commit
 ```
 
 流程：
@@ -228,6 +234,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 | `--codex` | 仅安装到 Codex |
 | `--claude` | 仅安装到 Claude Code |
 | `--force` | 强制重新安装所有 skills（忽略 MD5 检查） |
+| `--skill` | 仅安装/更新指定 skill；可重复传入，也可用逗号分隔 |
 | `--source` | 指定额外的 skills 源目录路径 |
 
 ### 远程安装参数
@@ -245,6 +252,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 - `--remote --check --codex`：仅对 Codex 执行远程检查
 - `--remote --check --claude`：仅对 Claude Code 执行远程检查
 - `--remote --check --general`：仅检查并安装 general 源
+- `--remote --check --general --skill git-commit`：仅检查并安装/更新 general 源中的 `git-commit`
 
 ### 远程源配置
 
@@ -293,6 +301,7 @@ legacy_skill_names:
 ### 本地安装
 
 - **如果你刚更新了本仓库的技能**：再次触发本 skill 运行脚本即可完成系统级更新（仅安装有变化的）。
+- **只想更新一个 skill**：使用 `--skill skill-name`；目标不存在时会新安装，目标已存在时仍按 MD5 判断更新或跳过。
 - **需要强制重装**：使用 `--force` 参数。
 - **Claude Code / Codex 都需要新会话**才会重新加载更新后的技能；安装后建议新建会话验证。
 - **如何回退到旧版本**：使用 Git 回退源代码后，重新运行安装脚本即可（不备份旧版本）。

@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- 新增 `--skill` 参数，允许用户只安装/更新指定 skill
+  - 支持 `--skill skill-name`、重复传入以及逗号分隔名称
+  - 本地安装和远程安装均可使用；目标不存在时新安装，目标已存在时沿用 MD5 判断更新或跳过
+  - 新增 `tests/test_install.py` 覆盖 skill 参数解析、名称过滤和非普通 skill 拦截
 - 新增 `legacy_skill_names` 配置节，允许在 `config.yaml` 中声明已弃用的旧 skill 名称
 - 新增 `scripts/remove_legacy_skills.py`：可单独清理 Codex / Claude Code 系统级目录中的 legacy skill 目录
 - 新增 `tests/test_install.py` 覆盖 legacy skill 配置读取与安装前自动清理行为
@@ -12,6 +16,7 @@
   - 修改 `SKILL.md`：更新触发后必须执行的脚本入口规则，并将本地/远程安装示例统一改为系统级 `$INSTALLER`
   - 修改 `README.md`：同步脚本硬编码用法，避免用户继续采用本地脚本优先路径
   - 修改 `config.yaml`：版本号更新至 0.5.2
+- `config.yaml` 版本号更新至 0.5.3，并在 `SKILL.md` 与 `README.md` 中补充单 skill 安装/更新用法
 - 本地安装与远程安装现在都会在正式安装前自动清理 `legacy_skill_names` 中声明的旧 skill 目录，避免 skill 改名后旧目录残留在 `~/.codex/skills/` / `~/.claude/skills/`
   - 修改 `scripts/install.py`：接入 legacy skill 清理逻辑，并对当前仍在安装清单中的同名目录做保护，避免误删
   - 修改 `scripts/i18n.py`：新增 legacy skill 清理提示文案

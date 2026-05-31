@@ -24,8 +24,7 @@ metadata:
 
 ## 与 bensz-collect-bugs 的协作约定
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`，不要直接改用户本地已安装源码；若有 workaround，先记 bug 再继续。只有用户明确要求公开上报时，才用本地 `gh` 上传到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
 ## 目标与边界
 
@@ -35,22 +34,18 @@ metadata:
 
 ## 输出文件
 
-| 文件/目录 | 用途 | 默认行为 |
-|---|---|---|
-| `AGENTS.md` | 跨平台通用项目指令，Single Source of Truth | 必生成，智能合并 |
-| `CLAUDE.md` | Claude Code 适配层，核心为 `@./AGENTS.md` | 必生成，智能合并 |
-| `README.md` | 项目介绍与快速开始 | 不存在时生成，`--overwrite` 可覆盖 |
-| `CHANGELOG.md` | 项目变更记录 | 不存在时生成；项目变更必须维护 |
-| `.gitignore` | 安全优先的忽略规则 | 不存在时生成，覆盖模式下智能合并 |
-| `docs/`、`docs/plans/` | 文档根目录与计划文档目录 | 完整初始化时自动补齐 |
-| `docs/contribution.bac` | BAC 贡献记录账本 | 默认启用；`--bac-file` 可改，`--disable-bac` 可关 |
+- `AGENTS.md`：跨平台通用项目指令，Single Source of Truth；必生成，智能合并。
+- `CLAUDE.md`：Claude Code 适配层，核心为 `@./AGENTS.md`；必生成，智能合并。
+- `README.md`、`CHANGELOG.md`、`.gitignore`：按需生成；`--overwrite` 可覆盖/合并。项目变更必须维护 `CHANGELOG.md`。
+- `docs/`、`docs/plans/`：完整初始化时自动补齐；计划文档固定放在 `./docs/plans/`。
+- `docs/contribution.bac`：默认 BAC 账本；`--bac-file` 可改，`--disable-bac` 可关。
 
 ## 核心约束
 
 - `AGENTS.md` 是唯一需要长期手动维护的通用指令源；`CLAUDE.md` 只做 Claude Code 适配，并通过 `@./AGENTS.md` 自动引用。
 - 生成模板统一放在 `init-project/templates/`：`AGENTS.md.template`、`CLAUDE.md.template`、`README.md.template`、`CHANGELOG.md.template`、`gitignore.yaml`。
 - 配置统一放在 `init-project/config.yaml`，版本号以 `skill_info.version` 为准；当前 BAC 配置在 `bac_contribution`。
-- 完整初始化必须补齐 `docs/` 与 `docs/plans/`；计划文档固定放在 `./docs/plans/`。
+- 完整初始化必须补齐 `docs/` 与 `docs/plans/`。
 - 代码变化导致 `docs/` 中非 `plans/` 文档过时时，生成的项目指令必须要求同步更新。
 - 影响项目行为、结构、工作流、工程原则、指令文件或关键配置的变更，必须写入 `CHANGELOG.md` 的 `[Unreleased]`。
 
@@ -87,11 +82,9 @@ python3 init-project/scripts/generate.py --auto --bac-file docs/audit/contributi
 # 显式关闭默认 BAC 初始化
 python3 init-project/scripts/generate.py --auto --disable-bac
 
-# 只生成单类文档
+# 只生成单类文档 / 跳过可选输出
 python3 init-project/scripts/generate.py --auto --only-readme
 python3 init-project/scripts/generate.py --auto --only-changelog
-
-# 跳过可选输出
 python3 init-project/scripts/generate.py --auto --skip-readme --skip-gitignore
 ```
 
@@ -109,7 +102,7 @@ python3 init-project/scripts/generate.py \
 `--auto` 会依次完成：
 
 1. 验证输出目录必须位于当前工作目录内。
-2. 分析项目：从 README 提取名称/描述，按标志文件识别 Python/Web/Rust/Go/Java/数据科学/文档/通用项目，生成最多 2 层目录树。
+2. 分析项目：从 README 提取名称/描述，按标志文件识别项目类型，生成最多 2 层目录树。
 3. 检测默认语言，失败时回退到简体中文。
 4. 完整初始化时创建 `docs/` 与 `docs/plans/`。
 5. 按配置决定是否启用 BAC：检查 Python 与 `bac` 包，必要时安装，初始化或验证 `.bac` 文件。
@@ -117,37 +110,11 @@ python3 init-project/scripts/generate.py \
 7. 按条件生成 `README.md`、`CHANGELOG.md`、`.gitignore`。
 8. 输出生成文件、目录与项目分析摘要。
 
-项目类型识别标志：
-
-| 类型 | 标志 |
-|---|---|
-| Python | `pyproject.toml`、`requirements.txt`、`setup.py`、`setup.cfg`、`__init__.py` |
-| Web | `package.json`、`yarn.lock`、`pnpm-lock.yaml`、`webpack.config.js` |
-| Rust | `Cargo.toml`、`Cargo.lock` |
-| Go | `go.mod`、`go.sum` |
-| Java | `pom.xml`、`build.gradle`、`build.gradle.kts` |
-| 数据科学 | `*.ipynb`、`*.R`、`environment.yml` |
-| 文档 | `docs/`、`_docs/`、`mkdocs.yml`、`docusaurus.config.js` |
+项目类型识别标志：Python（`pyproject.toml`、`requirements.txt` 等）、Web（`package.json` 等）、Rust（`Cargo.toml`）、Go（`go.mod`）、Java（`pom.xml`/Gradle）、数据科学（`*.ipynb`、`*.R`、`environment.yml`）、文档（`docs/`、`mkdocs.yml`、`docusaurus.config.js`）。
 
 ## 智能合并策略
 
-当 `AGENTS.md` 或 `CLAUDE.md` 已存在时，默认智能合并而非直接覆盖。
-
-保留：
-
-- 用户自定义的 `## 项目目标`、`## 核心工作流`、`## 变更边界`
-- 不属于标准模板的用户自定义章节
-
-更新：
-
-- 工程原则、默认语言、平台适配说明
-- `AGENTS.md` 必需章节清单对应的标准章节
-- `CLAUDE.md` 的 `@./AGENTS.md` 引用关系
-
-兼容处理：
-
-- `AGENTS.md` 中历史遗留的 `## 目录结构` 会被丢弃，避免回填为自定义章节。
-- 合并不符合预期时，提示用户用 `--overwrite` 完全覆盖。
+当 `AGENTS.md` 或 `CLAUDE.md` 已存在时，默认智能合并而非直接覆盖：保留用户自定义的 `## 项目目标`、`## 核心工作流`、`## 变更边界` 及非标准章节；更新工程原则、默认语言、平台适配、`AGENTS.md` 必需章节与 `CLAUDE.md` 的 `@./AGENTS.md` 引用。`AGENTS.md` 中历史遗留的 `## 目录结构` 会被丢弃，避免回填为自定义章节；合并不符合预期时提示用户用 `--overwrite`。
 
 ## .gitignore 策略
 
@@ -171,4 +138,3 @@ python3 init-project/scripts/generate.py \
 - [ ] `.gitignore` 已生成/合并，且包含敏感文件忽略规则。
 - [ ] `CHANGELOG.md` 已创建或变更已记录。
 - [ ] 未写入当前项目目录之外的文件。
-

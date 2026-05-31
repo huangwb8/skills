@@ -25,6 +25,7 @@ class Messages:
     arg_help_codex: str
     arg_help_claude: str
     arg_help_force: str
+    arg_help_skill: str
     arg_help_remote: str
     arg_help_check: str
     arg_help_auto: str
@@ -32,6 +33,8 @@ class Messages:
 
     # 错误消息
     error_no_skills_found: str
+    error_skill_filter_missing: str
+    error_skill_filter_not_installable: str
     error_skill_name_collision: str
     error_source_root_not_found: str
 
@@ -110,11 +113,14 @@ MESSAGES_EN = Messages(
     arg_help_codex="Install to Codex only (default: both Codex and Claude Code).",
     arg_help_claude="Install to Claude Code only (default: both Codex and Claude Code).",
     arg_help_force="Force re-install all skills, ignoring MD5 check.",
+    arg_help_skill="Install/update only the named skill. Can be repeated or comma-separated.",
     arg_help_remote="Enable remote installation mode (download skills from GitHub).",
     arg_help_check="Check mode (interactive confirmation before installing).",
     arg_help_auto="Auto mode (force install without confirmation).",
     arg_help_source_filter="Filter remote sources by ID (e.g., --general, --research).",
     error_no_skills_found="No installable skills found (scanned root: {root})",
+    error_skill_filter_missing="Requested skill(s) not found: {skills}",
+    error_skill_filter_not_installable="Requested skill(s) are not installable normal skills: {skills}",
     error_skill_name_collision="Detected skill directory name conflicts (basename duplicated), cannot install safely:",
     error_source_root_not_found="Failed to auto-detect skills source root. Run this script inside a project that contains ./pipelines/skills or ./skills (or the skills root itself), or pass --source explicitly.",
     installing_to_target="Installing to {TARGET}: {root}",
@@ -185,11 +191,14 @@ MESSAGES_ZH = Messages(
     arg_help_codex="仅安装到 Codex（默认：同时安装到 Codex 和 Claude Code）。",
     arg_help_claude="仅安装到 Claude Code（默认：同时安装到 Codex 和 Claude Code）。",
     arg_help_force="强制重新安装所有 skills，忽略 MD5 检查。",
+    arg_help_skill="仅安装/更新指定 skill。可重复传入，也可用逗号分隔。",
     arg_help_remote="启用远程安装模式（从 GitHub 下载技能）。",
     arg_help_check="检查模式（安装前交互式确认）。",
     arg_help_auto="自动模式（强制安装，无需确认）。",
     arg_help_source_filter="按 ID 过滤远程源（如 --general、--research）。",
     error_no_skills_found="未发现可安装的 skills（扫描根目录：{root}）",
+    error_skill_filter_missing="未找到指定 skill：{skills}",
+    error_skill_filter_not_installable="指定 skill 不是可安装的普通技能：{skills}",
     error_skill_name_collision="检测到 skill 目录名冲突（basename 重复），无法安全安装：",
     error_source_root_not_found="未能自动识别 skills 源目录：请在包含 ./pipelines/skills 或 ./skills（或 skills 根目录本身）的项目目录中运行，或使用 --source 显式指定。",
     installing_to_target="正在安装到 {TARGET}: {root}",
