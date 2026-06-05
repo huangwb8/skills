@@ -1,0 +1,188 @@
+skill_info:
+  name: "auto-draw-plot"
+  version: "0.2.0"
+  description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 PNG。"
+  author: "Bensz Conan"
+  category: "image-generation"
+
+workspace:
+  hidden_dir: ".draw-plot"
+  run_prefix: "run-"
+  timestamp_format: "%Y%m%d%H%M%S%f"
+  latest_run_pointer: "latest-run.txt"
+  keep_intermediates_inside_hidden_dir: true
+  allow_outside_project: false
+  subdirs:
+    - "requests"
+    - "rounds"
+    - "meta"
+    - "exports"
+    - "parallel-vibe"
+
+directories:
+  default_test_dir: "tests/draw-plot"
+  default_api_env: "~/.bensz-skills/config/remote.env"
+
+api:
+  env_path: "~/.bensz-skills/config/remote.env"
+  provider_priority:
+    - "gpt-image-2"
+    - "nano_banana"
+  default_provider: "auto"
+  codex_config_path: "~/.codex/config.toml"
+  codex_auth_path: "~/.codex/auth.json"
+  gpt_image_2:
+    model: "gpt-image-2"
+    allowed_base_domains:
+      - "benszresearch.com"
+    env_base_url_keys:
+      - "OPENAI_BASE_URL"
+      - "OPENAI_API_BASE"
+    env_api_key_keys:
+      - "OPENAI_API_KEY"
+      - "OPENAI_API"
+    codex_auth_key_names:
+      - "OPENAI_API_KEY"
+      - "OPENAI_API"
+    env_model_keys:
+      - "OPENAI_IMAGE_MODEL"
+      - "OPENAI_MODEL"
+    codex_provider_names:
+      - "BenszAPI"
+  nano_banana:
+    required_keys:
+      - "GEMINI_BASE_URL"
+      - "GEMINI_API"
+      - "GEMINI_MODEL"
+  healthcheck_timeout_s: 30
+  request_timeout_s: 180
+  retry_attempts: 5
+
+modes:
+  default: "general"
+  aliases:
+    general:
+      - "通用"
+      - "default"
+      - "generic"
+    roadmap:
+      - "技术路线图"
+      - "route"
+      - "flowchart"
+      - "nsfc-roadmap"
+    schematic:
+      - "原理图"
+      - "机制图"
+      - "mechanism"
+      - "architecture"
+      - "nsfc-schematic"
+  presets:
+    general:
+      label: "通用绘图"
+      canvas_width: 1600
+      canvas_height: 900
+      accept_score: 8.5
+      planner_role: "你是一位擅长把中文需求转成高质量图片生成 prompt 的提示词设计师。"
+      purpose: "生成一张符合用户描述、适合科研/汇报/信息图使用的 PNG。"
+      prompt_sections:
+        - "忠实覆盖用户需求，不补充无关实体。"
+        - "主体清晰、构图稳定、色彩有明确层级。"
+      evaluation_criteria:
+        - "需求覆盖度"
+        - "主体清晰度"
+        - "构图稳定性"
+      guardrails:
+        - "禁止水印、Logo、签名、乱码、扭曲文字。"
+    roadmap:
+      label: "技术路线图"
+      canvas_width: 2400
+      canvas_height: 2263
+      accept_score: 8.6
+      planner_role: "你是一名科研申请书插图设计师，专长是中文技术路线图/flowchart。"
+      purpose: "生成一张白底、A4 可读、接近矢量图风格的技术路线图 PNG。"
+      prompt_sections:
+        - "将内容拆成 3-5 个阶段或研究任务，阶段标题条必须清楚。"
+        - "阶段内使用圆角矩形节点；主链用粗实线箭头，风险/备选/对照用细线或虚线。"
+        - "节点文字尽量短，按输入/处理/输出/验证/风险等语义组织，箭头方向必须正确。"
+        - "不要在图内绘制总标题、图题或 caption；图题交给正文排版。"
+      guardrails:
+        - "所有中文文字必须水平、清晰、完整落在对应框内，最多 2 行，禁止旋转/倾斜/透视/艺术字。"
+        - "白底，学术蓝/灰为主，低饱和高对比，适合打印/缩印。"
+        - "禁止 3D、照片风、背景纹理、水印、Logo。"
+      evaluation_criteria:
+        - "是否有清晰的 3-5 个阶段/任务分区。"
+        - "箭头方向是否能表达主链逻辑，风险/备选/对照是否弱化处理。"
+        - "A4 缩印后中文节点是否仍清晰可读。"
+    schematic:
+      label: "原理图/机制图"
+      canvas_width: 3200
+      canvas_height: 2000
+      accept_score: 8.6
+      planner_role: "你是一名科研插图设计师，专长是中文原理图、机制图与算法/模块架构图。"
+      purpose: "生成一张白底、结构分组清晰、接近矢量图风格的科研原理图 PNG。"
+      prompt_sections:
+        - "优先表达机制链、算法架构、模块关系或实验闭环，而不是普通流程清单。"
+        - "节点使用圆角矩形或简洁标签框；分组使用淡色大框和分组标题；主链用粗箭头，辅助/验证用细箭头或虚线。"
+        - "文字严格使用用户给出的术语，尽量短，不随意改写关键概念。"
+        - "不要在图内绘制总标题、图题或 caption；图题交给正文排版。"
+      guardrails:
+        - "所有标签必须水平、清晰、像打印稿；禁止文字扭曲、弯曲、透视、拉伸压缩、手写或艺术字。"
+        - "文字放在白色/浅色标签框内，保留内边距，不要压在线条/箭头/背景色块上。"
+        - "白底，学术蓝/灰为主，低饱和高对比，适合打印/缩印。"
+      evaluation_criteria:
+        - "分组/模块是否清楚表达机制链、算法架构或实验闭环。"
+        - "主链与辅助/验证连线是否分层，箭头方向是否正确。"
+        - "关键术语是否忠实保留且中文标签清晰可读。"
+
+generation:
+  default_max_rounds: 3
+  default_canvas_width: 1600
+  default_canvas_height: 900
+  default_output_name: "draw-plot.png"
+  round_dir_prefix: "round-"
+  prompt_temperature: 0.2
+  prompt_max_tokens: 1200
+  allow_reference_images: true
+  max_reference_images: 4
+  prompt_guardrails:
+    - "忠实满足用户要求，不擅自新增无关元素。"
+    - "画面应适合科研/汇报/信息图使用，主体清晰，构图稳定。"
+    - "若图中需要文字，必须尽量保持短、水平、清晰、可读。"
+    - "禁止水印、Logo、签名、艺术字、扭曲文字、乱码。"
+    - "优先白底或浅底，除非用户明确要求深色背景。"
+
+evaluation:
+  accept_score: 8.5
+  plateau_delta: 0.3
+  plateau_rounds: 2
+  repeated_hash_rounds: 2
+  evaluation_temperature: 0.1
+  evaluation_max_tokens: 1200
+  heuristic_min_file_size_bytes: 8192
+  heuristic_min_long_edge_px: 1800
+
+parallel_vibe:
+  enabled: true
+  required: true
+  default_runner: "shell"
+  default_profile: "deep"
+  plan_filename: "parallel-plan.json"
+  round_plan_prefix: "parallel-plan.round-"
+  result_filename: "RESULT.md"
+  worker_script: "scripts/parallel_round_worker.py"
+
+reports:
+  run_manifest: "run-manifest.json"
+  analysis_json: "meta/analysis.json"
+  result_json: "meta/result.json"
+
+scripts:
+  init_workspace: "scripts/init_workspace.py"
+  nano_banana_check: "scripts/nano_banana_check.py"
+  run_draw_plot: "scripts/run_draw_plot.py"
+  generate_image: "scripts/generate_image.py"
+  evaluate_image: "scripts/evaluate_image.py"
+  image_provider_client: "scripts/image_provider_client.py"
+  modes: "scripts/modes.py"
+  build_parallel_plan: "scripts/build_parallel_plan.py"
+  parallel_round_worker: "scripts/parallel_round_worker.py"
