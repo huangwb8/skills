@@ -8,6 +8,10 @@
 
 ---
 
+最近，./install-bensz-skills 的策略有一些轻的变化。  请问， @install 里的脚本要不要对齐一下？ 如果有必要，请你优化一下。
+
+---
+
 我倾向于拒绝这个pr。 请你指出 docs/pr-reviews/Git-PR-Review_huangwb8_skills_pr-1_20260330184127.md 里揭示的诸多问题，并且善意地表示目前暂时不接受改变这种改变prompt类的提交；因为目前skill正处于我个人的频繁开发中。 你帮我回复该pr的作者，然后关闭这个pr。
 
 ---
