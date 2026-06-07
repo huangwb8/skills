@@ -6,9 +6,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from common import expand_path, extract_json_from_text, load_config, read_text, sha256_file, write_json
+from common import expand_path, load_config, read_text, sha256_file, write_json
 from modes import DrawMode, mode_evaluation_lines, mode_prompt_lines
-from nano_banana_client import generate_text, load_gemini_config, part_from_image_path
 
 
 def evaluate_image(
@@ -21,11 +20,16 @@ def evaluate_image(
     debug_dir: Optional[Path],
     mode: Optional[DrawMode] = None,
 ) -> Dict[str, Any]:
-    cfg = load_config()
-    eval_cfg = cfg.get("evaluation", {}) or {}
-    gemini_cfg = load_gemini_config(remote_env_path=remote_env)
+    normalized = heuristic_evaluation(image_path)
+    normalized["review_backend"] = "heuristic"
+    normalized["review_context"] = build_review_prompt(request_text=request_text, image_prompt=image_prompt, mode=mode)
+    if output_json is not None:
+        write_json(output_json, normalized)
+    return normalized
 
-    review_prompt = "\n".join(
+
+def build_review_prompt(*, request_text: str, image_prompt: str, mode: Optional[DrawMode]) -> str:
+    return "\n".join(
         [
             "你是一位严格但建设性的视觉评审。",
             "请根据用户需求、当前图片 prompt 与提供的图片本身，判断这张图是否足够满足要求。",
@@ -58,25 +62,6 @@ def evaluate_image(
             image_prompt.strip(),
         ]
     )
-
-    text, _resp = generate_text(
-        cfg=gemini_cfg,
-        parts=[{"text": review_prompt}, part_from_image_path(image_path)],
-        debug_dir=debug_dir,
-        timeout_s=int((cfg.get("api", {}) or {}).get("request_timeout_s", 180)),
-        temperature=float(eval_cfg.get("evaluation_temperature", 0.1)),
-        max_output_tokens=int(eval_cfg.get("evaluation_max_tokens", 1200)),
-    )
-    payload = extract_json_from_text(text) or salvage_evaluation_payload(text)
-    normalized = normalize_evaluation(
-        payload=payload,
-        raw_text=text,
-        image_path=image_path,
-        cfg=eval_cfg,
-    )
-    if output_json is not None:
-        write_json(output_json, normalized)
-    return normalized
 
 
 def normalize_evaluation(
@@ -140,9 +125,9 @@ def heuristic_evaluation(image_path: Path) -> Dict[str, Any]:
         issues.append("PNG 文件过小，可能生成失败或接近空白。")
     if long_edge >= int(eval_cfg.get("heuristic_min_long_edge_px", 1800)):
         score += 1.0
-        strengths.append("PNG 分辨率达到基本可用级别。")
+        strengths.append("PNG 像素尺寸达到基本可检查级别；这不代表模型原生细节或文字清晰度已达标。")
     else:
-        issues.append("PNG 分辨率偏低，建议重新生成。")
+        issues.append("PNG 像素尺寸偏低，建议重新生成或检查 provider 原生尺寸。")
     return {
         "score": round(score, 2),
         "passed": False,

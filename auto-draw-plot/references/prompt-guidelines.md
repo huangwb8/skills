@@ -7,16 +7,16 @@
 
 2. **Prompt 模板结构**：
    ```
-   你是一个精通 Nano Banana / Gemini 的绘图模型，负责把输入的需求转化为可执行 prompt。
+   你是一个严谨的绘图 prompt 规划助手，负责把输入需求转化为适合当前图片 provider 的可执行 prompt。
    场景：{用途 / 受众}
    元素：
    - {元素 1}
    - {元素 2}
    风格：{色调 / 质感 / 字体 / 参考图}
    排除项：{千万别做的事情}
-   输出产物：PNG，要求 {尺寸 / 4K / 透明背景 / 其他}
+   输出产物：PNG，要求 {比例 / provider 原生尺寸选择参考 / 透明背景 / 其他}
    ```
-   把 `visual_constraints` 填入 `风格` 与 `输出` 中，把 `reference_images` 作为“样式参考图”说明。
+   把 `visual_constraints` 填入 `风格` 与 `输出` 中，把 `reference_images` 作为“样式参考图”说明。不要把 `4K`、`3840px` 等字样写成最终像素承诺；默认最终 PNG 保留图片 provider 返回的原生尺寸。
 
 3. **Mode Preset 要点**：
    - `general`：忠实复述用户需求，主体清晰，画面稳定，避免无关元素。
@@ -26,15 +26,17 @@
 
 4. **多轮优化提示语**：
    - 第一轮不要带过多假设，直接复述需求。
-   - 之后的轮次在 prompt 末尾附上 `feedback` 段，比如：
+   - 之后的轮次把第 `n` 轮 `output.png` 作为第 `n+1` 轮第一参考图，并在 prompt 末尾附上 `feedback` 段，比如：
      ```
+     Reference image:
+     - 第一张参考图是上一轮 output.png，请在此基础上局部微调，不要从零重画。
      Feedback:
      - 上轮评估：文字与背景对比不足
      - 修改方向：增强对比、加边框
      ```
    - 指定 `round` 和 `max_rounds` 以便 meta 记录。
 
-5. **AI 视觉评估入参**：
+5. **视觉评估入参**：
    - `evaluation` 段至少要覆盖 `score`（0-10）、`passed`（true/false）、`must_fix`、`prompt_patch`。
    - 若本轮未通过，下一轮 prompt 必须把 `must_fix` / `prompt_patch` 显式合并进去。
 
@@ -44,4 +46,4 @@
 
 7. **记录**：
    - 把每轮 prompt 写入 `.draw-plot/run-<timestamp>/rounds/round-XX/prompt.txt`，便于复现与审计。
-   - 若远端模型不支持文本规划，可回退为“用户需求 + 护栏模板 + 上轮修复项”的本地模板。
+   - 脚本默认不调用远端文本规划接口；本地模板应稳定组合“用户需求 + 模式护栏 + 上轮修复项”。

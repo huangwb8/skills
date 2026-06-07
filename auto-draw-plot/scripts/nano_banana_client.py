@@ -4,6 +4,7 @@ import base64
 import json
 import math
 import re
+import struct
 import time
 import urllib.error
 import urllib.request
@@ -13,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from common import ensure_dir, warn
 from env_utils import find_remote_env, mask_secret, merged_env
+from common import load_config
 
 
 @dataclass(frozen=True)
@@ -250,17 +252,14 @@ def _infer_image_mime(path: Path, raw: bytes) -> str:
         return "image/jpeg"
     if len(raw) >= 12 and raw[0:4] == b"RIFF" and raw[8:12] == b"WEBP":
         return "image/webp"
-    suffix = path.suffix.lower()
-    if suffix == ".png":
-        return "image/png"
-    if suffix in {".jpg", ".jpeg"}:
-        return "image/jpeg"
-    if suffix == ".webp":
-        return "image/webp"
     raise RuntimeError(f"不支持的图片格式：{path}")
 
 
 def part_from_image_path(path: Path) -> Dict[str, Any]:
+    size_bytes = path.stat().st_size
+    max_bytes = _max_reference_image_bytes()
+    if size_bytes > max_bytes:
+        raise ValueError(f"参考图过大：{path} ({size_bytes} bytes > {max_bytes} bytes)")
     raw = path.read_bytes()
     mime = _infer_image_mime(path, raw)
     return {
@@ -345,6 +344,49 @@ def _maybe_resize_to_canvas(path: Path, *, target_w: int, target_h: int) -> None
         warn(f"PNG 尺寸对齐失败（已忽略）：{exc}")
 
 
+def _validate_postprocess_args(
+    *,
+    postprocess_resize: bool,
+    postprocess_w: Optional[int],
+    postprocess_h: Optional[int],
+) -> None:
+    has_w = postprocess_w is not None
+    has_h = postprocess_h is not None
+    if has_w != has_h:
+        raise ValueError("--postprocess-width 与 --postprocess-height 必须同时提供。")
+    if (has_w or has_h) and not postprocess_resize:
+        raise ValueError("只有启用 --postprocess-resize 时才能指定后处理目标尺寸。")
+    if postprocess_resize and not (has_w and has_h):
+        raise ValueError("--postprocess-resize 需要同时指定 --postprocess-width 与 --postprocess-height。")
+    if has_w and int(postprocess_w or 0) <= 0:
+        raise ValueError("--postprocess-width 必须为正整数。")
+    if has_h and int(postprocess_h or 0) <= 0:
+        raise ValueError("--postprocess-height 必须为正整数。")
+
+
+def _max_reference_image_bytes() -> int:
+    cfg = load_config()
+    gen_cfg = cfg.get("generation", {}) if isinstance(cfg.get("generation"), dict) else {}
+    return max(1, int(gen_cfg.get("max_reference_image_bytes", 20 * 1024 * 1024)))
+
+
+def _image_size(path: Path) -> Optional[Dict[str, int]]:
+    try:
+        raw = path.read_bytes()[:32]
+        if raw.startswith(b"\x89PNG\r\n\x1a\n") and len(raw) >= 24:
+            width, height = struct.unpack(">II", raw[16:24])
+            return {"width": int(width), "height": int(height)}
+    except Exception:
+        pass
+    try:
+        from PIL import Image  # type: ignore
+
+        with Image.open(path) as img:
+            return {"width": int(img.size[0]), "height": int(img.size[1])}
+    except Exception:
+        return None
+
+
 def _parse_retry_after(detail: str) -> Optional[float]:
     m = re.search(r"retry\\s+in\\s+([0-9]+(?:\\.[0-9]+)?)s", detail, flags=re.IGNORECASE)
     if not m:
@@ -366,7 +408,15 @@ def generate_png(
     debug_dir: Optional[Path] = None,
     timeout_s: int = 180,
     retries: int = 5,
+    postprocess_resize: bool = False,
+    postprocess_w: Optional[int] = None,
+    postprocess_h: Optional[int] = None,
 ) -> Dict[str, Any]:
+    _validate_postprocess_args(
+        postprocess_resize=postprocess_resize,
+        postprocess_w=postprocess_w,
+        postprocess_h=postprocess_h,
+    )
     refs = [Path(p) for p in (reference_images or [])]
     parts = [part_from_image_path(ref) for ref in refs]
     parts.append({"text": prompt})
@@ -411,11 +461,28 @@ def generate_png(
     mime, raw = best
     output_png.parent.mkdir(parents=True, exist_ok=True)
     output_png.write_bytes(raw)
-    target_w, target_h = _target_4k_dims(canvas_w, canvas_h)
-    _maybe_resize_to_canvas(output_png, target_w=target_w, target_h=target_h)
+    native_size = _image_size(output_png)
+    target_w, target_h = (
+        (max(1, int(postprocess_w)), max(1, int(postprocess_h)))
+        if postprocess_w and postprocess_h
+        else _target_4k_dims(canvas_w, canvas_h)
+    )
+    postprocess_applied = False
+    if postprocess_resize:
+        before = _image_size(output_png)
+        _maybe_resize_to_canvas(output_png, target_w=target_w, target_h=target_h)
+        after = _image_size(output_png)
+        postprocess_applied = bool(before and after and before != after)
     return {
         "mime_type": mime,
         "output_png": str(output_png),
-        "target_size": {"width": target_w, "height": target_h},
+        "requested_provider_size": {
+            "aspect_ratio": _choose_aspect_ratio(canvas_w, canvas_h),
+            "image_size": "4K",
+        },
+        "native_size": native_size,
+        "output_size": _image_size(output_png),
+        "postprocess_resize_applied": postprocess_applied,
+        "postprocess_target_size": {"width": target_w, "height": target_h} if postprocess_resize else None,
         "response_path": str(debug_dir / "response.json") if debug_dir is not None else None,
     }

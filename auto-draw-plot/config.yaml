@@ -1,12 +1,14 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.0"
+  version: "0.2.9"
   description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 PNG。"
   author: "Bensz Conan"
   category: "image-generation"
 
 workspace:
   hidden_dir: ".draw-plot"
+  announce_absolute_path_before_start: true
+  announcement_message_template: "本次 auto-draw-plot .draw-plot 工作区绝对路径：{workspace_root}"
   run_prefix: "run-"
   timestamp_format: "%Y%m%d%H%M%S%f"
   latest_run_pointer: "latest-run.txt"
@@ -29,6 +31,8 @@ api:
     - "gpt-image-2"
     - "nano_banana"
   default_provider: "auto"
+  allow_provider_fallback: false
+  explicit_provider_no_fallback: true
   codex_config_path: "~/.codex/config.toml"
   codex_auth_path: "~/.codex/auth.json"
   gpt_image_2:
@@ -55,8 +59,20 @@ api:
       - "GEMINI_API"
       - "GEMINI_MODEL"
   healthcheck_timeout_s: 30
-  request_timeout_s: 180
+  request_timeout_s: 1800
   retry_attempts: 5
+  async_image_job:
+    enabled: true
+    submit_mode: "sub2api_job_endpoint"
+    fallback_to_sync_on_unsupported: true
+    max_wait_s: 1800
+    poll_interval_s: 5
+    poll_timeout_s: 60
+    status_endpoint_templates:
+      - "{base_url}/images/jobs/{job_id}"
+      - "{base_url}/images/generations/{job_id}"
+    result_endpoint_templates:
+      - "{base_url}/images/jobs/{job_id}/result"
 
 modes:
   default: "general"
@@ -95,8 +111,8 @@ modes:
         - "禁止水印、Logo、签名、乱码、扭曲文字。"
     roadmap:
       label: "技术路线图"
-      canvas_width: 2400
-      canvas_height: 2263
+      canvas_width: 1800
+      canvas_height: 1697
       accept_score: 8.6
       planner_role: "你是一名科研申请书插图设计师，专长是中文技术路线图/flowchart。"
       purpose: "生成一张白底、A4 可读、接近矢量图风格的技术路线图 PNG。"
@@ -115,8 +131,8 @@ modes:
         - "A4 缩印后中文节点是否仍清晰可读。"
     schematic:
       label: "原理图/机制图"
-      canvas_width: 3200
-      canvas_height: 2000
+      canvas_width: 1920
+      canvas_height: 1200
       accept_score: 8.6
       planner_role: "你是一名科研插图设计师，专长是中文原理图、机制图与算法/模块架构图。"
       purpose: "生成一张白底、结构分组清晰、接近矢量图风格的科研原理图 PNG。"
@@ -138,12 +154,14 @@ generation:
   default_max_rounds: 3
   default_canvas_width: 1600
   default_canvas_height: 900
+  postprocess_resize_default: false
   default_output_name: "draw-plot.png"
   round_dir_prefix: "round-"
   prompt_temperature: 0.2
   prompt_max_tokens: 1200
   allow_reference_images: true
   max_reference_images: 4
+  max_reference_image_bytes: 20971520
   prompt_guardrails:
     - "忠实满足用户要求，不擅自新增无关元素。"
     - "画面应适合科研/汇报/信息图使用，主体清晰，构图稳定。"
@@ -152,6 +170,8 @@ generation:
     - "优先白底或浅底，除非用户明确要求深色背景。"
 
 evaluation:
+  default_backend: "heuristic"
+  semantic_review_owner: "host_ai"
   accept_score: 8.5
   plateau_delta: 0.3
   plateau_rounds: 2
