@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- `config.yaml` 版本号更新至 0.5.4，并将研究类 skill 重命名旧目录加入 `legacy_skill_names`：`get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`。安装新版本 research 系列 skills 时会自动清理这些系统级旧目录，避免旧名继续干扰触发。
+
 ### Added
 - 新增 `--skill` 参数，允许用户只安装/更新指定 skill
   - 支持 `--skill skill-name`、重复传入以及逗号分隔名称

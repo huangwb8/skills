@@ -1,44 +1,98 @@
 # parallel-vibe
 
-本 README 面向使用者：告诉你什么时候该用 `parallel-vibe`，以及怎样把 `thread` 数、并发上限和最终汇总说清楚。执行规范在 `SKILL.md`，默认配置在 `config.yaml`。
+本 README 面向使用者：告诉你什么时候用默认智能模式，什么时候切到脚本 runner 的代码模式。执行规范在 `SKILL.md`，默认配置在 `config.yaml`。
 
 ## 这是什么
 
-`parallel-vibe` 用来把同一条 Vibe Coding 指令拆成多个彼此隔离的尝试路径：
+`parallel-vibe` 用来让多个独立 thread 围绕同一条 Vibe Coding 指令给出不同视角，再由主 agent 汇总共识、分歧和推荐路线。
 
-- 每个 `thread` 都有自己的独立工作区
-- 最终会把各条路径的结果汇总到 `.parallel_vibe/<project_id>/@main/summary.md`
+默认推荐 **智能模式**：直接使用宿主工具的原生 subagent / 独立上下文能力。两种模式都使用同一套 `.parallel_vibe/<project_id>/` 目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 和 `runner.log`；区别只在 thread 的底层执行机制。
 
-它适合“同一任务想并行试多种方案”的场景，不适合普通 shell 并发、批量下载、CI 跑测试这类任务。
+只有当你需要脚本 runner、`plan-file`、`resume`、真实退出码、跨 `codex` / `claude` / `shell` runner，或下游脚本可复跑批处理时，才切到 **代码模式**。
 
-## 用法
+## 推荐用法：智能模式
 
-推荐直接用 Prompt 触发，不需要关心脚本入口或硬编码命令。
-
-最小可用写法：
+普通多 agent 探索、审查、优化和方案对比，直接用 Prompt 触发：
 
 ```text
-请使用 parallel-vibe skill 并行尝试完成这项任务。
-输入：当前工作目录代码 + 我的需求描述
-输出：多个独立 thread 的结果，以及最终汇总结论
+请使用 parallel-vibe 的智能模式，让 4 个独立 subagent 分别审查这个方案。
+每个 thread 都要给出结论、依据、建议、风险和验证步骤。
+最后请综合共识、主要分歧和推荐路线。
 ```
 
-如果你想明确控制规模，可以直接把要求说出来：
+实现型任务建议这样说，避免多个 subagent 同时改同一份 checkout：
 
 ```text
-请使用 parallel-vibe skill 处理这个任务。
-输入：当前项目 + 需求说明
-输出：6 个独立 thread 的尝试结果和最终汇总
-另外，还有下列参数约束：
-- 用 6 个 thread
-- 开启并行
-- 并发上限为 2
-- 保留每个 thread 的独立结果，最后再做一次总汇总
+请使用 parallel-vibe 的智能模式，让 3 个独立 subagent 给出不同实现方案和 patch 建议。
+暂时不要让多个 subagent 并行写同一个工作区。
+最后由主 agent 选择最小可行路线并给出验证命令。
 ```
 
-## 先搞懂三个量
+智能模式适合：
 
-这是使用 `parallel-vibe` 时最重要的部分。
+- 多个独立 agent 审查同一份代码、PR、文档或方案
+- 让不同角色给出保守方案、激进方案、测试边界、风险审查
+- 研究假设、产品方案、重构方向的多视角打磨
+- 需要固定 `.parallel_vibe/` 目录，但希望由宿主原生 subagent 完成独立思考的交互式任务
+
+## 什么时候用代码模式
+
+代码模式保留脚本 runner 能力，适合可复跑批处理编排：
+
+- 你要用 `--plan-file`、`--project-id`、`--resume`、`--dry-run`
+- 你需要跨 `codex` / `claude` / `shell` runner 批量执行
+- 下游 skill 或脚本要读取机器可读产物
+- 你需要真实进程退出码和 runner 失败日志来驱动自动化
+
+代码模式命令：
+
+```bash
+python3 parallel-vibe/scripts/parallel_vibe.py \
+  --prompt "<用户指令原文>" \
+  --n 5
+```
+
+只生成计划，不执行 threads：
+
+```bash
+python3 parallel-vibe/scripts/parallel_vibe.py \
+  --prompt "<用户指令原文>" \
+  --n 3 \
+  --plan-only \
+  --no-synthesize
+```
+
+使用自定义计划：
+
+```bash
+python3 parallel-vibe/scripts/parallel_vibe.py \
+  --plan-file /path/to/plan.json \
+  --src-dir . \
+  --out-dir .
+```
+
+系统级安装时可用：
+
+```bash
+python3 ~/.codex/skills/parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>"
+# 或
+python3 ~/.claude/skills/parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>"
+```
+
+## 两种模式的区别
+
+| 维度 | 智能模式（默认） | 代码模式 |
+|------|------------------|----------|
+| 默认用途 | 多 agent 独立思考、审查、对比方案 | 可追溯批处理和脚本集成 |
+| 执行方式 | 宿主原生 subagent / 独立上下文 | `scripts/parallel_vibe.py` |
+| 落盘契约 | 固定 `.parallel_vibe/` | 固定 `.parallel_vibe/` |
+| 关键产物 | `plan.json`、`RESULT.md`、`runner.log`、`summary.md` | `plan.json`、`RESULT.md`、`runner.log`、`summary.md` |
+| 文件隔离 | 使用相同 thread `workspace/`；是否能绑定 cwd 取决于宿主 subagent 能力 | 每个 thread 复制独立 workspace，并以 `cwd=workspace/` 启动 runner |
+| 适合下游自动化 | 一般不适合 | 适合 |
+
+最容易误解的一点：目录一致不等于底层隔离机制一致。智能模式的独立性来自宿主 subagent / 独立上下文；代码模式的独立性来自脚本复制 workspace 并启动 CLI runner。需要并行实改文件时，确保每个执行单元只写自己的 `workspace/`；如果宿主不能绑定 subagent 的工作目录，使用代码模式或让智能模式只输出 patch 建议。
+
+## 代码模式参数语义
 
 | 名称 | 你可以怎样理解 | 直接影响什么 |
 |------|----------------|-------------|
@@ -46,130 +100,41 @@
 | `max_parallel` | 允许同时推进多少个 `thread` | 同一时刻的并发执行数量 |
 | `synthesize` | threads 结束后是否再做一次统一汇总 | 是否自动生成最终结论 |
 
-### 核心关系
+核心关系：
 
 - 1 个 `thread` = 1 份独立工作区
 - `thread` 数决定总共要尝试多少条路径
 - `max_parallel` 决定这些路径会同时推进几条
-
-### 你真正需要关心的公式
-
-| 你设置的东西 | 结果 |
-|-------------|------|
-| `thread` 数 = `n` | 会创建 `n` 个独立工作区，并做 `n` 条独立尝试 |
-| 默认串行 | 同时最多只有 `1` 个 `thread` 在执行 |
-| 开启并行，`max_parallel = m` | 同时最多有 `min(n, m)` 个 `thread` 在执行 |
-| 开启 `synthesize` | 在所有 `thread` 跑完后，额外生成 1 份统一汇总 |
-
-### 最容易误解的一点
-
-如果你设置了 `6` 个 `thread`，并不代表会一直有 `6` 条路径同时推进。
-
-- 串行模式：总共会做 `6` 条尝试，但同一时刻只推进 `1` 条
-- 并行模式且 `max_parallel=2`：总共会做 `6` 条尝试，但同一时刻最多推进 `2` 条
-- 如果还开启了 `synthesize`：全部 `thread` 结束后，还会额外生成 `1` 份总汇总
-
-所以更准确地说：
-
-- `thread` 数决定“要做多少次独立尝试”
-- `max_parallel` 决定“同时会有多少条尝试路径正在进行”
-- `synthesize` 决定“最后是否再额外补 1 次汇总执行”
-
-## 什么时候怎么设
-
-| 你的需求 | 推荐设置 | 原因 |
-|---------|---------|------|
-| 先稳妥试一轮 | `5` 个 `thread`，默认串行 | 成本更稳，适合先看方案质量 |
-| 想控制资源占用 | 降低 `thread` 数，或保持串行 | 独立工作区、调用次数和等待压力都会更少 |
-| 想缩短等待时间 | 开启并行，并设置合适的 `max_parallel` | 能提高同时推进的 thread 数 |
-| 想保留多方案，再统一结论 | 保持 `synthesize` 开启 | 会在最后多做一次汇总 |
-| 只想先看拆分计划 | 让它先只生成计划，不执行 threads | 适合先审题、再决定是否开跑 |
-
-## 常见使用场景
-
-### 场景 1：同一功能试多个实现方向
-
-```text
-请使用 parallel-vibe skill，为这个功能提供 4 个独立 thread 的实现尝试。
-每个 thread 都要在独立工作区完成，并给出最小验证步骤。
-最后输出统一汇总，说明哪条路线最值得继续推进。
-```
-
-### 场景 2：我要更多独立方案，但不想一下子跑太多进程
-
-```text
-请使用 parallel-vibe skill 处理这个重构任务。
-要求拆成 6 个 thread，但保持并发上限为 2。
-我要看到每个 thread 的结果，并最终汇总推荐方案。
-```
-
-### 场景 3：先只生成计划
-
-```text
-请使用 parallel-vibe skill 先为这个任务生成并行计划。
-暂时不要执行 threads，只输出计划和建议的 thread 拆分方式。
-```
+- `synthesize` 在全部 thread 结束后额外生成统一汇总，不会提高 thread 阶段并发峰值
 
 ## 输出怎么看
 
-执行后你最该先看的是：
+执行后先看：
 
 - `.parallel_vibe/<project_id>/@main/summary.md`
 
-如果你要看某个独立尝试路径，再看：
+某个独立尝试路径：
 
 - `.parallel_vibe/<project_id>/<thread_id>/RESULT.md`
 - `.parallel_vibe/<project_id>/<thread_id>/workspace/`
 
-只有当你要排查某条路径为什么失败，才需要再看：
+排查失败：
 
 - `.parallel_vibe/<project_id>/<thread_id>/runner.log`
 
-## 关键配置项
-
-你不需要背参数名，但知道它们的语义会很有帮助。
-
-| 配置项 | 作用 | 对使用体验的影响 |
-|-------|------|---------------|
-| `n_threads` | 默认 `thread` 数 | 决定总共会创建多少条独立尝试路径 |
-| `execution` | 默认串行还是并行 | 决定默认是一条条跑，还是允许多条同时推进 |
-| `max_parallel` | 并行上限 | 决定同时最多推进多少个 `thread` |
-| `synthesize` | 是否做最终 AI 汇总 | 决定最后是否自动补一份统一结论 |
-
 ## FAQ
 
-### Q：`thread` 数和并发上限是两个独立参数吗？
+### Q：默认会创建 `.parallel_vibe/` 吗？
 
-是的，而且它们分别回答两个不同问题：
+会。智能模式和代码模式都应该使用 `.parallel_vibe/<project_id>/`。固定目录和日志不再是代码模式专属；只有需要脚本 runner、`plan-file`、`resume` 或真实退出码时才切到代码模式。
 
-- 你设置 `thread` 数，本质上是在决定要做多少条独立尝试
-- 你设置 `max_parallel`，本质上是在决定这些尝试里，最多有多少条可以同时推进
+### Q：我设了 8 个 thread，是不是就会同时跑 8 个进程？
 
-### Q：我设了 `8` 个 `thread`，是不是就会同时跑 `8` 个进程？
+不一定。代码模式默认串行；只有开启并行并设置 `max_parallel` 后，才会同时推进多条 thread，峰值为 `min(thread 数, max_parallel)`。
 
-不一定。
+### Q：什么时候应该少开几个 thread？
 
-- 串行模式：同时只跑 `1` 个
-- 并行模式：同时最多跑 `min(8, max_parallel)` 个
-
-### Q：`synthesize` 会不会让并发峰值再多 `1`？
-
-通常不会。它是在所有 thread 完成后再单独执行一次汇总，所以会增加总调用次数，但不会把 thread 阶段的并发峰值再往上叠。
-
-### Q：什么时候应该少开几个 `thread`？
-
-当你的仓库很大、复制工作区成本高，或者你担心模型调用成本、磁盘占用、等待时间时，就应该先减少 `thread` 数，必要时保持串行。
-
-### Q：我需要关心脚本入口或底层执行细节吗？
-
-一般不需要。对普通使用者来说，直接通过 Prompt 描述：
-
-- 要拆成几个 `thread`
-- 是否开启并行
-- 并发上限是多少
-- 是否需要最终汇总
-
-就够了。底层执行细节可以留给 `SKILL.md`、`config.yaml` 和 `scripts/`。
+仓库很大、复制工作区成本高、模型调用成本敏感、等待时间敏感时，先减少 thread 数，必要时保持串行。
 
 ---
 

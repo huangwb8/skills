@@ -51,6 +51,8 @@ python install.py --claude                # Install to Claude Code only
 python install.py --force                 # Reinstall even when MD5 is unchanged
 python install.py --dry-run               # Print actions without writing files
 python install.py --check                 # Alias for --dry-run
+python install.py --skill git-commit      # Install/update one selected skill only
+python install.py --skill git-commit,docx # Install/update selected skills only
 python install.py --lang zh               # Use Chinese installer messages
 python install.py --source general        # Install one source
 python install.py --source general,research

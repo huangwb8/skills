@@ -77,6 +77,7 @@ MESSAGES = {
         "python_too_old": "Python {current} is too old. Please use Python {required} or newer.",
         "start": "Starting bensz skills installation...",
         "sources": "Selected sources: {sources}",
+        "skills": "Selected skills: {skills}",
         "target": "Installing to {label}: {root}",
         "download": "Downloading {name} from {url}",
         "download_done": "Downloaded {name}",
@@ -84,6 +85,9 @@ MESSAGES = {
         "extract_failed": "Failed to extract {name}: {error}",
         "skills_missing": "No skills root found for {name} at path: {path}",
         "no_skills": "No installable skills found in: {root}",
+        "no_requested_skills": "No requested installable skills found in source: {name}",
+        "skill_missing": "Requested skill(s) not found in selected sources: {skills}",
+        "skill_not_installable": "Requested skill(s) are non-production and were not installed: {skills}",
         "removed_legacy": "Removed legacy skill: {path}",
         "skip_legacy_path": "Skipped legacy path that is not a symlink: {path}",
         "removed": "Removed existing skill: {path}",
@@ -101,6 +105,7 @@ MESSAGES = {
         "python_too_old": "Python {current} 版本过低，请使用 Python {required} 或更新版本。",
         "start": "开始安装 bensz 技能...",
         "sources": "已选择源: {sources}",
+        "skills": "已选择技能: {skills}",
         "target": "正在安装到 {label}: {root}",
         "download": "正在从 {url} 下载 {name}",
         "download_done": "下载完成: {name}",
@@ -108,6 +113,9 @@ MESSAGES = {
         "extract_failed": "解压失败: {name}: {error}",
         "skills_missing": "未找到 {name} 的 skills 根目录: {path}",
         "no_skills": "未发现可安装技能: {root}",
+        "no_requested_skills": "该源未发现请求的可安装技能: {name}",
+        "skill_missing": "请求的技能未在所选源中找到: {skills}",
+        "skill_not_installable": "请求的技能不是生产技能，未安装: {skills}",
         "removed_legacy": "已移除 legacy 技能: {path}",
         "skip_legacy_path": "跳过非软链接 legacy 路径: {path}",
         "removed": "已删除旧技能: {path}",
@@ -227,6 +235,22 @@ def calculate_md5(skill_dir: Path) -> str:
     return hasher.hexdigest()
 
 
+def parse_skill_filter(raw_values: list[str] | None) -> list[str]:
+    if not raw_values:
+        return []
+
+    skill_names: list[str] = []
+    seen: set[str] = set()
+    for raw_value in raw_values:
+        for part in raw_value.split(","):
+            skill_name = part.strip()
+            if not skill_name or skill_name in seen:
+                continue
+            skill_names.append(skill_name)
+            seen.add(skill_name)
+    return skill_names
+
+
 def installed_md5(dest_dir: Path, target: Target) -> str | None:
     manifest_file = dest_dir / f".skill-manifest.{target.label}.json"
     if manifest_file.exists():
@@ -310,9 +334,10 @@ def resolve_skills_root(repo_root: Path, skills_path: str) -> Path | None:
     return None
 
 
-def discover_skills(skills_root: Path) -> tuple[list[Skill], int]:
+def discover_skills(skills_root: Path) -> tuple[list[Skill], int, set[str]]:
     normal: list[Skill] = []
     ignored = 0
+    ignored_names: set[str] = set()
     for skill_dir in sorted(skills_root.iterdir()):
         if skill_dir.name.startswith(".") or not skill_dir.is_dir():
             continue
@@ -320,6 +345,7 @@ def discover_skills(skills_root: Path) -> tuple[list[Skill], int]:
             continue
         if skill_type(skill_dir, skills_root) != "normal":
             ignored += 1
+            ignored_names.add(skill_dir.name)
             continue
         normal.append(Skill(name=skill_dir.name, src=skill_dir, md5=calculate_md5(skill_dir)))
 
@@ -330,7 +356,7 @@ def discover_skills(skills_root: Path) -> tuple[list[Skill], int]:
     if collisions:
         details = "; ".join(f"{name}: {', '.join(str(p) for p in paths)}" for name, paths in collisions.items())
         raise RuntimeError(f"Duplicate skill directory names: {details}")
-    return normal, ignored
+    return normal, ignored, ignored_names
 
 
 def github_archive_url(repo_url: str, branch: str) -> str:
@@ -514,6 +540,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing files.")
     parser.add_argument("--check", action="store_true", help="Alias for --dry-run.")
     parser.add_argument("--source", help="Comma-separated source ids. Available: general,research,anthropic-docs.")
+    parser.add_argument("--skill", action="append", default=[], help="Install only selected skill names. Repeat or comma-separate values.")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Installer language. Default: en.")
     return parser
 
@@ -524,6 +551,10 @@ def main(argv: list[str] | None = None) -> int:
     lang = args.lang
     ensure_python(lang)
     dry_run = bool(args.dry_run or args.check)
+    selected_skill_names = parse_skill_filter(args.skill)
+    selected_skill_set = set(selected_skill_names)
+    matched_installable_names: set[str] = set()
+    matched_non_installable_names: set[str] = set()
 
     try:
         sources = select_sources(args.source)
@@ -534,6 +565,8 @@ def main(argv: list[str] | None = None) -> int:
     targets = build_targets(args)
     print_msg(lang, "start")
     print_msg(lang, "sources", sources=", ".join(source["id"] for source in sources))
+    if selected_skill_names:
+        print_msg(lang, "skills", skills=", ".join(selected_skill_names))
 
     total_installed = 0
     total_skipped = 0
@@ -553,12 +586,21 @@ def main(argv: list[str] | None = None) -> int:
                 print_msg(lang, "skills_missing", name=source["name"], path=source["skills_path"])
                 continue
 
-            skills, ignored = discover_skills(skills_root)
-            if not skills:
-                print_msg(lang, "no_skills", root=skills_root)
-                continue
+            skills, ignored, ignored_names = discover_skills(skills_root)
+            if selected_skill_names:
+                matched_installable_names.update(skill.name for skill in skills if skill.name in selected_skill_set)
+                matched_non_installable_names.update(ignored_names & selected_skill_set)
+                skills = [skill for skill in skills if skill.name in selected_skill_set]
+                ignored = len(ignored_names & selected_skill_set)
 
             total_ignored += ignored
+            if not skills:
+                if selected_skill_names:
+                    print_msg(lang, "no_requested_skills", name=source["name"])
+                else:
+                    print_msg(lang, "no_skills", root=skills_root)
+                continue
+
             source_label = f"{source['id']} ({source['url']}@{source['branch']}:{source['skills_path']})"
             for target in targets:
                 print()
@@ -592,8 +634,26 @@ def main(argv: list[str] | None = None) -> int:
     save_run_manifest(records, dry_run, lang)
     print_msg(lang, "cleanup")
     print_msg(lang, "summary", installed=total_installed, skipped=total_skipped, ignored=total_ignored)
+
+    exit_code = 0
+    if selected_skill_names:
+        missing_names = [
+            name for name in selected_skill_names
+            if name not in matched_installable_names and name not in matched_non_installable_names
+        ]
+        non_installable_names = [
+            name for name in selected_skill_names
+            if name in matched_non_installable_names and name not in matched_installable_names
+        ]
+        if missing_names:
+            print_msg(lang, "skill_missing", skills=", ".join(missing_names))
+            exit_code = 1
+        if non_installable_names:
+            print_msg(lang, "skill_not_installable", skills=", ".join(non_installable_names))
+            exit_code = 1
+
     print_msg(lang, "done")
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

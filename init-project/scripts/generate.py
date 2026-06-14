@@ -673,7 +673,18 @@ class ProjectInitGenerator:
         default_config = {
             'common': [
                 '.DS_Store', '.idea/', '.vscode/', '*.log', '*.tmp',
-                '.env', '.env.local', '*.pem', '*.key', 'secrets/'
+                '.env', '.env.local', '*.pem', '*.key', 'secrets/',
+                '/tests/', '/plans/', '/reviews/', '/suggestions/', '/tmp/run_*/',
+                '.auto-test-code-run.json', '.awesome-code/', '.bensz-skills/',
+                '.bensz-skills-backup/', '.check-review-alignment/',
+                '.compact-bensz-skills/', '.download-fulltext-pdf/',
+                '.draw-plot/', '.dudu-optimize-prompt/', '.explain-figures/',
+                '.explain-results/', '.find-best-skill/', '.git-pr-review/',
+                '.install-bensz-skills/', '.make-research-plan/', '.md-to-word/',
+                '.mirror/', '.nsfc-reviewers/', '.nsfc-roadmap/',
+                '.nsfc-schematic/', '.paper-explain-figures/',
+                '.paper-know-journal/', '.paper-select-journal/',
+                '.paper-write-sci/', '.parallel_vibe/', '.write-paper-sci/'
             ],
             'by_type': {}
         }

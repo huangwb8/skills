@@ -1,7 +1,7 @@
 ## 更新
 
 ```
-创建新的tag v4.1.2。 /git-commit, commit信息里要带版本号。 /git-publish-release 。 
+创建新的tag v4.1.3。 /git-commit, commit信息里要带版本号。 /git-publish-release 。 
 ```
 
 # 日常

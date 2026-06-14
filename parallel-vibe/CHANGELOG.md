@@ -4,8 +4,19 @@
 
 ## [Unreleased]
 
+### Added（新增）
+
+- `parallel-vibe/references/smart-mode-protocol.md`：新增智能模式协议，沉淀 thread 输出 schema、主 agent 汇总 schema、串行/并行策略和“独立上下文不等于文件系统隔离”的边界说明
+- `parallel-vibe/tests/智能模式-v202606141850/`：新增双模式改造的兼容性测试记录，用于验证代码模式脚本仍能生成 `plan.json` 和独立 workspace
+
 ### Changed（变更）
 
+- `parallel-vibe/SKILL.md` / `parallel-vibe/README.md` / `references/smart-mode-protocol.md` / `docs/工作区隔离机制.md`：将智能模式和代码模式的目录管理收敛为完全一致的 `.parallel_vibe/<project_id>/` 契约；固定目录、`plan.json`、`RESULT.md`、`runner.log` 不再作为切换代码模式的条件，模式差异仅保留为宿主 subagent 独立上下文 vs CLI runner 执行机制
+- `parallel-vibe/config.yaml`：版本号 `0.4.0 → 0.4.1`；同步更新 skill 描述和 `modes.*.description`，明确两种模式共享目录契约
+- `parallel-vibe/SKILL.md`：改造为“智能模式默认、代码模式保留”的双模式路由；默认用宿主原生 subagent 独立分析并汇总，只有脚本 runner、`plan-file`、`resume`、真实退出码或跨 CLI runner 自动化场景才进入代码模式
+- `parallel-vibe/README.md`：重写为双模式用户指南，首屏推荐智能模式，同时说明两种模式共享 `.parallel_vibe/` 产物查看方式
+- `parallel-vibe/config.yaml`：版本号 `0.3.1 → 0.4.0`；新增 `defaults.mode: smart` 以及 `modes.smart` / `modes.code` 语义说明，不改变现有脚本参数契约
+- `parallel-vibe/plans/智能模式-v202606141850.md`：新增“智能模式默认、代码模式保留”的双模式改造计划，明确用宿主原生 subagent 能力替代普通多 agent 编排，同时保留现有脚本作为可追溯批处理接口
 - `parallel-vibe/README.md`：按 `write-skill-readme` 风格重构为面向使用者的指南，突出 Prompt 触发路径；新增 `thread` 数、`runner` 进程数、`max_parallel` 与 `synthesize` 的关系说明，明确“总调用次数”与“同时运行中的独立进程数”的区别，并移除对普通使用者无价值的硬编码使用细节
 - `parallel-vibe/README.md`：进一步收敛为以 `thread` 为中心的用户表述，弱化 `runner` 这一底层实现概念；把用户决策重点统一到 `thread` 数、`max_parallel` 与 `synthesize`
 

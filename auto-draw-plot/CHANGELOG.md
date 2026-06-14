@@ -9,7 +9,7 @@
 - 将 `gpt-image-2` generation/edit 默认提交方式改为 Sub2API 异步 image job endpoint：文本出图使用 `/images/jobs/generations`，参考图编辑使用 `/images/jobs/edits`；仅当 job endpoint 返回 404/405/501 且配置允许时回退旧同步接口，429/500/502/503/504 不触发同步回退；新增 `async-job-result.json` 结果下载证据与 run manifest 中的 async job 策略字段。同步将版本号 `0.2.8 → 0.2.9`
 - 明确启动前监督路径声明规则：宿主 AI 在正式检查 API、初始化工作区或开始出图前，必须先向用户声明本次任务 `.draw-plot` 根目录的绝对路径；同步在配置中新增 `workspace.announce_absolute_path_before_start` 与声明模板，并将版本号 `0.2.7 → 0.2.8`
 - 取消 gpt-image-2 与 Nano Banana/Gemini 路径的默认插值放大/贴画布行为，默认保留 provider 原生 PNG；`--canvas-width` / `--canvas-height` 改为布局比例和 provider 原生尺寸选择参考，只有显式 `--postprocess-resize --postprocess-width <W> --postprocess-height <H>` 才启用尺寸后处理；参考图上传前增加真实图片格式与大小上限校验。同步将版本号 `0.2.6 → 0.2.7`
-- 为 `gpt-image-2` provider 增加异步图片任务兼容层：当 `/images/generations` 或 `/images/edits` 返回 job/task 状态而非直接图片时，按 `api.async_image_job` 配置轮询状态接口，直到得到图片、失败或超时；同步将版本号 `0.2.5 → 0.2.6`
+- 为 `gpt-image-2` provider 增加异步图片任务兼容层：当 `/images/generations` 或 `/images/edits` 返回 job/task 状态而非直接图片时，按 `api.async_image_job` 配置轮询状态接口，直到得到图片、失败或超时。注意：这是早期被动兼容层，`0.2.9` 起已改为默认主动提交 Sub2API 异步 image job，以避免同步长请求导致 504；同步将版本号 `0.2.5 → 0.2.6`
 - 将图片生成请求超时从 `180s` 调整为 `1800s`（30 分钟），用于适配高分辨率或服务端排队较久的出图请求。同步将版本号 `0.2.4 → 0.2.5`
 - 修复 `gpt-image-2` 路径下文本规划与视觉评估仍调用 Gemini 的设计缺陷：脚本默认使用本地 prompt 模板与启发式评估，不再要求用户配置 Gemini；Gemini 只作为 Nano Banana 图片 provider 或显式允许的图片回退路径使用。同步将版本号 `0.2.3 → 0.2.4`
 - 收紧图片 provider 回退规则：用户显式指定 `gpt-image-2` / `nano_banana` / Gemini 等模型时，运行前检查与出图过程都固定在该 provider，失败后不自动切换到其他模型；只有用户明确允许时才通过 `--allow-provider-fallback` 开启跨 provider 回退。同步将版本号 `0.2.2 → 0.2.3`

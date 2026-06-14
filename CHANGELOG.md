@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
   - 将跨平台快速安装入口收敛为单文件 Python 脚本，降低 shell/PowerShell/CMD 多入口维护成本
   - 安装流程改为仅依赖 Python 标准库，不再要求 Git 或 PyYAML 作为启动期依赖
   - 默认安装语言调整为英文，保留中文输出选项
+- **@install 安装器策略对齐**：
+  - 为标准库远程安装器补齐 `--skill` 单技能过滤能力，支持重复传入和逗号分隔
+  - 多远程源安装时只处理匹配的 production skill，并对缺失或非生产 skill 给出明确提示
+  - 同步更新 `@install/README.md` 参数说明
 - **文档规范化**：
   - 统一所有技能的 `description` 为单行格式
   - 统一 `metadata.author` 为 "Bensz Conan"
