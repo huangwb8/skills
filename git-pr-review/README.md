@@ -85,7 +85,7 @@
 - `evidence/key_findings.md`：关键发现
 - `evidence/missing_items.md`：缺失证据与影响
 - `parallel_review/parallel_plan.json`：并行独立评审计划
-- `parallel_review/parallel_runs/.parallel-vibe/<project_id>/...`：独立 reviewer threads 产物
+- `parallel_review/parallel_runs/.bensz-api/skills/parallel-vibe/<project_id>/...`：独立 reviewer threads 产物
 - `parallel_review/independent_review_summary.md`：独立评审聚合结果
 
 ## 关键行为

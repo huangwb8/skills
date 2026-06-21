@@ -9,7 +9,7 @@
 ```text
 请使用 auto-test-project skill 对本项目进行项目级测试驱动优化。
 输入：项目根目录 `.`，以及要重点检查的问题或优化目标
-输出：`plans/` 与 `tests/` 下的 A 轮/B 轮计划、测试记录和验证结果
+输出：`.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/` 下的 A 轮/B 轮计划、测试记录和验证结果
 ```
 
 ### 进阶用法
@@ -21,7 +21,7 @@
 另外，还有下列参数约束：
 - A 轮要求：至少发现 10 个问题
 - B 轮要求：必须执行
-- 输出要求：所有证据都写入 `plans/` 和 `tests/`
+- 输出要求：所有证据都写入 `.bensz-api/skills/auto-test-project/output/plans/` 和 `.bensz-api/skills/auto-test-project/output/tests/`
 ```
 
 ## 能做什么
@@ -55,7 +55,7 @@
 ```text
 请使用 auto-test-project skill 对本项目做完整测试驱动优化。
 输入：项目根目录 `.`
-输出：`plans/`、`tests/`、B 轮质量检查结果
+输出：`.bensz-api/skills/auto-test-project/output/plans/`、`.bensz-api/skills/auto-test-project/output/tests/`、B 轮质量检查结果
 另外，还有下列参数约束：
 - 至少执行 1 轮 A 轮
 - 不跳过 B 轮
@@ -64,10 +64,10 @@
 
 ## 输出
 
-- `plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划。
-- `tests/vYYYYMMDDHHMM/`：A 轮测试会话目录，至少包含 `TEST_PLAN.md` 和 `TEST_REPORT.md`。
-- `plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告。
-- `tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录。
+- `.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划。
+- `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/`：A 轮测试会话目录，至少包含 `TEST_PLAN.md` 和 `TEST_REPORT.md`。
+- `.bensz-api/skills/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告。
+- `.bensz-api/skills/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录。
 - README 不会替你“自动通过测试”；它强调的是问题发现、证据沉淀和闭环验证。
 
 ## 配置
@@ -111,7 +111,7 @@ python3 auto-test-project/scripts/create_test_session.py \
 ```bash
 python3 auto-test-project/scripts/verify_test_session.py \
   --require-plan \
-  tests/v202603241200
+  .bensz-api/skills/auto-test-project/output/tests/v202603241200
 ```
 
 ## 常见问题
@@ -124,7 +124,7 @@ A：`auto-test-project` 面向整个项目，强调跨模块、跨文档、跨�
 
 A：通常不用。只有当你需要系统性测试、质量复检、沉淀计划与证据时，它才最有价值。
 
-### Q：为什么一定要写 `plans/` 和 `tests/`？
+### Q：为什么一定要写 `.bensz-api/skills/auto-test-project/output/plans/` 和 `.bensz-api/skills/auto-test-project/output/tests/`？
 
 A：这是它的核心价值之一。没有计划和证据，项目级测试很难复现、比较和收尾。
 

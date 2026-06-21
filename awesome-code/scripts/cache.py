@@ -172,7 +172,7 @@ class FileCache:
 
     def __init__(
         self,
-        cache_dir: str | Path = ".awesome-code/cache",
+        cache_dir: str | Path = ".bensz-api/skills/awesome-code/cache",
         ttl_seconds: int = 3600,
     ):
         """
@@ -291,7 +291,7 @@ class FileCache:
 
 
 def file_cache(
-    cache_dir: str | Path = ".awesome-code/cache",
+    cache_dir: str | Path = ".bensz-api/skills/awesome-code/cache",
     ttl_seconds: int = 3600,
     key_func: Optional[Callable[..., str]] = None,
 ) -> Callable[[F], F]:

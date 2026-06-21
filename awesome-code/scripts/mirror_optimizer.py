@@ -142,7 +142,7 @@ class MirrorOptimizer:
         default_provider = mirror_config.get("default_provider")
         provider = preferred_provider or default_provider or "aliyun"
         self.preferred_provider = str(provider).strip().lower()
-        self.output_dir_name = str(mirror_config.get("output_dir", ".mirror"))
+        self.output_dir_name = str(mirror_config.get("output_dir", ".bensz-api/skills/mirror-optimizer/output"))
         self._validate_output_dir()
         self.generate_report_enabled = bool(mirror_config.get("generate_report", True))
 
@@ -463,8 +463,8 @@ registry = "{mirror_url}"
         """
         written_files = []
 
-        # 创建 .mirror 目录
-        self.mirror_dir.mkdir(exist_ok=True)
+        # 创建配置输出目录
+        self.mirror_dir.mkdir(parents=True, exist_ok=True)
 
         for file_path, content in configs.items():
             full_path = self.project_root / file_path

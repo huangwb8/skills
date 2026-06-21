@@ -6,7 +6,7 @@
 - 测试报告中出现相同编号
 - 运行验证脚本时使用 `--require-plan`
 
-## 示例：plans/vYYYYMMDDHHMM.md（节选）
+## 示例：.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md（节选）
 
 ```markdown
 #### P0-1: create_test_session 的 B 轮创建崩溃
@@ -20,7 +20,7 @@
 验证方法: 运行 create_test_session.py --kind b 并确认返回 0
 ```
 
-## 示例：tests/vYYYYMMDDHHMM/TEST_REPORT.md（节选）
+## 示例：.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md（节选）
 
 ```markdown
 ### P0-1: create_test_session 的 B 轮创建崩溃
@@ -29,7 +29,7 @@
 
 修复措施: 调整变量初始化顺序
 
-修复后: --kind b 可创建 tests/B轮-vYYYYMMDDHHMM/
+修复后: --kind b 可创建 .bensz-api/skills/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/
 
 验证方法:
 python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM
@@ -40,6 +40,5 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 在项目根目录执行：
 
 ```bash
-python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
 ```
-

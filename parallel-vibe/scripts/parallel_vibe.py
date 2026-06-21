@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
-import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 
-WORK_DIR_NAME = ".parallel-vibe"
+SKILL_NAME = "parallel-vibe"
+WORK_DIR_NAME = f".bensz-api/skills/{SKILL_NAME}"
+RUN_ID_TIMESTAMP_FORMAT = "%Y-%m-%d-%H-%M"
+LEGACY_WORK_DIR_NAMES = [".parallel-vibe", ".parallel_vibe"]
+SAFE_RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 IgnoreFunc = Callable[[str, List[str]], set[str]]
 
@@ -24,18 +28,14 @@ def _now_iso() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat()
 
 
-def compute_project_id(prompt: str) -> str:
-    s = prompt.strip().encode("utf-8")
-    return hashlib.md5(s).hexdigest()
-
-
-def _is_hex32(s: str) -> bool:
-    if len(s) != 32:
+def _is_safe_run_id(s: str) -> bool:
+    if not SAFE_RUN_ID_RE.fullmatch(s):
         return False
-    for ch in s:
-        if ch not in "0123456789abcdef":
-            return False
-    return True
+    return s not in {".", ".."} and "/" not in s and "\\" not in s
+
+
+def _now_run_id() -> str:
+    return _dt.datetime.now().strftime(RUN_ID_TIMESTAMP_FORMAT)
 
 
 def _validate_existing_dir(path: Path, *, label: str) -> None:
@@ -76,7 +76,9 @@ def _default_config() -> dict:
             "max_parallel": 3,
             "symlink_policy": "error",  # error|skip|keep
             "copy_exclude": [
+                ".bensz-api",
                 WORK_DIR_NAME,
+                *LEGACY_WORK_DIR_NAMES,
                 ".git",
                 "node_modules",
                 "__pycache__",
@@ -446,6 +448,20 @@ def ensure_project_root(workdir: Path, work_dir_name: str, project_id: str) -> P
     _require_within(base, project_root)
     project_root.mkdir(parents=True, exist_ok=True)
     return project_root
+
+
+def allocate_project_root(workdir: Path, work_dir_name: str, base_run_id: str) -> tuple[str, Path]:
+    base = (workdir.resolve() / work_dir_name).resolve()
+    _require_within(workdir.resolve(), base)
+    base.mkdir(parents=True, exist_ok=True)
+    for idx in range(1, 100):
+        run_id = base_run_id if idx == 1 else f"{base_run_id}-{idx:02d}"
+        project_root = (base / run_id).resolve()
+        _require_within(base, project_root)
+        if not project_root.exists():
+            project_root.mkdir(parents=True, exist_ok=True)
+            return run_id, project_root
+    raise RuntimeError(f"failed to allocate unique run directory under {base}: {base_run_id}")
 
 
 def ensure_project_json(project_root: Path, meta: dict) -> Path:
@@ -979,10 +995,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--plan-only", action="store_true", help="只生成 project 目录与 plan.json，不运行 threads")
     p.add_argument("--n", type=int, default=int(defaults.get("n_threads", 5)), help="线程数（1-9；仅在未提供 --plan-file 时生效）")
     p.add_argument("--src-dir", default=".", help="复制到各 thread/workspace 的源目录（默认当前目录）")
-    p.add_argument("--out-dir", default=".", help="创建 .parallel-vibe 的根目录（默认当前目录）")
+    p.add_argument("--out-dir", default=".", help="创建 .bensz-api/skills/parallel-vibe 的项目根目录（默认当前目录）")
     # Backward-compatible alias (old versions used --workdir as out-dir).
     p.add_argument("--workdir", default="", help=argparse.SUPPRESS)
-    p.add_argument("--project-id", default="", help="复用已有 project_id（32位小写md5）")
+    p.add_argument("--project-id", default="", help="指定或复用 run/project id；未指定时默认使用 yyyy-mm-dd-hh-mm")
     p.add_argument(
         "--resume",
         action="store_true",
@@ -1028,7 +1044,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
 
     work_dir_name = WORK_DIR_NAME
-    # Prevent writing outside out_dir if ".parallel-vibe" is a symlink to elsewhere.
+    # Prevent writing outside out_dir if ".bensz-api" or a nested workspace path is a symlink to elsewhere.
     try:
         base = (out_dir.resolve() / WORK_DIR_NAME).resolve()
         _require_within(out_dir.resolve(), base)
@@ -1038,26 +1054,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     thread_id_width = int(defaults.get("thread_id_width", 3))
     exclude_names = _parse_copy_exclude(str(args.copy_exclude), list(defaults.get("copy_exclude", [])))
-    if work_dir_name not in exclude_names:
-        exclude_names.append(work_dir_name)
+    for name in [".bensz-api", work_dir_name, *LEGACY_WORK_DIR_NAMES]:
+        if name not in exclude_names:
+            exclude_names.append(name)
 
     project_id = str(args.project_id).strip()
     if project_id:
-        if not _is_hex32(project_id):
-            print("error: --project-id must be 32 lowercase hex chars", file=sys.stderr)
+        if not _is_safe_run_id(project_id):
+            print("error: --project-id must be a safe run id using letters, digits, dot, underscore or hyphen", file=sys.stderr)
             return 2
+        project_root = ensure_project_root(out_dir, work_dir_name, project_id)
     else:
-        if user_prompt:
-            project_id = compute_project_id(user_prompt)
-        elif plan_file:
-            try:
-                project_id = hashlib.md5(Path(plan_file).read_bytes()).hexdigest()
-            except Exception:
-                project_id = compute_project_id(plan_file)
-        else:
-            project_id = compute_project_id("")
-
-    project_root = ensure_project_root(out_dir, work_dir_name, project_id)
+        if args.resume:
+            print("error: --resume requires --project-id when using timestamped run directories", file=sys.stderr)
+            return 2
+        try:
+            project_id, project_root = allocate_project_root(out_dir, work_dir_name, _now_run_id())
+        except RuntimeError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
 
     if project_root.exists() and any(project_root.iterdir()) and not args.resume:
         # Avoid surprising overwrites; use --resume to reuse an existing project directory.

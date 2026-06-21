@@ -99,11 +99,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Verify all test sessions under <project_root>/<tests_dir> (tests_dir defaults to config.yaml:directories.tests)."
     )
-    parser.add_argument("--project-root", default=".", help="Project root containing tests/ and scripts/ (default: .).")
+    parser.add_argument("--project-root", default=".", help="Project root containing configured tests dir and scripts/ (default: .).")
     parser.add_argument(
         "--require-plan",
         action="store_true",
-        help="Run verify in strict mode (requires plans/<session_name>.md with P0-1 ids).",
+        help="Run verify in strict mode (requires configured plans dir/<session_name>.md with P0-1 ids).",
     )
     parser.add_argument(
         "--skip-missing-plan",
@@ -150,7 +150,7 @@ def main() -> int:
                 print(proc.stderr.rstrip(), file=sys.stderr)
 
     if args.require_plan and args.skip_missing_plan and skipped:
-        print(f"note: skipped {skipped} sessions missing plans/", file=sys.stderr)
+        print(f"note: skipped {skipped} sessions missing configured plans dir", file=sys.stderr)
 
     return 0 if failed == 0 else 1
 

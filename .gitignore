@@ -80,3 +80,4 @@ yarn-error.log*
 **/plans/
 docs/
 .git-pr-review/
+.bensz-api

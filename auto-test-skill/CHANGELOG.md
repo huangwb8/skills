@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+- 版本升级：2.3.0 → 2.3.1；将计划与测试会话默认目录从目标 skill 根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-skill/output/plans/` 与 `.bensz-api/skills/auto-test-skill/output/tests/`，同步更新 `SKILL.md`、README、references 与脚本说明。
+
 ### Added（新增）
 - `scripts/verify_test_session.py`：确定性验证测试会话完整性（会话结构/关联计划/占位符残留/报告状态），支持 `--require-plan` 与自动发现 skill_root
 - **B 轮全覆盖修复机制**：B 轮优化与验证现在要求处理所有 P0-P2 问题（修复或说明不修复理由），确保所有发现的问题都有闭环处理

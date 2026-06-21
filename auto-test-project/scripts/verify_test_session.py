@@ -13,7 +13,7 @@
 
 用法:
     python3 verify_test_session.py <session_dir>
-    python3 verify_test_session.py tests/v202601151400
+    python3 verify_test_session.py .bensz-api/skills/auto-test-project/output/tests/v202601151400
 
 退出码:
     0 - 验证通过
@@ -123,6 +123,24 @@ def _int_or(default: int, value: str | None) -> int:
 MIN_REPORT_LENGTH = _int_or(500, _CFG_VER.get("min_report_length"))
 MIN_ISSUE_COUNT = _int_or(10, _CFG_VER.get("min_issue_count"))
 PLANS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("plans", ""), default="plans")
+TESTS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("tests", ""), default="tests")
+
+
+def _infer_project_root_from_session(session_dir: Path) -> Path:
+    """
+    Infer <project_root> from <project_root>/<configured tests dir>/<session>.
+
+    The tests directory may be nested (for example
+    .bensz-api/skills/auto-test-project/output/tests), so session_dir.parent.parent
+    is no longer a safe shortcut.
+    """
+    tests_parts = Path(TESTS_DIRNAME).parts
+    if not tests_parts:
+        return session_dir.parent.parent
+    try:
+        return session_dir.parents[len(tests_parts)]
+    except IndexError:
+        return session_dir.parent.parent
 
 def _read_text(path: Path) -> str:
     # Be tolerant to non-UTF8 files in real projects; verification should not crash.
@@ -251,19 +269,19 @@ def check_plan_report_consistency(
     检查计划与报告的一致性
 
     验证：
-    - plans/ 中的每个问题是否在 TEST_REPORT.md 中有对应记录
+    - configured plans directory 中的每个问题是否在 TEST_REPORT.md 中有对应记录
     - 成功标准是否在报告中有验证结论
     """
     issues = []
 
     # 尝试找到对应的 plan 文件
     session_name = session_dir.name
-    project_root = session_dir.parent.parent
+    project_root = _infer_project_root_from_session(session_dir)
     plan_file = project_root / PLANS_DIRNAME / f"{session_name}.md"
 
     if not plan_file.exists():
         if require_plan:
-            issues.append(f"缺少规划文档: plans/{session_name}.md")
+            issues.append(f"缺少规划文档: {PLANS_DIRNAME}/{session_name}.md")
             return False, issues
         # 如果 plan 文件不存在且未强制要求，跳过一致性检查
         return True, issues
@@ -359,11 +377,14 @@ def print_summary(session_dir: Path, is_valid: bool, issues: List[str]):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an auto-test-project test session directory.")
-    parser.add_argument("session_dir", help="Test session directory, e.g. tests/v202601151400")
+    parser.add_argument(
+        "session_dir",
+        help="Test session directory, e.g. .bensz-api/skills/auto-test-project/output/tests/v202601151400",
+    )
     parser.add_argument(
         "--require-plan",
         action="store_true",
-        help="Fail if plans/<session_name>.md is missing or lacks issue ids like '#### P0-1:'.",
+        help=f"Fail if {PLANS_DIRNAME}/<session_name>.md is missing or lacks issue ids like '#### P0-1:'.",
     )
     parser.add_argument(
         "--min-report-length",

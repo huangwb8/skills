@@ -21,13 +21,12 @@
 
 ## 命名与目录
 
-- 规划文档：`plans/vYYYYMMDDHHMM.md`
-- A轮测试：`tests/vYYYYMMDDHHMM/`
-- B轮检查：`plans/B轮-vYYYYMMDDHHMM.md`
-- B轮验证：`tests/B轮-vYYYYMMDDHHMM/`
+- 规划文档：`.bensz-api/skills/auto-test-skill/output/plans/vYYYYMMDDHHMM.md`
+- A轮测试：`.bensz-api/skills/auto-test-skill/output/tests/vYYYYMMDDHHMM/`
+- B轮检查：`.bensz-api/skills/auto-test-skill/output/plans/B轮-vYYYYMMDDHHMM.md`
+- B轮验证：`.bensz-api/skills/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM/`
 
 ## 记录原则
 
 - 一个结论必须对应至少一个可复现的证据（命令输出、文件、截图、对比结果）。
 - 发现新问题时：立刻记录优先级（P0/P1/P2）与复现步骤。
-

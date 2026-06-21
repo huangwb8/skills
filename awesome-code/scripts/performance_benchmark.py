@@ -51,7 +51,7 @@ class BenchmarkRunner:
 
     def __init__(
         self,
-        output_dir: str | Path = ".awesome-code/benchmarks",
+        output_dir: str | Path = ".bensz-api/skills/awesome-code/output/benchmarks",
         warmup_iterations: int = 3,
         benchmark_iterations: int = 100,
     ):
@@ -303,8 +303,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-dir",
-        default=".awesome-code/benchmarks",
-        help="输出目录（默认: .awesome-code/benchmarks）",
+        default=".bensz-api/skills/awesome-code/output/benchmarks",
+        help="输出目录（默认: .bensz-api/skills/awesome-code/output/benchmarks）",
     )
     parser.add_argument(
         "--iterations",

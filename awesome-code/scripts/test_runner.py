@@ -149,6 +149,7 @@ class TestRunner:
             "venv",
             "node_modules",
             ".pytest_cache",
+            ".bensz-api",
             ".awesome-code",
             "dist",
             "build",

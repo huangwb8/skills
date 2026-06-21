@@ -10,7 +10,7 @@
 
 skill_info:
   name: "auto-test-skill"
-  version: "2.3.0"
+  version: "2.3.1"
   description: "批判性思维驱动的测试优化技能 - 支持多轮 A 轮独立评估与 B 轮质量原则检查（以 b_round_check.dimensions 为准），强制每轮提出 10-20 个高质量建议（P0+P1 占比≥60%，系统性问题≥3个）"
   author: "Bensz Conan"
   category: "normal"
@@ -21,7 +21,7 @@ skill_info:
 
 directories:
   # 规划文档目录（相对于 skill 根目录）
-  plans: "plans"
+  plans: ".bensz-api/skills/auto-test-skill/output/plans"
   # 测试目录（相对于 skill 根目录）
   tests: ".bensz-api/skills/auto-test-skill/output/tests"
 
@@ -65,6 +65,7 @@ a_round_check:
     exclude_patterns:
       - "tests/**"
       - "plans/**"
+      - ".bensz-api/skills/auto-test-skill/**"
       # 兼容旧写法（更浅层，但保留避免历史文档/工具误解）
       - "tests/*"
       - "plans/*"

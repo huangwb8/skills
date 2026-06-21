@@ -83,6 +83,14 @@ def _load_directories(config_path: Path) -> dict[str, str]:
     return {str(k): str(v) for k, v in out.items()}
 
 
+def _load_effective_directories(skill_root: Path) -> dict[str, str]:
+    target_dirs = _load_directories(skill_root / "config.yaml")
+    if target_dirs:
+        return target_dirs
+    bundled_root = Path(__file__).resolve().parent.parent
+    return _load_directories(bundled_root / "config.yaml")
+
+
 def _safe_rel_path(value: str, *, default: str) -> str:
     if not value:
         return default
@@ -93,7 +101,7 @@ def _safe_rel_path(value: str, *, default: str) -> str:
 
 
 def _extract_markdown_field(text: str, field_label: str) -> str | None:
-    # Example: **关联规划文档**: plans/v202601162330.md
+    # Example: **关联规划文档**: .bensz-api/skills/auto-test-skill/output/plans/v202601162330.md
     pat = re.compile(rf"^\*\*{re.escape(field_label)}\*\*:\s*(.+?)\s*$", re.MULTILINE)
     m = pat.search(text)
     if not m:
@@ -139,7 +147,7 @@ def verify_test_session(
     if not session_dir.exists() or not session_dir.is_dir():
         return [Issue("P0", f"session_dir is not a directory: {session_dir}")]
 
-    directories = _load_directories(skill_root / "config.yaml")
+    directories = _load_effective_directories(skill_root)
     tests_dir = skill_root / _safe_rel_path(directories.get("tests", ""), default="tests")
     if tests_dir.exists():
         if tests_dir.is_symlink():
@@ -258,7 +266,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an auto-test-skill test session directory for completeness.")
     parser.add_argument(
         "session_dir",
-        help="Session directory path (e.g. tests/vYYYYMMDDHHMM or tests/B轮-vYYYYMMDDHHMM).",
+        help="Session directory path (e.g. .bensz-api/skills/auto-test-skill/output/tests/vYYYYMMDDHHMM or .bensz-api/skills/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM).",
     )
     parser.add_argument(
         "--skill-root",

@@ -259,7 +259,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 写最终报告时，必须综合：
 - 原始证据（`raw/`、`notes/`、`evidence/`）
 - `parallel_review/independent_review_summary.md`
-- 如有必要，`parallel_review/parallel_runs/.parallel-vibe/<project_id>/@main/summary.md`
+- 如有必要，`parallel_review/parallel_runs/.bensz-api/skills/parallel-vibe/<project_id>/@main/summary.md`
 
 ### 9. 完成前自检
 

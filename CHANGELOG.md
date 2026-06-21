@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-06-21
+
+### Changed
+- **auto-test-project 版本升级到 `1.3.1`**：将项目级测试计划与测试会话默认目录从项目根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`；同步更新 `SKILL.md`、README、references、配置与脚本帮助信息，并将 `.bensz-api/skills/auto-test-project/**` 纳入 A 轮独立评估排除范围
+- **auto-test-skill 版本升级到 `2.3.1`**：将 skill 测试计划与测试会话默认目录从目标 skill 根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-skill/output/plans/` 与 `.bensz-api/skills/auto-test-skill/output/tests/`；同步更新 `SKILL.md`、README、references、配置与脚本说明，并将 `.bensz-api/skills/auto-test-skill/**` 纳入独立评估排除范围
+- **parallel-vibe 版本升级到 `0.4.3`**：默认运行目录从 `.parallel-vibe/` 迁移到 `.bensz-api/skills/parallel-vibe/{yyyy-mm-dd-hh-mm}/`；默认 run id 改为分钟级时间戳，同一分钟重复运行自动追加 `-02` 等后缀；`--project-id` 改为安全 run/project id，`--resume` 现在必须显式指定 `--project-id`
+- **git-pr-review 版本升级到 `0.5.4`**：同步 `parallel-vibe` 目录契约，下游并行评审产物路径从 `parallel_runs/.parallel-vibe/<project_id>/` 迁移到 `parallel_runs/.bensz-api/skills/parallel-vibe/<project_id>/`，并更新 `build_parallel_review_plan.py`、`SKILL.md`、README 与集成说明
+- **awesome-code 版本升级到 `3.0.1`**：将 `cache.py`、`performance_benchmark.py` 与 `mirror_optimizer.py` 的独立运行 fallback 目录迁移到 `.bensz-api/skills/awesome-code/` 或 `.bensz-api/skills/mirror-optimizer/`；测试 watch 默认忽略 `.bensz-api/`
+- **仓库忽略规则更新**：根 `.gitignore` 新增 `.bensz-api`，避免本地中间产物与 release notes 草案误入提交
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.0` 更新为 `v4.2.1`
+
+### Fixed
+- **嵌套测试目录验证修复**：`auto-test-project/scripts/verify_test_session.py` 不再假设 `session_dir.parent.parent` 是项目根，可根据配置的嵌套 tests 目录推断 project root，并在缺少计划文档时输出配置化 plans 路径
+- **auto-test-skill 验证配置回退修复**：`verify_test_session.py` 优先读取目标 skill 的 `config.yaml:directories`，缺失时回退到 auto-test-skill 自带配置，避免验证脚本在外部目标 skill 上丢失默认目录契约
+- **嵌套镜像输出目录修复**：`awesome-code/scripts/mirror_optimizer.py` 创建输出目录时使用 `parents=True`，适配 `.bensz-api/skills/mirror-optimizer/output/` 这类多级目录
+
 ## [4.2.0] - 2026-06-21
 
 ### Added

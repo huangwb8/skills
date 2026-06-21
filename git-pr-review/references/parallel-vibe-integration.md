@@ -19,7 +19,7 @@
 - `parallel_review/parallel_review_job.json`
 - `parallel_review/parallel_plan.json`
 - `parallel_review/parallel_plan.md`
-- `parallel_review/parallel_runs/.parallel-vibe/<project_id>/...`
+- `parallel_review/parallel_runs/.bensz-api/skills/parallel-vibe/<project_id>/...`
 - `parallel_review/independent_review_summary.md`
 - `parallel_review/independent_review_summary.json`
 

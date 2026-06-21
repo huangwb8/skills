@@ -2,7 +2,7 @@
 
 skill_info:
   name: "git-pr-review"
-  version: "0.5.3"
+  version: "0.5.4"
   description: "只读审查 GitHub Pull Request：理解其问题背景、方案优劣、恶意/安全风险与是否符合社区好 PR 标准，并输出是否建议 merge 的 Markdown 报告。"
   author: "Bensz Conan"
   category: "git-security-review"

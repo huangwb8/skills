@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- 版本升级：1.3.0 → 1.3.1；将计划与测试会话默认目录从项目根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`，同步更新 `SKILL.md`、README、references 与验证脚本的路径口径。
+
 ### Added（新增）
 
 - **批判性分析框架（技巧 0）**：强化系统视角和批判性思维能力

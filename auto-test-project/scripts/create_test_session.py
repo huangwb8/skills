@@ -257,7 +257,7 @@ def main() -> int:
     parser.add_argument(
         "--create-plan",
         action="store_true",
-        help="Create missing plan doc skeleton under plans/ (optional).",
+        help="Create missing plan doc skeleton under configured plans dir (optional).",
     )
     parser.add_argument(
         "--allow-unsafe-root",
@@ -413,4 +413,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

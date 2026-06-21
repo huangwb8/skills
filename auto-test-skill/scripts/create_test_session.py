@@ -255,7 +255,7 @@ def main() -> int:
     parser.add_argument(
         "--create-plan",
         action="store_true",
-        help="Create missing plan doc skeleton under plans/ (optional).",
+        help="Create missing plan doc skeleton under configured plans dir (optional).",
     )
     parser.add_argument(
         "--seed-test-plan-from-plan",

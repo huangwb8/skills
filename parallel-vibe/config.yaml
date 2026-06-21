@@ -1,12 +1,12 @@
 skill_info:
   name: parallel-vibe
-  version: 0.4.2
-  description: '当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.parallel-vibe/<project_id>/` 目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。'
+  version: 0.4.3
+  description: '当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.bensz-api/skills/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。'
   author: "Bensz Conan"
   category: "workflow"
 
 defaults:
-  mode: "smart"  # smart|code（默认智能模式；两种模式共享 .parallel-vibe 目录契约）
+  mode: "smart"  # smart|code（默认智能模式；两种模式共享 .bensz-api/skills/parallel-vibe 目录契约）
   n_threads: 5
   thread_id_width: 3
   execution: "serial"  # serial|parallel（默认串行，避免资源争抢与 API 限流）
@@ -14,6 +14,7 @@ defaults:
   synthesize: true  # 是否在 threads 结束后再跑一次 synth 汇总（会额外调用一次 runner）
   symlink_policy: "error"  # error|skip|keep（默认拒绝 symlink；避免击穿工作区边界假设）
   copy_exclude:
+    - ".bensz-api"
     - ".parallel-vibe"
     - ".parallel_vibe"
     - ".git"
@@ -41,7 +42,7 @@ modes:
   code:
     name: "代码模式"
     default: false
-    description: "调用 scripts/parallel_vibe.py，用 CLI runner 在同一套 .parallel-vibe 目录契约内执行，提供 plan-file、resume、退出码和跨 runner 批处理能力。"
+    description: "调用 scripts/parallel_vibe.py，用 CLI runner 在同一套 .bensz-api/skills/parallel-vibe 目录契约内执行，提供 plan-file、resume、退出码和跨 runner 批处理能力。"
 
 cli:
   codex:
