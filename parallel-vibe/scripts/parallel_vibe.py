@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 
-WORK_DIR_NAME = ".parallel_vibe"
+WORK_DIR_NAME = ".parallel-vibe"
 
 IgnoreFunc = Callable[[str, List[str]], set[str]]
 
@@ -979,7 +979,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--plan-only", action="store_true", help="只生成 project 目录与 plan.json，不运行 threads")
     p.add_argument("--n", type=int, default=int(defaults.get("n_threads", 5)), help="线程数（1-9；仅在未提供 --plan-file 时生效）")
     p.add_argument("--src-dir", default=".", help="复制到各 thread/workspace 的源目录（默认当前目录）")
-    p.add_argument("--out-dir", default=".", help="创建 .parallel_vibe 的根目录（默认当前目录）")
+    p.add_argument("--out-dir", default=".", help="创建 .parallel-vibe 的根目录（默认当前目录）")
     # Backward-compatible alias (old versions used --workdir as out-dir).
     p.add_argument("--workdir", default="", help=argparse.SUPPRESS)
     p.add_argument("--project-id", default="", help="复用已有 project_id（32位小写md5）")
@@ -1028,7 +1028,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
 
     work_dir_name = WORK_DIR_NAME
-    # Prevent writing outside out_dir if ".parallel_vibe" is a symlink to elsewhere.
+    # Prevent writing outside out_dir if ".parallel-vibe" is a symlink to elsewhere.
     try:
         base = (out_dir.resolve() / WORK_DIR_NAME).resolve()
         _require_within(out_dir.resolve(), base)

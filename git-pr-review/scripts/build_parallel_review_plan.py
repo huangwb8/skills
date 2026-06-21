@@ -314,7 +314,7 @@ def main() -> int:
     plan_bytes = json.dumps(plan, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
     plan_path.write_bytes(plan_bytes)
     project_id = hashlib.md5(plan_bytes + snapshot_fingerprint.encode("utf-8")).hexdigest()
-    project_root = parallel_out_dir / ".parallel_vibe" / project_id
+    project_root = parallel_out_dir / ".parallel-vibe" / project_id
     try:
         parallel_vibe_script = _resolve_parallel_vibe_script()
     except ValueError as exc:

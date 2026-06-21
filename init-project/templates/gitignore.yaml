@@ -54,6 +54,7 @@ common:
   - "/tmp/run_*/"
   - ".auto-test-code-run.json"
   - ".awesome-code/"
+  - ".bensz-api/"
   - ".bensz-skills/"
   - ".bensz-skills-backup/"
   - ".check-review-alignment/"
@@ -76,6 +77,7 @@ common:
   - ".paper-know-journal/"
   - ".paper-select-journal/"
   - ".paper-write-sci/"
+  - ".parallel-vibe/"
   - ".parallel_vibe/"
   - ".write-paper-sci/"
 

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- `config.yaml` 版本号更新至 0.5.5，并将已弃用的 `nsfc-roadmap`、`nsfc-schematic` 加入 `legacy_skill_names`。安装或单独运行 legacy 清理时会自动移除系统级残留目录，避免弃用 skill 继续干扰触发。
 - `config.yaml` 版本号更新至 0.5.4，并将研究类 skill 重命名旧目录加入 `legacy_skill_names`：`get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`。安装新版本 research 系列 skills 时会自动清理这些系统级旧目录，避免旧名继续干扰触发。
 
 ### Added

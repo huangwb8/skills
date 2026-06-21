@@ -200,6 +200,15 @@ grep -A 3 "project_info:" config.yaml | grep "version"
 
 本仓库的 skills 默认只在"当前 workdir 位于本仓库"时更容易被发现；要确保它们在**任意项目/对话**里都可用，需要将 skills **复制安装**到系统级目录（不使用软链接）。
 
+### 双安装器与业务逻辑同步
+
+系统级安装通过两个安装入口实现，二者必须保持业务逻辑对齐：
+
+- **本地开发版**：`install-bensz-skills/scripts/install.py`，从仓库本地目录复制安装，功能完整（i18n、配置化、`--skill` 过滤等），是安装逻辑的**单一真理来源**。
+- **远程一键版**：`@install/install.py`，从 GitHub 拉取 zip 远程安装，仅依赖 Python 标准库，面向最终用户。
+
+⚠️ **强制联动**：当 `install-bensz-skills` 发生业务逻辑变更（安装流程、版本控制策略、命令行参数、目标目录约定、manifest 格式等）时，必须检查 `@install/install.py` 是否需要同步对齐，保证两者可观测行为一致；仅远程拉取特有逻辑（下载、解压、远程源发现）允许不同。
+
 ## 兼容的平台
 
 根据 [Agent Skills 官方网站](https://agentskills.io)，以下平台支持该标准：

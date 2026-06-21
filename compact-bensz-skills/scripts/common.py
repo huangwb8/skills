@@ -52,7 +52,7 @@ def resolve_workspace_root(
     effective_run_id = run_id or explicit_run_id
     if effective_run_id is None:
         if create:
-            effective_run_id = generate_run_id(config)
+            effective_run_id = allocate_unique_run_id(workspace_base, config, generate_run_id(config))
         else:
             effective_run_id = read_latest_run_id(workspace_base, config)
             if effective_run_id is None:
@@ -85,8 +85,19 @@ def is_run_dir_name(name: str, config: dict[str, Any]) -> bool:
     prefix = config["workspace"]["run_prefix"]
     timestamp_format = config["workspace"]["timestamp_format"]
     sample = datetime(2000, 1, 2, 3, 4, 5).strftime(timestamp_format)
-    pattern = rf"^{re.escape(prefix)}\d{{{len(sample)}}}$"
+    digit_pattern = "".join(r"\d" if ch.isdigit() else re.escape(ch) for ch in sample)
+    pattern = rf"^{re.escape(prefix)}{digit_pattern}(?:-\d{{2}})?$"
     return re.match(pattern, name) is not None
+
+
+def allocate_unique_run_id(workspace_base: Path, config: dict[str, Any], base_run_id: str) -> str:
+    if not (workspace_base / base_run_id).exists():
+        return base_run_id
+    for idx in range(2, 100):
+        candidate = f"{base_run_id}-{idx:02d}"
+        if not (workspace_base / candidate).exists():
+            return candidate
+    raise SystemExit(f"无法在 {workspace_base} 下分配唯一 run 目录: {base_run_id}")
 
 
 def latest_run_pointer_path(workspace_base: Path, config: dict[str, Any]) -> Path:

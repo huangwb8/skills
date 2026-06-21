@@ -268,7 +268,7 @@ security:
 # ================================
 reporting:
   # 报告输出目录
-  output_dir: ".awesome-code/reports"
+  output_dir: ".bensz-api/skills/awesome-code/output/reports"
 
   # 报告格式：markdown | html | json
   format: markdown
@@ -344,7 +344,7 @@ ab_test_optimization:
   # 测试会话配置
   session_format: "v{year}{month}{day}{hour}{minute}"
   plans_dir: "plans"
-  tests_dir: "tests"
+  tests_dir: ".bensz-api/skills/awesome-code/output/tests"
 
 # ================================
 # 高级设置
@@ -395,7 +395,7 @@ performance:
   # 性能基准测试
   benchmarking:
     enabled: true
-    output_dir: ".awesome-code/benchmarks"
+    output_dir: ".bensz-api/skills/awesome-code/output/benchmarks"
     warmup_iterations: 3
     benchmark_iterations: 100
     regression_threshold: 0.2  # 20% 回归阈值
@@ -411,7 +411,7 @@ logging:
   # 日志文件（可选）
   file: null
   # 输出目录
-  output_dir: ".awesome-code/logs"
+  output_dir: ".bensz-api/skills/awesome-code/log"
 
 # ================================
 # 新增：缓存配置
@@ -422,7 +422,7 @@ caching:
   # LRU 缓存大小
   lru_capacity: 256
   # 文件缓存目录
-  cache_dir: ".awesome-code/cache"
+  cache_dir: ".bensz-api/skills/awesome-code/cache"
   # 缓存过期时间（秒）
   ttl_seconds: 3600
   # 自动清理过期缓存
@@ -512,7 +512,7 @@ mirror_optimization:
       priority: 4
 
   # 配置文件输出目录
-  output_dir: ".mirror"
+  output_dir: ".bensz-api/skills/mirror-optimizer/output"
 
   # 生成优化报告
   generate_report: true

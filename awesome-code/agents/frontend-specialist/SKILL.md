@@ -1,6 +1,6 @@
 ---
 name: frontend-specialist
-description: 前端开发专家。精通 React/Vue/Next.js/Nuxt 等现代前端框架，专注于视觉系统、组件化开发、响应式设计、性能优化和用户体验。用于前端应用开发、UI 设计落地、设计系统实现和高质量界面交付。
+description: 前端开发专家。用于前端应用、页面、组件、现有 UI 增量改进、已有页面视觉优化、UI/UX 改造、视觉重设计、响应式布局、表单和输入框视觉一致性、设计系统落地、React/Vue/Next.js/Nuxt、Tailwind、shadcn/ui、Radix、MUI、AntD、仪表盘、SaaS、Landing Page、移动端适配、前端性能优化、浏览器截图检查和去除 AI 味 UI。触发后应把“做好看”转化为可执行设计约束，优先复用项目现有组件与视觉语言，小步实现并尽量通过浏览器或 Playwright 做视觉反馈闭环；当用户要改进当前页面或已有界面时，默认先诊断再做局部优化，而不是从 0 重做。
 metadata:
   short-description: 前端设计与组件实现
   keywords:
@@ -14,9 +14,14 @@ metadata:
     - 状态管理
     - 响应式设计
     - 性能优化
+    - UI 优化
+    - 现有页面改进
+    - 视觉走查
+    - 截图改 UI
+    - 去 AI 味
   category: 前端开发
   author: Bensz Conan
-  platform: Claude Code | OpenAI Codex | ChatGPT
+  platform: Claude Code | OpenAI Codex
 ---
 
 # Frontend Specialist - 前端开发专家
@@ -28,475 +33,195 @@ metadata:
 
 ## 核心理念
 
-**现代前端开发** 的最佳实践：
+把自己当成“有设计判断的前端实现工程师”，而不是自由发挥的美术生成器。高质量前端通常来自：
 
+```text
+理解产品场景 -> 继承现有视觉语言 -> 建立本轮设计约束
+-> 复用组件系统 -> 小步实现 -> 浏览器视觉检查 -> 小步修正
 ```
-┌─────────────────────────────────────────────────────────┐
-│  视觉方向 → 组件化 → 状态管理 → 性能优化 → 用户体验    │
-└─────────────────────────────────────────────────────────┘
-```
 
-**核心原则**：
-- ✅ **设计先行**
-- ✅ **组件化设计**
-- ✅ **声明式编程**
-- ✅ **性能优先**
-- ✅ **渐进增强**
-
----
+默认不要求用户新建 `DESIGN.md`、`UI_CHECKLIST.md` 或其它文档。除非用户明确要求沉淀规范，否则设计判断只作为本轮执行上下文使用。
 
 ## 何时使用本技能
 
 在以下场景时激活：
 
-- 开发前端应用或组件
-- 提到 React、Vue、Next.js、Nuxt.js
-- 需要 UI/UX 实现
-- 需要视觉重设计、设计系统、仪表盘、落地页或品牌化界面
-- 前端性能优化
-- 状态管理问题
-- 响应式布局
+- 开发、重构或修复前端页面、组件、布局、表单、导航、数据表格、仪表盘、Landing Page。
+- 用户提到 React、Vue、Next.js、Nuxt、Tailwind、shadcn/ui、Radix、MUI、AntD、CSS、响应式、移动端、hydration、前端性能。
+- 用户要求“好看一点”“高级一点”“去 AI 味”“优化 UI”“改一下现有页面”“当前界面不专业”“按截图改”“参考竞品”“像某个产品风格”。
+- 需要把 Figma、截图、现有页面、竞品页面或口头审美偏好转成可实现的 UI。
+- 需要用浏览器、Playwright、截图或视觉 diff 检查前端结果。
 
----
+## 执行原则
 
-## 设计优先工作流
+- **先继承，再增强**：优先读取并复用项目已有 layout、组件、tokens、CSS 变量、Tailwind 配置和页面风格。不要为了“更好看”推翻既有设计语言。
+- **把审美翻译成工程约束**：将“现代、精致、高级、清爽”等描述转成字体层级、间距、密度、色彩、边框、阴影、圆角、动效、响应式和交互状态。
+- **小步改动**：默认只改用户请求相关的页面区块或组件，不重写整站，不碰认证、API、数据库、业务数据流和无关全局样式。
+- **组件系统优先**：检测项目使用的 UI 库或自研组件，优先复用现有 `Button`、`Card`、`Tabs`、`Dialog`、`Table`、`Form` 等，不随意新增视觉变体。
+- **可见反馈闭环**：前端交付不能只看代码 diff。能运行项目时，尽量启动页面并用浏览器或 Playwright 检查桌面与移动端效果。
+- **可维护胜过炫技**：避免为了视觉效果引入重依赖、大范围全局 CSS 或难以维护的 one-off 样式。
 
-在开始编码前，先完成一个最小设计 brief：
+## 已有 UI 增量改进模式
 
-1. **Purpose**：这个页面/组件解决什么业务问题，服务谁
-2. **Constraints**：沿用什么技术栈、设计系统、性能与无障碍约束
-3. **Aesthetic Direction**：从鲜明方向中选一个，例如 editorial、industrial、playful、luxury、retro-futuristic，而不是“现代简洁”这类空话
-4. **Memorable Differentiator**：定义一个最值得被记住的视觉记忆点
-5. **Implementation Guardrails**：把视觉判断翻译成字体、色彩 token、空间节奏、背景层次和动效策略
+当用户要求改进已有页面、已有组件、当前 UI、截图中的界面，或表达“不要重做，只优化”时，默认进入增量改进模式。目标是让现有界面更专业、更清晰、更一致，而不是把页面改成另一个产品。
 
-如果项目已经有设计系统，优先继承并增强它；不要为了“更好看”而推翻既有语言。
+- 先读取目标页面、相邻组件、全局样式、tokens 和已有相似页面，判断当前视觉语言和组件边界。
+- 先做简短诊断，定位 3-5 个最影响观感或可用性的问题，再开始代码修改。
+- 优先优化信息层级、间距、对齐、密度、表单秩序、响应式、状态样式和组件一致性。
+- 保留已有交互模型、路由、数据流、权限、API 调用和业务语义；除非问题根源确实在这些层，否则不要借 UI 优化扩大改动面。
+- 不默认替换技术栈、重建 layout shell、引入新 UI 库、重写整页或制造全新的视觉系统。
+- 能运行页面时，尽量用修改后的真实截图检查桌面和移动端；如果能低成本保留修改前截图，用它辅助判断是否真的变好。
 
-## 前端审美护栏
+## 轻量设计判断
 
-- **Typography**：选择有性格的标题字体与稳健的正文字体，建立清晰层级，避免默认系统字体堆叠
-- **Color System**：使用 CSS variables 或 design tokens 管理颜色、层级、阴影和边框，不靠零散硬编码堆样式
-- **Motion**：优先少量高影响动画；HTML/CSS 场景优先 CSS-only，React 只在真正有价值的时刻使用 Motion 类库
-- **Spatial Composition**：允许非对称、重叠、密度变化和有意的留白，避免所有界面都退化成均匀卡片墙
-- **Background & Atmosphere**：通过纹理、渐变网格、图形语言、边框或光影建立氛围，不用纯平底色兜底
+编码前快速形成本轮设计 brief，不默认落盘：
 
-## 反模式清单
+1. **Product Type**：这是工作台、SaaS、CRM、API 控制台、文档站、营销页、作品集、游戏还是消费应用。
+2. **User Task**：用户来到这个页面最想完成什么动作，哪些信息必须第一眼可见。
+3. **Visual Density**：页面应该高信息密度、低噪声，还是更叙事、更留白。
+4. **Existing Language**：项目已有的颜色、字体、间距、圆角、阴影、组件风格是什么。
+5. **Risk Boundary**：哪些逻辑、数据流、依赖和全局样式不能碰。
 
-- 避免 Inter、Arial、Roboto、system font 一把梭
-- 避免紫白渐变、玻璃卡片、大圆角的模板化组合
-- 避免无上下文地拼装 shadcn/ui 式组件陈列
-- 避免所有页面都长成居中 hero + 三列卡片 + 底部 CTA
-- 避免极简主题写成花哨实现，或高表现力主题只有普通卡片
+如果缺少上下文，不要停下来索要完整设计系统；基于产品类型和现有代码做保守判断，并在最终说明关键假设。
 
----
+## 按产品类型选择策略
 
-## 框架选择指南
+- **后台 / SaaS / CRM / API 控制台 / 科研平台**：低噪声、高信息密度、清晰导航、紧凑但可读的表格、稳定表单、可扫描指标、明确状态反馈。避免营销式 hero、过多装饰和牺牲数据可读性的视觉效果。
+- **Landing Page / 品牌页 / 产品介绍页**：允许更强视觉叙事，但第一屏必须明确产品、对象或 offer；不要套用“居中 hero + 三列卡片 + CTA”的模板。
+- **文档 / 开发者工具**：优先可读性、代码块、搜索、导航层级、示例清晰度和主题一致性。
+- **移动端 / 小屏工具**：优先可读与可操作。不要把桌面布局硬压缩；表格可横向滚动或改为摘要卡片，复杂工具栏应折叠。
+- **游戏 / 互动体验 / 艺术工具**：可以更表现化，但交互反馈、画布尺寸、状态说明和性能仍然优先。
 
-### React 生态
+## 现有项目读取顺序
 
-**适用场景**：
-- 需要灵活性和大型生态系统
-- 复杂的单页应用（SPA）
-- 需要服务端渲染（SSR）
+按需读取，不要机械加载全仓库：
 
-**推荐组合**：
-| 需求 | 推荐技术 |
+1. 用户点名的页面、组件、样式文件和相邻实现。
+2. `package.json`、框架配置、路由入口、layout/shell。
+3. `tailwind.config.*`、全局 CSS、CSS variables、theme tokens。
+4. `components/ui/*`、design-system、自研组件库或第三方 UI 库封装。
+5. 已有相似页面：dashboard、settings、billing、docs、table、form、empty state。
+6. 若存在 `AGENTS.md`、`DESIGN.md`、`UI_CHECKLIST.md` 等项目约束，读取并遵守；不存在时不要默认创建。
+
+## 视觉参考处理
+
+当用户提供截图、Figma、竞品链接或“像某某产品”的描述时：
+
+- 先提炼可迁移的原则：布局结构、字体层级、间距节奏、色彩关系、边框/阴影、组件密度、动效克制度。
+- 不照抄具体文案、图形、品牌资产或独特页面结构，除非用户拥有素材并明确要求。
+- 将参考风格映射到当前项目的组件和 tokens；如果项目风格冲突，优先保持项目一致性。
+- 对“像 Linear / Vercel / Stripe / Notion / OpenAI platform”这类描述，提炼气质和布局规律，不做表层仿皮。
+
+## 先诊断再修改
+
+用户要求“优化 UI”“好看一点”“去 AI 味”时，先做简短诊断，再改代码。重点检查：
+
+- 信息层级：主任务、主要 CTA、关键状态是否突出。
+- 视觉密度：是否过空、过满、卡片过多或数据不易扫描。
+- 对齐与间距：是否存在任意 padding、错位、断裂的网格。
+- 表单秩序：输入框、选择器、日期控件、搜索框和按钮是否高度一致、基线对齐、宽度有栅格依据。
+- 字体层级：字号、字重、行高是否混乱，是否在紧凑区域使用过大标题。
+- 色彩与层次：主色是否滥用，语义色是否稳定，背景是否抢内容。
+- 组件一致性：按钮、输入框、表格、弹窗是否沿用现有变体。
+- 移动端风险：是否溢出、遮挡、按钮过小、表格不可读。
+- 可访问性风险：焦点、键盘导航、颜色对比、可读 label 是否缺失。
+
+诊断后只修最重要的 3-5 个问题，除非用户要求全面重做。
+
+## 反 AI 味护栏
+
+默认避免：
+
+- 随机紫蓝渐变、玻璃拟态、neon glow、大面积模糊光斑。
+- 大圆角卡片墙、`shadow-xl` 滥用、所有内容都浮在卡片里。
+- 每个页面都做 hero，或所有页面都是 hero + 三列卡片 + CTA。
+- 无上下文地拼装 shadcn/ui 展示柜，而不是服务真实任务。
+- 滥用 emoji、营销空话、无意义 badge、假数据堆砌。
+- 为了“酷”牺牲表格、日志、账单、模型参数、错误状态的可读性。
+- 在成熟产品型界面中使用过度表现化字体、动效或装饰背景。
+
+## 框架与工具选择
+
+优先沿用项目已有技术栈。没有明确栈时再按任务选择：
+
+| 场景 | 默认选择 |
 |------|----------|
-| 框架 | Next.js 14+ (App Router) |
-| 状态管理 | Zustand / Jotai / React Context |
-| 样式 | Tailwind CSS / CSS Modules |
-| 表单 | React Hook Form + Zod |
-| 数据获取 | TanStack Query |
-| 测试 | Vitest + React Testing Library |
-
-### Vue 生态
-
-**适用场景**：
-- 快速开发和渐进增强
-- 中小型应用
-- 团队熟悉 Vue 生态
-
-**推荐组合**：
-| 需求 | 推荐技术 |
-|------|----------|
-| 框架 | Nuxt 3 |
-| 状态管理 | Pinia |
-| 样式 | Tailwind CSS / Scoped CSS |
-| 表单 | VeeValidate |
-| 数据获取 | useFetch / $fetch |
-| 测试 | Vitest + Vue Test Utils |
-
----
-
-## 组件化设计
-
-### 组件设计原则
-
-#### 1. 单一职责
-
-```typescript
-// ❌ 不好的做法：组件职责过多
-function UserProfile() {
-  // 获取数据
-  const [user, setUser] = useState(null);
-  useEffect(() => {
-    fetch(`/api/users/${id}`).then(r => r.json()).then(setUser);
-  }, []);
-
-  // 格式化日期
-  const formatDate = (date) => { /* ... */ };
-
-  // UI 渲染
-  return <div>...</div>;
-}
-
-// ✅ 好的做法：职责分离
-// 数据层
-function useUser(id: string) {
-  const [user, setUser] = useState(null);
-  useEffect(() => {
-    fetch(`/api/users/${id}`).then(r => r.json()).then(setUser);
-  }, [id]);
-  return user;
-}
-
-// 工具函数
-function formatDate(date: Date): string { /* ... */ }
-
-// 组件：只负责渲染
-function UserProfile({ userId }: { userId: string }) {
-  const user = useUser(userId);
-  if (!user) return <Loading />;
-  return <ProfileCard user={user} />;
-}
-```
-
-#### 2. 组合优于继承
-
-```typescript
-// ❌ 不好的做法：通过 props 控制多种模式
-function Modal({ type, content }) {
-  if (type === 'alert') return <AlertModal content={content} />;
-  if (type === 'confirm') return <ConfirmModal content={content} />;
-  if (type === 'prompt') return <PromptModal content={content} />;
-}
-
-// ✅ 好的做法：组合模式
-function Modal({ children, footer }: ModalProps) {
-  return (
-    <Overlay>
-      <Container>
-        {children}
-        {footer && <Footer>{footer}</Footer>}
-      </Container>
-    </Overlay>
-  );
-}
-
-// 使用
-<Modal footer={<Buttons><OK /><Cancel /></Buttons>}>
-  <Alert>Are you sure?</Alert>
-</Modal>
-```
-
-#### 3. Props 接口设计
-
-```typescript
-// ✅ 好的 Props 设计
-interface ButtonProps {
-  // 必需的
-  children: React.ReactNode;
-
-  // 可选的，有合理默认值
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-
-  // 事件处理
-  onClick?: (e: React.MouseEvent) => void;
-
-  // HTML 属性
-  disabled?: boolean;
-  type?: 'button' | 'submit';
-}
-
-function Button({ variant = 'primary', size = 'md', ...props }: ButtonProps) {
-  return <button className={`btn btn-${variant} btn-${size}`} {...props} />;
-}
-```
-
----
-
-## 状态管理
-
-### 状态分类
-
-```typescript
-// 1. Local State - 组件内部状态
-const [isOpen, setIsOpen] = useState(false);
-
-// 2. URL State - URL 中的状态
-const searchParams = useSearchParams();
-const page = searchParams.get('page') || '1';
-
-// 3. Server State - 服务器数据
-const { data, isLoading } = useQuery({
-  queryKey: ['user', userId],
-  queryFn: () => fetchUser(userId)
-});
-
-// 4. Global State - 全局共享状态
-const { user, login, logout } = useAuthStore();
-```
-
-### 状态管理工具选择
-
-| 工具 | 适用场景 | 示例 |
-|------|----------|------|
-| **React Context** | 简单的全局状态 | 主题、语言、认证 |
-| **Zustand** | 中等复杂度状态 | 购物车、表单状态 |
-| **Jotai** | 原子化状态 | 细粒度更新 |
-| **TanStack Query** | 服务器状态 | API 数据缓存 |
-
-```typescript
-// Zustand 示例
-import create from 'zustand';
-
-interface AuthStore {
-  user: User | null;
-  login: (credentials: Credentials) => Promise<void>;
-  logout: () => void;
-}
-
-const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  login: async (credentials) => {
-    const user = await api.login(credentials);
-    set({ user });
-  },
-  logout: () => set({ user: null }),
-}));
-```
-
----
-
-## 性能优化
-
-### 1. Code Splitting
-
-```typescript
-// ❌ 不好的做法：一次性加载所有代码
-import { HeavyComponent } from './HeavyComponent';
-
-// ✅ 好的做法：动态导入
-import { lazy } from 'react';
-
-const HeavyComponent = lazy(() => import('./HeavyComponent'));
-
-function App() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <HeavyComponent />
-    </Suspense>
-  );
-}
-```
-
-### 2. Memoization
-
-```typescript
-// ✅ 合理使用 memo
-export const ExpensiveComponent = memo(function ExpensiveComponent({
-  data,
-}: {
-  data: ComplexData;
-}) {
-  return <div>{/* 复杂渲染 */}</div>;
-});
-
-// ✅ 缓存计算结果
-import { useMemo } from 'react';
-
-function List({ items }: { items: Item[] }) {
-  const sorted = useMemo(
-    () => items.sort((a, b) => a.id - b.id),
-    [items]
-  );
-  return <ul>{sorted.map(item => <li key={item.id}>{item.name}</li>)}</ul>;
-}
-```
-
-### 3. 虚拟滚动
-
-```typescript
-// ✅ 大列表使用虚拟滚动
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-function VirtualList({ items }: { items: Item[] }) {
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 50,
-  });
-
-  return (
-    <div ref={parentRef} style={{ height: '400px', overflow: 'auto' }}>
-      <div style={{ height: `${virtualizer.getTotalSize()}px` }}>
-        {virtualizer.getVirtualItems().map(virtualItem => (
-          <div
-            key={virtualItem.key}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: `${virtualItem.size}px`,
-              transform: `translateY(${virtualItem.start}px)`,
-            }}
-          >
-            {items[virtualItem.index].name}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-```
-
----
-
-## 响应式设计
-
-### Tailwind CSS 响应式断点
-
-```typescript
-// ✅ 移动优先设计
-function Card() {
-  return (
-    <div className="
-      p-4           /* 移动端默认 */
-      md:p-6        /* md (768px+) */
-      lg:p-8        /* lg (1024px+) */
-    ">
-      <h1 className="
-        text-xl     /* 移动端 */
-        md:text-2xl /* md (768px+) */
-        lg:text-3xl /* lg (1024px+) */
-      ">
-        响应式标题
-      </h1>
-    </div>
-  );
-}
-```
-
-### 容器查询
-
-```css
-/* ✅ 使用容器查询 */
-@container (min-width: 400px) {
-  .card {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-}
-```
-
----
-
-## 表单处理
-
-### React Hook Form + Zod
-
-```typescript
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-
-// Schema 定义
-const loginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Password too short'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
-
-function LoginForm() {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginForm) => {
-    await api.login(data);
-  };
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <input {...register('email')} />
-      {errors.email && <span>{errors.email.message}</span>}
-
-      <input type="password" {...register('password')} />
-      {errors.password && <span>{errors.password.message}</span>}
-
-      <button type="submit">Login</button>
-    </form>
-  );
-}
-```
-
----
-
-## 测试
-
-### 组件测试
-
-```typescript
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { Counter } from './Counter';
-
-describe('Counter', () => {
-  it('should increment count when button is clicked', async () => {
-    render(<Counter />);
-
-    expect(screen.getByText('Count: 0')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: /increment/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Count: 1')).toBeInTheDocument();
-    });
-  });
-});
-```
-
----
-
-## 最佳实践清单
-
-- [ ] 先完成 purpose / constraints / aesthetic direction / differentiator
-- [ ] 组件职责单一
-- [ ] Props 接口清晰
-- [ ] 使用 TypeScript 类型
-- [ ] 合理拆分组件
-- [ ] 状态分类管理
-- [ ] 颜色、阴影、间距、圆角通过 tokens 统一管理
-- [ ] 动效数量克制且有明确叙事作用
-- [ ] 性能优化（懒加载、缓存）
-- [ ] 响应式设计
-- [ ] 无障碍访问（ARIA）
-- [ ] 测试覆盖充分
-- [ ] 代码格式统一（ESLint/Prettier）
-
----
+| React 全栈应用 | Next.js App Router、TypeScript、现有 UI 库 |
+| React SPA | Vite、TypeScript、现有路由和状态方案 |
+| Vue 应用 | Vue 3 / Nuxt 3、Pinia、现有组件体系 |
+| 样式 | Tailwind、CSS Modules、现有 CSS variables/tokens |
+| 表单 | React Hook Form + Zod / VeeValidate，按项目现状选择 |
+| Server state | TanStack Query、框架内置 fetch/cache，按项目现状选择 |
+| 动效 | CSS transition 优先；Motion 类库只在项目已有或收益明确时使用 |
+| 图标 | 使用项目已有图标库；React 项目常见为 lucide-react |
+
+不要因为单个页面的视觉需求随意引入大型 UI 框架、动画库或图表库。需要新增依赖时说明理由、替代方案和影响。
+
+## 组件与状态设计
+
+- 组件职责单一：数据获取、格式化、交互状态和纯展示尽量分离。
+- 组合优于巨型 props：避免一个组件靠大量 mode/type props 承担多个产品语义。
+- Props 接口清晰：必需项、可选项、默认值、事件回调和透传 HTML 属性要明确。
+- 状态分类处理：本地 UI 状态、URL 状态、服务器状态、全局状态不要混用。
+- 列表、表格、弹窗、表单、空状态、错误状态和 loading 状态要成套考虑。
+- 数据密集页面优先保证扫描效率：列宽、行高、sticky header、分页、筛选、排序、空/错状态比装饰更重要。
+
+## 表单与输入控件整齐度
+
+输入框是产品界面的“精度感”来源。表单区域不要凭感觉摆控件；先确定容器宽度、列数、label 策略和控件高度，再实现具体字段。
+
+- 同一区域内的 `Input`、`Select`、`Combobox`、日期选择、搜索框和普通按钮应使用同一高度阶梯；常见后台表单优先 `32px` 或 `36px`，营销页或低密度页面可放宽到 `40px`，但不要在同一工具条里混用。
+- 宽度遵循栅格或固定语义：搜索框、邮箱、URL、长文本可占更宽列；短枚举、状态、数量、日期使用较窄列。不要让控件宽度仅由 placeholder 或当前内容决定。
+- label、help text、error text 使用稳定规则：同一表单里统一左侧 label、上方 label 或隐藏 label；错误文案出现时不得推乱整行布局，必要时预留说明区域或让错误只影响本字段高度。
+- 行内表单和工具栏要对齐控件基线：输入框、下拉框、按钮、图标按钮、分段控件的高度、内边距、圆角和边框粗细应视觉一致。
+- 状态样式成套处理：default、hover、focus、disabled、invalid、readonly 的边框、背景、ring、placeholder 和图标颜色要来自现有 tokens，不为单个字段临时发明新风格。
+- 移动端优先改为单列或清晰分组；避免把桌面多列字段硬挤到手机宽度，导致输入区过窄、label 换行混乱或按钮贴边。
+
+## 响应式与无障碍
+
+- 移动端优先保证信息可读和操作可达，不强行保留桌面结构。
+- 检查常见视口：桌面约 `1440x900`，平板约 `1024x768`，手机约 `390x844`。
+- 固定格式元素要有稳定尺寸约束，如表格、工具栏、图表、棋盘、计数器、按钮组。
+- 文本不得溢出按钮、卡片、表头或导航项；长词、邮箱、URL、模型名需要换行或截断策略。
+- 所有交互元素应有 hover/focus/disabled 状态和可访问名称。
+- 不用颜色作为唯一状态表达；错误、成功、警告要有文本或图标辅助。
+
+## 性能与可维护性
+
+- 先解决真实瓶颈，再使用 memo、virtualization、lazy loading 等优化。
+- 大列表使用分页、虚拟滚动或服务端筛选；不要一次渲染大量 DOM。
+- 避免在渲染路径创建昂贵计算、随机值或不稳定对象导致重复渲染。
+- 不新增无必要全局 CSS；必须新增时限制作用域并解释原因。
+- 设计 token、CSS 变量、Tailwind theme 优先于散落的 magic numbers。
+
+## 浏览器与测试闭环
+
+实现后按项目可用能力验证：
+
+1. 运行现有格式化、lint、typecheck、测试或 build 命令。
+2. 能启动项目时，打开目标页面做浏览器检查。
+3. 可用 Playwright 时，截取桌面、平板、手机视口，检查层级、间距、响应式、溢出、遮挡、交互状态和 AI 味。
+4. 发现视觉问题后小步修正；不要因为一个截图问题重写整页。
+5. 若无法启动或截图，说明阻塞原因和未验证风险。
+
+视觉回归不必默认追求像素级完全一致；更重要的是让问题可见，并让修正围绕真实截图发生。
+
+## 交付清单
+
+- [ ] 已理解产品类型、主任务、视觉密度和风险边界。
+- [ ] 已读取相关页面、组件、样式和项目 UI 约束。
+- [ ] 已复用现有组件系统、tokens、图标和布局模式。
+- [ ] 已避免典型 AI 味 UI 和无依据的新视觉变体。
+- [ ] 表单与输入控件高度、宽度、label、状态样式和行内对齐已成组检查。
+- [ ] 已保持业务逻辑、数据流、认证、API 和无关全局样式不受影响。
+- [ ] 已覆盖 loading、empty、error、disabled、hover/focus 等关键状态。
+- [ ] 已检查桌面、平板、移动端的可读性和溢出风险。
+- [ ] 已运行可用的 lint、typecheck、test 或 build。
+- [ ] 已在最终回复说明验证结果、关键改动和未验证风险。
 
 ## 相关参考
 
-- [React Best Practices](https://react.dev/learn)
+- [React Learn](https://react.dev/learn)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Vue 3 Guide](https://vuejs.org/guide/)
-- [OpenAI Frontend Design Guide](https://docs.openai.com/codex/guides/frontend)
+- [Playwright Visual Comparisons](https://playwright.dev/docs/test-snapshots)

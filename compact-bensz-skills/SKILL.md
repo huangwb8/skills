@@ -1,6 +1,6 @@
 ---
 name: compact-bensz-skills
-description: 当用户明确要求“压缩/瘦身/精简某个 Agent Skill 的 Markdown 文档”“在不改变功能前提下降低 skill 上下文开销”时使用。先理解目标 skill 的真实能力与安全边界，再在忽略 `tests/`、`plans/` 以及目标 skill 的 `README.md`、`CHANGELOG.md` 的前提下，压缩 `SKILL.md`、`references/*.md` 等工作型 Markdown，并把中间产物隔离到 `.compact-bensz-skills/`。⚠️ 不适用：用户主要想新增功能、修复脚本逻辑、批量改代码、或只想压缩非 skill 文档。
+description: 当用户明确要求“压缩/瘦身/精简某个 Agent Skill 的 Markdown 文档”“在不改变功能前提下降低 skill 上下文开销”时使用。先理解目标 skill 的真实能力与安全边界，再在忽略 `tests/`、`plans/` 以及目标 skill 的 `README.md`、`CHANGELOG.md` 的前提下，压缩 `SKILL.md`、`references/*.md` 等工作型 Markdown，并把中间产物隔离到 `.bensz-api/skills/compact-bensz-skills/`。⚠️ 不适用：用户主要想新增功能、修复脚本逻辑、批量改代码、或只想压缩非 skill 文档。
 
 metadata:
   author: Bensz Conan
@@ -27,8 +27,8 @@ metadata:
 1. `skill_root`（必需）
    - 目标 Agent Skill 根目录
 2. `workspace_dir`（可选）
-   - 默认把本轮工作区建在 `<skill_root>/.compact-bensz-skills/run-{timestamp}/`
-   - 如果用户显式指定其它目录，则把它视为“run 容器根目录”，本轮仍落到其中的 `run-{timestamp}/`
+   - 默认把本轮工作区建在 `<skill_root>/.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/`
+   - 如果用户显式指定其它目录，则把它视为“run 容器根目录”，本轮仍落到其中的 `{yyyy-mm-dd-hh-mm}/`
 3. `run_id`（可选）
    - 用于在 `init -> measure -> validate` 间显式复用同一轮工作区
 4. `test_dir`（可选）
@@ -42,8 +42,8 @@ metadata:
 - **保护硬约束**：输入、输出、默认路径、安全限制、必跑脚本、失败条件、与其它 skill 的协作约定都必须保留。
 - **只动源工作文件**：忽略目标 skill 的 `tests/`、`plans/` 及其内容，不把它们视为待压缩源文件。
 - **默认不动说明文档**：目标 skill 根目录下的 `README.md`、`CHANGELOG.md` 一般属于面向人类的说明或发布记录，不视为默认压缩目标。
-- **中间文件隔离**：分析、快照、统计、验证结果都写到隐藏目录 `.compact-bensz-skills/`；除非用户另有指定，不向外泄露中间文件。
-- **按轮次隔离**：每次运行都应在 `.compact-bensz-skills/run-{timestamp}/` 内工作，避免多次压缩会话互相覆盖。
+- **中间文件隔离**：分析、快照、统计、验证结果都写到隐藏目录 `.bensz-api/skills/compact-bensz-skills/`；除非用户另有指定，不向外泄露中间文件。
+- **按轮次隔离**：每次运行都应在 `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/` 内工作，避免多次压缩会话互相覆盖。
 - **链接不能越界**：压缩后保留的本地 Markdown 链接必须仍位于目标 skill 根目录内，不能借相对路径跳到 skill 外部。
 
 ## 标准工作流
@@ -57,7 +57,7 @@ python3 compact-bensz-skills/scripts/init_workspace.py --skill-root /path/to/tar
 ```
 
 脚本会：
-- 创建 `<skill_root>/.compact-bensz-skills/run-{timestamp}/`
+- 创建 `<skill_root>/.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/`
 - 在隐藏根目录写入 `latest-run.txt`
 - 扫描待压缩 Markdown（忽略 `tests/`、`plans/`、`README.md`、`CHANGELOG.md`）
 - 生成 `analysis/file-inventory.json`
@@ -123,7 +123,7 @@ python3 compact-bensz-skills/scripts/measure_markdown.py --skill-root /path/to/t
 ```bash
 python3 compact-bensz-skills/scripts/measure_markdown.py \
   --skill-root /path/to/target-skill \
-  --run-id run-20260328155205915498 \
+  --run-id 2026-03-28-15-52 \
   --phase after
 ```
 
@@ -159,10 +159,10 @@ python3 compact-bensz-skills/scripts/validate_compaction.py --skill-root /path/t
 - 更新后的目标 skill 工作型 Markdown 源文件
 
 隐藏工作区产物：
-- `.compact-bensz-skills/latest-run.txt`
-- `.compact-bensz-skills/run-{timestamp}/analysis/file-inventory.json`
-- `.compact-bensz-skills/run-{timestamp}/analysis/compaction-plan.md`
-- `.compact-bensz-skills/run-{timestamp}/reports/size-before.json`
-- `.compact-bensz-skills/run-{timestamp}/reports/size-after.json`
-- `.compact-bensz-skills/run-{timestamp}/reports/size-delta.md`
-- `.compact-bensz-skills/run-{timestamp}/reports/validation.json`
+- `.bensz-api/skills/compact-bensz-skills/latest-run.txt`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/file-inventory.json`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/compaction-plan.md`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-before.json`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-after.json`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-delta.md`
+- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/validation.json`

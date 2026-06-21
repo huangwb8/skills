@@ -25,7 +25,7 @@ directories:
   # 规划文档目录（相对于项目根目录）
   plans: "plans"
   # 测试目录（相对于项目根目录）
-  tests: "tests"
+  tests: ".bensz-api/skills/auto-test-project/output/tests"
 
 # ============================================================================
 # 项目识别

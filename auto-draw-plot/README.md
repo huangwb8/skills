@@ -7,20 +7,20 @@
 
 ### 启动前路径声明
 
-通过 AI 助手调用本 skill 时，助手在正式检查 API、初始化工作区或开始出图前，应先明确声明本次任务 `.draw-plot` 工作区根目录的绝对路径，例如：
+通过 AI 助手调用本 skill 时，助手在正式检查 API、初始化工作区或开始出图前，应先明确声明本次任务 `.bensz-api/skills/auto-draw-plot` 工作区根目录的绝对路径，例如：
 
 ```text
-本次 auto-draw-plot .draw-plot 工作区绝对路径：/abs/project/.draw-plot
+本次 auto-draw-plot .bensz-api/skills/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/skills/auto-draw-plot
 ```
 
-如果你指定了自定义 `workspace_base`，这里应显示该自定义目录解析后的绝对路径。初始化完成后，实际 run 目录会写入 `run-manifest.json`，通常形如 `.draw-plot/run-<timestamp>/`。
+如果你指定了自定义 `workspace_base`，这里应显示该自定义目录解析后的绝对路径。初始化完成后，实际 run 目录会写入 `run-manifest.json`，通常形如 `.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`。
 
 ### 推荐 Prompt（最小可用）
 
 ```text
 请使用 auto-draw-plot skill 生成一张科研展示图。
 输入：展示上下游信号链，6 个节点，用箭头连接，突出关键蛋白；白底，PNG，文字清晰。
-输出：至少 1 张可用 PNG；中间文件保存在 `.draw-plot/`。
+输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/skills/auto-draw-plot/`。
 ```
 
 ### 进阶 Prompt（带比例参数）
@@ -28,7 +28,7 @@
 ```text
 请使用 auto-draw-plot skill 生成一张科研展示图。
 输入：展示上下游信号链，6 个节点，用箭头连接，突出关键蛋白；白底，PNG，文字清晰。
-输出：至少 1 张可用 PNG；中间文件保存在 `.draw-plot/`。
+输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/skills/auto-draw-plot/`。
 另外，还有下列参数约束：
 - mode：general
 - 期望布局比例：1600 x 900
@@ -128,8 +128,8 @@ GEMINI_MODEL=nano-banana-preview
 ## 输出结果
 
 - 最终 PNG：默认 `draw-plot.png`，或你传入的 `--output-png`
-- 启动前声明：AI 助手应先输出 `.draw-plot` 根目录绝对路径，便于实时监督
-- 隐藏工作区：`.draw-plot/run-<timestamp>/`
+- 启动前声明：AI 助手应先输出 `.bensz-api/skills/auto-draw-plot` 根目录绝对路径，便于实时监督
+- 隐藏工作区：`.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`
 - 追溯文件：`meta/analysis.json`、`meta/result.json`
 - 每轮证据：`rounds/round-XX/prompt.txt`、`output.png`、`evaluation.json`
 - provider 与参考图记录：`meta/result.json` 中的 `providers_used`，以及 `meta/analysis.json` 每轮的 `reference_strategy`

@@ -6,6 +6,7 @@
 - 新增 `tests/cat-v20260520134108/` 小猫出图测试产物：包含最终 PNG、测试计划、测试报告与 `.draw-plot/` 追溯元数据，用于验证 `general` 模式调用 `gpt-image-2` 的基础出图链路
 
 ### Changed
+- 收紧 `roadmap` / `schematic` 模式的中文标签字重护栏：默认要求无衬线常规到半粗体、深灰或黑色文字，避免细体、浅灰字和过轻笔画导致的“字偏瘦”观感；同步更新 prompt 指南并将版本号 `0.2.9 → 0.2.10`
 - 将 `gpt-image-2` generation/edit 默认提交方式改为 Sub2API 异步 image job endpoint：文本出图使用 `/images/jobs/generations`，参考图编辑使用 `/images/jobs/edits`；仅当 job endpoint 返回 404/405/501 且配置允许时回退旧同步接口，429/500/502/503/504 不触发同步回退；新增 `async-job-result.json` 结果下载证据与 run manifest 中的 async job 策略字段。同步将版本号 `0.2.8 → 0.2.9`
 - 明确启动前监督路径声明规则：宿主 AI 在正式检查 API、初始化工作区或开始出图前，必须先向用户声明本次任务 `.draw-plot` 根目录的绝对路径；同步在配置中新增 `workspace.announce_absolute_path_before_start` 与声明模板，并将版本号 `0.2.7 → 0.2.8`
 - 取消 gpt-image-2 与 Nano Banana/Gemini 路径的默认插值放大/贴画布行为，默认保留 provider 原生 PNG；`--canvas-width` / `--canvas-height` 改为布局比例和 provider 原生尺寸选择参考，只有显式 `--postprocess-resize --postprocess-width <W> --postprocess-height <H>` 才启用尺寸后处理；参考图上传前增加真实图片格式与大小上限校验。同步将版本号 `0.2.6 → 0.2.7`

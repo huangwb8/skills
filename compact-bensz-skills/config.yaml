@@ -6,12 +6,15 @@ skill_info:
   category: "skill-maintenance"
 
 workspace:
-  hidden_dir: ".compact-bensz-skills"
-  run_prefix: "run-"
-  timestamp_format: "%Y%m%d%H%M%S%f"
+  hidden_dir: ".bensz-api/skills/compact-bensz-skills"
+  run_prefix: ""
+  timestamp_format: "%Y-%m-%d-%H-%M"
   latest_run_pointer: "latest-run.txt"
   keep_intermediates_inside_hidden_dir: true
   subdirs:
+    - "input"
+    - "output"
+    - "log"
     - "snapshots"
     - "analysis"
     - "reports"
@@ -27,6 +30,7 @@ source_files:
     - "tests"
     - "plans"
     - ".compact-bensz-skills"
+    - ".bensz-api"
     - ".git"
     - "__pycache__"
   ignore_globs:

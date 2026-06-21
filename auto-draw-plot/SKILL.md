@@ -25,7 +25,7 @@ metadata:
 - 以用户需求为起点，由宿主 AI 进行语义规划，再构造适用于当前图片 provider 的 prompt；脚本默认不调用额外 Gemini 文本接口。
 - 默认模式是 `general`；用户明确要技术路线图/roadmap/flowchart 时使用 `roadmap`，明确要原理图/机制图/架构图时使用 `schematic`。后续新增类型应作为 `config.yaml:modes.presets` 扩展，不改主流程。
 - 默认通过 `scripts/run_draw_plot.py` 在独立隐藏工作区里完成“parallel-vibe 规划留痕 → prompt → 出图 → 视觉评估 → 继续/停止”的闭环；`parallel-vibe` 是必选工作流的一部分，不是可选增强。
-- 默认工作区是当前目录下的 `.draw-plot/run-<timestamp>/`；所有中间文件必须留在隐藏目录里。宿主 AI 在正式检查 API、初始化工作区或开始出图前，必须先向用户明确声明本次任务 `.draw-plot` 根目录的绝对路径，方便用户实时监督。轻量测试目录固定为 `./tests/draw-plot`。
+- 默认工作区是当前目录下的 `.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`；所有中间文件必须留在隐藏目录里。宿主 AI 在正式检查 API、初始化工作区或开始出图前，必须先向用户明确声明本次任务 `.bensz-api/skills/auto-draw-plot` 根目录的绝对路径，方便用户实时监督。轻量测试目录固定为 `./tests/draw-plot`。
 
 ## 输入
 
@@ -37,7 +37,7 @@ metadata:
 - `max_rounds`（可选）：最大优化轮数，默认 3；若用户另有指定，以用户为准。
 - `visual_constraints`（可选）：比例、期望布局、色调、字体等硬约束。尺寸只作为 provider 原生尺寸选择参考，不承诺最终 PNG 像素。
 - `reference_images`（可选）：用于 prompt 引导的风格/布局图；第 2 轮起上一轮 `output.png` 会自动作为第一参考图，用户参考图排在其后。
-- `workspace_base`（可选）：用户显式指定的隐藏工作区根目录；未指定时使用当前目录 `.draw-plot/`。
+- `workspace_base`（可选）：用户显式指定的隐藏工作区根目录；未指定时使用当前目录 `.bensz-api/skills/auto-draw-plot/`。
 
 ## 输出
 
@@ -49,7 +49,7 @@ metadata:
 
 ## 运行前检查
 
-1. 先解析本次任务的隐藏工作区根目录：若用户传入 `workspace_base`，解析该路径；否则使用 `project_root/.draw-plot`。必须把解析后的绝对路径用可见消息告诉用户，例如：`本次 auto-draw-plot .draw-plot 工作区绝对路径：/abs/project/.draw-plot`。这条消息必须出现在 API 检查、`init_workspace.py`、`run_draw_plot.py` 或任何图片生成调用之前；不要只把路径写进 `run-manifest.json`。
+1. 先解析本次任务的隐藏工作区根目录：若用户传入 `workspace_base`，解析该路径；否则使用 `project_root/.bensz-api/skills/auto-draw-plot`。必须把解析后的绝对路径用可见消息告诉用户，例如：`本次 auto-draw-plot .bensz-api/skills/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/skills/auto-draw-plot`。这条消息必须出现在 API 检查、`init_workspace.py`、`run_draw_plot.py` 或任何图片生成调用之前；不要只把路径写进 `run-manifest.json`。
 2. 默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY | OPENAI_API`，再使用 `gpt-image-2`；环境变量与 `remote.env` 只作为缺失字段的兜底来源。
 3. `gpt-image-2` 只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。
 4. 如果用户点名 `gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider，运行前检查和后续出图都必须固定在该 provider；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
@@ -59,9 +59,9 @@ metadata:
 ## 工作流
 
 1. **理解需求与模式**：宿主 AI 先把用户需求拆成“主体 / 结构 / 风格 / 硬约束 / 禁止项”，并解析 `mode`；未指定时用 `general`。需要时参考 `references/prompt-guidelines.md`。
-2. **声明监督路径**：在正式动作开始前，宿主 AI 必须根据当前 `project_root` 与可选 `workspace_base` 计算 `.draw-plot` 根目录绝对路径，并用可见消息告诉用户；初始化后可再补充实际 `run_dir`，但不能用 `run_dir` 补充替代启动前的 `.draw-plot` 根目录声明。
+2. **声明监督路径**：在正式动作开始前，宿主 AI 必须根据当前 `project_root` 与可选 `workspace_base` 计算 `.bensz-api/skills/auto-draw-plot` 根目录绝对路径，并用可见消息告诉用户；初始化后可再补充实际 `run_dir`，但不能用 `run_dir` 补充替代启动前的 `.bensz-api/skills/auto-draw-plot` 根目录声明。
 3. **检查 API**：运行 `scripts/nano_banana_check.py`。若用户指定模型/provider，主流程必须传 `--provider <name>` 并只检查该 provider；若默认 `auto`，可按优先级选择一个运行前可用 provider。不要把“指定模型失败”改写成“自动使用另一个模型”。
-4. **初始化隐藏工作区**：运行 `scripts/init_workspace.py`，默认建立 `.draw-plot/run-<timestamp>/`，写出 `run-manifest.json`。
+4. **初始化隐藏工作区**：运行 `scripts/init_workspace.py`，默认建立 `.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`，写出 `run-manifest.json`。
 5. **生成 parallel-vibe 计划**：每一轮开始前，必须生成该轮的 `parallel-vibe` plan，至少写出：
    - `parallel-vibe/parallel-plan.round-XX.json`
    - `parallel-vibe/parallel-plan.json`（latest）

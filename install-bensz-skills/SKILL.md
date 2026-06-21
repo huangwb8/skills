@@ -147,7 +147,7 @@ python3 "$INSTALLER" --remote --check --general --skill git-commit
 
 安装前会先读取 `install-bensz-skills/config.yaml` 中的 `legacy_skill_names`，并从 `~/.codex/skills/` / `~/.claude/skills/` 删除这些已弃用旧名，避免 skill 改名后旧目录继续留在系统级目录里干扰触发。
 
-研究类 skill 重命名后，旧目录 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review` 也属于 legacy 清理对象；兼容性由新 `research-*` skills 的触发描述承担。
+研究类 skill 重命名后，旧目录 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review` 也属于 legacy 清理对象；兼容性由新 `research-*` skills 的触发描述承担。已弃用的 `nsfc-roadmap`、`nsfc-schematic` 也会作为 legacy 目录清理。
 
 如果只想单独执行清理，可直接运行：
 
@@ -284,6 +284,14 @@ legacy_skill_names:
   - "transfer_old_latex_to_new"
   - "write-paper-sci"
   - "explain-figures"
+  - "complete_example"
+  - "get-review-theme"
+  - "guide-updater"
+  - "check-review-alignment"
+  - "make-research-plan"
+  - "systematic-literature-review"
+  - "nsfc-roadmap"
+  - "nsfc-schematic"
 ```
 
 配置字段说明：

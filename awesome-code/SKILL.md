@@ -17,12 +17,12 @@ metadata:
 
 # Awesome Code - AI 自主规划多代理软件开发协调系统
 
+本技能用于“复杂开发任务”的多代理编排：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成。
+
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-本技能用于“复杂开发任务”的多代理编排：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成。
 
 ## 执行前置：动态发现技能安装路径（硬编码部分）
 
@@ -53,7 +53,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - 专业化分工：每个子代理专注一个领域，降低单模型的认知负担
 - 渐进式信息披露：只在需要时加载对应子代理的 `SKILL.md`
 
-## 代理团队（14 个子代理）
+## 代理团队
 
 | role | 领域 |
 |------|------|
@@ -72,7 +72,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 | writing-plans | 实施计划与任务拆解 |
 | multi-agent-coordinator | 多代理协调 |
 
-## 核心工作流（AI 执行）
+## 核心工作流
 
 1. 运行 `get_path.py`，拿到 `executable_scripts.agent_coordinator` 的绝对路径。
 2. 调用 `agent_coordinator.py` 收集规划上下文，读取 `available_agents`、`config_constraints`、`dispatch_guidance` 与 `dispatch_gate`。
@@ -131,7 +131,7 @@ python3 ~/.claude/skills/awesome-code/scripts/get_path.py
 python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 ```
 
-## 常用脚本（确定性操作）
+## 常用脚本
 
 注意：脚本路径以 `get_path.py` 输出为准。
 
@@ -144,7 +144,7 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 - `scripts/code_analyzer.py`：静态分析与质量检查
 - `scripts/performance_benchmark.py`：基准测试与报告
 
-## 配置管理（Single Source of Truth）
+## Single Source of Truth
 
 - 版本号仅在 `awesome-code/config.yaml:skill_info.version` 维护；`SKILL.md` 不记录版本历史。
 - 代理启用状态：`awesome-code/config.yaml:multi_agent.enabled_agents`

@@ -26,7 +26,7 @@ metadata:
 - **只读优先**：默认只能读取 GitHub 页面、API 返回、diff、评论、CI 状态、相关 issue/文档；不要修改源代码。
 - **绝不主动 merge**：除非用户明确要求，否则不要执行 merge、rebase、squash、approve、request review 等操作。
 - **绝不执行不可信 PR 代码**：不要 `gh pr checkout`、不要运行 PR 分支脚本、不要安装 PR 引入的依赖、不要触发可疑 CI/CD。
-- **中间文件隔离**：所有中间文件必须保存在工作目录下的隐藏目录 `.git-pr-review/`；若用户另有指定，才使用用户指定目录。
+- **中间文件隔离**：所有中间文件必须保存在工作目录下的隐藏目录 `.bensz-api/skills/git-pr-review/`；若用户另有指定，才使用用户指定目录。
 - **证据驱动**：所有结论都要回到证据，明确引用 diff、评论、CI、issue、社区资料或官方文档。
 - **合规不忽略**：如果 PR 触及依赖、vendored 代码、复制粘贴第三方内容、资源资产或许可证文件，必须显式审查 license 风险与兼容性。
 
@@ -43,7 +43,7 @@ metadata:
    - 独立评审次数，默认 5；用户明确指定时以用户要求为准
    - 当你调用 `build_parallel_review_plan.py` 时，把它映射为 `--n <review_count>`
 5. `workspace_dir`（可选）
-   - 默认 `.git-pr-review/`
+   - 默认 `.bensz-api/skills/git-pr-review/`
 6. `report_dir`（可选）
    - 默认当前工作目录（项目根）
 
@@ -61,7 +61,7 @@ python3 git-pr-review/scripts/prepare_review_job.py \
 
 脚本会：
 - 校验仓库地址与 PR URL 是否属于同一 GitHub 仓库
-- 创建本次运行目录（默认 `.git-pr-review/run_<timestamp>_<repo>_<pr>/`）
+- 创建本次运行目录（默认 `.bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/`）
 - 生成 `manifest.json`
 - 预创建最小占位文件：
   - `raw/README.md`
@@ -106,7 +106,7 @@ python3 git-pr-review/scripts/prepare_review_job.py \
 
 ```bash
 python3 git-pr-review/scripts/build_parallel_review_plan.py \
-  --manifest .git-pr-review/run_<...>/manifest.json \
+  --manifest .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
   --n 5
 ```
 
@@ -126,9 +126,9 @@ python3 git-pr-review/scripts/build_parallel_review_plan.py \
 ```bash
 # 更推荐直接复制 `parallel_review_job.json` 里的 `recommended_command`
 python3 ../parallel-vibe/scripts/parallel_vibe.py \
-  --plan-file .git-pr-review/run_<...>/parallel_review/parallel_plan.json \
-  --src-dir .git-pr-review/run_<...>/parallel_review/input_snapshot \
-  --out-dir .git-pr-review/run_<...>/parallel_review/parallel_runs \
+  --plan-file .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_plan.json \
+  --src-dir .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/input_snapshot \
+  --out-dir .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_runs \
   --project-id <parallel_review_job.json.project_id>
 ```
 
@@ -136,7 +136,7 @@ python3 ../parallel-vibe/scripts/parallel_vibe.py \
 
 ```bash
 python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
-  --job-file .git-pr-review/run_<...>/parallel_review/parallel_review_job.json
+  --job-file .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_review_job.json
 ```
 
 如果 `parallel-vibe` 还没跑完、某个 thread 缺少 `RESULT.md`，或聚合输入不完整，聚合脚本应明确报错并停止，而不是静默生成误导性摘要。
@@ -259,7 +259,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 写最终报告时，必须综合：
 - 原始证据（`raw/`、`notes/`、`evidence/`）
 - `parallel_review/independent_review_summary.md`
-- 如有必要，`parallel_review/parallel_runs/.parallel_vibe/<project_id>/@main/summary.md`
+- 如有必要，`parallel_review/parallel_runs/.parallel-vibe/<project_id>/@main/summary.md`
 
 ### 9. 完成前自检
 
@@ -272,7 +272,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 
 ```bash
 python3 git-pr-review/scripts/validate_review_artifacts.py \
-  --manifest .git-pr-review/run_<...>/manifest.json \
+  --manifest .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
   --report /abs/path/to/Git-PR-Review_<...>.md
 ```
 
@@ -290,7 +290,7 @@ python3 git-pr-review/scripts/validate_review_artifacts.py \
 - 不要 approve PR
 - 不要 checkout PR 分支并执行代码
 - 不要把 API token、cookie、认证信息写入工作区
-- 不要把中间文件写到 `.git-pr-review/` 之外（除最终 Markdown 报告）
+- 不要把中间文件写到 `.bensz-api/skills/git-pr-review/` 之外（除最终 Markdown 报告）
 
 ## 可读参考
 

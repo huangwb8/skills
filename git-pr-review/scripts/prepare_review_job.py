@@ -82,6 +82,18 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def allocate_run_dir(workspace_root: Path, timestamp: str) -> tuple[Path, str]:
+    candidate = workspace_root / timestamp
+    if not candidate.exists():
+        return candidate, timestamp
+    for idx in range(2, 100):
+        run_id = f"{timestamp}-{idx:02d}"
+        candidate = workspace_root / run_id
+        if not candidate.exists():
+            return candidate, run_id
+    raise RuntimeError(f"failed to allocate unique run directory under {workspace_root}")
+
+
 def write_placeholder(path: Path, content: str) -> None:
     if not path.exists():
         path.write_text(content, encoding="utf-8")
@@ -133,7 +145,11 @@ def main() -> int:
     else:
         report_root = report_root.resolve()
 
-    run_dir = workspace_root / f"{DIRECTORIES['run_prefix']}{timestamp}_{repo_slug}_{pr_slug}"
+    try:
+        run_dir, run_id = allocate_run_dir(workspace_root, f"{DIRECTORIES['run_prefix']}{timestamp}")
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     raw_dir = run_dir / str(DIRECTORIES["raw"])
     notes_dir = run_dir / str(DIRECTORIES["notes"])
     evidence_dir = run_dir / str(DIRECTORIES["evidence"])
@@ -167,10 +183,11 @@ def main() -> int:
         "# Missing Items\n\n- 未获取材料：\n- 原因：\n- 对结论的影响：\n",
     )
 
-    report_name = f"{OUTPUT['report_prefix']}_{repo_slug}_{pr_slug}_{timestamp}{OUTPUT['report_extension']}"
+    report_name = f"{OUTPUT['report_prefix']}_{repo_slug}_{pr_slug}_{run_id}{OUTPUT['report_extension']}"
     manifest_path = run_dir / str(FILES["manifest_name"])
     manifest = {
         "generated_at": timestamp,
+        "run_id": run_id,
         "repo": {
             "input": args.repo,
             "owner": owner,

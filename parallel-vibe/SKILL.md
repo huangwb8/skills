@@ -1,6 +1,6 @@
 ---
 name: parallel-vibe
-description: 当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.parallel_vibe/<project_id>/` 目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。
+description: 当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.parallel-vibe/<project_id>/` 目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。
 metadata:
   author: Bensz Conan
   keywords:
@@ -29,24 +29,24 @@ metadata:
 
 目录管理是模式无关的。两种模式都使用同一套运行目录：
 
-- `.parallel_vibe/<project_id>/`
-- `.parallel_vibe/<project_id>/project.json`
-- `.parallel_vibe/<project_id>/@main/plan.json`
-- `.parallel_vibe/<project_id>/@main/plan.md`
-- `.parallel_vibe/<project_id>/@main/summary.md`
-- `.parallel_vibe/<project_id>/<thread_id>/workspace/`
-- `.parallel_vibe/<project_id>/<thread_id>/workspace/RESULT.md`（优先产物）
-- `.parallel_vibe/<project_id>/<thread_id>/RESULT.md`（汇总用副本或兜底）
-- `.parallel_vibe/<project_id>/<thread_id>/runner.log`
-- `.parallel_vibe/<project_id>/<thread_id>/prompt.txt`
-- `.parallel_vibe/<project_id>/<thread_id>/thread.json`
-- `.parallel_vibe/<project_id>/<thread_id>/done.json`
-- `.parallel_vibe/<project_id>/<thread_id>/exit_code.txt`
+- `.parallel-vibe/<project_id>/`
+- `.parallel-vibe/<project_id>/project.json`
+- `.parallel-vibe/<project_id>/@main/plan.json`
+- `.parallel-vibe/<project_id>/@main/plan.md`
+- `.parallel-vibe/<project_id>/@main/summary.md`
+- `.parallel-vibe/<project_id>/<thread_id>/workspace/`
+- `.parallel-vibe/<project_id>/<thread_id>/workspace/RESULT.md`（优先产物）
+- `.parallel-vibe/<project_id>/<thread_id>/RESULT.md`（汇总用副本或兜底）
+- `.parallel-vibe/<project_id>/<thread_id>/runner.log`
+- `.parallel-vibe/<project_id>/<thread_id>/prompt.txt`
+- `.parallel-vibe/<project_id>/<thread_id>/thread.json`
+- `.parallel-vibe/<project_id>/<thread_id>/done.json`
+- `.parallel-vibe/<project_id>/<thread_id>/exit_code.txt`
 
 路由规则：
 
 1. 用户只是要求多个 agent 独立想方案、审查、优化、评估风险或对比路线时，使用智能模式。
-2. 用户要求固定目录、`.parallel_vibe/`、`@main/plan.json`、`RESULT.md` 或 `runner.log` 时，仍可使用智能模式；这些是共享目录契约，不是代码模式专属触发条件。
+2. 用户要求固定目录、`.parallel-vibe/`、`@main/plan.json`、`RESULT.md` 或 `runner.log` 时，仍可使用智能模式；这些是共享目录契约，不是代码模式专属触发条件。
 3. 用户明确要求“代码模式”“脚本模式”“CLI runner”“plan-file”“resume”“dry-run”“退出码”、跨 `codex` / `claude` / `shell` runner，或下游 skill 需要脚本可复跑批处理时，使用代码模式。
 4. 宿主没有可用 subagent 能力，或当前环境无法可靠启动独立上下文时，回退代码模式。
 5. 涉及多个 agent 并行修改文件时，仍先按共享目录创建每个 thread 的 `workspace/`；如果宿主不能把 subagent 绑定到各自 `workspace/`，改用代码模式，或让智能模式只输出方案 / diff / patch 建议，由主 agent 单点落地。
@@ -72,7 +72,7 @@ metadata:
 面向用户的输出至少包含：
 
 - 运行模式：`智能模式`
-- project 目录：`.parallel_vibe/<project_id>/`
+- project 目录：`.parallel-vibe/<project_id>/`
 - thread 数与串行/并行策略
 - 每个 thread 的角色与一句话结论
 - 综合结论：推荐路线、共识、主要分歧
@@ -94,11 +94,11 @@ metadata:
 
 输出：
 
-- `.parallel_vibe/<project_id>/`
-- `.parallel_vibe/<project_id>/@main/plan.json`
-- `.parallel_vibe/<project_id>/@main/summary.md`
-- `.parallel_vibe/<project_id>/<thread_id>/RESULT.md`
-- `.parallel_vibe/<project_id>/<thread_id>/runner.log`
+- `.parallel-vibe/<project_id>/`
+- `.parallel-vibe/<project_id>/@main/plan.json`
+- `.parallel-vibe/<project_id>/@main/summary.md`
+- `.parallel-vibe/<project_id>/<thread_id>/RESULT.md`
+- `.parallel-vibe/<project_id>/<thread_id>/runner.log`
 
 运行脚本（在用户当前目录或系统级 skill 目录中选择可用路径）：
 
@@ -140,7 +140,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 
 - 只允许读写当前 `workspace/` 及其子目录
 - 禁止访问父目录（`..`）与任何绝对路径写入
-- 禁止读取或写入 `.parallel_vibe/<project_id>` 下的其他 thread 目录
+- 禁止读取或写入 `.parallel-vibe/<project_id>` 下的其他 thread 目录
 - 产物必须落盘到当前 `workspace/`，便于追溯与汇总
 
 默认拒绝 `--src-dir` 中的 symlink（可用 `--symlink-policy` 覆盖，但存在越界风险）；不要把包含敏感文件（如 `.env`、SSH key）的目录作为 `--src-dir`。
@@ -149,7 +149,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 
 如需精确控制每个 thread 的 `runner/profile/model/prompt`，可直接编辑：
 
-- `.parallel_vibe/<project_id>/@main/plan.json`
+- `.parallel-vibe/<project_id>/@main/plan.json`
 
 然后用同一个 `--project-id` + `--resume` 续跑。注意：`--resume` 会复用 project 目录与 `@main/plan.json`，但每次运行仍会重建各 thread 的 `workspace/`。
 
@@ -177,5 +177,5 @@ claude --model <model_id> --effort <effort> -p "你的指令内容"
 在触发目录执行：
 
 ```bash
-rm -rf .parallel_vibe
+rm -rf .parallel-vibe
 ```

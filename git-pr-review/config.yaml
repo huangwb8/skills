@@ -8,8 +8,8 @@ skill_info:
   category: "git-security-review"
 
 directories:
-  default_workspace: ".git-pr-review"
-  run_prefix: "run_"
+  default_workspace: ".bensz-api/skills/git-pr-review"
+  run_prefix: ""
   raw: "raw"
   notes: "notes"
   evidence: "evidence"
@@ -31,7 +31,7 @@ output:
   report_prefix: "Git-PR-Review"
   report_extension: ".md"
   default_report_dir: "."
-  timestamp_format: "%Y%m%d%H%M%S"
+  timestamp_format: "%Y-%m-%d-%H-%M"
   enforce_hidden_workspace_when_default: true
   required_sections:
     - "## 结论摘要"

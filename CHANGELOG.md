@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-06-21
+
+### Added
+- **auto-draw-plot 中文标签字重护栏**：`roadmap` / `schematic` 模式新增护栏——中文标签使用清晰的无衬线常规到半粗体字重、深灰或黑色，缓解“字偏瘦”观感；版本号 `0.2.9 → 0.2.10`
+- **工作区目录唯一分配机制**：`auto-draw-plot`、`compact-bensz-skills`、`git-pr-review` 的工作区初始化脚本新增时间戳冲突兜底——同一分钟多次运行自动追加 `-02` / `-03` 后缀避免目录覆盖；`git-pr-review` 报告文件名与 manifest 新增 `run_id` 字段用于追溯
+
+### Changed
+- **统一中间产物目录到 `.bensz-api/` 命名空间**：将分散在各 skill 下的隐藏工作区收敛到 `.bensz-api/skills/<skill-name>/`，并结构化为 `input` / `output` / `log` 子目录，降低多 skill 并存时的目录污染与命名冲突：
+  - `auto-draw-plot`：`.draw-plot/` → `.bensz-api/skills/auto-draw-plot/`
+  - `compact-bensz-skills`：`.compact-bensz-skills/` → `.bensz-api/skills/compact-bensz-skills/`
+  - `git-pr-review`：`.git-pr-review/` → `.bensz-api/skills/git-pr-review/`
+  - `awesome-code`：`.awesome-code/{reports,benchmarks,logs,cache}` → `.bensz-api/skills/awesome-code/{output/reports,output/benchmarks,log,cache}`；镜像优化产物 `.mirror/` → `.bensz-api/skills/mirror-optimizer/output/`
+  - `auto-test-code`：`tmp/` + `tests/` → `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`
+  - `auto-test-project` / `auto-test-skill`：`tests/` → `.bensz-api/skills/<skill>/output/tests/`
+  - 各 skill 的 `SKILL.md`、`README.md` 与初始化脚本同步更新路径契约
+- **统一时间戳与 run_id 格式**：时间戳从 `%Y%m%d%H%M%S%f`（密集无分隔）改为 `%Y-%m-%d-%H-%M`（可读分隔）；`run_prefix` 由 `run-` / `run_` 收敛为空；`auto-test-code` 的 `create_session.py` 兼容新旧两种 run_id 格式
+- **parallel-vibe 工作区更名**：默认目录 `.parallel_vibe/` → `.parallel-vibe/`（下划线改连字符），`copy_exclude` 同步更新；下游 `git-pr-review` 的并行评审产物路径与集成文档同步；版本号 `0.4.1 → 0.4.2`
+- **git-pr-review 校验逻辑适配**：`validate_review_artifacts.py` 隐藏目录校验放宽为“路径含 `.bensz-api` 或目录名以 `.` 开头”；报告名正则适配新时间戳格式（含可选 `-NN` 后缀）
+- **init-project .gitignore 模板**：新增 `.bensz-api/`、`/.bensz-api/`、`.parallel-vibe/` 忽略规则（保留 `.parallel_vibe/` 兼容旧产物）；版本号 `2.3.1 → 2.3.2`
+- **install-bensz-skills legacy 清理**：将已弃用的 `nsfc-roadmap`、`nsfc-schematic` 加入 `legacy_skill_names`，安装时自动清理系统级残留目录；版本号 `0.5.4 → 0.5.5`
+- **awesome-code 文档规范化**：`SKILL.md` 移除序号化标题前缀（如“代理团队（14 个子代理）”→“代理团队”），符合“层级标题不使用序号前缀”规范；`code-reviewer` 输入说明泛化计划文档来源（`PLAN.md` / `docs/plans/*.md` 等）
+- **awesome-code frontend-specialist 增强**：补充表单与输入控件整齐度策略，覆盖输入框高度阶梯、宽度栅格、label/help/error 文案规则、行内基线对齐、状态样式与移动端表单分组
+- **AGENTS.md 双安装器同步约束**：新增“双安装器与业务逻辑同步”章节，明确 `install-bensz-skills/scripts/install.py`（本地开发版，单一真理来源）与 `@install/install.py`（远程一键版）必须保持业务逻辑对齐，安装器业务变更时强制联动检查
+
+## [4.1.3] - 2026-06-14
+
 ### Added
 - **新增技能**：
   - `awesome-code`: 多代理协作开发技能，支持并行协调开发
@@ -21,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
   - 支持通过一行 Python 命令从 GitHub 远程安装所有技能
 
 ### Changed
+- **项目指令新增"双安装器业务逻辑同步"约束**：
+  - 在 AGENTS.md「本机可发现性（系统级安装）」章节新增子节，明确 `install-bensz-skills/scripts/install.py`（本地开发版，安装逻辑单一真理来源）与 `@install/install.py`（远程一键版）必须保持业务逻辑对齐
+  - 强制联动：当 `install-bensz-skills` 发生业务逻辑变更时，必须检查 `@install/install.py` 是否需要同步对齐；仅远程拉取特有逻辑（下载、解压、远程源发现）允许差异
 - **项目指令文档重构**：
   - 重构 AGENTS.md，优化工程原则和工作流说明
   - 精简 CLAUDE.md，通过 `@./AGENTS.md` 引用核心指令

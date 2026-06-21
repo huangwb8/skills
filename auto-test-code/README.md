@@ -63,7 +63,7 @@
 | **批判性思维驱动** | 强制使用刁钻角度（空输入/超大输入/竞态条件/资源耗尽） |
 | **强制质量要求** | 每轮至少 10 个问题，P0+P1 占比 ≥ 60%，系统性问题 ≥ 3 个 |
 | **B 轮质量检查** | 9 大维度代码质量原则检查（算法复杂度、边界覆盖、安全漏洞分类审查、设计质量等） |
-| **可追溯文档** | 统一沉淀到 `tmp/run_*/tests/` 隔离工作区（REVIEW/PLAN/RUN/REPORT + artifacts），可复现可复盘 |
+| **可追溯文档** | 统一沉淀到 `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 隔离工作区（REVIEW/PLAN/RUN/REPORT + artifacts），可复现可复盘 |
 
 ---
 
@@ -79,7 +79,7 @@
       [A 轮 #2] 发现 12 个问题（P0: 2, P1: 7, P2: 3）
       [A 轮 #3] 发现 10 个问题（P0: 1, P1: 6, P2: 3）
       [B 轮] 完成 9 维度质量检查
-      产出：tmp/run_*/tests/v*/（含 REVIEW/PLAN/RUN/REPORT）+ tmp/run_*/tests/b-v*/
+      产出：.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/v*/（含 REVIEW/PLAN/RUN/REPORT）+ .bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-v*/
 ```
 
 ### 示例 2：单轮快速检查
@@ -89,7 +89,7 @@
 
 技能：执行单轮 A 轮审查...
       发现 18 个问题（P0: 4, P1: 10, P2: 4）
-      产出：tmp/run_YYYYMMDDHHMMSS/tests/vYYYYMMDDHHMM/
+      产出：.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/vYYYYMMDDHHMM/
 ```
 
 ### 示例 3：指定深挖维度（全覆盖 + 重点深挖）
@@ -116,10 +116,10 @@
 
 ## 隔离工作区
 
-- 每次 skill 执行都会在目标项目根目录创建 `tmp/run_YYYYMMDDHHMMSS/` 作为当次隔离工作区。
+- 每次 skill 执行都会在目标项目根目录创建 `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/` 作为当次隔离工作区。
 - 所有计划、报告、日志、辅助脚本和中间产物都只写入该工作区，避免把 skill 文件泄露到源项目其他位置。
 - 运行可能产生缓存或临时文件的命令时，优先将工作目录、`TMPDIR`、`XDG_CACHE_HOME`、`PYTHONPYCACHEPREFIX` 等重定向到当前工作区。
-- 除了用户明确要求的源码修复外，`tmp/run_*/` 之外不应新增任何 auto-test-code 相关文件。
+- 除了用户明确要求的源码修复外，`.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/` 之外不应新增任何 auto-test-code 相关文件。
 
 ---
 
@@ -130,7 +130,7 @@
 ```
 {项目根目录}/
 └── tmp/
-    └── run_20260310153045/           # 本次技能执行的隔离工作区（示例）
+    └── 2026-03-10-15-30/           # 本次技能执行的隔离工作区（示例）
         ├── .auto-test-code-run.json  # 运行清单（记录 code_root / run_id / tests_dir）
         └── tests/                    # 会话目录（计划/过程/结果都在同一处）
             ├── v202602161028/        # A 轮会话（示例）
@@ -148,12 +148,12 @@
 
 | 文件 | 说明 |
 |------|------|
-| `tmp/run_*/tests/v*/REVIEW.md` | A 轮批判性审查（问题清单 + 改进计划） |
-| `tmp/run_*/tests/b-v*/REVIEW.md` | B 轮代码质量检查报告（9 大维度评估） |
-| `tmp/run_*/tests/*/TEST_PLAN.md` | 测试计划，列出本轮验证的修复点 |
-| `tmp/run_*/tests/*/TEST_RUN.md` | 测试过程记录（命令、关键输出摘录、关键决策） |
-| `tmp/run_*/tests/*/TEST_REPORT.md` | 测试报告，包含验证结果和证据 |
-| `tmp/run_*/tests/*/_artifacts/` | 中间产物（命令输出、日志、截图等） |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/v*/REVIEW.md` | A 轮批判性审查（问题清单 + 改进计划） |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-v*/REVIEW.md` | B 轮代码质量检查报告（9 大维度评估） |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/*/TEST_PLAN.md` | 测试计划，列出本轮验证的修复点 |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/*/TEST_RUN.md` | 测试过程记录（命令、关键输出摘录、关键决策） |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/*/TEST_REPORT.md` | 测试报告，包含验证结果和证据 |
+| `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/*/_artifacts/` | 中间产物（命令输出、日志、截图等） |
 
 ---
 
@@ -199,21 +199,21 @@
 
 ```bash
 # 在目标代码根目录内执行
-RUN_ID=run_20260310153045
+RUN_ID=2026-03-10-15-30
 python3 ~/.codex/skills/auto-test-code/scripts/create_session.py --code-root . --run-id "$RUN_ID" --kind a --id v202602161028
 # 或
-RUN_ID=run_20260310153045
+RUN_ID=2026-03-10-15-30
 python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . --run-id "$RUN_ID" --kind a --id v202602161028
 ```
 
-**作用**：自动创建 `tmp/run_*/tests/` 会话目录骨架（REVIEW/PLAN/RUN/REPORT + _artifacts/_scripts），并写入运行清单 `.auto-test-code-run.json`
+**作用**：自动创建 `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话目录骨架（REVIEW/PLAN/RUN/REPORT + _artifacts/_scripts），并写入运行清单 `.auto-test-code-run.json`
 
 ### 验证测试会话
 
 ```bash
-python3 ~/.codex/skills/auto-test-code/scripts/verify_session.py --require-review tmp/run_20260310153045/tests/v202602161028
+python3 ~/.codex/skills/auto-test-code/scripts/verify_session.py --require-review .bensz-api/skills/auto-test-code/2026-03-10-15-30/output/tests/v202602161028
 # 或
-python3 ~/.claude/skills/auto-test-code/scripts/verify_session.py --require-review tmp/run_20260310153045/tests/v202602161028
+python3 ~/.claude/skills/auto-test-code/scripts/verify_session.py --require-review .bensz-api/skills/auto-test-code/2026-03-10-15-30/output/tests/v202602161028
 ```
 
 **作用**：检查会话完整性（REVIEW/PLAN/RUN/REPORT + 引用一致性）；如需强制检查模板占位符是否全部替换，可加 `--strict`
@@ -257,7 +257,7 @@ A：
 
 ### Q：什么是"独立评估模式"？
 
-A：每轮 A 轮都基于代码的**当前状态**独立分析，不查看历史 `tmp/run_*/` 工作区中的审查文件。好处是让"多轮"带来"多角度"，而非"重复确认"。
+A：每轮 A 轮都基于代码的**当前状态**独立分析，不查看历史 `.bensz-api/skills/auto-test-code/{yyyy-mm-dd-hh-mm}/` 工作区中的审查文件。好处是让"多轮"带来"多角度"，而非"重复确认"。
 
 ### Q：如何理解"批判性思维"？
 

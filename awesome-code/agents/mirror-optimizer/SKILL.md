@@ -84,7 +84,7 @@ NO DEPLOYMENT WITHOUT MIRROR CONFIGURATION FIRST
 3. **配置生成**
    - 为每个识别的包管理器生成标准化配置
    - 创建 `Dockerfile.mirror` 优化版本（如适用）
-   - 生成 `.mirror/` 目录存放所有配置文件
+   - 生成 `.bensz-api/skills/mirror-optimizer/output/` 目录存放所有配置文件
 
 4. **文档输出**
    - 生成 `MIRROR_OPTIMIZATION_REPORT.md` 报告
@@ -98,10 +98,10 @@ NO DEPLOYMENT WITHOUT MIRROR CONFIGURATION FIRST
 
 ## 配置文件结构
 
-> 输出目录以 `config.yaml:mirror_optimization.output_dir` 为准，以下以默认 `.mirror/` 为例。
+> 输出目录以 `config.yaml:mirror_optimization.output_dir` 为准，以下以默认 `.bensz-api/skills/mirror-optimizer/output/` 为例。
 
 ```
-.mirror/
+.bensz-api/skills/mirror-optimizer/output/
 ├── docker/
 │   ├── Dockerfile.mirror        # 优化的 Dockerfile
 ├── python/

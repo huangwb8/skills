@@ -1,20 +1,23 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.9"
+  version: "0.2.10"
   description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 PNG。"
   author: "Bensz Conan"
   category: "image-generation"
 
 workspace:
-  hidden_dir: ".draw-plot"
+  hidden_dir: ".bensz-api/skills/auto-draw-plot"
   announce_absolute_path_before_start: true
-  announcement_message_template: "本次 auto-draw-plot .draw-plot 工作区绝对路径：{workspace_root}"
-  run_prefix: "run-"
-  timestamp_format: "%Y%m%d%H%M%S%f"
+  announcement_message_template: "本次 auto-draw-plot 工作区绝对路径：{workspace_root}"
+  run_prefix: ""
+  timestamp_format: "%Y-%m-%d-%H-%M"
   latest_run_pointer: "latest-run.txt"
   keep_intermediates_inside_hidden_dir: true
   allow_outside_project: false
   subdirs:
+    - "input"
+    - "output"
+    - "log"
     - "requests"
     - "rounds"
     - "meta"
@@ -123,6 +126,7 @@ modes:
         - "不要在图内绘制总标题、图题或 caption；图题交给正文排版。"
       guardrails:
         - "所有中文文字必须水平、清晰、完整落在对应框内，最多 2 行，禁止旋转/倾斜/透视/艺术字。"
+        - "中文标签使用清晰的无衬线常规到半粗体字重，优先深灰或黑色；避免细体、浅灰字、过轻笔画。"
         - "白底，学术蓝/灰为主，低饱和高对比，适合打印/缩印。"
         - "禁止 3D、照片风、背景纹理、水印、Logo。"
       evaluation_criteria:
@@ -143,6 +147,7 @@ modes:
         - "不要在图内绘制总标题、图题或 caption；图题交给正文排版。"
       guardrails:
         - "所有标签必须水平、清晰、像打印稿；禁止文字扭曲、弯曲、透视、拉伸压缩、手写或艺术字。"
+        - "中文标签使用清晰的无衬线常规到半粗体字重，优先深灰或黑色；避免细体、浅灰字、过轻笔画。"
         - "文字放在白色/浅色标签框内，保留内边距，不要压在线条/箭头/背景色块上。"
         - "白底，学术蓝/灰为主，低饱和高对比，适合打印/缩印。"
       evaluation_criteria:

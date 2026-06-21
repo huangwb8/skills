@@ -11,7 +11,7 @@ import typing
 from pathlib import Path
 
 _TEST_ID_RE = re.compile(r"^v\d{12}$")
-_RUN_ID_RE = re.compile(r"^run_\d{14}$")
+_RUN_ID_RE = re.compile(r"^(?:\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?|run_\d{14})$")
 
 _DEFAULT_DIRECTORIES = {
     "tmp": "tmp",
@@ -32,7 +32,7 @@ def _generate_test_id(now: dt.datetime) -> str:
 
 
 def _generate_run_id(now: dt.datetime) -> str:
-    return f"run_{now:%Y%m%d%H%M%S}"
+    return f"{now:%Y-%m-%d-%H-%M}"
 
 
 def _ensure_dir(path: Path) -> None:
@@ -319,7 +319,7 @@ def main() -> int:
     parser.add_argument(
         "--run-id",
         default="",
-        help="Run workspace id like run_YYYYMMDDHHMMSS. Reuse the same id across A/B rounds in one skill execution.",
+        help="Run workspace id like YYYY-MM-DD-HH-MM. Reuse the same id across A/B rounds in one skill execution.",
     )
     parser.add_argument(
         "--create-review",
@@ -362,7 +362,7 @@ def main() -> int:
     if not _RUN_ID_RE.fullmatch(run_id):
         _fail(
             parser,
-            "run id must match run_YYYYMMDDHHMMSS, e.g. run_20260310153045 (omit --run-id to auto-generate).",
+            "run id must match YYYY-MM-DD-HH-MM (legacy run_YYYYMMDDHHMMSS is still accepted).",
         )
 
     # 尝试从代码根目录的 auto-test-code 配置读取，否则使用内置配置

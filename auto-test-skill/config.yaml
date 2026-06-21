@@ -23,7 +23,7 @@ directories:
   # 规划文档目录（相对于 skill 根目录）
   plans: "plans"
   # 测试目录（相对于 skill 根目录）
-  tests: "tests"
+  tests: ".bensz-api/skills/auto-test-skill/output/tests"
 
 # ============================================================================
 # 文档模板配置（脚本会读取）

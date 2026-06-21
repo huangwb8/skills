@@ -24,6 +24,8 @@
 
 ### Changed（变更）
 
+- **.gitignore 中间目录忽略规则**：新增 `.parallel-vibe/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于匹配 `parallel-vibe` 默认中间工作区新目录；保留 `.parallel_vibe/` 兼容旧运行产物
+- **.gitignore 中间目录忽略规则**：新增 `.bensz-api/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于忽略 api-prompt 协作产物目录；技能版本号 `2.3.1 → 2.3.2`
 - **.gitignore 模板补全**：新增 Bensz/Agent Skills 常见中间产物忽略规则，覆盖 `.draw-plot/`、`.parallel_vibe/`、`.paper-know-journal/`、`.compact-bensz-skills/`、`.git-pr-review/`、`.awesome-code/` 等隐藏工作区，以及根级 `/tests/`、`/plans/`、`/reviews/`、`/suggestions/`；同步更新 PyYAML 缺失时的脚本内置兜底规则，并将版本号 `2.3.0 → 2.3.1`
 - **AGENTS.md BAC 默认口径**：生成的 `AGENTS.md` 将 BAC 贡献记录声明为默认强制执行步骤；初始化时必须检查 Python 环境与 `bac` 包，环境未配置好时自动安装并初始化账本。脚本级 `--disable-bac` 逃生开关保留，但模板不再把 BAC 描述为普通可选项
 - **SKILL.md 工作型文档压缩**：使用 `compact-bensz-skills` 精简 `SKILL.md` 正文，并二次轻量压缩表格与合并策略说明；保留触发语义、路径安全、BAC 默认集成、docs 初始化、智能合并和验证清单等硬约束

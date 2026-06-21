@@ -316,7 +316,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an auto-test-code session directory for completeness.")
     parser.add_argument(
         "session_dir",
-        help="Session directory path (e.g. tmp/run_YYYYMMDDHHMMSS/tests/vYYYYMMDDHHMM).",
+        help="Session directory path (e.g. .bensz-api/skills/auto-test-code/YYYY-MM-DD-HH-MM/output/tests/vYYYYMMDDHHMM).",
     )
     parser.add_argument(
         "--code-root",

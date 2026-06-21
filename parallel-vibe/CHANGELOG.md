@@ -11,6 +11,7 @@
 
 ### Changed（变更）
 
+- `parallel-vibe/scripts/parallel_vibe.py`：默认中间工作区目录从 `.parallel_vibe/` 改为 `.parallel-vibe/`；同步更新 `SKILL.md`、README、配置、智能模式协议、工作区隔离文档和下游 `git-pr-review` 路径契约；版本号 `0.4.1 → 0.4.2`
 - `parallel-vibe/SKILL.md` / `parallel-vibe/README.md` / `references/smart-mode-protocol.md` / `docs/工作区隔离机制.md`：将智能模式和代码模式的目录管理收敛为完全一致的 `.parallel_vibe/<project_id>/` 契约；固定目录、`plan.json`、`RESULT.md`、`runner.log` 不再作为切换代码模式的条件，模式差异仅保留为宿主 subagent 独立上下文 vs CLI runner 执行机制
 - `parallel-vibe/config.yaml`：版本号 `0.4.0 → 0.4.1`；同步更新 skill 描述和 `modes.*.description`，明确两种模式共享目录契约
 - `parallel-vibe/SKILL.md`：改造为“智能模式默认、代码模式保留”的双模式路由；默认用宿主原生 subagent 独立分析并汇总，只有脚本 runner、`plan-file`、`resume`、真实退出码或跨 CLI runner 自动化场景才进入代码模式

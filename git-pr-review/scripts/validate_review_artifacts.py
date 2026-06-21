@@ -5,7 +5,6 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,8 +45,9 @@ def fail(message: str) -> int:
 def build_report_regex() -> re.Pattern[str]:
     prefix = re.escape(str(OUTPUT["report_prefix"]))
     ext = re.escape(str(OUTPUT["report_extension"]))
-    timestamp_digits = len(datetime.now().strftime(str(OUTPUT["timestamp_format"])))
-    return re.compile(rf"^{prefix}_[A-Za-z0-9._-]+_pr-\d+_\d{{{timestamp_digits}}}{ext}$")
+    return re.compile(
+        rf"^{prefix}_[A-Za-z0-9._-]+_pr-\d+_\d{{4}}-\d{{2}}-\d{{2}}-\d{{2}}-\d{{2}}(?:-\d{{2}})?{ext}$"
+    )
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:
@@ -121,8 +121,8 @@ def main() -> int:
         return fail("run_dir must be inside workspace_root")
 
     if OUTPUT.get("enforce_hidden_workspace_when_default") and policy.get("default_hidden_workspace"):
-        if not workspace_root.name.startswith("."):
-            return fail("default workspace must be a hidden directory")
+        if ".bensz-api" not in workspace_root.parts and not workspace_root.name.startswith("."):
+            return fail("default workspace must be inside a hidden directory")
 
     for key in REQUIRED_FILE_KEYS:
         value = files[key]

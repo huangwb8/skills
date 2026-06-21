@@ -8,7 +8,7 @@
 
 - 多个独立 agent 审查同一份代码、PR、文档、方案或研究假设
 - 目标是方案探索、风险评估、文档优化、测试边界补充或路线对比
-- 用户要求 `.parallel_vibe/`、`plan.json`、`RESULT.md`、`runner.log` 等固定目录产物，但不要求脚本 runner 或真实退出码
+- 用户要求 `.parallel-vibe/`、`plan.json`、`RESULT.md`、`runner.log` 等固定目录产物，但不要求脚本 runner 或真实退出码
 - 宿主工具明确支持 subagent 或等价独立上下文能力
 
 切到代码模式：
@@ -23,7 +23,7 @@
 智能模式必须和代码模式使用同一套目录管理：
 
 ```text
-.parallel_vibe/<project_id>/
+.parallel-vibe/<project_id>/
   project.json
   @main/
     plan.json
@@ -91,11 +91,11 @@
 
 ## 主 agent 汇总 schema
 
-主 agent 读取各 thread 的 `RESULT.md`，写入 `.parallel_vibe/<project_id>/@main/summary.md`，并在面向用户的最终输出包含：
+主 agent 读取各 thread 的 `RESULT.md`，写入 `.parallel-vibe/<project_id>/@main/summary.md`，并在面向用户的最终输出包含：
 
 ```markdown
 运行模式：智能模式
-project 目录：.parallel_vibe/<project_id>/
+project 目录：.parallel-vibe/<project_id>/
 thread 数与策略：
 
 ## Thread 摘要

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- 同步 `parallel-vibe` 默认工作区目录变更：并行评审产物路径从 `.parallel_vibe/<project_id>/` 改为 `.parallel-vibe/<project_id>/`，更新 `build_parallel_review_plan.py`、`SKILL.md`、README 与集成说明。
+
 ## [0.5.3] - 2026-03-24
 
 ### Changed

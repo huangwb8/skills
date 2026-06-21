@@ -8,6 +8,18 @@ from typing import Any, Dict, Optional
 from common import ensure_dir, expand_path, fatal, load_config, now_tag, write_json, write_text
 
 
+def _allocate_run_dir(hidden_root: Path, base_run_id: str) -> tuple[str, Path]:
+    candidate = hidden_root / base_run_id
+    if not candidate.exists():
+        return base_run_id, candidate
+    for idx in range(2, 100):
+        run_id = f"{base_run_id}-{idx:02d}"
+        candidate = hidden_root / run_id
+        if not candidate.exists():
+            return run_id, candidate
+    fatal(f"无法在 {hidden_root} 下分配唯一工作目录: {base_run_id}")
+
+
 def init_workspace(
     *,
     project_root: Path,
@@ -24,16 +36,17 @@ def init_workspace(
     if workspace_base:
         hidden_root = expand_path(workspace_base, base=project_root)
     else:
-        hidden_root = expand_path(str(workspace_cfg.get("hidden_dir", ".draw-plot")), base=project_root)
+        hidden_root = expand_path(str(workspace_cfg.get("hidden_dir", ".bensz-api/skills/auto-draw-plot")), base=project_root)
 
-    prefix = str(workspace_cfg.get("run_prefix", "run-"))
+    prefix = str(workspace_cfg.get("run_prefix", ""))
     timestamp_fmt = str(workspace_cfg.get("timestamp_format", "%Y%m%d%H%M%S%f"))
     if run_id:
         normalized_run_id = run_id if run_id.startswith(prefix) else f"{prefix}{run_id}"
     else:
         normalized_run_id = f"{prefix}{now_tag(timestamp_fmt)}"
+        normalized_run_id, run_path = _allocate_run_dir(hidden_root, normalized_run_id)
 
-    run_dir = ensure_dir(hidden_root / normalized_run_id)
+    run_dir = ensure_dir(locals().get("run_path", hidden_root / normalized_run_id))
     subdirs = {name: ensure_dir(run_dir / str(name)) for name in (workspace_cfg.get("subdirs") or [])}
     latest_run_pointer = hidden_root / str(workspace_cfg.get("latest_run_pointer", "latest-run.txt"))
     write_text(latest_run_pointer, normalized_run_id + "\n")
