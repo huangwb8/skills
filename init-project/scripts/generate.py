@@ -673,19 +673,22 @@ class ProjectInitGenerator:
         default_config = {
             'common': [
                 '.DS_Store', '.idea/', '.vscode/', '*.log', '*.tmp',
-                '.env', '.env.local', '*.pem', '*.key', 'secrets/',
+                '.env', '.env.local', '*.pem', '*.key', 'secrets/', '.secrets/',
                 '/tests/', '/plans/', '/reviews/', '/suggestions/', '/tmp/run_*/',
                 '.auto-test-code-run.json', '.awesome-code/', '.bensz-api/', '/.bensz-api/',
                 '.bensz-skills/', '.bensz-skills-backup/', '.check-review-alignment/',
-                '.compact-bensz-skills/', '.download-fulltext-pdf/',
+                '.compact-bensz-skills/', '.complete_example/', '.download-fulltext-pdf/',
                 '.draw-plot/', '.dudu-optimize-prompt/', '.explain-figures/',
                 '.explain-results/', '.find-best-skill/', '.git-pr-review/',
-                '.install-bensz-skills/', '.make-research-plan/', '.md-to-word/',
-                '.mirror/', '.nsfc-reviewers/', '.nsfc-roadmap/',
+                '.install-bensz-skills/', '.latex-cache/', '.make-research-plan/',
+                '.make_latex_model/', '.md-to-word/', '.mirror/', '.nsfc-budget/',
+                '.nsfc-code/', '.nsfc-length-aligner/', '.nsfc-qc/', '*.nsfc-qc/',
+                '.nsfc-ref-alignment/', '.nsfc-reviewers/', '.nsfc-roadmap/',
                 '.nsfc-schematic/', '.paper-explain-figures/',
                 '.paper-know-journal/', '.paper-select-journal/',
                 '.paper-write-sci/', '.parallel-vibe/', '.parallel_vibe/',
-                '.write-paper-sci/'
+                '.research-idea/', '.systematic-literature-review/',
+                '.write-paper-sci/', '.write-paper/'
             ],
             'by_type': {}
         }

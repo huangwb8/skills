@@ -80,8 +80,10 @@ metadata:
 ## 模式说明
 
 - `general`：通用绘图模式，适合普通信息图、封面图、概念图和自由描述。
-- `roadmap`：技术路线图模式，吸收 legacy `nsfc-roadmap` 的 PNG-only 约束；强调 3-5 阶段、阶段标题条、主链箭头、风险/备选虚线、A4 打印可读。
-- `schematic`：原理图/机制图模式，吸收 legacy `nsfc-schematic` 的 PNG-only 约束；强调分组大框、圆角节点、机制链/模块关系、主链与辅助箭头分层。
+- `roadmap`：技术路线图模式，吸收 legacy `nsfc-roadmap` 的 PNG-only 约束；强调 3-5 阶段、阶段标题条、主链箭头、风险/备选虚线、A4 打印可读；中文标签默认使用正常字宽，不用窄体/压缩体。
+- `schematic`：原理图/机制图模式，吸收 legacy `nsfc-schematic` 的 PNG-only 约束；强调分组大框、圆角节点、机制链/模块关系、主链与辅助箭头分层；中文标签默认使用正常字宽，不用窄体/压缩体。
+
+`roadmap` / `schematic` 的文字策略：优先把标签自然换成 2-3 行，也不要横向压缩字形；默认使用现代黑体/思源黑体/Noto Sans CJK 风格的正常字宽、常规到半粗体。除非用户明确要求窄体标题或压缩排版，否则禁止窄体、长体、压缩体、condensed/narrow/compressed font、横向压缩和瘦长拉伸字体。
 
 不要把 `roadmap` / `schematic` 回退成 draw.io、SVG/PDF 或 TEX 强绑定流程；这些 legacy 能力只作为 prompt 和评估经验迁移。
 

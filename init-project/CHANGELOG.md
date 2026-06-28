@@ -24,6 +24,7 @@
 
 ### Changed（变更）
 
+- **.gitignore 中间目录忽略规则**：基于 `pipelines/skills/` 与 `ChineseResearchLaTeX/skills/` 的现有 skill 工作区约定，新增 `.systematic-literature-review/`、`.complete_example/`、`.latex-cache/`、`.make_latex_model/`、`.nsfc-budget/`、`.nsfc-code/`、`.nsfc-length-aligner/`、`.nsfc-qc/`、`*.nsfc-qc/`、`.nsfc-ref-alignment/`、`.research-idea/`、`.write-paper/` 与 `.secrets/` 到生成模板和 PyYAML 缺失时的脚本内置兜底规则；`.check-review-alignment/` 已在模板中保留；技能版本号 `2.3.2 → 2.3.3`
 - **.gitignore 中间目录忽略规则**：新增 `.parallel-vibe/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于匹配 `parallel-vibe` 默认中间工作区新目录；保留 `.parallel_vibe/` 兼容旧运行产物
 - **.gitignore 中间目录忽略规则**：新增 `.bensz-api/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于忽略 api-prompt 协作产物目录；技能版本号 `2.3.1 → 2.3.2`
 - **.gitignore 模板补全**：新增 Bensz/Agent Skills 常见中间产物忽略规则，覆盖 `.draw-plot/`、`.parallel_vibe/`、`.paper-know-journal/`、`.compact-bensz-skills/`、`.git-pr-review/`、`.awesome-code/` 等隐藏工作区，以及根级 `/tests/`、`/plans/`、`/reviews/`、`/suggestions/`；同步更新 PyYAML 缺失时的脚本内置兜底规则，并将版本号 `2.3.0 → 2.3.1`

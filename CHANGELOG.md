@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.2] - 2026-06-28
+
+### Changed
+- **auto-draw-plot 版本升级到 `0.2.11`**：收紧 `roadmap` / `schematic` 模式的中文标签正常字宽护栏，默认要求现代黑体/思源黑体/Noto Sans CJK 风格与自然字形比例；明确禁止窄体、长体、压缩体、condensed/narrow/compressed font、横向压缩和瘦长拉伸字体，并鼓励长标签自然换行而非压缩字形；同步更新 `SKILL.md`、README、prompt 指南、配置、脚本负面 prompt 与本地 fallback prompt
+- **init-project 版本升级到 `2.3.3`**：补齐 `.gitignore` 模板与 PyYAML 缺失时脚本内置兜底规则，新增 `.systematic-literature-review/`、`.complete_example/`、`.latex-cache/`、`.make_latex_model/`、`.nsfc-budget/`、`.nsfc-code/`、`.nsfc-length-aligner/`、`.nsfc-qc/`、`*.nsfc-qc/`、`.nsfc-ref-alignment/`、`.research-idea/`、`.write-paper/` 与 `.secrets/` 等中间产物和敏感目录忽略项；`.check-review-alignment/` 继续保留在模板中
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.1` 更新为 `v4.2.2`
+
 ## [4.2.1] - 2026-06-21
 
 ### Changed

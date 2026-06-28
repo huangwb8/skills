@@ -1,7 +1,7 @@
 ## 更新
 
 ```
-根据源代码的实际变化写 ./CHANGELOG.md 。 然后，创建新的tag v4.2.1。 /git-commit, commit信息里要带版本号。 /git-publish-release 。
+根据源代码的实际变化写 ./CHANGELOG.md 。 然后，创建新的tag v4.2.2。 /git-commit, commit信息里要带版本号。 /git-publish-release 。
 ```
 
 # 日常

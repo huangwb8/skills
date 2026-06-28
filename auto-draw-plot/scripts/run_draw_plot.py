@@ -86,9 +86,21 @@ def build_round_prompt(
     if feedback_lines:
         planner_lines.extend(["", "上一轮反馈：", *feedback_lines])
 
+    negative_prompt = ["watermark", "logo", "distorted text", "random extra objects"]
+    if mode.name in {"roadmap", "schematic"}:
+        negative_prompt.extend(
+            [
+                "condensed font",
+                "narrow font",
+                "compressed font",
+                "horizontally squeezed text",
+                "tall skinny Chinese characters",
+            ]
+        )
+
     payload: Dict[str, Any] = {
         "image_prompt": fallback_round_prompt(request_text=request_text, feedback_lines=feedback_lines, mode=mode),
-        "negative_prompt": ["watermark", "logo", "distorted text", "random extra objects"],
+        "negative_prompt": negative_prompt,
         "focus_points": ["忠实满足用户要求", "主体清晰", "结构稳定"],
         "reasoning": "使用本地模板拼装 prompt；脚本默认不调用 Gemini 文本规划，宿主 AI 可在运行前自行优化用户需求。",
     }
@@ -123,6 +135,14 @@ def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode:
         "- Prefer a white or light background unless the user explicitly asked otherwise.",
         "- Make colors intentional and high-contrast.",
     ]
+    if mode.name in {"roadmap", "schematic"}:
+        lines.extend(
+            [
+                "- Use normal-width Chinese label typography, like modern Heiti / Source Han Sans / Noto Sans CJK, with natural character proportions.",
+                "- Prefer wrapping labels into short lines over squeezing or narrowing glyphs to fit boxes.",
+                "- Do not use condensed, narrow, compressed, horizontally squeezed, or tall skinny text for Chinese labels.",
+            ]
+        )
     if feedback_lines:
         lines.extend(
             [
