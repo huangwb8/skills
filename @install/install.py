@@ -52,7 +52,7 @@ DEFAULT_SOURCES = [
     },
 ]
 
-LEGACY_SKILL_NAMES = [
+FALLBACK_LEGACY_SKILL_NAMES = [
     "make_latex_model",
     "transfer_old_latex_to_new",
     "write-paper-sci",
@@ -88,6 +88,7 @@ MESSAGES = {
         "no_requested_skills": "No requested installable skills found in source: {name}",
         "skill_missing": "Requested skill(s) not found in selected sources: {skills}",
         "skill_not_installable": "Requested skill(s) are non-production and were not installed: {skills}",
+        "legacy_config_loaded": "Loaded legacy cleanup list from {path} ({count} names)",
         "removed_legacy": "Removed legacy skill: {path}",
         "skip_legacy_path": "Skipped legacy path that is not a symlink: {path}",
         "removed": "Removed existing skill: {path}",
@@ -116,6 +117,7 @@ MESSAGES = {
         "no_requested_skills": "该源未发现请求的可安装技能: {name}",
         "skill_missing": "请求的技能未在所选源中找到: {skills}",
         "skill_not_installable": "请求的技能不是生产技能，未安装: {skills}",
+        "legacy_config_loaded": "已从 {path} 读取 legacy 清理名单（{count} 个）",
         "removed_legacy": "已移除 legacy 技能: {path}",
         "skip_legacy_path": "跳过非软链接 legacy 路径: {path}",
         "removed": "已删除旧技能: {path}",
@@ -295,6 +297,55 @@ def parse_category(skill_dir: Path) -> str | None:
     return None
 
 
+def parse_legacy_skill_names_from_text(text: str) -> list[str]:
+    lines = text.splitlines()
+    names: list[str] = []
+    seen: set[str] = set()
+    in_legacy_section = False
+
+    for raw_line in lines:
+        line_without_comment = raw_line.split("#", 1)[0].rstrip()
+        stripped = line_without_comment.strip()
+        if not stripped:
+            continue
+
+        if not in_legacy_section:
+            if stripped == "legacy_skill_names:":
+                in_legacy_section = True
+            continue
+
+        if not raw_line.startswith((" ", "\t")) and re.match(r"^[A-Za-z0-9_-]+:", stripped):
+            break
+        if not stripped.startswith("-"):
+            continue
+
+        name = stripped[1:].strip().strip('"').strip("'")
+        if name and name not in seen:
+            names.append(name)
+            seen.add(name)
+
+    return names
+
+
+def parse_legacy_skill_names(config_path: Path) -> list[str]:
+    try:
+        return parse_legacy_skill_names_from_text(config_path.read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
+def load_legacy_skill_names_from_source(skills_root: Path) -> tuple[list[str], Path] | None:
+    candidate_paths = [
+        skills_root / "install-bensz-skills" / "config.yaml",
+        skills_root / "config.yaml",
+    ]
+    for config_path in candidate_paths:
+        names = parse_legacy_skill_names(config_path)
+        if names:
+            return names, config_path
+    return None
+
+
 def skill_type(skill_dir: Path, skills_root: Path) -> str:
     category = parse_category(skill_dir)
     if category in {"auxiliary", "dev", "development"}:
@@ -372,11 +423,51 @@ def github_archive_url(repo_url: str, branch: str) -> str:
     return f"https://github.com/{owner}/{repo}/archive/refs/heads/{branch_ref}.zip"
 
 
+def github_raw_file_url(repo_url: str, branch: str, file_path: str) -> str:
+    parsed = urllib.parse.urlparse(repo_url)
+    parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if parsed.netloc.lower() not in {"github.com", "www.github.com"} or len(parts) < 2:
+        raise ValueError(f"Only GitHub repository URLs are supported: {repo_url}")
+    owner = parts[0]
+    repo = parts[1]
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+    branch_ref = urllib.parse.quote(branch, safe="/")
+    normalized_path = "/".join(part for part in file_path.split("/") if part)
+    return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch_ref}/{normalized_path}"
+
+
 def download_file(url: str, dest: Path) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": "bensz-skills-installer"})
     with urllib.request.urlopen(request, timeout=120) as response:
         with dest.open("wb") as out:
             shutil.copyfileobj(response, out)
+
+
+def download_text(url: str) -> str:
+    request = urllib.request.Request(url, headers={"User-Agent": "bensz-skills-installer"})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return response.read().decode("utf-8")
+
+
+def load_legacy_skill_names_from_remote_config() -> tuple[list[str], str] | None:
+    general_source = next((source for source in DEFAULT_SOURCES if source["id"] == "general"), None)
+    if general_source is None:
+        return None
+
+    try:
+        url = github_raw_file_url(
+            general_source["url"],
+            general_source["branch"],
+            "install-bensz-skills/config.yaml",
+        )
+        names = parse_legacy_skill_names_from_text(download_text(url))
+    except (OSError, UnicodeDecodeError, urllib.error.URLError, ValueError):
+        return None
+
+    if not names:
+        return None
+    return names, url
 
 
 def safe_extract_zip(zip_path: Path, dest_dir: Path) -> Path:
@@ -395,9 +486,13 @@ def safe_extract_zip(zip_path: Path, dest_dir: Path) -> Path:
     return dest_dir
 
 
-def download_source(source: dict[str, str], temp_root: Path, lang: str) -> Path | None:
+def download_source(source: dict[str, str], temp_root: Path, lang: str) -> tuple[Path | None, bool]:
     name = source["name"]
-    url = github_archive_url(source["url"], source["branch"])
+    try:
+        url = github_archive_url(source["url"], source["branch"])
+    except ValueError as exc:
+        print_msg(lang, "download_failed", name=name, error=exc)
+        return None, True
     print_msg(lang, "download", name=name, url=url)
     source_dir = temp_root / source["id"]
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -407,9 +502,9 @@ def download_source(source: dict[str, str], temp_root: Path, lang: str) -> Path 
         repo_root = safe_extract_zip(zip_path, source_dir / "extracted")
     except (OSError, urllib.error.URLError, zipfile.BadZipFile, RuntimeError) as exc:
         print_msg(lang, "download_failed", name=name, error=exc)
-        return None
+        return None, True
     print_msg(lang, "download_done", name=name)
-    return resolve_skills_root(repo_root, source["skills_path"])
+    return resolve_skills_root(repo_root, source["skills_path"]), False
 
 
 def remove_path(path: Path) -> None:
@@ -428,7 +523,14 @@ def remove_existing(dest: Path, lang: str, dry_run: bool, result: InstallResult)
         remove_path(dest)
 
 
-def remove_legacy_skills(target: Target, active_names: set[str], lang: str, dry_run: bool, result: InstallResult) -> None:
+def remove_legacy_skills(
+    target: Target,
+    active_names: set[str],
+    legacy_skill_names: list[str],
+    lang: str,
+    dry_run: bool,
+    result: InstallResult,
+) -> None:
     legacy_link = target.legacy_link
     if legacy_link.exists() or legacy_link.is_symlink():
         if legacy_link.is_symlink():
@@ -439,7 +541,7 @@ def remove_legacy_skills(target: Target, active_names: set[str], lang: str, dry_
         else:
             print_msg(lang, "skip_legacy_path", path=legacy_link)
 
-    for name in LEGACY_SKILL_NAMES:
+    for name in legacy_skill_names:
         if name in active_names:
             continue
         legacy_path = target.root / name
@@ -456,13 +558,14 @@ def install_skills(
     ignored_count: int,
     target: Target,
     source_label: str,
+    legacy_skill_names: list[str],
     force: bool,
     dry_run: bool,
     lang: str,
 ) -> InstallResult:
     result = InstallResult(ignored=ignored_count)
     active_names = {skill.name for skill in skills}
-    remove_legacy_skills(target, active_names, lang, dry_run, result)
+    remove_legacy_skills(target, active_names, legacy_skill_names, lang, dry_run, result)
 
     if not dry_run:
         target.root.mkdir(parents=True, exist_ok=True)
@@ -571,20 +674,43 @@ def main(argv: list[str] | None = None) -> int:
     total_installed = 0
     total_skipped = 0
     total_ignored = 0
+    source_errors = 0
+    legacy_skill_names = list(FALLBACK_LEGACY_SKILL_NAMES)
+    legacy_config_loaded = False
     records: list[dict[str, object]] = []
+
+    remote_legacy_names = load_legacy_skill_names_from_remote_config()
+    if remote_legacy_names is not None:
+        legacy_skill_names, legacy_config_url = remote_legacy_names
+        legacy_config_loaded = True
+        print_msg(
+            lang,
+            "legacy_config_loaded",
+            path=legacy_config_url,
+            count=len(legacy_skill_names),
+        )
 
     with tempfile.TemporaryDirectory(prefix="bensz-skills-install-") as tmp:
         temp_root = Path(tmp)
         for source in sources:
-            try:
-                skills_root = download_source(source, temp_root, lang)
-            except ValueError as exc:
-                print_msg(lang, "download_failed", name=source["name"], error=exc)
-                continue
+            skills_root, download_failed = download_source(source, temp_root, lang)
 
             if skills_root is None:
-                print_msg(lang, "skills_missing", name=source["name"], path=source["skills_path"])
+                source_errors += 1
+                if not download_failed:
+                    print_msg(lang, "skills_missing", name=source["name"], path=source["skills_path"])
                 continue
+
+            loaded_legacy_names = load_legacy_skill_names_from_source(skills_root)
+            if loaded_legacy_names is not None and not legacy_config_loaded:
+                legacy_skill_names, legacy_config_path = loaded_legacy_names
+                legacy_config_loaded = True
+                print_msg(
+                    lang,
+                    "legacy_config_loaded",
+                    path=path_label(legacy_config_path),
+                    count=len(legacy_skill_names),
+                )
 
             skills, ignored, ignored_names = discover_skills(skills_root)
             if selected_skill_names:
@@ -610,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
                     ignored_count=ignored,
                     target=target,
                     source_label=source_label,
+                    legacy_skill_names=legacy_skill_names,
                     force=args.force,
                     dry_run=dry_run,
                     lang=lang,
@@ -635,7 +762,7 @@ def main(argv: list[str] | None = None) -> int:
     print_msg(lang, "cleanup")
     print_msg(lang, "summary", installed=total_installed, skipped=total_skipped, ignored=total_ignored)
 
-    exit_code = 0
+    exit_code = 1 if source_errors else 0
     if selected_skill_names:
         missing_names = [
             name for name in selected_skill_names

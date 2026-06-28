@@ -1,7 +1,11 @@
 ## 更新
 
 ```
-根据源代码的实际变化写 ./CHANGELOG.md 。 然后，创建新的tag v4.2.2。 /git-commit, commit信息里要带版本号。 /git-publish-release 。
+version = 4.2.3
+请你：
+- 根据源代码的实际变化写 ./CHANGELOG.md 、 优化 README 或 优化 @install 里的脚本。
+- 创建新的tag v{version}。 用 git-commit skill 提交commit，commit信息里要带版本号。
+- 用 git-publish-release skill 发布新的release。
 ```
 
 # 日常

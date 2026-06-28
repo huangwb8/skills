@@ -32,7 +32,7 @@ Running the installer with no arguments will:
 - Download remote sources as GitHub zip archives.
 - Install changed production skills into both `~/.codex/skills/` and `~/.claude/skills/`.
 - Skip unchanged skills by MD5.
-- Remove configured legacy skill names.
+- Remove legacy skill names from the authoritative `install-bensz-skills/config.yaml` when reachable, with a small built-in fallback list for bootstrap resilience.
 - Save an install manifest under `~/.bensz-skills/installation/manifests/`.
 - Print installer output in English by default.
 
@@ -42,6 +42,15 @@ Running the installer with no arguments will:
 - Network access to GitHub
 
 No third-party Python package is required.
+
+## Dependency Reachability
+
+The installer is designed for remote bootstrap use, so it does not import
+`install-bensz-skills` Python modules and does not require PyYAML. For mutable
+business rules such as `legacy_skill_names`, it first reads
+`install-bensz-skills/config.yaml` from the `general` source via GitHub raw
+content. If that is not reachable, it falls back to the config file inside a
+downloaded `general` archive, then finally to a minimal built-in fallback list.
 
 ## Options
 

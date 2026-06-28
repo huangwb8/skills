@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.3] - 2026-06-28
+
+### Changed
+- **@install legacy 清单可及性同步**：远程一键安装器优先从 `install-bensz-skills/config.yaml` 读取权威 `legacy_skill_names`，支持通过 GitHub raw 配置获取，下载源内配置作为次级兜底，内置清单仅保留为 bootstrap fallback，避免远程入口复制业务清单后漂移
+
+### Fixed
+- **@install 下载失败退出码修复**：当选定远程源下载失败或无法解析 skills 根目录时，安装器现在返回非零退出码，避免自动化场景误判为安装成功
+
 ## [4.2.2] - 2026-06-28
 
 ### Changed
