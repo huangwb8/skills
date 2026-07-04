@@ -30,6 +30,7 @@ Running the installer with no arguments will:
 
 - Check that Python is new enough for the installer.
 - Download remote sources as GitHub zip archives.
+- Selectively extract the configured `skills_path`, and when `--skill` is used, extract only the requested skill directories where possible.
 - Install changed production skills into both `~/.codex/skills/` and `~/.claude/skills/`.
 - Skip unchanged skills by MD5.
 - Remove legacy skill names from the authoritative `install-bensz-skills/config.yaml` when reachable, with a small built-in fallback list for bootstrap resilience.
@@ -42,6 +43,16 @@ Running the installer with no arguments will:
 - Network access to GitHub
 
 No third-party Python package is required.
+
+## Download Strategy
+
+The installer intentionally keeps the bootstrap path Git-free, so it still
+downloads GitHub zip archives. To keep large repositories cheaper to process,
+it avoids extracting unrelated archive entries:
+
+- `skills_path: "."`: extracts the repository root, or only requested skill directories when `--skill` is set.
+- `skills_path: "skills"` or another subdirectory: extracts that subtree, or `skills_path/<skill-name>` for each requested skill.
+- If a requested skill is absent from a source, the source is treated as having no matching skill instead of forcing a full extraction pass.
 
 ## Dependency Reachability
 

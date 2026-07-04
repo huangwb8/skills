@@ -1,7 +1,7 @@
 ## 更新
 
 ```
-version = 4.2.3
+version = 4.2.4
 请你：
 - 根据源代码的实际变化写 ./CHANGELOG.md 、 优化 README 或 优化 @install 里的脚本。
 - 创建新的tag v{version}。 用 git-commit skill 提交commit，commit信息里要带版本号。

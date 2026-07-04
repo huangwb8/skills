@@ -656,10 +656,114 @@ def _resolve_remote_skills_root(repo_root: Path, skills_path: str | None) -> Pat
     return None
 
 
+def _normalize_git_path(path: str | None) -> str | None:
+    """Return a safe relative Git path, or None when the repo root is needed."""
+    raw_path = (path or "").strip().replace("\\", "/")
+    while raw_path.startswith("./"):
+        raw_path = raw_path[2:]
+    raw_path = raw_path.strip("/")
+
+    if raw_path in {"", "."}:
+        return None
+
+    parts = [part for part in raw_path.split("/") if part]
+    if any(part == ".." for part in parts):
+        return None
+
+    return "/".join(parts)
+
+
+def _build_sparse_checkout_paths(
+    skills_path: str | None,
+    skill_names: list[str] | None = None,
+) -> list[str] | None:
+    """Return sparse checkout paths, narrowed to requested skills when possible."""
+    root_path = _normalize_git_path(skills_path)
+    if not skill_names:
+        return [root_path] if root_path else None
+
+    sparse_paths: list[str] = []
+    for skill_name in skill_names:
+        safe_skill_name = _normalize_git_path(skill_name)
+        if not safe_skill_name or "/" in safe_skill_name:
+            continue
+        sparse_paths.append(
+            f"{root_path}/{safe_skill_name}" if root_path else safe_skill_name
+        )
+
+    if sparse_paths:
+        return sparse_paths
+    return [root_path] if root_path else None
+
+
+def _clone_remote_repo(
+    *,
+    url: str,
+    branch: str,
+    repo_dir: Path,
+    sparse_paths: list[str] | None,
+) -> None:
+    """Clone a remote repository, using sparse checkout when a subdir is enough."""
+    clone_cmd = [
+        "git", "clone",
+        "--depth", "1",
+        "--branch", branch,
+        "--single-branch",
+    ]
+    if sparse_paths:
+        clone_cmd.extend(["--filter=blob:none", "--sparse"])
+    clone_cmd.extend([url, str(repo_dir)])
+
+    subprocess.run(
+        clone_cmd,
+        capture_output=True,
+        check=True,
+        text=True,
+        timeout=300,
+    )
+
+    if sparse_paths:
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "sparse-checkout", "set", *sparse_paths],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=300,
+        )
+
+
+def _clone_remote_repo_with_sparse_fallback(
+    *,
+    url: str,
+    branch: str,
+    repo_dir: Path,
+    sparse_paths: list[str] | None,
+) -> None:
+    """Try sparse checkout first, then fall back to a full shallow clone."""
+    try:
+        _clone_remote_repo(
+            url=url,
+            branch=branch,
+            repo_dir=repo_dir,
+            sparse_paths=sparse_paths,
+        )
+    except subprocess.CalledProcessError:
+        if not sparse_paths:
+            raise
+        shutil.rmtree(repo_dir, ignore_errors=True)
+        _clone_remote_repo(
+            url=url,
+            branch=branch,
+            repo_dir=repo_dir,
+            sparse_paths=None,
+        )
+
+
 def _download_remote_source(
     source_config: dict,
     temp_dir: Path,
     t: get_translator().__class__,
+    skill_names: list[str] | None = None,
 ) -> Path | None:
     """从 GitHub 下载远程技能源到临时目录。
 
@@ -681,22 +785,21 @@ def _download_remote_source(
     # 创建子目录用于克隆
     clone_dir = temp_dir / _sanitize_source_name(name, url)
     clone_dir.mkdir(parents=True, exist_ok=True)
+    repo_root = clone_dir / "repo"
+    sparse_paths = _build_sparse_checkout_paths(skills_path, skill_names)
+    requested_skills_root = repo_root
+    normalized_skills_path = _normalize_git_path(skills_path)
+    if normalized_skills_path:
+        requested_skills_root = repo_root / normalized_skills_path
 
     try:
-        # 使用 git clone --depth 1 浅克隆
-        subprocess.run(
-            [
-                "git", "clone",
-                "--depth", "1",
-                "--branch", branch,
-                "--single-branch",
-                url,
-                str(clone_dir / "repo")
-            ],
-            capture_output=True,
-            check=True,
-            text=True,
-            timeout=300  # 5分钟超时
+        # 如果配置指向仓库子目录，优先只拉取该子目录；如果指定了 --skill，
+        # 进一步只拉取目标 skill 目录，减少远程更新等待时间。
+        _clone_remote_repo_with_sparse_fallback(
+            url=url,
+            branch=branch,
+            repo_dir=repo_root,
+            sparse_paths=sparse_paths,
         )
     except subprocess.TimeoutExpired:
         print(t.remote_download_failed(name=name, error="timeout"))
@@ -708,15 +811,38 @@ def _download_remote_source(
         print(t.remote_download_failed(name=name, error=str(e)))
         return None
 
-    print(t.remote_download_complete(name=name))
-
     # 返回技能目录路径
-    repo_root = clone_dir / "repo"
     skills_dir = _resolve_remote_skills_root(repo_root, skills_path)
+    if skills_dir is None and skill_names:
+        requested_skills_root.mkdir(parents=True, exist_ok=True)
+        skills_dir = requested_skills_root
+    elif skills_dir is None and sparse_paths:
+        # 保留历史回退：若配置路径不存在但仓库根目录本身就是 skills 根目录，
+        # 需要完整浅克隆后才能识别根目录。
+        shutil.rmtree(repo_root, ignore_errors=True)
+        try:
+            _clone_remote_repo_with_sparse_fallback(
+                url=url,
+                branch=branch,
+                repo_dir=repo_root,
+                sparse_paths=None,
+            )
+        except subprocess.TimeoutExpired:
+            print(t.remote_download_failed(name=name, error="timeout"))
+            return None
+        except subprocess.CalledProcessError as e:
+            print(t.remote_download_failed(name=name, error=e.stderr.strip()))
+            return None
+        except Exception as e:
+            print(t.remote_download_failed(name=name, error=str(e)))
+            return None
+        skills_dir = _resolve_remote_skills_root(repo_root, skills_path)
+
     if skills_dir is None:
         print(t.remote_skills_path_missing(name=name, path=skills_path))
         return None
 
+    print(t.remote_download_complete(name=name))
     return skills_dir
 
 
@@ -726,6 +852,7 @@ def _compare_remote_skills(
     target: Target,
     t: get_translator().__class__,
     skill_names: list[str] | None = None,
+    md5_cache: dict[Path, str] | None = None,
 ) -> list[SkillComparison]:
     """对比远程技能与本地已安装技能。
 
@@ -750,7 +877,13 @@ def _compare_remote_skills(
 
     for remote_skill_dir in remote_skill_dirs_by_type.get(SkillType.NORMAL, []):
         skill_name = remote_skill_dir.name
-        remote_md5 = _calculate_skill_md5(remote_skill_dir)
+        remote_path_key = remote_skill_dir.resolve()
+        if md5_cache is not None and remote_path_key in md5_cache:
+            remote_md5 = md5_cache[remote_path_key]
+        else:
+            remote_md5 = _calculate_skill_md5(remote_skill_dir)
+            if md5_cache is not None:
+                md5_cache[remote_path_key] = remote_md5
         local_skill_dir = local_target / skill_name
 
         if local_skill_dir.exists():
@@ -1076,9 +1209,10 @@ def _remote_install_main(
                     continue
 
             # 下载远程源
-            remote_skills_dir = _download_remote_source(source, temp_dir, t)
+            remote_skills_dir = _download_remote_source(source, temp_dir, t, skill_names=skill_filter)
             if remote_skills_dir is None:
                 continue
+            remote_md5_cache: dict[Path, str] = {}
 
             # 对每个目标进行处理
             for target in targets:
@@ -1093,6 +1227,7 @@ def _remote_install_main(
                     target,
                     t,
                     skill_names=skill_filter,
+                    md5_cache=remote_md5_cache,
                 )
                 matched_skill_names.update(comparison.name for comparison in comparisons)
 

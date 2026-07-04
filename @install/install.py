@@ -2,9 +2,10 @@
 """Cross-platform installer for bensz skills.
 
 This script is intentionally self-contained and uses only the Python standard
-library. It downloads skills from GitHub zip archives, installs changed skills
-to user-level Codex and Claude Code directories, and records lightweight
-manifests for traceability.
+library. It downloads skills from GitHub zip archives, selectively extracts the
+configured skills subtree when possible, installs changed skills to user-level
+Codex and Claude Code directories, and records lightweight manifests for
+traceability.
 """
 from __future__ import annotations
 
@@ -80,6 +81,7 @@ MESSAGES = {
         "skills": "Selected skills: {skills}",
         "target": "Installing to {label}: {root}",
         "download": "Downloading {name} from {url}",
+        "extract_selected": "Extracting only selected path(s): {paths}",
         "download_done": "Downloaded {name}",
         "download_failed": "Failed to download {name}: {error}",
         "extract_failed": "Failed to extract {name}: {error}",
@@ -109,6 +111,7 @@ MESSAGES = {
         "skills": "已选择技能: {skills}",
         "target": "正在安装到 {label}: {root}",
         "download": "正在从 {url} 下载 {name}",
+        "extract_selected": "仅解压选定路径: {paths}",
         "download_done": "下载完成: {name}",
         "download_failed": "下载失败: {name}: {error}",
         "extract_failed": "解压失败: {name}: {error}",
@@ -385,6 +388,43 @@ def resolve_skills_root(repo_root: Path, skills_path: str) -> Path | None:
     return None
 
 
+def normalize_archive_path(path: str | None) -> str | None:
+    raw_path = (path or "").strip().replace("\\", "/")
+    while raw_path.startswith("./"):
+        raw_path = raw_path[2:]
+    raw_path = raw_path.strip("/")
+
+    if raw_path in {"", "."}:
+        return None
+
+    parts = [part for part in raw_path.split("/") if part]
+    if any(part == ".." for part in parts):
+        return None
+    return "/".join(parts)
+
+
+def build_archive_include_paths(
+    skills_path: str,
+    skill_names: list[str] | None,
+) -> list[str] | None:
+    root_path = normalize_archive_path(skills_path)
+    if not skill_names:
+        return [root_path] if root_path else None
+
+    include_paths: list[str] = []
+    for skill_name in skill_names:
+        safe_skill_name = normalize_archive_path(skill_name)
+        if not safe_skill_name or "/" in safe_skill_name:
+            continue
+        include_paths.append(
+            f"{root_path}/{safe_skill_name}" if root_path else safe_skill_name
+        )
+
+    if root_path is None:
+        include_paths.append("install-bensz-skills/config.yaml")
+    return include_paths or None
+
+
 def discover_skills(skills_root: Path) -> tuple[list[Skill], int, set[str]]:
     normal: list[Skill] = []
     ignored = 0
@@ -470,15 +510,49 @@ def load_legacy_skill_names_from_remote_config() -> tuple[list[str], str] | None
     return names, url
 
 
-def safe_extract_zip(zip_path: Path, dest_dir: Path) -> Path:
+def archive_member_relative_path(member_name: str) -> Path | None:
+    parts = Path(member_name).parts
+    if len(parts) <= 1:
+        return None
+    return Path(*parts[1:])
+
+
+def should_extract_archive_member(member_name: str, include_paths: list[str] | None) -> bool:
+    if include_paths is None:
+        return True
+
+    rel_path = archive_member_relative_path(member_name)
+    if rel_path is None:
+        return True
+
+    normalized_member = rel_path.as_posix().strip("/")
+    for include_path in include_paths:
+        normalized_include = include_path.strip("/")
+        if (
+            normalized_member == normalized_include
+            or normalized_member.startswith(f"{normalized_include}/")
+        ):
+            return True
+    return False
+
+
+def safe_extract_zip(
+    zip_path: Path,
+    dest_dir: Path,
+    include_paths: list[str] | None = None,
+) -> Path:
     dest_resolved = dest_dir.resolve()
     with zipfile.ZipFile(zip_path) as archive:
         members = archive.infolist()
         for member in members:
+            if not should_extract_archive_member(member.filename, include_paths):
+                continue
             target = (dest_dir / member.filename).resolve()
             if target != dest_resolved and dest_resolved not in target.parents:
                 raise RuntimeError(f"Unsafe zip path: {member.filename}")
-        archive.extractall(dest_dir)
+        for member in members:
+            if should_extract_archive_member(member.filename, include_paths):
+                archive.extract(member, dest_dir)
 
     top_dirs = [child for child in dest_dir.iterdir() if child.is_dir()]
     if len(top_dirs) == 1:
@@ -486,7 +560,12 @@ def safe_extract_zip(zip_path: Path, dest_dir: Path) -> Path:
     return dest_dir
 
 
-def download_source(source: dict[str, str], temp_root: Path, lang: str) -> tuple[Path | None, bool]:
+def download_source(
+    source: dict[str, str],
+    temp_root: Path,
+    lang: str,
+    skill_names: list[str] | None = None,
+) -> tuple[Path | None, bool]:
     name = source["name"]
     try:
         url = github_archive_url(source["url"], source["branch"])
@@ -497,14 +576,23 @@ def download_source(source: dict[str, str], temp_root: Path, lang: str) -> tuple
     source_dir = temp_root / source["id"]
     source_dir.mkdir(parents=True, exist_ok=True)
     zip_path = source_dir / "source.zip"
+    include_paths = build_archive_include_paths(source["skills_path"], skill_names)
     try:
         download_file(url, zip_path)
-        repo_root = safe_extract_zip(zip_path, source_dir / "extracted")
+        if include_paths:
+            print_msg(lang, "extract_selected", paths=", ".join(include_paths))
+        repo_root = safe_extract_zip(zip_path, source_dir / "extracted", include_paths)
     except (OSError, urllib.error.URLError, zipfile.BadZipFile, RuntimeError) as exc:
         print_msg(lang, "download_failed", name=name, error=exc)
         return None, True
     print_msg(lang, "download_done", name=name)
-    return resolve_skills_root(repo_root, source["skills_path"]), False
+    skills_root = resolve_skills_root(repo_root, source["skills_path"])
+    if skills_root is None and skill_names:
+        normalized_skills_path = normalize_archive_path(source["skills_path"])
+        requested_root = repo_root if normalized_skills_path is None else repo_root / normalized_skills_path
+        requested_root.mkdir(parents=True, exist_ok=True)
+        skills_root = requested_root
+    return skills_root, False
 
 
 def remove_path(path: Path) -> None:
@@ -693,7 +781,12 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory(prefix="bensz-skills-install-") as tmp:
         temp_root = Path(tmp)
         for source in sources:
-            skills_root, download_failed = download_source(source, temp_root, lang)
+            skills_root, download_failed = download_source(
+                source,
+                temp_root,
+                lang,
+                selected_skill_names,
+            )
 
             if skills_root is None:
                 source_errors += 1

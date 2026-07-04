@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.4] - 2026-07-04
+
+### Changed
+- **install-bensz-skills 版本升级到 `0.5.7`**：远程安装在 `skills_path` 指向仓库子目录时优先使用 Git sparse checkout，只拉取目标 skills 子树；指定 `--skill` 时进一步收窄到目标 skill 目录，减少大仓库远程更新时的等待和无关内容下载。
+- **远程安装对比性能优化**：同一远程源安装到 Codex 与 Claude Code 时复用远程 skill MD5 计算结果，避免重复哈希；当指定单个 skill 且某个源缺失该 skill 时，不再为了确认缺失而完整下载该源。
+- **@install 标准库安装器同步优化**：保持无 Git、无第三方依赖的 bootstrap 入口，同时按 `skills_path` 和 `--skill` 选择性解压 GitHub zip archive，降低大仓库安装时的解压与扫描成本。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.3` 更新为 `v4.2.4`。
+
 ## [4.2.3] - 2026-06-28
 
 ### Changed

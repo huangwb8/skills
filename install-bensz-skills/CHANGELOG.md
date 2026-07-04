@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- `config.yaml` 版本号更新至 0.5.7，并优化远程源下载策略：当 `skills_path` 指向仓库子目录（如 `ChineseResearchLaTeX/skills`）时，优先使用 Git sparse checkout 只拉取目标 skill 子目录；指定 `--skill` 时进一步只拉取 `skills_path/<skill-name>`，且某个源中缺失目标 skill 时不再完整下载该源。对同一远程源安装到 Codex/Claude 的流程复用远程 MD5 计算，减少重复本地哈希；sparse 下载超时时直接失败，不再触发第二轮更慢的完整克隆等待。同步更新 `SKILL.md`、README 与测试，避免大仓库远程更新无谓下载非 skill 内容。
 - `config.yaml` 版本号更新至 0.5.5，并将已弃用的 `nsfc-roadmap`、`nsfc-schematic` 加入 `legacy_skill_names`。安装或单独运行 legacy 清理时会自动移除系统级残留目录，避免弃用 skill 继续干扰触发。
 - `config.yaml` 版本号更新至 0.5.4，并将研究类 skill 重命名旧目录加入 `legacy_skill_names`：`get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`。安装新版本 research 系列 skills 时会自动清理这些系统级旧目录，避免旧名继续干扰触发。
 

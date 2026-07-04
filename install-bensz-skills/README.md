@@ -39,6 +39,8 @@
 | 先看远程安装会发生什么 | `--remote --check` | 下载后先对比，再确认安装 |
 | 自动远程安装 | `--remote --auto` | 无交互确认，适合明确要直接更新的场景 |
 | 只安装某个远程源 | `--remote --check --general` | `--general`、`--research`、`--anthropic-docs` 来自 `config.yaml` |
+| 加速大仓库远程源 | 配置 `skills_path` 为目标子目录 | 安装器会优先用 Git sparse checkout 只下载目标 skill 子目录 |
+| 远程只更新某个 skill | `--remote --check --research --skill nsfc-bib-manager` | 只 sparse 拉取目标 skill 目录，避免下载整个远程 skills 集合 |
 
 ## 使用示例
 
@@ -110,6 +112,7 @@
 - 平台级版本 manifest：`.skill-manifest.codex.json` 或 `.skill-manifest.claude.json`。
 - 安装历史记录：`~/.bensz-skills/installation/manifests/`。
 - 远程安装临时目录：`~/.bensz-skills/installation/tmp-remote-install`，运行结束后会清理。
+- 远程源下载策略：`skills_path` 为 `.` 时浅克隆仓库根；`skills_path` 为子目录时优先 sparse checkout 该子目录；指定 `--skill` 时只 sparse checkout 目标 skill 目录。非 `--skill` 场景遇到 sparse/path 回退问题时才完整浅克隆。
 
 ## 参数速查
 
