@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.5] - 2026-07-04
+
+### Changed
+- **install-bensz-skills 版本升级到 `0.5.8`**：新增远程仓库持久缓存——远程源 repo 缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过 `git fetch --depth 1 --no-tags` 增量更新，避免每次从零 clone；clone/fetch 均禁用 tag 拉取，缓存损坏或 Git 更新失败时自动删除并重建。同步更新 `SKILL.md`、README 与测试，进一步缩短重复远程更新等待时间。
+- **@install 远程一键安装器缓存对齐评估**：经核查，v0.5.8 的持久缓存是 Git clone/fetch 专属优化；`@install` 基于 GitHub zip archive 单次下载、无 Git 依赖，天然不涉及该流程。强制对齐需引入 HTTP 条件请求（ETag/Last-Modified）或 commit-sha 失效判断，违背其「仅标准库、轻量 bootstrap」设计哲学，故按 AGENTS.md「远程拉取特有逻辑允许不同」条款保持现状。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.4` 更新为 `v4.2.5`。
+
 ## [4.2.4] - 2026-07-04
 
 ### Changed

@@ -613,6 +613,13 @@ def _cleanup_temp_dir(temp_dir: Path) -> None:
         shutil.rmtree(temp_dir)
 
 
+def _get_remote_cache_root() -> Path:
+    """Return persistent cache root for remote source repositories."""
+    cache_root = _get_installation_root() / "cache" / "remote-sources"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    return cache_root
+
+
 def _sanitize_source_name(name: str, url: str) -> str:
     """生成安全且稳定的临时目录名。"""
     sanitized = name.strip()
@@ -625,6 +632,13 @@ def _sanitize_source_name(name: str, url: str) -> str:
         sanitized = "source"
     suffix = hashlib.md5(url.encode("utf-8")).hexdigest()[:8] if url else "local"
     return f"{sanitized}-{suffix}"
+
+
+def _get_remote_repo_cache_dir(name: str, url: str, branch: str) -> Path:
+    """Return stable cache directory for a remote source and branch."""
+    cache_key = hashlib.md5(f"{url}@{branch}".encode("utf-8")).hexdigest()[:12]
+    safe_name = _sanitize_source_name(name, url).rsplit("-", 1)[0]
+    return _get_remote_cache_root() / f"{safe_name}-{cache_key}"
 
 
 def _format_remote_source_label(source_config: dict) -> str:
@@ -707,6 +721,7 @@ def _clone_remote_repo(
     clone_cmd = [
         "git", "clone",
         "--depth", "1",
+        "--no-tags",
         "--branch", branch,
         "--single-branch",
     ]
@@ -759,6 +774,73 @@ def _clone_remote_repo_with_sparse_fallback(
         )
 
 
+def _update_cached_remote_repo(
+    *,
+    url: str,
+    branch: str,
+    repo_dir: Path,
+    sparse_paths: list[str] | None,
+) -> None:
+    """Create or update a cached remote repository using shallow fetch."""
+    if not (repo_dir / ".git").is_dir():
+        if repo_dir.exists():
+            shutil.rmtree(repo_dir)
+        _clone_remote_repo_with_sparse_fallback(
+            url=url,
+            branch=branch,
+            repo_dir=repo_dir,
+            sparse_paths=sparse_paths,
+        )
+        return
+
+    try:
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "remote", "set-url", "origin", url],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=60,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "fetch", "--depth", "1", "--no-tags", "origin", branch],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=300,
+        )
+        if sparse_paths:
+            subprocess.run(
+                ["git", "-C", str(repo_dir), "sparse-checkout", "set", *sparse_paths],
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=300,
+            )
+        else:
+            subprocess.run(
+                ["git", "-C", str(repo_dir), "sparse-checkout", "disable"],
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=300,
+            )
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "checkout", "--force", "FETCH_HEAD"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=300,
+        )
+    except subprocess.CalledProcessError:
+        shutil.rmtree(repo_dir, ignore_errors=True)
+        _clone_remote_repo_with_sparse_fallback(
+            url=url,
+            branch=branch,
+            repo_dir=repo_dir,
+            sparse_paths=sparse_paths,
+        )
+
+
 def _download_remote_source(
     source_config: dict,
     temp_dir: Path,
@@ -782,10 +864,8 @@ def _download_remote_source(
 
     print(t.remote_download_progress(name=name, url=url))
 
-    # 创建子目录用于克隆
-    clone_dir = temp_dir / _sanitize_source_name(name, url)
-    clone_dir.mkdir(parents=True, exist_ok=True)
-    repo_root = clone_dir / "repo"
+    # 持久缓存远程仓库；重复远程更新时用浅 fetch 代替从零 clone。
+    repo_root = _get_remote_repo_cache_dir(name, url, branch)
     sparse_paths = _build_sparse_checkout_paths(skills_path, skill_names)
     requested_skills_root = repo_root
     normalized_skills_path = _normalize_git_path(skills_path)
@@ -795,7 +875,7 @@ def _download_remote_source(
     try:
         # 如果配置指向仓库子目录，优先只拉取该子目录；如果指定了 --skill，
         # 进一步只拉取目标 skill 目录，减少远程更新等待时间。
-        _clone_remote_repo_with_sparse_fallback(
+        _update_cached_remote_repo(
             url=url,
             branch=branch,
             repo_dir=repo_root,
@@ -819,9 +899,8 @@ def _download_remote_source(
     elif skills_dir is None and sparse_paths:
         # 保留历史回退：若配置路径不存在但仓库根目录本身就是 skills 根目录，
         # 需要完整浅克隆后才能识别根目录。
-        shutil.rmtree(repo_root, ignore_errors=True)
         try:
-            _clone_remote_repo_with_sparse_fallback(
+            _update_cached_remote_repo(
                 url=url,
                 branch=branch,
                 repo_dir=repo_root,

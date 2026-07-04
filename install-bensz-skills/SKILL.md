@@ -118,7 +118,7 @@ python3 "$INSTALLER" --remote --check --codex
 流程：
 1. 创建临时目录 `~/.bensz-skills/installation/tmp-remote-install`
 2. 询问是否安装每个远程源（根据配置文件）
-3. 下载远程技能到临时目录；当远程源配置了非根目录 `skills_path` 时，优先使用 Git sparse checkout 只拉取目标子目录；若同时指定 `--skill`，进一步只拉取 `skills_path/<skill-name>` 目录；失败时回退到完整浅克隆
+3. 下载远程技能到本地缓存并更新工作树；重复运行时优先复用 `~/.bensz-skills/installation/cache/remote-sources/` 中的缓存 repo，通过浅 fetch 增量更新。当远程源配置了非根目录 `skills_path` 时，优先使用 Git sparse checkout 只拉取目标子目录；若同时指定 `--skill`，进一步只拉取 `skills_path/<skill-name>` 目录；Git sparse 不可用时回退到完整浅克隆
 4. 与本地已安装技能对比，生成更新报告
 5. 询问是否确认安装/更新
 6. 执行安装/更新
@@ -139,7 +139,7 @@ python3 "$INSTALLER" --remote --check --general --skill git-commit
 
 流程：
 1. 创建临时目录
-2. 直接下载所有远程技能（无确认）；非根目录 `skills_path` 优先只拉取目标子目录，指定 `--skill` 时只拉取目标 skill 目录
+2. 直接更新远程技能缓存（无确认）；非根目录 `skills_path` 优先只拉取目标子目录，指定 `--skill` 时只拉取目标 skill 目录
 3. 强制安装/更新（无对比，无确认）
 4. 清理临时目录
 
@@ -302,7 +302,7 @@ legacy_skill_names:
 - `skills_path`：技能目录相对于仓库根目录的路径
 
 如果远程仓库的根目录本身就是 skills 根目录，`skills_path` 应写为 `.`。
-如果 `skills_path` 指向子目录（如 `skills`），安装器会优先用 Git sparse checkout 只下载该子目录，避免把仓库中与 skill 无关的大文件一并拉取。指定 `--skill` 时，下载范围会进一步收窄到 `skills_path/<skill-name>`；如果某个源中没有该 skill，不再为了确认缺失而完整下载该源。当 sparse checkout 不可用或非 `--skill` 场景需要路径回退识别时，才回退到完整浅克隆。
+如果 `skills_path` 指向子目录（如 `skills`），安装器会优先用 Git sparse checkout 只下载该子目录，避免把仓库中与 skill 无关的大文件一并拉取。指定 `--skill` 时，下载范围会进一步收窄到 `skills_path/<skill-name>`；如果某个源中没有该 skill，不再为了确认缺失而完整下载该源。远程 repo 会缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，后续运行用 `git fetch --depth 1` 增量更新；缓存损坏时自动删除并重建。当 sparse checkout 不可用或非 `--skill` 场景需要路径回退识别时，才回退到完整浅克隆。
 - `description`：源描述（用于提示用户）
 - `recommended`：是否推荐安装（影响默认提示行为）
 - `legacy_skill_names`：需要从系统级目录主动清理的旧 skill 名称列表
@@ -322,5 +322,5 @@ legacy_skill_names:
 - **如何添加新的远程源**：编辑 `config.yaml`，在 `remote_sources` 数组中添加新的源配置。
 - **远程安装失败**：检查网络连接和 Git 是否安装。某些网络环境可能需要配置代理。
 - **临时目录未清理**：手动删除 `~/.bensz-skills/installation/tmp-remote-install` 目录。
-- **安装记录与临时目录在哪里**：统一保存在 `~/.bensz-skills/installation/` 下；其中 manifest 在 `~/.bensz-skills/installation/manifests/`，远程安装临时目录在 `~/.bensz-skills/installation/tmp-remote-install`。
+- **安装记录、缓存与临时目录在哪里**：统一保存在 `~/.bensz-skills/installation/` 下；其中 manifest 在 `~/.bensz-skills/installation/manifests/`，远程仓库缓存位于 `~/.bensz-skills/installation/cache/remote-sources/`，远程安装临时目录在 `~/.bensz-skills/installation/tmp-remote-install`。
 - **远程技能与本地冲突**：远程安装会覆盖本地同名技能，建议先备份或使用 `--check` 模式预览变更。
