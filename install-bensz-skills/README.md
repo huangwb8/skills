@@ -113,7 +113,7 @@
 - 平台级版本 manifest：`.skill-manifest.codex.json` 或 `.skill-manifest.claude.json`。
 - 安装历史记录：`~/.bensz-skills/installation/manifests/`。
 - 远程安装临时目录：`~/.bensz-skills/installation/tmp-remote-install`，运行结束后会清理。
-- 远程仓库缓存：`~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过浅 fetch 增量更新；缓存损坏会自动重建。
+- 远程仓库缓存：`~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过浅 fetch 增量更新；缓存损坏、GitHub reset 或 sparse 超时会自动重试，已有可用缓存时会复用 last-known-good 缓存完成本轮安装。
 - 远程源下载策略：`skills_path` 为 `.` 时浅克隆/浅 fetch 仓库根；`skills_path` 为子目录时优先 sparse checkout 该子目录；指定 `--skill` 时只 sparse checkout 目标 skill 目录。非 `--skill` 场景遇到 sparse/path 回退问题时才完整浅克隆。
 
 ## 参数速查
@@ -283,6 +283,10 @@ python3 /path/to/pipelines/skills/install-bensz-skills/scripts/install.py --sour
 ### Q：`--check` 和 `--auto` 有什么区别？
 
 A：`--check` 会先下载、对比并询问你是否安装；`--auto` 会自动安装/更新，不再逐步确认。
+
+### Q：远程更新总是在某个 GitHub 源失败怎么办？
+
+A：安装器会自动重试 GitHub 传输错误；若已有可用缓存，会先用缓存完成本轮安装，避免一次 GitHub reset 触发完整重下。若某个源仍持续失败，可以先用源过滤参数只更新其它源，例如 `--remote --check --general`；也可以删除 `~/.bensz-skills/installation/cache/remote-sources/` 后重试。网络链路本身不稳定时，仍建议配置 Git 代理。
 
 ### Q：`--dry-run` 有什么意义？
 

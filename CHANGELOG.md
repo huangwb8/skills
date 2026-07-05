@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.2.6] - 2026-07-05
+
+### Changed
+- **install-bensz-skills 版本升级到 `0.5.10`**：远程 Git 源更新链路新增传输重试、Git HTTP low-speed 失败阈值、sparse checkout 失败兜底和 last-known-good 缓存复用；当远程更新失败或只能复用旧缓存时返回非零退出码，避免自动化场景误判为最新安装成功。同步更新 `SKILL.md`、README、i18n 文案与测试口径。
+- **@install 标准库安装器下载稳定性优化**：GitHub zip archive 与 raw config 下载新增重试，并通过临时 `.part` 文件落盘，避免中断下载留下半成品 zip；保持无 Git、无第三方依赖的远程 bootstrap 设计。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.5` 更新为 `v4.2.6`。
+
 ## [4.2.5] - 2026-07-04
 
 ### Changed

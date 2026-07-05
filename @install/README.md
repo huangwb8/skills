@@ -29,7 +29,7 @@ python install.py
 Running the installer with no arguments will:
 
 - Check that Python is new enough for the installer.
-- Download remote sources as GitHub zip archives.
+- Download remote sources as GitHub zip archives, with retry handling for transient GitHub/network failures.
 - Selectively extract the configured `skills_path`, and when `--skill` is used, extract only the requested skill directories where possible.
 - Install changed production skills into both `~/.codex/skills/` and `~/.claude/skills/`.
 - Skip unchanged skills by MD5.
@@ -53,6 +53,7 @@ it avoids extracting unrelated archive entries:
 - `skills_path: "."`: extracts the repository root, or only requested skill directories when `--skill` is set.
 - `skills_path: "skills"` or another subdirectory: extracts that subtree, or `skills_path/<skill-name>` for each requested skill.
 - If a requested skill is absent from a source, the source is treated as having no matching skill instead of forcing a full extraction pass.
+- Zip and raw config downloads are retried before failing, and archives are written through a temporary `.part` file so interrupted downloads do not leave a half-written zip as the final source.
 
 ## Dependency Reachability
 

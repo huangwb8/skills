@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Changed
+- `config.yaml` 版本号更新至 0.5.10，并增强默认 research 源远程更新的缓存兜底与失败状态传播：当浅 fetch / sparse checkout 因 GitHub reset、low-speed 或 ref listing 错误失败时，若本地远程缓存仍包含可安装 skills，安装器会复用 last-known-good 缓存继续完成本轮对比/安装，不再立即删除缓存并触发更慢的完整重克隆；下载失败或复用旧缓存会以非零退出码结束，避免远程更新假成功。同步更新 `SKILL.md`、README、i18n 文案与测试。
+- `config.yaml` 版本号更新至 0.5.9，并增强远程 GitHub 下载链路稳定性：clone/fetch/sparse checkout 统一通过带重试的 Git 命令包装执行，遇到 `Recv failure: Connection reset by peer`、timeout 等临时传输失败会自动重试；Git HTTP low-speed 卡死会提前失败并进入重试；sparse checkout 持续失败时会清理半成品缓存并回退到完整浅克隆。同步更新 `SKILL.md`、README 与测试。
 - `config.yaml` 版本号更新至 0.5.8，并新增远程仓库持久缓存：远程源 repo 缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过 `git fetch --depth 1 --no-tags` 增量更新，避免每次从零 clone；clone/fetch 均禁用 tag 拉取，缓存损坏或 Git 更新失败时自动删除并重建。同步更新 `SKILL.md`、README 与测试，进一步缩短重复远程更新等待时间。
 - `config.yaml` 版本号更新至 0.5.7，并优化远程源下载策略：当 `skills_path` 指向仓库子目录（如 `ChineseResearchLaTeX/skills`）时，优先使用 Git sparse checkout 只拉取目标 skill 子目录；指定 `--skill` 时进一步只拉取 `skills_path/<skill-name>`，且某个源中缺失目标 skill 时不再完整下载该源。对同一远程源安装到 Codex/Claude 的流程复用远程 MD5 计算，减少重复本地哈希；sparse 下载超时时直接失败，不再触发第二轮更慢的完整克隆等待。同步更新 `SKILL.md`、README 与测试，避免大仓库远程更新无谓下载非 skill 内容。
 - `config.yaml` 版本号更新至 0.5.5，并将已弃用的 `nsfc-roadmap`、`nsfc-schematic` 加入 `legacy_skill_names`。安装或单独运行 legacy 清理时会自动移除系统级残留目录，避免弃用 skill 继续干扰触发。

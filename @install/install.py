@@ -28,6 +28,8 @@ from pathlib import Path
 
 MIN_PYTHON = (3, 8)
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
+DOWNLOAD_RETRIES = 3
+DOWNLOAD_RETRY_DELAY_SECONDS = 2
 
 DEFAULT_SOURCES = [
     {
@@ -477,17 +479,56 @@ def github_raw_file_url(repo_url: str, branch: str, file_path: str) -> str:
     return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch_ref}/{normalized_path}"
 
 
-def download_file(url: str, dest: Path) -> None:
+def summarize_download_error(exc: BaseException) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"HTTP {exc.code}: {exc.reason}"
+    if isinstance(exc, urllib.error.URLError):
+        return str(exc.reason)
+    return str(exc)
+
+
+def download_bytes(url: str, timeout: int) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "bensz-skills-installer"})
-    with urllib.request.urlopen(request, timeout=120) as response:
-        with dest.open("wb") as out:
-            shutil.copyfileobj(response, out)
+    last_error: BaseException | None = None
+    for attempt in range(1, DOWNLOAD_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except (OSError, urllib.error.URLError) as exc:
+            last_error = exc
+            if attempt >= DOWNLOAD_RETRIES:
+                break
+            time.sleep(DOWNLOAD_RETRY_DELAY_SECONDS * attempt)
+
+    assert last_error is not None
+    raise RuntimeError(summarize_download_error(last_error)) from last_error
+
+
+def download_file(url: str, dest: Path) -> None:
+    temp_dest = dest.with_name(f"{dest.name}.part")
+    request = urllib.request.Request(url, headers={"User-Agent": "bensz-skills-installer"})
+    last_error: BaseException | None = None
+    for attempt in range(1, DOWNLOAD_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                with temp_dest.open("wb") as out:
+                    shutil.copyfileobj(response, out)
+            temp_dest.replace(dest)
+            return
+        except (OSError, urllib.error.URLError) as exc:
+            last_error = exc
+            if temp_dest.exists():
+                temp_dest.unlink()
+            if attempt >= DOWNLOAD_RETRIES:
+                break
+            time.sleep(DOWNLOAD_RETRY_DELAY_SECONDS * attempt)
+
+    assert last_error is not None
+    raise RuntimeError(summarize_download_error(last_error)) from last_error
 
 
 def download_text(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": "bensz-skills-installer"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read().decode("utf-8")
+    return download_bytes(url, timeout=30).decode("utf-8")
 
 
 def load_legacy_skill_names_from_remote_config() -> tuple[list[str], str] | None:
@@ -502,7 +543,7 @@ def load_legacy_skill_names_from_remote_config() -> tuple[list[str], str] | None
             "install-bensz-skills/config.yaml",
         )
         names = parse_legacy_skill_names_from_text(download_text(url))
-    except (OSError, UnicodeDecodeError, urllib.error.URLError, ValueError):
+    except (OSError, RuntimeError, UnicodeDecodeError, urllib.error.URLError, ValueError):
         return None
 
     if not names:

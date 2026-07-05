@@ -72,6 +72,15 @@ class SkillComparison:
     local_path: Path | None
 
 
+@dataclass
+class RemoteDownloadResult:
+    """Result of preparing a remote skills source."""
+    skills_dir: Path | None
+    stale_cache_used: bool = False
+    failed: bool = False
+    error: str = ""
+
+
 def _now_stamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
 
@@ -710,6 +719,104 @@ def _build_sparse_checkout_paths(
     return [root_path] if root_path else None
 
 
+def _path_or_nearby_contains_skills(path: Path) -> bool:
+    """Return True when path, a direct child, or a parent is a usable skills root."""
+    candidates = [path, path.parent]
+    if path.is_dir():
+        try:
+            candidates.extend(child for child in path.iterdir() if child.is_dir())
+        except OSError:
+            pass
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+
+        if (candidate / "SKILL.md").is_file() or _looks_like_skills_root(candidate):
+            return True
+
+    return False
+
+
+def _cached_repo_has_usable_content(repo_dir: Path, sparse_paths: list[str] | None) -> bool:
+    """Return True if an existing cache can still satisfy a remote install run."""
+    if not (repo_dir / ".git").is_dir():
+        return False
+
+    if not sparse_paths:
+        return _path_or_nearby_contains_skills(repo_dir)
+
+    return any(_path_or_nearby_contains_skills(repo_dir / path) for path in sparse_paths)
+
+
+REMOTE_GIT_RETRIES = 3
+REMOTE_GIT_RETRY_DELAY_SECONDS = 2
+REMOTE_GIT_LOW_SPEED_LIMIT = "1024"
+REMOTE_GIT_LOW_SPEED_TIME = "30"
+
+
+def _git_env() -> dict[str, str]:
+    """Return a Git environment tuned for non-interactive remote updates."""
+    env = os.environ.copy()
+    env.setdefault("GIT_TERMINAL_PROMPT", "0")
+    env.setdefault("GIT_HTTP_LOW_SPEED_LIMIT", REMOTE_GIT_LOW_SPEED_LIMIT)
+    env.setdefault("GIT_HTTP_LOW_SPEED_TIME", REMOTE_GIT_LOW_SPEED_TIME)
+    return env
+
+
+def _summarize_git_error(exc: BaseException) -> str:
+    """Return a compact error string for retry/failure messages."""
+    if isinstance(exc, subprocess.TimeoutExpired):
+        cmd = " ".join(str(part) for part in exc.cmd)
+        return f"timeout after {exc.timeout}s: {cmd}"
+
+    if isinstance(exc, subprocess.CalledProcessError):
+        stderr = (exc.stderr or "").strip()
+        stdout = (exc.stdout or "").strip()
+        detail = stderr or stdout or f"exit code {exc.returncode}"
+        return detail.splitlines()[-1] if detail else f"exit code {exc.returncode}"
+
+    return str(exc)
+
+
+def _run_git_command(
+    cmd: list[str],
+    *,
+    timeout: int,
+    retries: int = REMOTE_GIT_RETRIES,
+) -> subprocess.CompletedProcess[str]:
+    """Run a Git command with retries for transient network failures."""
+    last_error: BaseException | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=timeout,
+                env=_git_env(),
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            last_error = exc
+            if attempt >= retries:
+                break
+            print(
+                f"Git command failed ({attempt}/{retries}), retrying: "
+                f"{_summarize_git_error(exc)}"
+            )
+            time.sleep(REMOTE_GIT_RETRY_DELAY_SECONDS * attempt)
+
+    assert last_error is not None
+    raise last_error
+
+
 def _clone_remote_repo(
     *,
     url: str,
@@ -729,20 +836,14 @@ def _clone_remote_repo(
         clone_cmd.extend(["--filter=blob:none", "--sparse"])
     clone_cmd.extend([url, str(repo_dir)])
 
-    subprocess.run(
+    _run_git_command(
         clone_cmd,
-        capture_output=True,
-        check=True,
-        text=True,
         timeout=300,
     )
 
     if sparse_paths:
-        subprocess.run(
+        _run_git_command(
             ["git", "-C", str(repo_dir), "sparse-checkout", "set", *sparse_paths],
-            capture_output=True,
-            check=True,
-            text=True,
             timeout=300,
         )
 
@@ -762,7 +863,7 @@ def _clone_remote_repo_with_sparse_fallback(
             repo_dir=repo_dir,
             sparse_paths=sparse_paths,
         )
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         if not sparse_paths:
             raise
         shutil.rmtree(repo_dir, ignore_errors=True)
@@ -780,8 +881,12 @@ def _update_cached_remote_repo(
     branch: str,
     repo_dir: Path,
     sparse_paths: list[str] | None,
-) -> None:
-    """Create or update a cached remote repository using shallow fetch."""
+) -> bool:
+    """Create or update a cached remote repository.
+
+    Returns True when an existing cache had to be reused because GitHub update
+    failed. The caller can then surface the run as degraded instead of fresh.
+    """
     if not (repo_dir / ".git").is_dir():
         if repo_dir.exists():
             shutil.rmtree(repo_dir)
@@ -791,47 +896,39 @@ def _update_cached_remote_repo(
             repo_dir=repo_dir,
             sparse_paths=sparse_paths,
         )
-        return
+        return False
 
     try:
-        subprocess.run(
+        _run_git_command(
             ["git", "-C", str(repo_dir), "remote", "set-url", "origin", url],
-            capture_output=True,
-            check=True,
-            text=True,
             timeout=60,
+            retries=1,
         )
-        subprocess.run(
+        _run_git_command(
             ["git", "-C", str(repo_dir), "fetch", "--depth", "1", "--no-tags", "origin", branch],
-            capture_output=True,
-            check=True,
-            text=True,
             timeout=300,
         )
         if sparse_paths:
-            subprocess.run(
+            _run_git_command(
                 ["git", "-C", str(repo_dir), "sparse-checkout", "set", *sparse_paths],
-                capture_output=True,
-                check=True,
-                text=True,
                 timeout=300,
             )
         else:
-            subprocess.run(
+            _run_git_command(
                 ["git", "-C", str(repo_dir), "sparse-checkout", "disable"],
-                capture_output=True,
-                check=True,
-                text=True,
                 timeout=300,
             )
-        subprocess.run(
+        _run_git_command(
             ["git", "-C", str(repo_dir), "checkout", "--force", "FETCH_HEAD"],
-            capture_output=True,
-            check=True,
-            text=True,
             timeout=300,
         )
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        if _cached_repo_has_usable_content(repo_dir, sparse_paths):
+            print(
+                "Git update failed; using existing remote cache: "
+                f"{_summarize_git_error(exc)}"
+            )
+            return True
         shutil.rmtree(repo_dir, ignore_errors=True)
         _clone_remote_repo_with_sparse_fallback(
             url=url,
@@ -839,6 +936,9 @@ def _update_cached_remote_repo(
             repo_dir=repo_dir,
             sparse_paths=sparse_paths,
         )
+        return False
+
+    return False
 
 
 def _download_remote_source(
@@ -846,7 +946,7 @@ def _download_remote_source(
     temp_dir: Path,
     t: get_translator().__class__,
     skill_names: list[str] | None = None,
-) -> Path | None:
+) -> RemoteDownloadResult:
     """从 GitHub 下载远程技能源到临时目录。
 
     Args:
@@ -855,7 +955,7 @@ def _download_remote_source(
         t: 翻译器
 
     Returns:
-        下载后的技能根目录路径，失败返回 None
+        远程源准备结果；失败时 failed=True
     """
     name = source_config.get("name", "unknown")
     url = source_config.get("url", "")
@@ -875,7 +975,7 @@ def _download_remote_source(
     try:
         # 如果配置指向仓库子目录，优先只拉取该子目录；如果指定了 --skill，
         # 进一步只拉取目标 skill 目录，减少远程更新等待时间。
-        _update_cached_remote_repo(
+        stale_cache_used = _update_cached_remote_repo(
             url=url,
             branch=branch,
             repo_dir=repo_root,
@@ -883,13 +983,15 @@ def _download_remote_source(
         )
     except subprocess.TimeoutExpired:
         print(t.remote_download_failed(name=name, error="timeout"))
-        return None
+        return RemoteDownloadResult(None, failed=True, error="timeout")
     except subprocess.CalledProcessError as e:
-        print(t.remote_download_failed(name=name, error=e.stderr.strip()))
-        return None
+        error = _summarize_git_error(e)
+        print(t.remote_download_failed(name=name, error=error))
+        return RemoteDownloadResult(None, failed=True, error=error)
     except Exception as e:
-        print(t.remote_download_failed(name=name, error=str(e)))
-        return None
+        error = str(e)
+        print(t.remote_download_failed(name=name, error=error))
+        return RemoteDownloadResult(None, failed=True, error=error)
 
     # 返回技能目录路径
     skills_dir = _resolve_remote_skills_root(repo_root, skills_path)
@@ -900,7 +1002,7 @@ def _download_remote_source(
         # 保留历史回退：若配置路径不存在但仓库根目录本身就是 skills 根目录，
         # 需要完整浅克隆后才能识别根目录。
         try:
-            _update_cached_remote_repo(
+            stale_cache_used = stale_cache_used or _update_cached_remote_repo(
                 url=url,
                 branch=branch,
                 repo_dir=repo_root,
@@ -908,21 +1010,23 @@ def _download_remote_source(
             )
         except subprocess.TimeoutExpired:
             print(t.remote_download_failed(name=name, error="timeout"))
-            return None
+            return RemoteDownloadResult(None, stale_cache_used=stale_cache_used, failed=True, error="timeout")
         except subprocess.CalledProcessError as e:
-            print(t.remote_download_failed(name=name, error=e.stderr.strip()))
-            return None
+            error = _summarize_git_error(e)
+            print(t.remote_download_failed(name=name, error=error))
+            return RemoteDownloadResult(None, stale_cache_used=stale_cache_used, failed=True, error=error)
         except Exception as e:
-            print(t.remote_download_failed(name=name, error=str(e)))
-            return None
+            error = str(e)
+            print(t.remote_download_failed(name=name, error=error))
+            return RemoteDownloadResult(None, stale_cache_used=stale_cache_used, failed=True, error=error)
         skills_dir = _resolve_remote_skills_root(repo_root, skills_path)
 
     if skills_dir is None:
         print(t.remote_skills_path_missing(name=name, path=skills_path))
-        return None
+        return RemoteDownloadResult(None, stale_cache_used=stale_cache_used, failed=True, error=f"skills_path not found: {skills_path}")
 
     print(t.remote_download_complete(name=name))
-    return skills_dir
+    return RemoteDownloadResult(skills_dir, stale_cache_used=stale_cache_used)
 
 
 def _compare_remote_skills(
@@ -1274,6 +1378,8 @@ def _remote_install_main(
 
     all_reports: list[InstallReport] = []
     matched_skill_names: set[str] = set()
+    failed_sources: list[str] = []
+    stale_cache_sources: list[str] = []
 
     try:
         # 遍历每个远程源
@@ -1288,9 +1394,13 @@ def _remote_install_main(
                     continue
 
             # 下载远程源
-            remote_skills_dir = _download_remote_source(source, temp_dir, t, skill_names=skill_filter)
-            if remote_skills_dir is None:
+            remote_result = _download_remote_source(source, temp_dir, t, skill_names=skill_filter)
+            if remote_result.failed or remote_result.skills_dir is None:
+                failed_sources.append(source_name)
                 continue
+            if remote_result.stale_cache_used:
+                stale_cache_sources.append(source_name)
+            remote_skills_dir = remote_result.skills_dir
             remote_md5_cache: dict[Path, str] = {}
 
             # 对每个目标进行处理
@@ -1366,6 +1476,14 @@ def _remote_install_main(
         if missing_names:
             print(t.error_skill_filter_missing(skills=", ".join(missing_names)))
             return 1
+
+    if failed_sources:
+        print(t.remote_source_update_failed(sources=", ".join(failed_sources)))
+        return 1
+
+    if stale_cache_sources:
+        print(t.remote_source_stale_cache(sources=", ".join(stale_cache_sources)))
+        return 1
 
     return 0
 

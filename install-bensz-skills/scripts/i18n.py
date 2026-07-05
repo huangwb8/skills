@@ -104,6 +104,8 @@ class Messages:
     remote_config_error: str
     remote_source_filter_selected: str
     remote_source_filter_invalid: str
+    remote_source_update_failed: str
+    remote_source_stale_cache: str
 
 
 # 英文消息
@@ -182,6 +184,8 @@ MESSAGES_EN = Messages(
     remote_config_error="Error: Failed to load config file: {error}",
     remote_source_filter_selected="Selected sources: {sources}",
     remote_source_filter_invalid="Warning: Invalid source ID(s) ignored: {invalid_ids}",
+    remote_source_update_failed="Remote source update failed: {sources}",
+    remote_source_stale_cache="Remote source freshness was not verified; used existing cache: {sources}",
 )
 
 # 中文消息
@@ -260,6 +264,8 @@ MESSAGES_ZH = Messages(
     remote_config_error="错误: 加载配置文件失败: {error}",
     remote_source_filter_selected="已选择源: {sources}",
     remote_source_filter_invalid="警告: 无效的源 ID 已忽略: {invalid_ids}",
+    remote_source_update_failed="远程源更新失败: {sources}",
+    remote_source_stale_cache="远程源未确认最新，已使用旧缓存: {sources}",
 )
 
 
