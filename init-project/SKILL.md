@@ -22,6 +22,10 @@ metadata:
 
 # Init Project
 
+## BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
 ## 与 bensz-collect-bugs 的协作约定
 
 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`，不要直接改用户本地已安装源码；若有 workaround，先记 bug 再继续。只有用户明确要求公开上报时，才用本地 `gh` 上传到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。

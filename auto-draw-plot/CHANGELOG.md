@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- 修复 `gpt-image-2` 准入语义与错误分类缺陷：`/v1/models` 探测仅表示连接与鉴权可用，真实 Images submit 才决定当前请求是否具备生成资格；结构化保留 `error.type` / `error.code` / 安全 `error.message`，计费与权限 4xx 立即停止且即使用户允许 provider fallback 也不跨模型，异步 job 终态错误沿用同一分类；补充无联网回归测试并将版本号 `0.2.11 → 0.2.12`
+
 ### Added
 - 新增图片尺寸元数据：每轮结果记录 `requested_provider_size`、`native_size`、`output_size`、`postprocess_resize_applied`，并补充 OpenAI generation/edit 原生尺寸保持、显式后处理、参考图校验的无联网单测
 - 新增 `tests/nsfc-roadmap-schematic-v20260520144607/` 真实 NSFC 材料测试：分别使用 `roadmap` 与 `schematic` 模式复绘技术路线图和 SeqCCS 原理图，用于评估复杂中文科研插图生成效果

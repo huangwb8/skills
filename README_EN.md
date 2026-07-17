@@ -73,6 +73,21 @@ For detailed usage, open the corresponding `README.md` and `SKILL.md` inside eac
 - A system-level installation model that improves discoverability across projects
 - Long-term engineering guardrails built around KISS, YAGNI, DRY, Single Source of Truth, and organic updates
 
+## 🗂️ Task Workspaces
+
+Skills that need to write files keep their process artifacts under `.bensz-api/task-{yyyymmdd-hhmm}-{short-description}/`, so plans, logs, and temporary output do not spill into the project root. A single-skill task creates only that skill's boundary; `shared/` is used only when several skills collaborate.
+
+```text
+.bensz-api/task-20260717-1432-optimize-skill-workspace/
+├── shared/                 # Shared inputs and provenance for multi-skill tasks only
+└── {skill-name}/
+    ├── input/              # Inputs, parameter snapshots, and upstream references
+    ├── output/             # Drafts and intermediate results for later stages
+    └── log/                # Commands, validation, errors, and decision summaries
+```
+
+Final deliverables, user-requested files, project documentation, and source changes still follow the project's normal directory conventions; they are not written to this hidden workspace by default. Older hidden directories are only for explicitly requested compatibility reads, migrations, or cleanup.
+
 ## 🌐 Platform Compatibility
 
 Based on this repository's conventions and the surrounding Agent Skills ecosystem, the primary compatible platforms include:

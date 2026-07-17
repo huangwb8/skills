@@ -7,7 +7,7 @@
 ```text
 请使用 compact-bensz-skills skill 压缩这个 Agent Skill 的工作型 Markdown 文档。
 输入：/path/to/target-skill
-输出：更新后的 skill 源文件；所有中间文件保存在目标目录下的 .bensz-api/skills/compact-bensz-skills/
+输出：更新后的 skill 源文件；所有中间文件保存在目标目录下的 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/
 ```
 
 ## 适用场景
@@ -18,9 +18,9 @@
 
 ## 默认行为
 
-- 工作区根：`<skill_root>/.bensz-api/skills/compact-bensz-skills/`
-- 每次运行目录：`<skill_root>/.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/`
-- 最近一次运行指针：`<skill_root>/.bensz-api/skills/compact-bensz-skills/latest-run.txt`
+- 工作区根：`<skill_root>/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/`
+- 每次运行目录：`<skill_root>/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/`
+- 最近一次运行指针：`<skill_root>/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/latest-run.txt`
 - 测试区：`<skill_root>/tests/compact-bensz-skills/`
 - 自动忽略：`tests/`、`plans/`、目标 skill 根目录下的 `README.md`、`CHANGELOG.md`
 - 优先保留：frontmatter、输入输出契约、安全边界、命令与路径
@@ -33,7 +33,7 @@
 ```text
 请使用 compact-bensz-skills skill 压缩 `git-pr-review` 这个 skill 的工作型 Markdown 文档。
 输入：/workspace/skills/git-pr-review
-输出：原 skill 目录内更新后的 Markdown；中间文件放到 `.bensz-api/skills/compact-bensz-skills/`
+输出：原 skill 目录内更新后的 Markdown；中间文件放到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/`
 ```
 
 ### 示例 2：指定额外约束
@@ -51,13 +51,13 @@
 
 ## 运行时会生成什么
 
-- `.bensz-api/skills/compact-bensz-skills/latest-run.txt`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/file-inventory.json`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/compaction-plan.md`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-before.json`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-after.json`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-delta.md`
-- `.bensz-api/skills/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/validation.json`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/latest-run.txt`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/file-inventory.json`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/analysis/compaction-plan.md`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-before.json`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-after.json`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-delta.md`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/validation.json`
 
 ## 备选用法（脚本）
 

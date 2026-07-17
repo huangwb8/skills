@@ -9,6 +9,8 @@ from common import expand_path, load_config, warn, write_json
 from image_provider_client import (
     ImageProviderConfig,
     generate_image_png,
+    is_provider_fallback_allowed,
+    provider_error_debug_payload,
     resolve_image_provider,
 )
 from nano_banana_client import load_gemini_config
@@ -71,7 +73,7 @@ def generate_image(
                     "provider": provider_cfg.provider,
                     "model": provider_cfg.model,
                     "base_url": provider_cfg.base_url,
-                    "error": str(gpt_error),
+                    "error": provider_error_debug_payload(gpt_error),
                     "reference_image_count": len(reference_images or []),
                 },
             )
@@ -79,6 +81,12 @@ def generate_image(
             raise RuntimeError(
                 "gpt-image-2 生成失败，未切换到其他图片模型。"
                 "只有用户明确要求允许模型回退时，才会改用 Nano Banana/Gemini。"
+                f"错误：{gpt_error}"
+            ) from gpt_error
+        if not is_provider_fallback_allowed(gpt_error):
+            raise RuntimeError(
+                "gpt-image-2 请求已被服务端计费、权限或客户端策略拒绝，未跨 provider 回退。"
+                "请根据结构化错误码修复订阅、余额、权限或计费服务状态后重试。"
                 f"错误：{gpt_error}"
             ) from gpt_error
         warn(f"gpt-image-2 生成失败，用户已允许回退，改用 Nano Banana/Gemini：{exc}")
@@ -127,7 +135,11 @@ def main() -> None:
     parser.add_argument("--debug-dir", default="", help="调试目录")
     parser.add_argument("--reference-image", action="append", default=[], help="可重复传入参考图路径")
     parser.add_argument("--provider", default="auto", help="图片 provider：auto（默认）/ gpt-image-2 / nano_banana")
-    parser.add_argument("--allow-provider-fallback", action="store_true", help="生成失败后允许从 gpt-image-2 切到 Nano Banana/Gemini")
+    parser.add_argument(
+        "--allow-provider-fallback",
+        action="store_true",
+        help="provider 故障时允许从 gpt-image-2 切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
+    )
     parser.add_argument("--require-reference-images", action="store_true", help="传入参考图时必须使用可消费参考图的 provider")
     args = parser.parse_args()
 

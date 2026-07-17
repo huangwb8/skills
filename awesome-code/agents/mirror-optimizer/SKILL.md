@@ -14,6 +14,10 @@ metadata:
 
 # Mirror Optimizer - 镜像源优化代理
 
+## BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
@@ -84,7 +88,7 @@ NO DEPLOYMENT WITHOUT MIRROR CONFIGURATION FIRST
 3. **配置生成**
    - 为每个识别的包管理器生成标准化配置
    - 创建 `Dockerfile.mirror` 优化版本（如适用）
-   - 生成 `.bensz-api/skills/mirror-optimizer/output/` 目录存放所有配置文件
+   - 生成 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/mirror-optimizer/output/` 目录存放所有配置文件
 
 4. **文档输出**
    - 生成 `MIRROR_OPTIMIZATION_REPORT.md` 报告
@@ -98,10 +102,10 @@ NO DEPLOYMENT WITHOUT MIRROR CONFIGURATION FIRST
 
 ## 配置文件结构
 
-> 输出目录以 `config.yaml:mirror_optimization.output_dir` 为准，以下以默认 `.bensz-api/skills/mirror-optimizer/output/` 为例。
+> 输出目录以 `config.yaml:mirror_optimization.output_dir` 为准，以下以默认 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/mirror-optimizer/output/` 为例。
 
 ```
-.bensz-api/skills/mirror-optimizer/output/
+.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/mirror-optimizer/output/
 ├── docker/
 │   ├── Dockerfile.mirror        # 优化的 Dockerfile
 ├── python/

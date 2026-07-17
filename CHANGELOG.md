@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-07-17
+
+### Changed
+- **统一 BenszAPI 任务工作区契约**：`auto-draw-plot`、三类 auto-test、`parallel-vibe`、`git-pr-review`、`compact-bensz-skills` 及相关通用 skills 的新任务统一使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`；每个实际调用的 skill 在各自 `input/`、`output/`、`log/` 边界内保存中间产物，多 skill 任务才创建共享 `shared/`。正式交付物不写入该目录，旧隐藏目录仅允许显式兼容读取、迁移或清理。
+- **auto-draw-plot 升级到 `0.2.12`**：图片 provider 预检明确只覆盖配置、连接和鉴权，真实 Images submit 才判定生图资格；`gpt-image-2` 的错误记录改为脱敏结构化字段，计费、订阅、余额、权限及客户端策略错误不会触发跨 provider 回退，临时平台错误仅在同一 provider 内重试。
+- **parallel-vibe 运行目录迁移**：脚本 runner 在任务根内创建 `parallel-vibe` 专用目录及标准子目录，并保留原有 plan、线程工作区和日志契约；重用目录时忽略自动创建的空分类目录，避免误判为已有运行内容。
+- **首页任务工作区说明**：`README.md` 与 `README_EN.md` 新增工作区结构、跨 skill 引用和正式交付物边界，便于使用者核对本地中间产物。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.2.6` 更新为 `v4.3.0`。
+
 ## [4.2.6] - 2026-07-05
 
 ### Changed

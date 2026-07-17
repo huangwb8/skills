@@ -313,6 +313,9 @@ def run_draw_plot(
         "model": provider_cfg.model,
         "base_url": provider_cfg.base_url,
         "source": provider_cfg.source,
+        "preflight_status": provider_cfg.preflight_status,
+        "preflight_scope": provider_cfg.preflight_scope,
+        "generation_eligibility": provider_cfg.generation_eligibility,
         "selection": str(provider_name or "auto"),
         "allow_provider_fallback": bool(allow_provider_fallback),
         "async_image_job_enabled": bool(async_job_cfg.get("enabled", True)),
@@ -535,7 +538,11 @@ def main() -> None:
     parser.add_argument("--api-env", default="", help="remote.env 路径")
     parser.add_argument("--mode", default="", help="绘图模式：general（默认）/ roadmap / schematic")
     parser.add_argument("--provider", default="auto", help="图片 provider：auto（默认）/ gpt-image-2 / nano_banana")
-    parser.add_argument("--allow-provider-fallback", action="store_true", help="生成失败后允许从 gpt-image-2 切到 Nano Banana/Gemini")
+    parser.add_argument(
+        "--allow-provider-fallback",
+        action="store_true",
+        help="provider 故障时允许从 gpt-image-2 切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
+    )
     parser.add_argument("--allow-outside-project", action="store_true", help="允许 workspace/output 写到 project_root 外部")
     parser.add_argument("--reference-image", action="append", default=[], help="可重复传入参考图")
     args = parser.parse_args()

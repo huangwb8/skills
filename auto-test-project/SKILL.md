@@ -13,6 +13,10 @@ metadata:
 
 # auto-test-project（项目级自动化测试驱动优化）
 
+## BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
@@ -20,20 +24,20 @@ metadata:
 
 ## Quick Start（最快路径）
 
-1. 在“目标项目根目录”创建本轮会话骨架（会自动创建 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`）：
+1. 在“目标项目根目录”创建本轮会话骨架（会自动创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`）：
 
 ```bash
 python3 auto-test-project/scripts/create_test_session.py --project-root . --kind a --create-plan
 ```
 
-安全提示：该脚本会在 `--project-root` 下创建 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`。为防止误用，默认拒绝将系统根目录或用户主目录作为 project-root；如你确有需要，可显式加 `--allow-unsafe-root` 覆盖。
+安全提示：该脚本会在 `--project-root` 下创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`。为防止误用，默认拒绝将系统根目录或用户主目录作为 project-root；如你确有需要，可显式加 `--allow-unsafe-root` 覆盖。
 
-2. 在 `.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md` 写出本轮问题清单（至少 10 个），并使用可引用编号（如 `P0-1`）。
-3. 按计划修复，并补齐 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 与 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 的可复现证据。
+2. 在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md` 写出本轮问题清单（至少 10 个），并使用可引用编号（如 `P0-1`）。
+3. 按计划修复，并补齐 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 的可复现证据。
 4. 运行验证脚本（推荐收尾用严格模式）：
 
 ```bash
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 ```
 
 5. 重复 A 轮 N 次后，进入 B 轮质量检查与验证。
@@ -60,16 +64,16 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-a
 
 本 skill 的交付不是"口头建议"，而是一组可追溯的文件：
 
-- `.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划（每轮 1 份）
-- `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/`：A 轮测试会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
-- `.bensz-api/skills/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告（维度以 `config.yaml:b_round_check.dimensions` 为准）
-- `.bensz-api/skills/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md`：A 轮问题分析与改进计划（每轮 1 份）
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/`：A 轮测试会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量检查报告（维度以 `config.yaml:b_round_check.dimensions` 为准）
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
 
 ## 目录与命名规范
 
 - 测试会话 ID：`vYYYYMMDDHHMM`（分钟级时间戳）
-- 规划文档：放在 `.bensz-api/skills/auto-test-project/output/plans/`
-- 测试会话：放在 `.bensz-api/skills/auto-test-project/output/tests/`
+- 规划文档：放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/`
+- 测试会话：放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`
 - B 轮统一加前缀：`B轮-`
 
 ## 工作流程
@@ -116,7 +120,7 @@ B轮：质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准）
 
 #### A.1 初始化会话（生成测试 ID + 目录）
 
-目标：创建本轮的 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/` 骨架。
+目标：创建本轮的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/` 骨架。
 
 推荐使用确定性脚本：
 
@@ -128,14 +132,14 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 ```
 
 最低要求：
-- `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/` 存在
-- `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 与 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 存在
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/` 存在
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 存在
 
-#### A.2 问题分析与计划生成（写入 `.bensz-api/skills/auto-test-project/output/plans/`）
+#### A.2 问题分析与计划生成（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/`）
 
 目标：把本轮要解决的问题写成可执行计划，按 P0/P1/P2 排序。
 
-输出：`.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md`
+输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md`
 
 **⭐️ 核心价值**：本项目级测试的核心价值在于**系统视角和批判性思维**，而非替代 linter 进行表面检查。
 
@@ -155,7 +159,7 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 **核心要求**：
 - **独立评估原则**（默认启用，除非用户明确要求“沿上轮跟进修复”）：
   - 每轮 A 轮基于目标项目的**当前工作状态**独立分析
-  - 默认**不查看**历史 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`（避免确认偏差/路径依赖）
+  - 默认**不查看**历史 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`（避免确认偏差/路径依赖）
   - 排除范围建议以 `config.yaml:a_round_check.independent_review.exclude_patterns` 为准（历史产物/缓存/依赖目录应排除）
 - **批判性思维优先**：**优先使用技巧 0（批判性分析框架）**，再辅以技术检查技巧（技巧 1-8）
   - 技巧 0.1：第一性原理思考（评估项目是否偏离核心目标）
@@ -185,11 +189,11 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 
 **如首轮无明确问题列表**：先做静态检查与一致性检查，再给出问题清单。
 
-#### A.3 执行优化与轻量测试（写入 `.bensz-api/skills/auto-test-project/output/tests/`）
+#### A.3 执行优化与轻量测试（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`）
 
 目标：按计划逐项修复，并用轻量测试验证。
 
-输出：`.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 和 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md`
+输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 和 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md`
 
 **⚠️ 强制要求 - 防止"假计划、空报告"**：
 
@@ -209,20 +213,20 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 
 ```bash
 # 检查是否还有未替换的模板占位符
-grep -r "{{" .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/
+grep -r "{{" .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/
 # 如果有输出，说明模板未被正确替换，必须修复
 
 # 使用验证脚本（推荐）
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 
-# 可选：更严格模式（要求 .bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在且包含 P0-1 等编号，才能做计划-报告一致性检查）
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+# 可选：更严格模式（要求 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在且包含 P0-1 等编号，才能做计划-报告一致性检查）
+python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 ```
 
 **轻量测试原则**：
 - 只验证"核心路径"与"本轮变更点"
 - 每条结论必须有可复现证据（命令输出、文件、对比结果）
-- 中间产物放入 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/_artifacts/`，不污染主目录
+- 中间产物放入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/_artifacts/`，不污染主目录
 - 项目级测试需要考虑模块间交互
 
 **TEST_PLAN.md 最低内容标准**：
@@ -253,10 +257,10 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-a
 
 ```bash
 # 1. 检查模板占位符是否被替换
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 
 # 2. 检查计划与报告的一致性
-# - .bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md 中的每个问题是否在 TEST_REPORT.md 中有对应记录
+# - .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 中的每个问题是否在 TEST_REPORT.md 中有对应记录
 # - 成功标准是否在报告中有验证结论
 ```
 
@@ -284,11 +288,11 @@ python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-
 
 ⚠️ **强制执行**：B 轮质量检查是项目级自动测试流程的强制性环节，除非用户明确要求跳过，否则不得省略。
 
-#### B.1 产出质量检查报告（写入 `.bensz-api/skills/auto-test-project/output/plans/`）
+#### B.1 产出质量检查报告（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/`）
 
 目标：对 A 轮后的最新状态做系统性质量检查。
 
-输出：`.bensz-api/skills/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`
+输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`
 
 **建议数量与修复门槛**（默认口径以 `config.yaml:b_round_check.*` 为准）：
 - 建议数量：至少 10 条（P0+P1+P2，总和），目标范围 10-20
@@ -306,7 +310,7 @@ python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-
 
 模板：`templates/B_ROUND_CHECK_TEMPLATE.md`
 
-#### B.2 B 轮优化与验证（写入 `.bensz-api/skills/auto-test-project/output/tests/`）
+#### B.2 B 轮优化与验证（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`）
 
 目标：对 B 轮发现的 P0/P1 进行针对性修复并验证。
 
@@ -318,14 +322,14 @@ python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-
 python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM
 ```
 
-输出：`.bensz-api/skills/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
+输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
 
 ## 完成条件（验收）
 
 - [ ] 用户指定的 A 轮次数已完成（或明确说明提前结束原因）
 - [ ] B 轮质量检查已完成并形成报告（⚠️ 强制要求，参考 `config.yaml` 的 `b_round_check.mandatory`）
 - [ ] 关键问题（P0/P1）已闭环：计划 → 修复 → 证据 → 结论
-- [ ] `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/` 结构完整且可追溯
+- [ ] `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/` 结构完整且可追溯
 - [ ] 目标项目的 `CHANGELOG.md` 已更新
 - [ ] **每轮测试会话都通过验证脚本检查**（防止"假计划、空报告"）
 
@@ -333,13 +337,13 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 
 ```bash
 # 验证所有测试会话的完整性
-for session in .bensz-api/skills/auto-test-project/output/tests/v*/; do
+for session in .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/v*/; do
     echo "验证: $session"
     python3 auto-test-project/scripts/verify_test_session.py "$session"
 done
 
 # 验证 B 轮会话（如有）
-for session in .bensz-api/skills/auto-test-project/output/tests/B轮-*/; do
+for session in .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-*/; do
     echo "验证: $session"
     python3 auto-test-project/scripts/verify_test_session.py "$session"
 done
@@ -353,7 +357,7 @@ done
 | **测试范围** | 单个 skill 目录 | 整个项目目录 |
 | **问题分析** | skill 级别（SKILL.md、config.yaml） | 项目级别（跨模块、跨文件） |
 | **质量检查** | 维度以 `config.yaml:b_round_check.dimensions` 为准 | 维度以 `config.yaml:b_round_check.dimensions` 为准（项目级扩展） |
-| **输出位置** | 在 skill 内部的 `.bensz-api/skills/auto-test-skill/output/` 创建计划和测试会话 | 在项目根目录的 `.bensz-api/skills/auto-test-project/output/` 创建计划和测试会话 |
+| **输出位置** | 在 skill 内部的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/` 创建计划和测试会话 | 在项目根目录的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/` 创建计划和测试会话 |
 | **CHANGELOG** | 更新 skill 的 CHANGELOG.md | 更新项目的 CHANGELOG.md |
 
 ## 可复用资源
@@ -372,7 +376,7 @@ done
 - 辅助脚本：
   - `scripts/create_test_session.py`：创建测试会话目录（支持模板变量自动替换）
   - `scripts/verify_test_session.py`：验证测试会话完整性（包含计划-执行一致性检查）
-  - `scripts/verify_all_sessions.py`：批量验证 `.bensz-api/skills/auto-test-project/output/tests/` 下的所有会话（可选严格模式）
+  - `scripts/verify_all_sessions.py`：批量验证 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/` 下的所有会话（可选严格模式）
   - `scripts/verify_skill.py`：一键自检本 skill（必需文件、脚本可用、模板关键占位符自动填充）
 
 ## 常见问题与最佳实践

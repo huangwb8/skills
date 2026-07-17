@@ -17,7 +17,10 @@ def main() -> None:
         remote_env_path=expand_path(args.api_env) if args.api_env else None,
         provider_name=str(args.provider or "auto"),
     )
-    print(f"OK provider={cfg.provider} model={cfg.model} base_url={cfg.base_url}")
+    print(
+        f"OK {cfg.preflight_status} provider={cfg.provider} model={cfg.model} base_url={cfg.base_url} "
+        f"scope={cfg.preflight_scope} generation_eligible={cfg.generation_eligibility}"
+    )
 
 
 if __name__ == "__main__":

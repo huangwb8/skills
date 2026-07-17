@@ -18,7 +18,7 @@
 ```text
 请使用 git-pr-review skill 帮我 review 这个 GitHub PR，并重点检查是否存在恶意代码或供应链风险。
 输入：仓库地址 `https://github.com/owner/repo`，PR `#123`，另外参考我附上的背景说明
-输出：项目根目录下 1 份 Markdown 审查报告；所有中间文件放到 `.bensz-api/skills/git-pr-review/`
+输出：项目根目录下 1 份 Markdown 审查报告；所有中间文件放到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`
 ```
 
 并行独立评审版：
@@ -26,7 +26,7 @@
 ```text
 请使用 git-pr-review skill 帮我 review 这个 GitHub PR，并做 5 次独立评审后再综合结论。
 输入：仓库地址 `https://github.com/owner/repo`，PR `#123`
-输出：项目根目录下 1 份最终 Markdown 审查报告；`.bensz-api/skills/git-pr-review/` 里保留并行独立评审的全部中间产物
+输出：项目根目录下 1 份最终 Markdown 审查报告；`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/` 里保留并行独立评审的全部中间产物
 ```
 
 ## 它能帮你做什么
@@ -50,7 +50,7 @@
 - 只有用户明确要求最新口径、指定特定社区规范，或内置标准明显不足时，才会联网补充“好 PR”标准来源
 - 会默认基于 `parallel-vibe` 做 **5 次独立评审**
 - 会在涉及依赖、vendored 代码、复制资源时给出 license / 合规建议
-- 会把所有中间文件放进工作目录下的 `.bensz-api/skills/git-pr-review/`
+- 会把所有中间文件放进工作目录下的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`
 - 会在项目根目录生成最终报告
 
 它**不会**：
@@ -72,7 +72,7 @@
 
 中间文件默认位于：
 
-- `.bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/`
 
 其中通常包含：
 
@@ -85,7 +85,7 @@
 - `evidence/key_findings.md`：关键发现
 - `evidence/missing_items.md`：缺失证据与影响
 - `parallel_review/parallel_plan.json`：并行独立评审计划
-- `parallel_review/parallel_runs/.bensz-api/skills/parallel-vibe/<project_id>/...`：独立 reviewer threads 产物
+- `parallel_review/parallel_runs/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<project_id>/...`：独立 reviewer threads 产物
 - `parallel_review/independent_review_summary.md`：独立评审聚合结果
 
 ## 关键行为
@@ -101,7 +101,7 @@
 
 ### 工作区隔离
 
-- 默认中间文件只允许写入 `.bensz-api/skills/git-pr-review/`
+- 默认中间文件只允许写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`
 - 最终 Markdown 报告默认写到当前工作目录
 - 如果你明确指定其他 `workspace_dir` 或 `report_dir`，skill 会按你的指定执行
 
@@ -175,7 +175,7 @@
 
 ### Q：如果我想把中间文件放到别处呢？
 
-可以。默认目录是 `.bensz-api/skills/git-pr-review/`，但如果你明确指定其他目录，skill 会按你的目录来。
+可以。默认目录是 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`，但如果你明确指定其他目录，skill 会按你的目录来。
 
 ### Q：它会只看 diff 吗？
 
@@ -203,7 +203,7 @@ python3 git-pr-review/scripts/prepare_review_job.py \
 
 ```bash
 python3 git-pr-review/scripts/validate_review_artifacts.py \
-  --manifest .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
+  --manifest .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
   --report /absolute/path/to/Git-PR-Review_<...>.md
 ```
 
@@ -212,7 +212,7 @@ python3 git-pr-review/scripts/validate_review_artifacts.py \
 ```bash
 # 例如用户要求 review_count=5 时，这里传 --n 5
 python3 git-pr-review/scripts/build_parallel_review_plan.py \
-  --manifest .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
+  --manifest .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/manifest.json \
   --n 5
 ```
 
@@ -221,9 +221,9 @@ python3 git-pr-review/scripts/build_parallel_review_plan.py \
 ```bash
 # 推荐直接复制 `parallel_review_job.json` 里的 `recommended_command`
 python3 ../parallel-vibe/scripts/parallel_vibe.py \
-  --plan-file .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_plan.json \
-  --src-dir .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/input_snapshot \
-  --out-dir .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_runs \
+  --plan-file .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_plan.json \
+  --src-dir .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/input_snapshot \
+  --out-dir .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_runs \
   --project-id <parallel_review_job.json.project_id>
 ```
 
@@ -236,7 +236,7 @@ python3 ../parallel-vibe/scripts/parallel_vibe.py \
 
 ```bash
 python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
-  --job-file .bensz-api/skills/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_review_job.json
+  --job-file .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/{yyyy-mm-dd-hh-mm}/parallel_review/parallel_review_job.json
 ```
 
 如果 `parallel-vibe` 尚未执行完成，或某个 thread 没有生成 `RESULT.md`，聚合脚本会直接报错并提示先补齐输入，避免拿不完整结果做 merge 决策。

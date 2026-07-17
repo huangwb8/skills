@@ -20,6 +20,10 @@ metadata:
 
 # Security Specialist - 安全专家
 
+## BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
 ## 与 bensz-collect-bugs 的协作约定
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
@@ -70,4 +74,3 @@ metadata:
 - 所有外部输入必须验证与规范化（含路径、URL、文件名）
 - 授权必须在服务端强制执行（不信任前端）
 - 修复必须附带最小验证（回归测试/复现脚本/手工步骤）
-

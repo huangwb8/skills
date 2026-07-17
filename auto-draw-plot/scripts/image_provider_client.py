@@ -4,19 +4,19 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import struct
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from common import ensure_dir, load_config, warn, write_json
 from env_utils import find_remote_env, mask_secret, merged_env
 from nano_banana_client import (
-    GeminiHTTPError,
     generate_png as generate_nano_banana_png,
     load_gemini_config,
     nano_banana_health_check,
@@ -31,6 +31,17 @@ class ImageProviderConfig:
     model: str
     env_path: Optional[Path]
     source: str
+    preflight_status: str = "not_checked"
+    preflight_scope: str = "configuration_only"
+    generation_eligibility: str = "unknown_until_image_submit"
+
+    def with_preflight(self, *, status: str, scope: str) -> "ImageProviderConfig":
+        return replace(
+            self,
+            preflight_status=str(status),
+            preflight_scope=str(scope),
+            generation_eligibility="unknown_until_image_submit",
+        )
 
 
 class ProviderUnavailable(RuntimeError):
@@ -39,11 +50,39 @@ class ProviderUnavailable(RuntimeError):
 
 class ProviderHTTPError(RuntimeError):
     def __init__(self, code: int, reason: str, detail: str, *, headers: Optional[Dict[str, str]] = None):
-        super().__init__(f"HTTP {code} {reason}: {detail}")
         self.code = int(code)
         self.reason = str(reason)
         self.detail = str(detail)
         self.headers = dict(headers or {})
+        error = _parse_provider_error_detail(self.detail)
+        self.error_type = error["type"]
+        self.error_code = error["code"]
+        self.safe_message = error["message"]
+        self.category = _classify_provider_error(http_status=self.code, error_code=self.error_code)
+        machine_code = f" code={self.error_code}" if self.error_code else ""
+        super().__init__(f"HTTP {self.code} {self.reason}{machine_code}: {self.safe_message}")
+
+
+class ProviderJobError(RuntimeError):
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        status: str,
+        error_type: str,
+        error_code: str,
+        message: str,
+    ) -> None:
+        self.job_id = str(job_id or "unknown")
+        self.status = str(status or "failed")
+        self.error_type = str(error_type or "provider_error")
+        self.error_code = str(error_code or "IMAGE_GENERATION_FAILED")
+        self.safe_message = _redact_sensitive_error_text(message or "image generation job failed")
+        self.category = _classify_provider_error(http_status=None, error_code=self.error_code)
+        super().__init__(
+            "gpt-image-2 异步图片任务失败："
+            f"job_id={self.job_id}; status={self.status}; code={self.error_code}; message={self.safe_message}"
+        )
 
 
 def health_check_image_provider(
@@ -82,13 +121,21 @@ def resolve_image_provider(
             if normalized == "gpt-image-2":
                 image_cfg = load_gpt_image_2_config(remote_env_path=remote_env_path)
                 if run_healthcheck:
-                    _openai_health_check(image_cfg, timeout_s=timeout_s)
+                    preflight_status = _openai_health_check(image_cfg, timeout_s=timeout_s)
+                    image_cfg = image_cfg.with_preflight(
+                        status=preflight_status,
+                        scope=(
+                            "connectivity_and_authentication_only"
+                            if preflight_status == "connectivity/authentication_ok"
+                            else "connectivity_only"
+                        ),
+                    )
                 return image_cfg
             if normalized == "nano_banana":
                 gemini_cfg = load_gemini_config(remote_env_path=remote_env_path)
                 if run_healthcheck:
                     nano_banana_health_check(remote_env_path=remote_env_path, timeout_s=timeout_s)
-                return ImageProviderConfig(
+                image_cfg = ImageProviderConfig(
                     provider="nano_banana",
                     base_url=gemini_cfg.base_url,
                     api_key=gemini_cfg.api_key,
@@ -96,6 +143,12 @@ def resolve_image_provider(
                     env_path=gemini_cfg.env_path,
                     source="remote_env",
                 )
+                if run_healthcheck:
+                    image_cfg = image_cfg.with_preflight(
+                        status="provider_probe_ok",
+                        scope="provider_specific_probe_only",
+                    )
+                return image_cfg
         except Exception as exc:
             errors.append(f"{normalized}: {exc}")
             if requested_provider and requested_provider != "auto":
@@ -278,9 +331,7 @@ def _generate_openai_png(
                 {
                     "endpoint": endpoint_path,
                     "submit_mode": submit_mode,
-                    "http_code": exc.code,
-                    "reason": exc.reason,
-                    "detail": _truncate_detail(exc.detail),
+                    "error": provider_error_debug_payload(exc),
                     "fallback_endpoint": "/images/generations",
                 },
             )
@@ -408,9 +459,7 @@ def _generate_openai_edit_png(
                 {
                     "endpoint": endpoint_path,
                     "submit_mode": submit_mode,
-                    "http_code": exc.code,
-                    "reason": exc.reason,
-                    "detail": _truncate_detail(exc.detail),
+                    "error": provider_error_debug_payload(exc),
                     "fallback_endpoint": "/images/edits",
                 },
             )
@@ -484,7 +533,7 @@ def _generate_openai_edit_png(
     }
 
 
-def _openai_health_check(cfg: ImageProviderConfig, *, timeout_s: int) -> None:
+def _openai_health_check(cfg: ImageProviderConfig, *, timeout_s: int) -> str:
     parsed = urllib.parse.urlparse(cfg.base_url)
     probe_url = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, "/v1/models", "", "", ""))
     if cfg.base_url.endswith("/v1"):
@@ -493,12 +542,129 @@ def _openai_health_check(cfg: ImageProviderConfig, *, timeout_s: int) -> None:
         _post_json(probe_url, None, method="GET", headers={"Authorization": f"Bearer {cfg.api_key}"}, timeout_s=timeout_s)
     except ProviderHTTPError as exc:
         if exc.code in {404, 405}:
-            return
+            return "connectivity_ok_models_probe_unsupported"
         raise
+    return "connectivity/authentication_ok"
 
 
 _OPENAI_TRANSIENT_HTTP_CODES = {429, 500, 502, 503, 504}
 _OPENAI_ASYNC_UNSUPPORTED_HTTP_CODES = {404, 405, 501}
+_CLIENT_POLICY_ERROR_CODES = {
+    "SUBSCRIPTION_REQUIRED",
+    "OVERAGE_LIMIT_EXCEEDED",
+    "INSUFFICIENT_BALANCE",
+    "INSUFFICIENT_QUOTA",
+    "PERMISSION_DENIED",
+    "ACCESS_DENIED",
+    "BILLING_NOT_ALLOWED",
+}
+_PROVIDER_FALLBACK_BLOCKED_ERROR_CODES = _CLIENT_POLICY_ERROR_CODES | {"BILLING_SERVICE_ERROR"}
+
+
+def _parse_provider_error_detail(detail: str) -> Dict[str, str]:
+    raw = str(detail or "").strip()
+    payload: Any = None
+    if raw:
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            payload = None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        error = payload if isinstance(payload, dict) else {}
+    error_type = _safe_scalar(error.get("type"))
+    error_code = _safe_scalar(error.get("code"))
+    message = _safe_scalar(error.get("message") or error.get("detail"))
+    if not message:
+        message = raw if payload is None else "image provider request failed"
+    return {
+        "type": error_type,
+        "code": error_code,
+        "message": _redact_sensitive_error_text(message),
+    }
+
+
+def _safe_scalar(value: Any) -> str:
+    if isinstance(value, (str, int, float)):
+        return str(value).strip()[:800]
+    return ""
+
+
+def _redact_sensitive_error_text(value: str) -> str:
+    text = str(value or "").strip()[:800]
+    text = re.sub(r"(?i)Bearer\s+[^\s,;]+", "Bearer [redacted]", text)
+    text = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", "[redacted:api_key]", text)
+    return text
+
+
+def _classify_provider_error(*, http_status: Optional[int], error_code: str) -> str:
+    normalized_code = str(error_code or "").strip().upper()
+    if normalized_code in _CLIENT_POLICY_ERROR_CODES:
+        return "client_policy_error"
+    if normalized_code == "BILLING_SERVICE_ERROR":
+        return "transient_platform_error"
+    if http_status in _OPENAI_TRANSIENT_HTTP_CODES:
+        return "transient_platform_error"
+    if http_status is not None and 400 <= int(http_status) < 500:
+        return "client_policy_error"
+    return "provider_error"
+
+
+def _should_retry_provider_http_error(exc: ProviderHTTPError) -> bool:
+    return exc.code in _OPENAI_TRANSIENT_HTTP_CODES and exc.category == "transient_platform_error"
+
+
+def is_provider_fallback_allowed(exc: BaseException) -> bool:
+    error_code = str(getattr(exc, "error_code", "") or "").strip().upper()
+    category = str(getattr(exc, "category", "") or "").strip()
+    cfg = load_config()
+    api_cfg = cfg.get("api", {}) if isinstance(cfg.get("api"), dict) else {}
+    configured = api_cfg.get("provider_fallback_blocked_error_codes")
+    blocked_codes = (
+        {str(item).strip().upper() for item in configured if str(item).strip()}
+        if isinstance(configured, list)
+        else _PROVIDER_FALLBACK_BLOCKED_ERROR_CODES
+    )
+    if error_code in blocked_codes:
+        return False
+    if category == "client_policy_error":
+        return False
+    return True
+
+
+def provider_error_debug_payload(exc: BaseException) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "category": str(getattr(exc, "category", "provider_error") or "provider_error"),
+        "exception_type": type(exc).__name__,
+    }
+    if isinstance(exc, ProviderHTTPError):
+        payload.update(
+            {
+                "http_status": exc.code,
+                "http_reason": exc.reason,
+                "error": {
+                    "type": exc.error_type,
+                    "code": exc.error_code,
+                    "message": exc.safe_message,
+                },
+            }
+        )
+        return payload
+    if isinstance(exc, ProviderJobError):
+        payload.update(
+            {
+                "job_id": exc.job_id,
+                "status": exc.status,
+                "error": {
+                    "type": exc.error_type,
+                    "code": exc.error_code,
+                    "message": exc.safe_message,
+                },
+            }
+        )
+        return payload
+    payload["message"] = _redact_sensitive_error_text(str(exc))
+    return payload
 
 
 def _post_json_with_retries(
@@ -521,7 +687,7 @@ def _post_json_with_retries(
             )
         except ProviderHTTPError as exc:
             last_error = exc
-            if exc.code not in _OPENAI_TRANSIENT_HTTP_CODES or attempt >= retries:
+            if not _should_retry_provider_http_error(exc) or attempt >= retries:
                 break
             wait_s = _retry_after(exc.headers) or min(30.0, 2.0**attempt)
             warn(f"{retry_message}（HTTP {exc.code}），{wait_s:.1f}s 后重试（{attempt}/{retries}）。")
@@ -553,7 +719,7 @@ def _post_multipart_with_retries(
             )
         except ProviderHTTPError as exc:
             last_error = exc
-            if exc.code not in _OPENAI_TRANSIENT_HTTP_CODES or attempt >= retries:
+            if not _should_retry_provider_http_error(exc) or attempt >= retries:
                 break
             wait_s = _retry_after(exc.headers) or min(30.0, 2.0**attempt)
             warn(f"{retry_message}（HTTP {exc.code}），{wait_s:.1f}s 后重试（{attempt}/{retries}）。")
@@ -608,10 +774,6 @@ def _redacted_openai_headers(cfg: ImageProviderConfig) -> Dict[str, str]:
     return {"Authorization": f"Bearer {mask_secret(cfg.api_key)}"}
 
 
-def _truncate_detail(detail: str, *, limit: int = 1600) -> str:
-    return str(detail or "")[: max(1, limit)]
-
-
 def _resolve_openai_image_response(
     *,
     initial_response: Dict[str, Any],
@@ -664,9 +826,12 @@ def _resolve_openai_image_response(
         job = _extract_openai_async_job(current) or job
         status = str(job.get("status") or "").strip().lower()
         if status in _OPENAI_ASYNC_FAILURE_STATUSES:
-            raise RuntimeError(
-                "gpt-image-2 异步图片任务失败："
-                f"job_id={job.get('job_id') or 'unknown'}; status={status}; detail={job.get('detail') or ''}"
+            raise ProviderJobError(
+                job_id=str(job.get("job_id") or "unknown"),
+                status=status,
+                error_type=str(job.get("error_type") or "provider_error"),
+                error_code=str(job.get("error_code") or "IMAGE_GENERATION_FAILED"),
+                message=str(job.get("error_message") or job.get("detail") or "image generation job failed"),
             )
         if status in _OPENAI_ASYNC_SUCCESS_STATUSES:
             result = _resolve_openai_async_job_result(
@@ -820,12 +985,16 @@ def _extract_openai_async_job(resp: Dict[str, Any]) -> Dict[str, Any]:
         )
         if not looks_async:
             continue
+        error_fields = _structured_error_fields(item)
         return {
             "job_id": job_id,
             "status": status_normalized or status,
             "status_url": status_url,
             "result_url": result_url,
             "detail": _detail_string(item),
+            "error_type": error_fields["type"],
+            "error_code": error_fields["code"],
+            "error_message": error_fields["message"],
         }
     return {}
 
@@ -878,6 +1047,19 @@ def _detail_string(data: Dict[str, Any]) -> str:
     if isinstance(error, dict):
         return _first_string(error, ("message", "detail", "code", "type")) or json.dumps(error, ensure_ascii=False)[:800]
     return ""
+
+
+def _structured_error_fields(data: Dict[str, Any]) -> Dict[str, str]:
+    error = data.get("error")
+    source = error if isinstance(error, dict) else data
+    message = _safe_scalar(source.get("message") or source.get("detail"))
+    if not message and isinstance(error, str):
+        message = error.strip()
+    return {
+        "type": _safe_scalar(source.get("type")),
+        "code": _safe_scalar(source.get("code")),
+        "message": _redact_sensitive_error_text(message),
+    }
 
 
 def _openai_async_status_urls(
@@ -1490,12 +1672,36 @@ def _debug_provider(cfg: ImageProviderConfig) -> Dict[str, Any]:
         "api_key": mask_secret(cfg.api_key),
         "env_path": str(cfg.env_path) if cfg.env_path else None,
         "source": cfg.source,
+        "preflight_status": cfg.preflight_status,
+        "preflight_scope": cfg.preflight_scope,
+        "generation_eligibility": cfg.generation_eligibility,
     }
 
 
 def _sanitize_image_response(resp: Dict[str, Any]) -> Dict[str, Any]:
     cloned = json.loads(json.dumps(resp, ensure_ascii=False))
     for item in _iter_response_dicts(cloned):
+        for key in list(item):
+            if str(key).lower() in {
+                "authorization",
+                "api_key",
+                "apikey",
+                "access_token",
+                "token",
+                "subscription",
+                "subscription_id",
+                "subscriptionid",
+                "billing_details",
+                "billingdetails",
+                "internal",
+                "account_id",
+                "accountid",
+                "upstream_account_id",
+            }:
+                item[key] = "[redacted]"
+        if "error" in item:
+            error = _structured_error_fields(item)
+            item["error"] = {key: value for key, value in error.items() if value}
         for key in ("b64_json", "b64Json", "image_b64", "imageB64", "base64_image", "base64Image"):
             b64 = item.get(key)
             if not isinstance(b64, str):

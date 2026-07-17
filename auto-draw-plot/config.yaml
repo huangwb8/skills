@@ -1,16 +1,19 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.11"
+  version: "0.2.12"
   description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 PNG。"
   author: "Bensz Conan"
   category: "image-generation"
 
 workspace:
-  hidden_dir: ".bensz-api/skills/auto-draw-plot"
+  task_root_dir: ".bensz-api"
+  task_prefix: "task"
+  task_label: "auto-draw-plot"
+  workspace_contract: "bensz-api-task-v1"
   announce_absolute_path_before_start: true
   announcement_message_template: "本次 auto-draw-plot 工作区绝对路径：{workspace_root}"
   run_prefix: ""
-  timestamp_format: "%Y-%m-%d-%H-%M"
+  timestamp_format: "%Y%m%d-%H%M"
   latest_run_pointer: "latest-run.txt"
   keep_intermediates_inside_hidden_dir: true
   allow_outside_project: false
@@ -62,6 +65,17 @@ api:
       - "GEMINI_API"
       - "GEMINI_MODEL"
   healthcheck_timeout_s: 30
+  healthcheck_scope: "connectivity_and_authentication_only"
+  generation_eligibility_source: "image_submit_response"
+  provider_fallback_blocked_error_codes:
+    - "SUBSCRIPTION_REQUIRED"
+    - "OVERAGE_LIMIT_EXCEEDED"
+    - "INSUFFICIENT_BALANCE"
+    - "INSUFFICIENT_QUOTA"
+    - "PERMISSION_DENIED"
+    - "ACCESS_DENIED"
+    - "BILLING_NOT_ALLOWED"
+    - "BILLING_SERVICE_ERROR"
   request_timeout_s: 1800
   retry_attempts: 5
   async_image_job:

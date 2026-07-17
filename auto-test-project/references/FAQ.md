@@ -8,23 +8,23 @@
 
 ```bash
 # 1) 快速检查：是否残留模板占位符（双大括号）
-grep -r "{{" .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/
+grep -r "{{" .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/
 
 # 2) 验证脚本（推荐）
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 
 # 3) 严格模式（推荐在收尾/回归阶段使用）
-# - 要求 .bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在
+# - 要求 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在
 # - 要求 plan 内包含形如 "#### P0-1:" 的编号，才能做计划-报告一致性检查
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
 ```
 
 ## Q: 如果发现计划与执行脱节怎么办？
 
 建议按以下顺序修复（从“可追溯性”到“可复现证据”）：
 
-1. 重新阅读 `.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md` 的问题清单（确认每个问题都有编号，如 `P0-1`）。
-2. 检查 `.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 是否包含相同编号的修复记录。
+1. 重新阅读 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md` 的问题清单（确认每个问题都有编号，如 `P0-1`）。
+2. 检查 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 是否包含相同编号的修复记录。
 3. 对缺失项补齐“修复前 → 修复措施 → 修复后 → 验证命令/输出”。
 4. 重新运行验证脚本，直到通过。
 
@@ -43,8 +43,8 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-a
 ## Q: 如何避免运行示例命令时污染项目根目录？
 
 - 确认自己在“目标项目根目录”执行 `create_test_session.py`，不要在仓库根目录随手运行。
-- 脚本会在 `--project-root` 下创建 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`；默认拒绝将系统根目录或用户主目录作为 project-root，如需覆盖请显式使用 `--allow-unsafe-root`。
-- 中间产物统一放进 `.bensz-api/skills/auto-test-project/output/tests/<session>/_artifacts/` 与 `.bensz-api/skills/auto-test-project/output/tests/<session>/_scripts/`，避免在项目根散落临时文件。
+- 脚本会在 `--project-root` 下创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`；默认拒绝将系统根目录或用户主目录作为 project-root，如需覆盖请显式使用 `--allow-unsafe-root`。
+- 中间产物统一放进 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/<session>/_artifacts/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/<session>/_scripts/`，避免在项目根散落临时文件。
 
 ## Q: 项目类型识别失败怎么办？
 

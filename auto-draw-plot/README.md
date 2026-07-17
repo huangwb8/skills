@@ -7,20 +7,20 @@
 
 ### 启动前路径声明
 
-通过 AI 助手调用本 skill 时，助手在正式检查 API、初始化工作区或开始出图前，应先明确声明本次任务 `.bensz-api/skills/auto-draw-plot` 工作区根目录的绝对路径，例如：
+通过 AI 助手调用本 skill 时，助手在正式检查 API、初始化工作区或开始出图前，应先明确声明本次任务 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot` 工作区根目录的绝对路径，例如：
 
 ```text
-本次 auto-draw-plot .bensz-api/skills/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/skills/auto-draw-plot
+本次 auto-draw-plot .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot
 ```
 
-如果你指定了自定义 `workspace_base`，这里应显示该自定义目录解析后的绝对路径。初始化完成后，实际 run 目录会写入 `run-manifest.json`，通常形如 `.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`。
+如果你指定了自定义 `workspace_base`，这里应显示该自定义目录解析后的绝对路径。初始化完成后，实际 run 目录会写入 `run-manifest.json`，通常形如 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`。
 
 ### 推荐 Prompt（最小可用）
 
 ```text
 请使用 auto-draw-plot skill 生成一张科研展示图。
 输入：展示上下游信号链，6 个节点，用箭头连接，突出关键蛋白；白底，PNG，文字清晰。
-输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/skills/auto-draw-plot/`。
+输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/`。
 ```
 
 ### 进阶 Prompt（带比例参数）
@@ -28,7 +28,7 @@
 ```text
 请使用 auto-draw-plot skill 生成一张科研展示图。
 输入：展示上下游信号链，6 个节点，用箭头连接，突出关键蛋白；白底，PNG，文字清晰。
-输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/skills/auto-draw-plot/`。
+输出：至少 1 张可用 PNG；中间文件保存在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/`。
 另外，还有下列参数约束：
 - mode：general
 - 期望布局比例：1600 x 900
@@ -105,11 +105,13 @@
 
 `auto-draw-plot` 会由当前宿主 AI 把你的需求拆成主体、结构、风格、硬约束和禁止项，然后按 `general` / `roadmap` / `schematic` 模式生成图片 prompt。脚本默认只做本地模板拼装和护栏合并，不会为了文本规划或视觉评估额外调用 Gemini。第 1 轮按文本出图；第 2 轮起会自动把上一轮 `output.png` 作为第一参考图，再结合评估反馈做 image-to-image 微调，直到达到质量阈值或达到 `max_rounds`。
 
-图片生成默认使用 `auto` provider 选择：运行前按优先级寻找一个可用图片 provider。生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“失败可以换模型”时，才允许开启 provider fallback。
+图片生成默认使用 `auto` provider 选择：运行前按优先级寻找一个配置、连接和鉴权检查通过的图片 provider。这里的 `/v1/models` 探测不执行完整 Images 计费资格检查，因此输出 `connectivity/authentication_ok` 只表示“能连通且 Key 可鉴权”，不表示当前请求已经 `generation_eligible`。真实生成资格以 `/images/jobs/generations` 或 `/images/jobs/edits` 的 submit 响应为准。
+
+生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage 和计费服务错误即使开启该选项也不会跨 provider，以免掩盖真实业务故障。
 
 `gpt-image-2` 默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/images/jobs/generations`，参考图编辑提交到 `/images/jobs/edits`。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/images/generations` 或 `/images/edits` 长连接更容易暴露在 504 风险下。
 
-同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 且 `api.async_image_job.fallback_to_sync_on_unsupported=true` 时，脚本才会改用旧同步端点。429、500、502、503、504 不会触发同步回退，而是继续按 async job 提交失败处理。轮询默认最多等待 30 分钟；证据保存在每轮 `image-debug/request.json`、`async-job-initial.json`、`async-job-polls.json`、`async-job-result.json` 和 `response.json`。
+同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 且 `api.async_image_job.fallback_to_sync_on_unsupported=true` 时，脚本才会改用旧同步端点。400/403 等业务 4xx 会立即停止；429、500、502、503、504 只有在属于临时平台故障时才在同一 provider 内重试，不会触发同步回退。轮询默认最多等待 30 分钟；证据保存在每轮 `image-debug/request.json`、`async-job-initial.json`、`async-job-polls.json`、`async-job-result.json` 和 `response.json`。错误证据只保留安全的 `type` / `code` / `message`，不会写入 API Key 或内部订阅明细。
 
 ## 配置
 
@@ -132,8 +134,8 @@ GEMINI_MODEL=nano-banana-preview
 ## 输出结果
 
 - 最终 PNG：默认 `draw-plot.png`，或你传入的 `--output-png`
-- 启动前声明：AI 助手应先输出 `.bensz-api/skills/auto-draw-plot` 根目录绝对路径，便于实时监督
-- 隐藏工作区：`.bensz-api/skills/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`
+- 启动前声明：AI 助手应先输出 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot` 根目录绝对路径，便于实时监督
+- 隐藏工作区：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`
 - 追溯文件：`meta/analysis.json`、`meta/result.json`
 - 每轮证据：`rounds/round-XX/prompt.txt`、`output.png`、`evaluation.json`
 - provider 与参考图记录：`meta/result.json` 中的 `providers_used`，以及 `meta/analysis.json` 每轮的 `reference_strategy`
@@ -165,7 +167,7 @@ python3 auto-draw-plot/scripts/run_draw_plot.py \
 | `--postprocess-height` | 后处理目标高度，需配合 `--postprocess-resize` |
 | `--reference-image` | 用户参考图；第 2 轮起上一轮输出图会自动排在这些参考图之前 |
 | `--provider` | 图片 provider：`auto` / `gpt-image-2` / `nano_banana`；用户点名模型时应显式传入 |
-| `--allow-provider-fallback` | 只有用户明确允许失败后换模型时才使用 |
+| `--allow-provider-fallback` | 只有用户明确允许 provider 故障时换模型才使用；计费、权限与客户端策略错误仍不回退 |
 | `--api-env` | 自定义 env 文件 |
 | `--allow-outside-project` | 允许输出或工作区写到 `project_root` 外部 |
 
@@ -177,7 +179,7 @@ python3 auto-draw-plot/scripts/run_draw_plot.py \
 python3 auto-draw-plot/scripts/nano_banana_check.py
 ```
 
-这个命令名保留旧兼容性，实际会检查当前图片 provider 优先级。
+这个命令名保留旧兼容性，实际会检查当前图片 provider 优先级。对 `gpt-image-2`，它只检查配置、连接与鉴权；看到 `generation_eligible=unknown_until_image_submit` 是正常结果，真正的准入判断发生在图片 submit。
 
 ## FAQ
 
@@ -187,7 +189,11 @@ A：可以写，但它只作为布局和 provider 尺寸选择参考。默认最
 
 ### Q：为什么指定 `gpt-image-2` 后没有自动回退到 Nano Banana？
 
-A：这是预期行为。用户点名模型时，skill 会尊重这个选择；如果配置、额度或端点失败，会停止并报告原因。只有你明确允许失败后换模型，脚本才会使用 `--allow-provider-fallback`。
+A：这是预期行为。用户点名模型时，skill 会尊重这个选择；如果配置、额度或端点失败，会停止并报告原因。只有你明确允许 provider 故障时换模型，脚本才会使用 `--allow-provider-fallback`；订阅、余额、权限、overage 与计费服务错误不会借此切换模型。
+
+### Q：为什么 provider 检查显示 OK，提交图片时仍可能失败？
+
+A：检查阶段的 `OK connectivity/authentication_ok` 只证明 base URL 可连接且 Key 可鉴权。图片请求的模型、分组、订阅、余额、overage 等条件只有真实 submit 才能完整判断；请以 submit 返回的 `SUBSCRIPTION_REQUIRED`、`BILLING_SERVICE_ERROR`、`OVERAGE_LIMIT_EXCEEDED` 等结构化错误码为准。
 
 ### Q：使用 `gpt-image-2` 时还会调用 Gemini 做文本规划或评估吗？
 

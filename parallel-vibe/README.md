@@ -6,7 +6,7 @@
 
 `parallel-vibe` 用来让多个独立 thread 围绕同一条 Vibe Coding 指令给出不同视角，再由主 agent 汇总共识、分歧和推荐路线。
 
-默认推荐 **智能模式**：直接使用宿主工具的原生 subagent / 独立上下文能力。两种模式都使用同一套 `.bensz-api/skills/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 和 `runner.log`；区别只在 thread 的底层执行机制。
+默认推荐 **智能模式**：直接使用宿主工具的原生 subagent / 独立上下文能力。两种模式都使用同一套 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 和 `runner.log`；区别只在 thread 的底层执行机制。
 
 只有当你需要脚本 runner、`plan-file`、`resume`、真实退出码、跨 `codex` / `claude` / `shell` runner，或下游脚本可复跑批处理时，才切到 **代码模式**。
 
@@ -33,7 +33,7 @@
 - 多个独立 agent 审查同一份代码、PR、文档或方案
 - 让不同角色给出保守方案、激进方案、测试边界、风险审查
 - 研究假设、产品方案、重构方向的多视角打磨
-- 需要固定 `.bensz-api/skills/parallel-vibe/` 目录，但希望由宿主原生 subagent 完成独立思考的交互式任务
+- 需要固定 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/` 目录，但希望由宿主原生 subagent 完成独立思考的交互式任务
 
 ## 什么时候用代码模式
 
@@ -85,7 +85,7 @@ python3 ~/.claude/skills/parallel-vibe/scripts/parallel_vibe.py --prompt "<用�
 |------|------------------|----------|
 | 默认用途 | 多 agent 独立思考、审查、对比方案 | 可追溯批处理和脚本集成 |
 | 执行方式 | 宿主原生 subagent / 独立上下文 | `scripts/parallel_vibe.py` |
-| 落盘契约 | 固定 `.bensz-api/skills/parallel-vibe/` | 固定 `.bensz-api/skills/parallel-vibe/` |
+| 落盘契约 | 固定 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/` | 固定 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/` |
 | 关键产物 | `plan.json`、`RESULT.md`、`runner.log`、`summary.md` | `plan.json`、`RESULT.md`、`runner.log`、`summary.md` |
 | 文件隔离 | 使用相同 thread `workspace/`；是否能绑定 cwd 取决于宿主 subagent 能力 | 每个 thread 复制独立 workspace，并以 `cwd=workspace/` 启动 runner |
 | 适合下游自动化 | 一般不适合 | 适合 |
@@ -111,22 +111,22 @@ python3 ~/.claude/skills/parallel-vibe/scripts/parallel_vibe.py --prompt "<用�
 
 执行后先看：
 
-- `.bensz-api/skills/parallel-vibe/<run_id>/@main/summary.md`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<run_id>/@main/summary.md`
 
 某个独立尝试路径：
 
-- `.bensz-api/skills/parallel-vibe/<run_id>/<thread_id>/RESULT.md`
-- `.bensz-api/skills/parallel-vibe/<run_id>/<thread_id>/workspace/`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<run_id>/<thread_id>/RESULT.md`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<run_id>/<thread_id>/workspace/`
 
 排查失败：
 
-- `.bensz-api/skills/parallel-vibe/<run_id>/<thread_id>/runner.log`
+- `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<run_id>/<thread_id>/runner.log`
 
 ## FAQ
 
-### Q：默认会创建 `.bensz-api/skills/parallel-vibe/` 吗？
+### Q：默认会创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/` 吗？
 
-会。智能模式和代码模式都应该使用 `.bensz-api/skills/parallel-vibe/<run_id>/`。默认 run id 是当前时间 `{yyyy-mm-dd-hh-mm}`，同一分钟重复运行时追加 `-02` 等后缀；固定目录和日志不再是代码模式专属，只有需要脚本 runner、`plan-file`、`resume` 或真实退出码时才切到代码模式。
+会。智能模式和代码模式都应该使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<run_id>/`。默认 run id 是当前时间 `{yyyy-mm-dd-hh-mm}`，同一分钟重复运行时追加 `-02` 等后缀；固定目录和日志不再是代码模式专属，只有需要脚本 runner、`plan-file`、`resume` 或真实退出码时才切到代码模式。
 
 ### Q：我设了 8 个 thread，是不是就会同时跑 8 个进程？
 

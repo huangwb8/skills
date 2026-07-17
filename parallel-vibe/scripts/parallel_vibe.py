@@ -16,8 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 
 SKILL_NAME = "parallel-vibe"
-WORK_DIR_NAME = f".bensz-api/skills/{SKILL_NAME}"
-RUN_ID_TIMESTAMP_FORMAT = "%Y-%m-%d-%H-%M"
+WORK_DIR_NAME = ".bensz-api"
+RUN_ID_TIMESTAMP_FORMAT = "%Y%m%d-%H%M"
 LEGACY_WORK_DIR_NAMES = [".parallel-vibe", ".parallel_vibe"]
 SAFE_RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
@@ -444,9 +444,18 @@ def _write_text(path: Path, s: str) -> None:
 
 def ensure_project_root(workdir: Path, work_dir_name: str, project_id: str) -> Path:
     base = (workdir.resolve() / work_dir_name).resolve()
-    project_root = (base / project_id).resolve()
+    task_root = (base / f"task-{project_id}-{SKILL_NAME}").resolve()
+    project_root = (task_root / SKILL_NAME).resolve()
     _require_within(base, project_root)
     project_root.mkdir(parents=True, exist_ok=True)
+    for category in ("input", "output", "log"):
+        (project_root / category).mkdir(exist_ok=True)
+    _write_text(
+        task_root / "README.md",
+        "# BenszAPI 任务工作区\n\n"
+        f"- 本轮 skill：`{SKILL_NAME}`\n"
+        "- 并行线程、计划和日志均位于该 skill 的 input/output/log 子目录或其专用子目录。\n",
+    )
     return project_root
 
 
@@ -456,10 +465,19 @@ def allocate_project_root(workdir: Path, work_dir_name: str, base_run_id: str) -
     base.mkdir(parents=True, exist_ok=True)
     for idx in range(1, 100):
         run_id = base_run_id if idx == 1 else f"{base_run_id}-{idx:02d}"
-        project_root = (base / run_id).resolve()
+        task_root = (base / f"task-{run_id}-{SKILL_NAME}").resolve()
+        project_root = (task_root / SKILL_NAME).resolve()
         _require_within(base, project_root)
         if not project_root.exists():
             project_root.mkdir(parents=True, exist_ok=True)
+            for category in ("input", "output", "log"):
+                (project_root / category).mkdir(exist_ok=True)
+            _write_text(
+                task_root / "README.md",
+                "# BenszAPI 任务工作区\n\n"
+                f"- 本轮 skill：`{SKILL_NAME}`\n"
+                "- 并行线程、计划和日志均位于该 skill 的 input/output/log 子目录或其专用子目录。\n",
+            )
             return run_id, project_root
     raise RuntimeError(f"failed to allocate unique run directory under {base}: {base_run_id}")
 
@@ -995,7 +1013,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--plan-only", action="store_true", help="只生成 project 目录与 plan.json，不运行 threads")
     p.add_argument("--n", type=int, default=int(defaults.get("n_threads", 5)), help="线程数（1-9；仅在未提供 --plan-file 时生效）")
     p.add_argument("--src-dir", default=".", help="复制到各 thread/workspace 的源目录（默认当前目录）")
-    p.add_argument("--out-dir", default=".", help="创建 .bensz-api/skills/parallel-vibe 的项目根目录（默认当前目录）")
+    p.add_argument("--out-dir", default=".", help="创建 .bensz-api/task-{timestamp}-parallel-vibe/parallel-vibe 的项目根目录（默认当前目录）")
     # Backward-compatible alias (old versions used --workdir as out-dir).
     p.add_argument("--workdir", default="", help=argparse.SUPPRESS)
     p.add_argument("--project-id", default="", help="指定或复用 run/project id；未指定时默认使用 yyyy-mm-dd-hh-mm")
@@ -1074,7 +1092,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"error: {e}", file=sys.stderr)
             return 2
 
-    if project_root.exists() and any(project_root.iterdir()) and not args.resume:
+    existing_entries = [
+        entry for entry in project_root.iterdir()
+        if entry.name not in {"input", "output", "log"}
+    ]
+    if existing_entries and not args.resume:
         # Avoid surprising overwrites; use --resume to reuse an existing project directory.
         print(f"error: project already exists: {project_root} (use --resume)", file=sys.stderr)
         return 2

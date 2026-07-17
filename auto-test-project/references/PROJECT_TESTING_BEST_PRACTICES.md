@@ -22,10 +22,10 @@
 
 ## 命名与目录
 
-- 规划文档：`.bensz-api/skills/auto-test-project/output/plans/vYYYYMMDDHHMM.md`
-- A轮测试：`.bensz-api/skills/auto-test-project/output/tests/vYYYYMMDDHHMM/`
-- B轮检查：`.bensz-api/skills/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`
-- B轮验证：`.bensz-api/skills/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/`
+- 规划文档：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md`
+- A轮测试：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/`
+- B轮检查：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/B轮-vYYYYMMDDHHMM.md`
+- B轮验证：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/`
 
 ## 记录原则
 

@@ -20,6 +20,28 @@ def _allocate_run_dir(hidden_root: Path, base_run_id: str) -> tuple[str, Path]:
     fatal(f"无法在 {hidden_root} 下分配唯一工作目录: {base_run_id}")
 
 
+def _task_root(project_root: Path, workspace_cfg: Dict[str, Any], run_id: str) -> Path:
+    """Return the task-level root for a default workspace allocation."""
+    task_base = expand_path(str(workspace_cfg.get("task_root_dir", ".bensz-api")), base=project_root)
+    task_prefix = str(workspace_cfg.get("task_prefix", "task")).strip("-") or "task"
+    task_label = str(workspace_cfg.get("task_label", "auto-draw-plot")).strip("-") or "auto-draw-plot"
+    return task_base / f"{task_prefix}-{run_id}-{task_label}"
+
+
+def _write_task_readme(task_root: Path, skill_name: str, contract: str) -> None:
+    readme = task_root / "README.md"
+    if readme.exists():
+        return
+    write_text(
+        readme,
+        "# BenszAPI 任务工作区\n\n"
+        f"- 工作区契约：`{contract}`\n"
+        f"- 本轮 skill：`{skill_name}`\n"
+        "- `shared/` 仅用于多个 skill 共享的中间材料；单 skill 任务不必创建。\n"
+        f"- `{skill_name}/input|output|log/` 分别保存输入引用、临时产物和日志。\n",
+    )
+
+
 def init_workspace(
     *,
     project_root: Path,
@@ -33,20 +55,34 @@ def init_workspace(
     reports_cfg = cfg.get("reports", {}) or {}
     generation_cfg = cfg.get("generation", {}) or {}
 
-    if workspace_base:
-        hidden_root = expand_path(workspace_base, base=project_root)
-    else:
-        hidden_root = expand_path(str(workspace_cfg.get("hidden_dir", ".bensz-api/skills/auto-draw-plot")), base=project_root)
-
     prefix = str(workspace_cfg.get("run_prefix", ""))
     timestamp_fmt = str(workspace_cfg.get("timestamp_format", "%Y%m%d%H%M%S%f"))
     if run_id:
         normalized_run_id = run_id if run_id.startswith(prefix) else f"{prefix}{run_id}"
+        task_root = _task_root(project_root, workspace_cfg, normalized_run_id)
     else:
         normalized_run_id = f"{prefix}{now_tag(timestamp_fmt)}"
-        normalized_run_id, run_path = _allocate_run_dir(hidden_root, normalized_run_id)
+        task_root = _task_root(project_root, workspace_cfg, normalized_run_id)
+        normalized_run_id, task_root = _allocate_run_dir(task_root.parent, task_root.name)
+        task_root = task_root
+        # The generated task directory is the collision-safe run identifier source.
+        suffix = f"-{str(workspace_cfg.get('task_label', 'auto-draw-plot')).strip('-')}"
+        normalized_run_id = task_root.name[len(str(workspace_cfg.get("task_prefix", "task")).strip("-") or "task") + 1 :]
+        if normalized_run_id.endswith(suffix):
+            normalized_run_id = normalized_run_id[: -len(suffix)]
 
-    run_dir = ensure_dir(locals().get("run_path", hidden_root / normalized_run_id))
+    skill_name = str(workspace_cfg.get("task_label", "auto-draw-plot"))
+    contract = str(workspace_cfg.get("workspace_contract", "bensz-api-task-v1"))
+    if workspace_base:
+        # Explicit destinations remain supported for callers that manage their own task root.
+        run_dir = expand_path(workspace_base, base=project_root)
+        hidden_root = run_dir.parent
+    else:
+        hidden_root = task_root.parent
+        run_dir = task_root / skill_name
+        _write_task_readme(task_root, skill_name, contract)
+
+    run_dir = ensure_dir(run_dir)
     subdirs = {name: ensure_dir(run_dir / str(name)) for name in (workspace_cfg.get("subdirs") or [])}
     latest_run_pointer = hidden_root / str(workspace_cfg.get("latest_run_pointer", "latest-run.txt"))
     write_text(latest_run_pointer, normalized_run_id + "\n")
@@ -65,6 +101,8 @@ def init_workspace(
     manifest = {
         "project_root": str(project_root.resolve()),
         "workspace_root": str(hidden_root.resolve()),
+        "task_root": str((run_dir.parent if workspace_base else task_root).resolve()),
+        "workspace_contract": contract,
         "run_id": normalized_run_id,
         "run_dir": str(run_dir.resolve()),
         "workspace_inside_project_root": _is_within(hidden_root, project_root),
