@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
+- 修复 `gpt-image-2` 默认质量、格式、重试与参考图契约不完整的问题：generation/edit 显式发送 `quality=low`、`size=1024x1024`、`output_format=jpeg`，输出校验扩展名、magic bytes 和 MIME，参考图记录 SHA-256 与稳定来源；无持久幂等保证时 submit 只执行一次，静态计价错误立即停止；同步将版本号 `0.2.12 → 0.2.13`
 - 修复 `gpt-image-2` 准入语义与错误分类缺陷：`/v1/models` 探测仅表示连接与鉴权可用，真实 Images submit 才决定当前请求是否具备生成资格；结构化保留 `error.type` / `error.code` / 安全 `error.message`，计费与权限 4xx 立即停止且即使用户允许 provider fallback 也不跨模型，异步 job 终态错误沿用同一分类；补充无联网回归测试并将版本号 `0.2.11 → 0.2.12`
 
 ### Added

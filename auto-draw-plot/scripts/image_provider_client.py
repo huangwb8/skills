@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import io
 import json
 import mimetypes
 import os
@@ -57,6 +59,7 @@ class ProviderHTTPError(RuntimeError):
         error = _parse_provider_error_detail(self.detail)
         self.error_type = error["type"]
         self.error_code = error["code"]
+        self.retryable = error["retryable"]
         self.safe_message = error["message"]
         self.category = _classify_provider_error(http_status=self.code, error_code=self.error_code)
         machine_code = f" code={self.error_code}" if self.error_code else ""
@@ -210,6 +213,10 @@ def generate_image_png(
     postprocess_resize: bool = False,
     postprocess_w: Optional[int] = None,
     postprocess_h: Optional[int] = None,
+    quality: Optional[str] = None,
+    provider_size: Optional[str] = None,
+    output_format: Optional[str] = None,
+    output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
     _validate_postprocess_args(
         postprocess_resize=postprocess_resize,
@@ -230,6 +237,10 @@ def generate_image_png(
             postprocess_resize=postprocess_resize,
             postprocess_w=postprocess_w,
             postprocess_h=postprocess_h,
+            quality=quality,
+            provider_size=provider_size,
+            output_format=output_format,
+            output_compression=output_compression,
         )
     else:
         gemini_cfg = load_gemini_config(remote_env_path=provider_cfg.env_path)
@@ -275,6 +286,10 @@ def _generate_openai_png(
     postprocess_resize: bool,
     postprocess_w: Optional[int],
     postprocess_h: Optional[int],
+    quality: Optional[str] = None,
+    provider_size: Optional[str] = None,
+    output_format: Optional[str] = None,
+    output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
     refs = [Path(p) for p in (reference_images or [])]
     if refs:
@@ -291,14 +306,26 @@ def _generate_openai_png(
             postprocess_resize=postprocess_resize,
             postprocess_w=postprocess_w,
             postprocess_h=postprocess_h,
+            quality=quality,
+            provider_size=provider_size,
+            output_format=output_format,
+            output_compression=output_compression,
         )
-    requested_size = _choose_openai_size(canvas_w, canvas_h)
+    requested_size = _openai_requested_size(canvas_w, canvas_h, provider_size)
+    quality, output_format, output_compression = _openai_generation_options(
+        quality, output_format, output_compression
+    )
+    submit_retries = min(max(1, retries), _openai_submit_retry_attempts())
     payload: Dict[str, Any] = {
         "model": cfg.model,
         "prompt": prompt,
         "size": requested_size,
         "n": 1,
+        "quality": quality,
+        "output_format": output_format,
     }
+    if output_compression is not None:
+        payload["output_compression"] = output_compression
     endpoint_path = "/images/jobs/generations" if _use_openai_async_job_endpoint() else "/images/generations"
     submit_mode = _openai_submit_mode(endpoint_path)
     if debug_dir is not None:
@@ -319,7 +346,7 @@ def _generate_openai_png(
             payload=payload,
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
-            retries=retries,
+            retries=submit_retries,
             retry_message="gpt-image-2 暂时不可用",
         )
     except ProviderHTTPError as exc:
@@ -351,7 +378,7 @@ def _generate_openai_png(
             payload=payload,
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
-            retries=retries,
+            retries=submit_retries,
             retry_message="gpt-image-2 兼容同步接口暂时不可用",
         )
     response = _resolve_openai_image_response(
@@ -369,8 +396,7 @@ def _generate_openai_png(
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
         raise RuntimeError(f"未从 gpt-image-2 响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
-    output_png.parent.mkdir(parents=True, exist_ok=True)
-    output_png.write_bytes(raw)
+    mime = _write_provider_image(output_png, mime, raw)
     size_meta = _build_output_size_meta(
         output_png,
         postprocess_resize=postprocess_resize,
@@ -381,6 +407,7 @@ def _generate_openai_png(
     )
     return {
         "mime_type": mime,
+        "output_file": str(output_png),
         "output_png": str(output_png),
         "requested_provider_size": _openai_size_meta(requested_size),
         **size_meta,
@@ -404,15 +431,27 @@ def _generate_openai_edit_png(
     postprocess_resize: bool,
     postprocess_w: Optional[int],
     postprocess_h: Optional[int],
+    quality: Optional[str] = None,
+    provider_size: Optional[str] = None,
+    output_format: Optional[str] = None,
+    output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
     refs = _existing_reference_images(reference_images)
-    requested_size = _choose_openai_size(canvas_w, canvas_h)
+    requested_size = _openai_requested_size(canvas_w, canvas_h, provider_size)
+    quality, output_format, output_compression = _openai_generation_options(
+        quality, output_format, output_compression
+    )
+    submit_retries = min(max(1, retries), _openai_submit_retry_attempts())
     fields: Dict[str, str] = {
         "model": cfg.model,
         "prompt": prompt,
         "size": requested_size,
         "n": "1",
+        "quality": quality,
+        "output_format": output_format,
     }
+    if output_compression is not None:
+        fields["output_compression"] = str(output_compression)
     files = _openai_edit_file_parts(refs)
     endpoint_path = "/images/jobs/edits" if _use_openai_async_job_endpoint() else "/images/edits"
     submit_mode = _openai_submit_mode(endpoint_path)
@@ -434,6 +473,7 @@ def _generate_openai_edit_png(
                         "filename": filename,
                         "mime_type": mime_type,
                         "size_bytes": len(raw),
+                        "sha256": hashlib.sha256(raw).hexdigest(),
                     }
                     for field, filename, mime_type, raw in files
                 ],
@@ -447,7 +487,7 @@ def _generate_openai_edit_png(
             files=files,
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
-            retries=retries,
+            retries=submit_retries,
             retry_message="gpt-image-2 编辑暂时不可用",
         )
     except ProviderHTTPError as exc:
@@ -479,6 +519,7 @@ def _generate_openai_edit_png(
                             "filename": filename,
                             "mime_type": mime_type,
                             "size_bytes": len(raw),
+                            "sha256": hashlib.sha256(raw).hexdigest(),
                         }
                         for field, filename, mime_type, raw in files
                     ],
@@ -492,7 +533,7 @@ def _generate_openai_edit_png(
             files=files,
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
-            retries=retries,
+            retries=submit_retries,
             retry_message="gpt-image-2 兼容编辑接口暂时不可用",
         )
     response = _resolve_openai_image_response(
@@ -510,8 +551,7 @@ def _generate_openai_edit_png(
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
         raise RuntimeError(f"未从 gpt-image-2 编辑响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
-    output_png.parent.mkdir(parents=True, exist_ok=True)
-    output_png.write_bytes(raw)
+    mime = _write_provider_image(output_png, mime, raw)
     size_meta = _build_output_size_meta(
         output_png,
         postprocess_resize=postprocess_resize,
@@ -522,11 +562,20 @@ def _generate_openai_edit_png(
     )
     return {
         "mime_type": mime,
+        "output_file": str(output_png),
         "output_png": str(output_png),
         "requested_provider_size": _openai_size_meta(requested_size),
         **size_meta,
         "response_path": str(debug_dir / "response.json") if debug_dir is not None else None,
         "reference_image_count": len(refs),
+        "reference_images": [
+            {
+                "path": str(ref),
+                "sha256": hashlib.sha256(ref.read_bytes()).hexdigest(),
+                "source": "reference_image",
+            }
+            for ref in refs
+        ],
         "operation": "image-edit",
         "submit_mode": submit_mode,
         "endpoint": endpoint_path,
@@ -550,6 +599,7 @@ def _openai_health_check(cfg: ImageProviderConfig, *, timeout_s: int) -> str:
 _OPENAI_TRANSIENT_HTTP_CODES = {429, 500, 502, 503, 504}
 _OPENAI_ASYNC_UNSUPPORTED_HTTP_CODES = {404, 405, 501}
 _CLIENT_POLICY_ERROR_CODES = {
+    "BILLING_PRICING_NOT_CONFIGURED",
     "SUBSCRIPTION_REQUIRED",
     "OVERAGE_LIMIT_EXCEEDED",
     "INSUFFICIENT_BALANCE",
@@ -561,7 +611,7 @@ _CLIENT_POLICY_ERROR_CODES = {
 _PROVIDER_FALLBACK_BLOCKED_ERROR_CODES = _CLIENT_POLICY_ERROR_CODES | {"BILLING_SERVICE_ERROR"}
 
 
-def _parse_provider_error_detail(detail: str) -> Dict[str, str]:
+def _parse_provider_error_detail(detail: str) -> Dict[str, Any]:
     raw = str(detail or "").strip()
     payload: Any = None
     if raw:
@@ -581,6 +631,7 @@ def _parse_provider_error_detail(detail: str) -> Dict[str, str]:
         "type": error_type,
         "code": error_code,
         "message": _redact_sensitive_error_text(message),
+        "retryable": error.get("retryable") if isinstance(error.get("retryable"), bool) else None,
     }
 
 
@@ -611,6 +662,10 @@ def _classify_provider_error(*, http_status: Optional[int], error_code: str) -> 
 
 
 def _should_retry_provider_http_error(exc: ProviderHTTPError) -> bool:
+    if exc.retryable is False:
+        return False
+    if exc.retryable is True:
+        return exc.code in _OPENAI_TRANSIENT_HTTP_CODES
     return exc.code in _OPENAI_TRANSIENT_HTTP_CODES and exc.category == "transient_platform_error"
 
 
@@ -1341,6 +1396,108 @@ def _choose_openai_size(w: int, h: int) -> str:
     if ratio <= (1.0 / 1.15):
         return "1024x1536"
     return "1024x1024"
+
+
+def _openai_requested_size(w: int, h: int, requested: Optional[str] = None) -> str:
+    cfg = load_config()
+    gen_cfg = cfg.get("generation", {}) if isinstance(cfg.get("generation"), dict) else {}
+    configured = str(requested or gen_cfg.get("provider_size") or "").strip().lower()
+    if configured:
+        if configured not in {"1024x1024", "1536x1024", "1024x1536", "auto"}:
+            raise ValueError(f"不支持的 gpt-image-2 provider_size：{configured}")
+        return configured
+    return _choose_openai_size(w, h)
+
+
+def _openai_generation_options(
+    requested_quality: Optional[str] = None,
+    requested_format: Optional[str] = None,
+    requested_compression: Optional[int] = None,
+) -> Tuple[str, str, Optional[int]]:
+    """Return provider-supported low-cost delivery options from the skill config."""
+    cfg = load_config()
+    gen_cfg = cfg.get("generation", {}) if isinstance(cfg.get("generation"), dict) else {}
+    quality = str(requested_quality or gen_cfg.get("quality") or "low").strip().lower()
+    output_format = str(requested_format or gen_cfg.get("output_format") or "jpeg").strip().lower()
+    compression_raw = requested_compression if requested_compression is not None else gen_cfg.get("output_compression")
+    compression = int(compression_raw) if compression_raw is not None else None
+    if quality not in {"low", "medium", "high", "auto"}:
+        raise ValueError(f"不支持的图片 quality：{quality}")
+    if output_format not in {"png", "jpeg", "webp"}:
+        raise ValueError(f"不支持的图片 output_format：{output_format}")
+    if compression is not None and not 0 <= compression <= 100:
+        raise ValueError("output_compression 必须在 0 到 100 之间。")
+    return quality, output_format, compression
+
+
+def _openai_submit_retry_attempts() -> int:
+    # Image-job submit has no durable Idempotency-Key contract yet. Poll and
+    # result requests are safe to retry independently after a job id exists.
+    return 1
+
+
+def write_image_with_format_contract(path: Path, raw: bytes) -> str:
+    detected = _detect_image_mime(raw)
+    if not detected:
+        raise RuntimeError("图片 provider 返回的内容不是受支持的 PNG/JPEG/WebP 图片。")
+    suffix = path.suffix.lower()
+    expected_suffixes = {
+        "image/png": {".png"},
+        "image/jpeg": {".jpg", ".jpeg"},
+        "image/webp": {".webp"},
+    }[detected]
+    if suffix in {".jpg", ".jpeg"} and detected != "image/jpeg":
+        _write_jpeg(path, raw)
+        return "image/jpeg"
+    if suffix == ".png" and detected != "image/png":
+        _write_png(path, raw)
+        return "image/png"
+    if suffix and suffix not in expected_suffixes:
+        raise ValueError(f"输出扩展名 {suffix} 与 provider 图片内容 {detected} 不一致。")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+    return detected
+
+
+def _write_provider_image(path: Path, _declared_mime: str, raw: bytes) -> str:
+    return write_image_with_format_contract(path, raw)
+
+
+def _write_jpeg(path: Path, raw: bytes) -> None:
+    try:
+        from PIL import Image
+    except Exception as exc:
+        raise RuntimeError("将 provider 图片导出为 JPEG 需要 Pillow。") from exc
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(io.BytesIO(raw)) as source:
+        if source.mode in {"RGBA", "LA"} or "transparency" in source.info:
+            rgba = source.convert("RGBA")
+            background = Image.new("RGB", rgba.size, (255, 255, 255))
+            background.paste(rgba, mask=rgba.getchannel("A"))
+            image = background
+        else:
+            image = source.convert("RGB")
+        image.save(path, format="JPEG", quality=85, optimize=True)
+
+
+def _write_png(path: Path, raw: bytes) -> None:
+    try:
+        from PIL import Image
+    except Exception as exc:
+        raise RuntimeError("将 provider 图片导出为 PNG 需要 Pillow。") from exc
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(io.BytesIO(raw)) as source:
+        source.save(path, format="PNG", optimize=True)
+
+
+def _detect_image_mime(raw: bytes) -> str:
+    if raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if raw.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(raw) >= 12 and raw[0:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return ""
 
 
 def _openai_size_meta(size: str) -> Dict[str, Any]:

@@ -1,9 +1,9 @@
 ---
 name: auto-draw-plot
-description: 根据用户描述生成高质量绘图 prompt，并按通用、roadmap、schematic 模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型 API；第 2 轮起基于上一轮 PNG 做 image-to-image 微调，迭代出满足视觉要求的 PNG 结果。
+description: 根据用户描述生成高质量绘图 prompt，并按通用、roadmap、schematic 模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型 API；gpt-image-2 默认使用低画质、原生尺寸和 JPEG，第 2 轮起基于上一轮图片做保真微调。
 metadata:
   author: Bensz Conan
-  short-description: 模式化需求理解 + multi-round image-to-image optimization + gpt-image-2/Nano Banana 生成 PNG
+  short-description: 模式化需求理解 + multi-round image-to-image optimization + gpt-image-2 低成本 JPEG
   keywords:
     - auto-draw-plot
     - nano-banana
@@ -39,17 +39,18 @@ metadata:
 - `image_provider`（可选）：用户明确指定的图片模型/provider，如 `gpt-image-2` 或 `nano_banana`。显式指定后必须只用该 provider，失败时暂停并报告原因，不得切换到其他模型。
 - `allow_provider_fallback`（可选）：只有用户明确说“失败可以换模型/可以回退到另一个 provider”时才为 true；该授权仅覆盖 provider 故障，不覆盖订阅、余额、权限、overage 或计费服务错误。
 - `max_rounds`（可选）：最大优化轮数，默认 3；若用户另有指定，以用户为准。
-- `visual_constraints`（可选）：比例、期望布局、色调、字体等硬约束。尺寸只作为 provider 原生尺寸选择参考，不承诺最终 PNG 像素。
-- `reference_images`（可选）：用于 prompt 引导的风格/布局图；第 2 轮起上一轮 `output.png` 会自动作为第一参考图，用户参考图排在其后。
+- `visual_constraints`（可选）：比例、期望布局、色调、字体等硬约束。尺寸只作为 provider 原生尺寸选择参考，不承诺最终导出像素。
+- `quality` / `provider_size` / `output_format` / `output_compression`（可选）：`gpt-image-2` 显式 provider 参数；默认分别为 `low`、`1024x1024`、`jpeg`、`85`，均执行白名单或范围校验。
+- `reference_images`（可选）：用于 prompt 引导的风格/布局图；第 2 轮起上一轮 `output.jpg` 会自动作为第一参考图，用户参考图排在其后。
 - `workspace_base`（可选）：用户显式指定的隐藏工作区根目录；未指定时使用当前目录 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/`。
 
 ## 输出
 
-- 至少 1 张合乎需求的 `png` 图像。
+- 至少 1 张合乎需求的图像；`gpt-image-2` 正式输出默认为 `jpeg`。
 - 隐藏目录里的 `meta/analysis.json` / `meta/result.json`：记录每轮 prompt、模型参数、参考图策略、评估结果、最终选图和停止原因。
 - 每轮图片 meta 必须区分 `requested_provider_size`、`native_size`、`output_size` 与 `postprocess_resize_applied`；默认 `postprocess_resize_applied=false`。
 - `image-debug/gpt-image-2-error.json` 只保留错误类别、HTTP 状态和服务端安全返回的 `error.type` / `error.code` / `error.message`；不得写入 Authorization、API Key、订阅明细或原始内部错误对象。
-- 每轮目录：`rounds/round-XX/prompt.txt`、`rounds/round-XX/prompt-plan.json`、`rounds/round-XX/parallel-plan.json`、`rounds/round-XX/output.png`、`rounds/round-XX/evaluation.json` 以及 `image-debug/` / `evaluation-debug/`；`gpt-image-2` 默认主动使用 Sub2API image job endpoint，`image-debug/request.json`、`async-job-initial.json`、`async-job-polls.json` 与成功下载时的 `async-job-result.json` 必须保留完整证据。
+- 每轮目录：`rounds/round-XX/prompt.txt`、`rounds/round-XX/prompt-plan.json`、`rounds/round-XX/parallel-plan.json`、`rounds/round-XX/output.jpg`、`rounds/round-XX/evaluation.json` 以及 `image-debug/` / `evaluation-debug/`；`gpt-image-2` 默认主动使用 Sub2API image job endpoint，generation/edit 均显式发送 `quality=low`、原生尺寸和 `output_format=jpeg`，并在 debug meta 中保留参考图 SHA-256。
 - run 级 `parallel-vibe/parallel-plan.json` 与 `parallel-vibe/parallel-plan.round-XX.json`：每轮必留痕的 parallel-vibe plan。
 
 ## 运行前检查
@@ -75,18 +76,18 @@ metadata:
    - 优先由宿主 AI 在调用脚本前完成需求拆解与 prompt 规划；
    - `run_draw_plot.py` 只做本地模板拼装与护栏合并，不默认调用 Gemini / Nano Banana 等远端文本规划接口；
    - prompt 仍需忠实反映用户需求，不得暴露密钥或绝对路径。
-7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；`gpt-image-2` 纯文本出图默认提交到 `/images/jobs/generations`，存在参考图时默认提交到 `/images/jobs/edits`，同步 `/images/generations` / `/images/edits` 只在 job endpoint 明确返回 404/405/501 且配置允许时作为兼容回退。真实 submit 返回的结构化业务错误是最终准入结果：400/403 等客户端策略错误立即停止，不进入 transient retry；429/500/502/503/504 只有被分类为临时平台故障时才在同一 provider 内重试，不得改走同步接口。`--canvas-width` / `--canvas-height` 只表达期望布局比例，并映射到 provider 支持的原生尺寸；默认直接保存 provider 返回的 PNG，不插值放大、不贴到伪 4K 画布。只有用户明确要求统一导出尺寸时，才可使用 `--postprocess-resize --postprocess-width <W> --postprocess-height <H>`，并必须在 meta 中保留后处理记录。若 `gpt-image-2` 返回 job/task 状态、内联 `response` 或 `result_url`，脚本按 `config.yaml:api.async_image_job` 轮询/下载，直到拿到图片、任务失败或超时；终态失败必须保留稳定 `error.code`。默认不在生成/编辑失败后跨 provider 重试；只有用户明确授权且错误属于 provider 故障时才允许 `--allow-provider-fallback`，计费/权限类错误与 `BILLING_SERVICE_ERROR` 始终不跨 provider。
+7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；`gpt-image-2` 纯文本出图默认提交到 `/images/jobs/generations`，存在参考图时默认提交到 `/images/jobs/edits`，同步端点只在 job endpoint 明确不支持时兼容回退。submit 在服务端尚无持久幂等契约时只提交一次；结构化 `retryable=false`（包括 `BILLING_PRICING_NOT_CONFIGURED`）立即停止，poll/result 的暂时故障独立处理。默认请求 `quality=low`、最小匹配原生尺寸和 `output_format=jpeg`，输出扩展名、magic bytes、MIME 与 meta 必须一致；PNG/WebP 回退结果导出 JPEG 时以白色合成透明背景。参考图编辑会追加“只改明确要求、保留主体/构图/背景”的契约，并记录原始参考图 SHA-256。
 8. **视觉评估**：
    - `scripts/evaluate_image.py` 默认只做启发式文件/分辨率检查并标记 `fallback_mode=heuristic`，不调用 Gemini 文本接口；
-   - 宿主 AI 必须根据最终 PNG、用户需求与 `evaluation.json` 做语义把关，必要时人工触发下一轮。
-9. **多轮优化**：上一轮若未通过，第 `n+1` 轮必须把第 `n` 轮 `output.png` 作为第一参考图传给可消费参考图的图片 provider，并把第 `n` 轮 `evaluation.json` 的 `must_fix` / `prompt_patch` 拼进 prompt，要求模型在上一张图上做 image-to-image 微调，而不是从零重画；直到 AI 满意或达到 `max_rounds`。默认轮数是 3，单一真相来源是 `config.yaml:generation.default_max_rounds`。
-10. **交付**：输出至少 1 张最终 PNG；隐藏目录里保留 `meta/result.json` 供追溯。
+   - 宿主 AI 必须根据最终图片、用户需求与 `evaluation.json` 做语义把关，必要时人工触发下一轮。
+9. **多轮优化**：上一轮若未通过，第 `n+1` 轮必须把第 `n` 轮 `output.jpg` 作为第一参考图传给可消费参考图的图片 provider，并把反馈拼进 prompt，要求模型保真微调而不是从零重画；首轮用户参考图也必须标记为 `image-to-image`，来源使用 `user_reference` / `previous_round` / `mixed`。
+10. **交付**：输出至少 1 张最终 JPEG；隐藏目录里保留 `meta/result.json` 供追溯。
 
 ## 模式说明
 
 - `general`：通用绘图模式，适合普通信息图、封面图、概念图和自由描述。
-- `roadmap`：技术路线图模式，吸收 legacy `nsfc-roadmap` 的 PNG-only 约束；强调 3-5 阶段、阶段标题条、主链箭头、风险/备选虚线、A4 打印可读；中文标签默认使用正常字宽，不用窄体/压缩体。
-- `schematic`：原理图/机制图模式，吸收 legacy `nsfc-schematic` 的 PNG-only 约束；强调分组大框、圆角节点、机制链/模块关系、主链与辅助箭头分层；中文标签默认使用正常字宽，不用窄体/压缩体。
+- `roadmap`：技术路线图模式，强调 3-5 阶段、阶段标题条、主链箭头、风险/备选虚线、A4 打印可读；中文标签默认使用正常字宽。
+- `schematic`：原理图/机制图模式，强调分组大框、圆角节点、机制链/模块关系、主链与辅助箭头分层；中文标签默认使用正常字宽。
 
 `roadmap` / `schematic` 的文字策略：优先把标签自然换成 2-3 行，也不要横向压缩字形；默认使用现代黑体/思源黑体/Noto Sans CJK 风格的正常字宽、常规到半粗体。除非用户明确要求窄体标题或压缩排版，否则禁止窄体、长体、压缩体、condensed/narrow/compressed font、横向压缩和瘦长拉伸字体。
 

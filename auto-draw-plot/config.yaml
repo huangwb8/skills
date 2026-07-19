@@ -1,7 +1,7 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.12"
-  description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 PNG。"
+  version: "0.2.13"
+  description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 JPEG。"
   author: "Bensz Conan"
   category: "image-generation"
 
@@ -176,7 +176,11 @@ generation:
   default_canvas_width: 1600
   default_canvas_height: 900
   postprocess_resize_default: false
-  default_output_name: "draw-plot.png"
+  default_output_name: "draw-plot.jpg"
+  quality: "low"
+  output_format: "jpeg"
+  output_compression: 85
+  provider_size: "1024x1024"
   round_dir_prefix: "round-"
   prompt_temperature: 0.2
   prompt_max_tokens: 1200

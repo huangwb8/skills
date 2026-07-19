@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.1] - 2026-07-19
+
+### Changed
+- **auto-draw-plot 升级到 `0.2.13`**：`gpt-image-2` 默认显式请求 `quality=low`、`size=1024x1024`、`output_format=jpeg` 与压缩质量 `85`，以可控成本生成图片；支持通过参数覆盖质量、原生尺寸、格式与压缩率，并在提交前进行白名单和范围校验。
+- **图片格式与参考图契约完善**：输出按 PNG/JPEG/WebP 的文件扩展名、magic bytes 与 MIME 一致性校验；参考图编辑记录 SHA-256 与稳定来源，并在有参考图时附加主体、构图和背景保真约束。默认交付格式调整为 JPEG，旧 `--output-png` 参数仍可兼容使用。
+- **README 核心能力清单更新**：补充 `auto-draw-plot` 的模式化科研绘图能力，避免首页清单与仓库实际可用技能不一致。
+
+### Fixed
+- **异步图片任务重试安全性修复**：在服务端尚未提供持久幂等语义时，generation/edit submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等明确不可重试的计费错误立即停止，避免重复扣费或无效退避。
+
 ## [4.3.0] - 2026-07-17
 
 ### Changed

@@ -18,7 +18,7 @@ from common import (
 )
 from evaluate_image import evaluate_image, heuristic_evaluation
 from generate_image import generate_image
-from image_provider_client import ImageProviderConfig, health_check_image_provider
+from image_provider_client import ImageProviderConfig, health_check_image_provider, write_image_with_format_contract
 from init_workspace import init_workspace
 from modes import DrawMode, mode_prompt_lines, resolve_mode
 from build_parallel_plan import build_parallel_plan as create_parallel_plan
@@ -79,7 +79,7 @@ def build_round_prompt(
         planner_lines.extend(
             [
                 "",
-                "本轮生成方式：上一轮 output.png 会作为第一张参考图提供给图片模型；请基于它做 image-to-image 微调。",
+                "本轮生成方式：上一轮图片会作为第一张参考图提供给图片模型；请基于它做 image-to-image 微调。",
                 "请尽量保留上一轮已经正确的主体、布局、配色和文字，只针对反馈问题做局部优化；除非反馈明确要求重构，不要从零重画。",
             ]
         )
@@ -120,7 +120,7 @@ def build_round_prompt(
 
 def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode: DrawMode) -> str:
     lines = [
-        "Create one polished, publication-ready PNG image that directly satisfies the user requirement below.",
+        "Create one polished, publication-ready image that directly satisfies the user requirement below.",
         f"Mode: {mode.name} - {mode.label}.",
         f"Purpose: {mode.purpose}",
         "",
@@ -169,7 +169,7 @@ def normalize_prompt_payload(
     reasoning = str(payload.get("reasoning") or "").strip()
     if not image_prompt:
         sections = [
-            "请生成一张高质量、结构清晰、主体明确的 PNG 图片。",
+            "请生成一张高质量、结构清晰、主体明确的图片。",
             "用户需求如下：",
             request_text.strip(),
         ]
@@ -216,8 +216,17 @@ def build_round_reference_images(
         add_ref(Path(item))
 
     prev_round = prior_rounds[-1] if prior_rounds else None
+    if prev_image is not None and user_reference_images:
+        source = "mixed"
+    elif prev_image is not None:
+        source = "previous_round"
+    elif user_reference_images:
+        source = "user_reference"
+    else:
+        source = "none"
     return {
-        "mode": "image-to-image" if prev_image is not None else "text-to-image",
+        "mode": "image-to-image" if refs else "text-to-image",
+        "source": source,
         "source_round": prev_round.get("round") if prev_round else None,
         "source_image": str(prev_image) if prev_image is not None else None,
         "reference_images": [str(item) for item in refs],
@@ -230,7 +239,7 @@ def previous_round_image(prior_rounds: List[Dict[str, Any]]) -> Optional[Path]:
     if not prior_rounds:
         return None
     image_meta = (prior_rounds[-1].get("image", {}) or {})
-    output_png = str(image_meta.get("output_png") or "").strip()
+    output_png = str(image_meta.get("output_file") or image_meta.get("output_png") or "").strip()
     if not output_png:
         return None
     path = Path(output_png)
@@ -264,6 +273,10 @@ def run_draw_plot(
     postprocess_resize: Optional[bool] = None,
     postprocess_w: Optional[int] = None,
     postprocess_h: Optional[int] = None,
+    quality: Optional[str] = None,
+    provider_size: Optional[str] = None,
+    output_format: Optional[str] = None,
+    output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
     cfg = load_config()
     gen_cfg = cfg.get("generation", {}) or {}
@@ -328,6 +341,10 @@ def run_draw_plot(
         "postprocess_resize": effective_postprocess_resize,
         "postprocess_width": int(postprocess_w) if postprocess_w else None,
         "postprocess_height": int(postprocess_h) if postprocess_h else None,
+        "quality": quality or gen_cfg.get("quality") or "low",
+        "provider_size": provider_size or gen_cfg.get("provider_size") or "1024x1024",
+        "output_format": output_format or gen_cfg.get("output_format") or "jpeg",
+        "output_compression": output_compression if output_compression is not None else gen_cfg.get("output_compression"),
     }
     write_json(run_dir / str(reports_cfg.get("run_manifest", "run-manifest.json")), manifest)
 
@@ -366,7 +383,7 @@ def run_draw_plot(
             max_reference_images=int(gen_cfg.get("max_reference_images", 4)),
         )
         round_reference_images = [Path(item) for item in reference_meta["reference_images"]]
-        image_output = round_dir / "output.png"
+        image_output = round_dir / ("output.jpg" if current_provider_cfg.provider == "gpt-image-2" else "output.png")
         image_meta = generate_image(
             prompt=prompt_data["full_prompt"],
             output_png=image_output,
@@ -378,10 +395,14 @@ def run_draw_plot(
             provider_cfg=current_provider_cfg,
             provider_name=provider_name,
             allow_provider_fallback=allow_provider_fallback,
-            require_reference_images=bool(reference_meta["source_image"]),
+            require_reference_images=bool(round_reference_images),
             postprocess_resize=effective_postprocess_resize,
             postprocess_w=postprocess_w,
             postprocess_h=postprocess_h,
+            quality=quality,
+            provider_size=provider_size,
+            output_format=output_format,
+            output_compression=output_compression,
         )
         if image_meta.get("provider") and image_meta.get("provider") != current_provider_cfg.provider:
             current_provider_cfg = ImageProviderConfig(
@@ -457,15 +478,17 @@ def run_draw_plot(
     if best_round is None:
         raise RuntimeError("未生成任何可用图片。")
 
-    final_png = Path(manifest["public_output_png"])
-    copy_file(Path(best_round["image"]["output_png"]), final_png)
-    copy_file(Path(best_round["image"]["output_png"]), exports_dir / "best.png")
+    final_image = Path(manifest.get("public_output_image") or manifest["public_output_png"])
+    best_image = Path(best_round["image"].get("output_file") or best_round["image"]["output_png"])
+    write_image_with_format_contract(final_image, best_image.read_bytes())
+    copy_file(best_image, exports_dir / ("best" + best_image.suffix.lower()))
 
     summary = {
         "run": manifest,
         "best_round": best_round["round"],
         "best_round_dir": best_round["round_dir"],
-        "final_output_png": str(final_png),
+        "final_output_image": str(final_image),
+        "final_output_png": str(final_image),
         "stop_reason": stop_reason,
         "round_count": len(history),
         "best_score": float((best_round.get("evaluation", {}) or {}).get("score", 0.0)),
@@ -528,13 +551,17 @@ def main() -> None:
     group.add_argument("--request-text", help="用户需求文本")
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--workspace-base", default="", help="自定义隐藏工作区根目录")
-    parser.add_argument("--output-png", default="", help="最终输出 PNG 路径")
+    parser.add_argument("--output-image", "--output-png", dest="output_image", default="", help="最终输出图片路径；--output-png 为兼容别名")
     parser.add_argument("--max-rounds", type=int, default=0)
-    parser.add_argument("--canvas-width", type=int, default=0, help="期望布局宽度/宽高比参考，不承诺最终 PNG 像素")
-    parser.add_argument("--canvas-height", type=int, default=0, help="期望布局高度/宽高比参考，不承诺最终 PNG 像素")
+    parser.add_argument("--canvas-width", type=int, default=0, help="期望布局宽度/宽高比参考，不承诺最终图片像素")
+    parser.add_argument("--canvas-height", type=int, default=0, help="期望布局高度/宽高比参考，不承诺最终图片像素")
     parser.add_argument("--postprocess-resize", action="store_true", default=None, help="显式启用后处理尺寸对齐；默认保留 provider 原生输出")
     parser.add_argument("--postprocess-width", type=int, default=0, help="后处理目标宽度；需配合 --postprocess-resize")
     parser.add_argument("--postprocess-height", type=int, default=0, help="后处理目标高度；需配合 --postprocess-resize")
+    parser.add_argument("--quality", default="", help="gpt-image-2 quality：low/medium/high/auto")
+    parser.add_argument("--provider-size", default="", help="gpt-image-2 原生尺寸枚举，默认 1024x1024")
+    parser.add_argument("--output-format", default="", help="gpt-image-2 输出格式：jpeg/png/webp")
+    parser.add_argument("--output-compression", type=int, default=-1, help="输出压缩 0-100；默认使用配置值")
     parser.add_argument("--api-env", default="", help="remote.env 路径")
     parser.add_argument("--mode", default="", help="绘图模式：general（默认）/ roadmap / schematic")
     parser.add_argument("--provider", default="auto", help="图片 provider：auto（默认）/ gpt-image-2 / nano_banana")
@@ -551,7 +578,7 @@ def main() -> None:
     summary = run_draw_plot(
         request_text=request_text,
         project_root=expand_path(args.project_root, base=Path.cwd()),
-        output_png=args.output_png or None,
+        output_png=args.output_image or None,
         workspace_base=args.workspace_base or None,
         max_rounds=(args.max_rounds or None),
         canvas_w=(args.canvas_width or None),
@@ -565,8 +592,12 @@ def main() -> None:
         postprocess_resize=args.postprocess_resize,
         postprocess_w=int(args.postprocess_width) or None,
         postprocess_h=int(args.postprocess_height) or None,
+        quality=args.quality or None,
+        provider_size=args.provider_size or None,
+        output_format=args.output_format or None,
+        output_compression=args.output_compression if args.output_compression >= 0 else None,
     )
-    print(summary["final_output_png"])
+    print(summary.get("final_output_image") or summary["final_output_png"])
 
 
 if __name__ == "__main__":

@@ -90,7 +90,7 @@ def init_workspace(
     if output_png:
         public_output_png = expand_path(output_png, base=project_root)
     else:
-        public_output_png = project_root / str(generation_cfg.get("default_output_name", "draw-plot.png"))
+        public_output_png = project_root / str(generation_cfg.get("default_output_name", "draw-plot.jpg"))
     allow_external = bool(allow_outside_project or workspace_cfg.get("allow_outside_project", False))
     if not allow_external:
         if not _is_within(hidden_root, project_root):
@@ -106,6 +106,7 @@ def init_workspace(
         "run_id": normalized_run_id,
         "run_dir": str(run_dir.resolve()),
         "workspace_inside_project_root": _is_within(hidden_root, project_root),
+        "public_output_image": str(public_output_png.resolve()),
         "public_output_png": str(public_output_png.resolve()),
         "public_output_dir": str(public_output_png.resolve().parent),
         "requests_dir": str(subdirs.get("requests", run_dir / "requests")),
@@ -133,7 +134,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="初始化 auto-draw-plot 隐藏工作区。")
     parser.add_argument("--project-root", default=".", help="项目根目录，默认当前目录")
     parser.add_argument("--workspace-base", default="", help="自定义隐藏工作区根目录")
-    parser.add_argument("--output-png", default="", help="最终公开输出 PNG 路径")
+    parser.add_argument("--output-image", "--output-png", dest="output_image", default="", help="最终公开输出图片路径；--output-png 为兼容别名")
     parser.add_argument("--run-id", default="", help="指定 run id（可选）")
     parser.add_argument("--allow-outside-project", action="store_true", help="允许 workspace/output 写到 project_root 外部")
     args = parser.parse_args()
@@ -141,7 +142,7 @@ def main() -> None:
     manifest = init_workspace(
         project_root=expand_path(args.project_root, base=Path.cwd()),
         workspace_base=args.workspace_base or None,
-        output_png=args.output_png or None,
+        output_png=args.output_image or None,
         run_id=args.run_id or None,
         allow_outside_project=bool(args.allow_outside_project),
     )
