@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.2] - 2026-07-20
+
+### Changed
+- **awesome-code 升级到 `3.0.2`**：`writing-plans` 改用“问题优先”的实施计划结构，先解释现状、影响、目标和改进方向，再按需补充技术细节；计划深度会随风险调整，但高风险任务不再默认展开为机械化逐步脚本。
+- **计划质量门禁完善**：`writing-plans` 明确以当前 Skill 规则为准，识别并在交付前重写旧版 `Implementation Plan`、`For Claude` 和 `Task—Files—Step` 模板；正式计划统一保存到 `docs/plans/`，中间材料归档到任务工作区。
+- **版本与使用说明同步**：`awesome-code/config.yaml` 和 `pyproject.toml` 统一为 `3.0.2`，修复后者仍为 `3.0.0` 的版本漂移；README 同步说明新的计划产出边界与适用场景。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.3.1` 更新为 `v4.3.2`。
+
 ## [4.3.1] - 2026-07-19
 
 ### Changed

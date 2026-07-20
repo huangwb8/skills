@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/unit/test_dispatch_policy_integration.py` 新增轻量集成测试，覆盖小任务 `single-pass`、安全漏洞 `multi-agent`、宽泛重构歧义阻塞与明确验证命令放行。
 
 ### Changed（变更）
+- 版本号从 `3.0.1` 升级到 `3.0.2`；`agents/writing-plans/SKILL.md` 新增现行规则优先级、实施级计划边界、旧模板指纹与保存前重写门禁，并明确高风险不等于机械化逐步脚本；同步修正 `pyproject.toml` 仍停留在 `3.0.0` 的版本漂移。
 - 版本号从 `3.0.0` 升级到 `3.0.1`；将 `cache.py`、`performance_benchmark.py` 与 `mirror_optimizer.py` 的独立运行 fallback 目录同步迁移到 `.bensz-api/skills/awesome-code/` 或 `.bensz-api/skills/mirror-optimizer/`，并让测试 watch 模式默认忽略 `.bensz-api/`。
 - `agents/frontend-specialist/SKILL.md` 增强表单与输入控件整齐度策略，将输入框高度阶梯、宽度栅格、label/help/error 文案规则、行内基线对齐、状态样式和移动端表单分组纳入执行与交付检查。
 - `scripts/agent_coordinator.py` 改为扫描 `agents/*/SKILL.md`、读取 frontmatter 摘要与配置约束，只输出 `available_agents`、`config_constraints`、`dispatch_gate` 和 `dispatch_guidance`，不再输出关键词推荐结果。

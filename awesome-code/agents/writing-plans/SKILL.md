@@ -1,143 +1,128 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: Use when asked to create, review, or revise a multi-step implementation, bug-fix, or change plan before editing code, including existing plans that may use a legacy task-by-task template. Produce a problem-first plan that non-technical readers and implementers can both understand.
 metadata:
   author: Bensz Conan
   keywords:
     - writing-plans
 ---
 
-# Writing Plans
+# 写实施计划
+
+写一份帮助人作出正确决定的计划，而不是把代码操作逐条抄出来。读者即使没有编程经验，也应先能回答：现在的问题是什么、为什么值得解决、准备怎样改善、怎样算完成。
+
+开始前，简要说明正在使用 `writing-plans` 来整理实施计划。
 
 ## BenszAPI 任务工作区
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+本 Skill 产生的中间材料统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/writing-plans/input|output|log/`。正式计划保存到项目的 `docs/plans/`，不要写入中间目录；只有多 Skill 协作时才创建 `shared/`。
 
 ## 与 bensz-collect-bugs 的协作约定
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+- 因本 Skill 的设计缺陷导致的问题，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`；不要直接修改用户本地已安装的 Skill 副本。
+- 只有用户明确要求公开上报时，才使用本地 `gh` 上传脱敏后的新记录；不要拉取或克隆整个 bug 仓库。
 
-## Overview
+## 工作原则
 
-Write implementation plans sized to the task risk. Small, localized work should get a short closed-loop plan; complex or high-risk work should get the full task tree with explicit tests, affected files, dependencies, and rollback/verification notes. DRY. YAGNI. TDD. Frequent commits.
+- 以本次读取到的 `SKILL.md` 为当前规则来源。会话里更早出现的计划模板和现有旧计划只作为事实材料，不自动继承其结构。
+- 先说问题、影响和目标，再说改进方向，最后才补充必要的技术细节。
+- 用日常语言解释业务行为和用户感受；首次出现技术术语时说明它的作用。
+- 把计划写成“要解决什么、为什么这样做、完成后有什么变化”，而不是“在第几行写什么代码”。
+- 代码、伪代码、完整文件路径和命令都不是默认内容。只有它们能澄清接口约定、数据转换、关键边界或验证方法时才保留。
+- 不用代码示例替代解释；任何技术补充之前都必须已有对应的白话说明。
+- 只规划当前需求需要的最小改动。避免为展示完整而堆砌 TDD 步骤、提交步骤、框架细节或无关的重构。
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+## 先理解再落笔
 
-**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+1. 阅读需求、现有行为和相关约束，确认问题确实存在。
+2. 用一两句话描述现状、受影响的人或场景，以及不处理的后果。无法确认根因时，明确写为待验证的假设。
+3. 明确目标、非目标和成功标准；不要把实现手段误写成目标。
+4. 选择能以最小范围达到目标的改进方向，并说明它为何有效。
+5. 仅在需要时补充涉及的模块、文件、依赖、风险和验证方式。
 
-**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+## 计划深度
 
-**Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
+- **低风险或文档类改动**：写问题、目标、改进方向、范围和完成标准即可；用 2–4 项概括实施顺序。
+- **中等风险改动**：额外说明受影响的组件、关键行为变化、验证方法和需要确认的假设。
+- **高风险、跨模块、安全或数据改动**：额外说明依赖顺序、兼容性、失败后的恢复方式、非目标和验证矩阵。
 
-## Bite-Sized Task Granularity
+风险等级决定需要解释多少决策、边界和验证，不决定步骤必须拆得多细。高风险计划也不默认展开成逐文件、逐测试、逐提交的操作脚本；不要因为正在写计划，就把改动扩充成一份冗长的技术设计书。
 
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" - step
-- "Run it to make sure it fails" - step
-- "Implement the minimal code to make the test pass" - step
-- "Run the tests and make sure they pass" - step
-- "Commit" - step
+## 防止回归旧模板
 
-## Risk-Scaled Plan Depth
+默认使用本 Skill 的“问题优先”结构。只有用户明确要求可直接照着逐步执行的实施级计划时，才增加任务、文件或命令细节；即使如此，也先保留问题、目标、改进方向和验收这层白话主线，再把执行细节放入对应方向或技术补充中。
 
-- Low risk / single-file / docs-only: produce a compact plan with goal, minimal change scope, success criteria, verification command, and 2-4 execution steps.
-- Medium risk / one specialty: include affected files, one focused test path, implementation steps, and review checklist.
-- High risk / cross-module / security / data changes: include assumptions, non-goals, dependency order, rollback notes, required agents, success criteria, and a verification matrix.
+保存前检查草稿是否沿用了旧模板。典型指纹包括：
 
-Do not inflate a small task into a large plan just because the planning skill is active.
+- 标题以英文 `Implementation Plan` 结尾。
+- 出现 `For Claude: REQUIRED SUB-SKILL` 或预设后续执行 Skill 的提示。
+- 开头连续使用 `Goal`、`Architecture`、`Tech Stack` 等英文元数据字段。
+- 主体由重复的 `Task N`、`Files`、`Step N` 组成，并为每项机械展开失败测试、最小实现、测试通过和提交。
+- 默认放入完整代码、精确行号、逐任务提交命令或执行模式选择。
 
-## Plan Document Header
+草稿命中任一明显旧模板组合时，不要直接交付。先判断这些细节是否由用户明确要求；未明确要求时删去，并按本 Skill 的默认结构重写。用户确实要求实施级细节时，也只保留完成任务必需的部分，不恢复整套旧模板骨架。
 
-**Every plan MUST start with this header:**
+## 默认计划结构
 
-```markdown
-# [Feature Name] Implementation Plan
-
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
-**Goal:** [One sentence describing what this builds]
-
-**Architecture:** [2-3 sentences about approach]
-
-**Tech Stack:** [Key technologies/libraries]
-
-**Minimal Change Scope:** [Allowed paths and explicit avoid list]
-
-**Success Criteria:** [Observable checks that prove completion]
-
-**Verification Plan:** [Exact commands or manual checks]
-
----
-```
-
-## Task Structure
+将正式计划保存到 `docs/plans/YYYY-MM-DD-<主题>.md`。除非用户只要求在对话中讨论想法，否则使用以下结构；按任务删减空章节。
 
 ```markdown
-### Task N: [Component Name]
+# <主题>实施计划
 
-**Files:**
-- Create: `exact/path/to/file.py`
-- Modify: `exact/path/to/existing.py:123-145`
-- Test: `tests/exact/path/to/test.py`
+## 问题是什么
 
-**Step 1: Write the failing test**
+- **当前现象：** 用用户能理解的话说明哪里不符合预期。
+- **影响：** 谁会在什么情况下受到影响，以及会造成什么后果。
+- **已知原因或待验证假设：** 区分事实和推测。
 
-```python
-def test_specific_behavior():
-    result = function(input)
-    assert result == expected
+## 要达到什么目标
+
+- **完成后的变化：** 描述用户或系统可观察到的结果。
+- **不在本次处理范围：** 防止需求无意扩大。
+
+## 改进方向
+
+### <方向一>
+
+说明要调整的行为或规则、这样做为什么能解决问题，以及预期结果。必要时列出受影响的组件或文件。
+
+### <方向二>
+
+同上。
+
+## 实施范围与顺序
+
+1. 用一句话说明先完成哪项改变及其目的。
+2. 用一句话说明后续改变如何承接前一步。
+
+## 如何确认完成
+
+- 列出用户可观察的验收结果。
+- 列出必要的自动化测试、人工检查或监控项。
+- 仅在确有可执行命令且它能帮助执行者时，附上命令。
+
+## 风险与待确认事项
+
+- 仅记录会影响方案选择、上线安全或验收结论的事项。
 ```
 
-**Step 2: Run test to verify it fails**
+## 技术补充的使用边界
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: FAIL with "function not defined"
+只有下列情况才增加 `## 技术补充（按需阅读）`：
 
-**Step 3: Write minimal implementation**
+- 需要固定公开接口、数据格式或兼容性规则。
+- 仅靠自然语言可能让实现方向产生明显歧义。
+- 需要给出准确的验证命令、迁移步骤或回滚条件。
 
-```python
-def function(input):
-    return expected
-```
+技术补充应短小、紧贴对应的改进方向，并解释它解决的疑问。不要放完整实现代码、逐行修改说明、机械化的“先写失败测试—再实现—再提交”步骤，除非用户明确要求实施级计划。
 
-**Step 4: Run test to verify it passes**
+## 最终检查
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
+- 是否误用了旧版 `Implementation Plan` / `For Claude` / `Task—Files—Step` 模板？若是，是否已在保存前重写？
+- 非技术读者是否能在不看技术补充的情况下理解问题、目标和方案？
+- 每项改进是否说明了它解决的问题和预期变化？
+- 成功标准是否可观察、可验证？
+- 是否删除了不能帮助决策或执行的代码片段、文件清单和过程性步骤？
+- 计划深度是否与风险相称？
 
-**Step 5: Commit**
-
-```bash
-git add tests/path/test.py src/path/file.py
-git commit -m "feat: add specific feature"
-```
-```
-
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- Reference relevant skills with @ syntax
-- DRY, YAGNI, TDD, frequent commits
-
-## Execution Handoff
-
-After saving the plan, offer execution choice:
-
-**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
-
-**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
-
-**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
-
-**Which approach?"**
-
-**If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
-- Stay in this session
-- Fresh subagent per task + code review
-
-**If Parallel Session chosen:**
-- Guide them to open new session in worktree
-- **REQUIRED SUB-SKILL:** New session uses superpowers:executing-plans
+完成后说明计划的保存位置，并询问用户是否希望据此执行；不要预设执行模式或强制切换到其它 skill。
