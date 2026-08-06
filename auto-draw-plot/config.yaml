@@ -1,7 +1,7 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.13"
-  description: "根据用户需求自动编写绘图 prompt，并按模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型多轮生成满意的 JPEG。"
+  version: "0.2.16"
+  description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
   author: "Bensz Conan"
   category: "image-generation"
 
@@ -76,6 +76,8 @@ api:
     - "ACCESS_DENIED"
     - "BILLING_NOT_ALLOWED"
     - "BILLING_SERVICE_ERROR"
+    - "PROVIDER_EMPTY_RESPONSE"
+    - "PROVIDER_NON_JSON_RESPONSE"
   request_timeout_s: 1800
   retry_attempts: 5
   async_image_job:

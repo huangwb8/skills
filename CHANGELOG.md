@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.3] - 2026-08-06
+
+### Changed
+- **auto-draw-plot 升级到 `0.2.16` 并明确为自包含图片工作流**：技能自身经 BenszAPI 完成 prompt、generation/edit 与多轮迭代，选中后不得默认调用或依赖 `imagegen`；只有用户明确要求同时使用 `imagegen` 时才额外调用，避免"先写 prompt 再交给 imagegen 出图"造成的重复生成与重复计费。`SKILL.md` 新增"技能边界"章节，`README.md` 同步自包含说明、fallback 边界与协议错误问答。
+- **图片协议错误可观测性补齐**：`image_provider_client.py` 对 `2xx` 空正文或非 JSON 正文新增 `PROVIDER_EMPTY_RESPONSE` / `PROVIDER_NON_JSON_RESPONSE` 分类，替代原先只抛出裸解析异常；错误证据仅记录 HTTP 状态、origin/path、Content-Type、声明/实际长度、正文 SHA-256、首字节类别与重定向变化，不保存 query、鉴权头、prompt 或原始正文。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.3.2` 更新为 `v4.3.3`。
+
+### Fixed
+- **submit 端到端关联证据修复**：JSON 与 multipart 请求自动发送安全 `X-Client-Request-ID`，空/非 JSON 协议错误优先保留服务端回传的 `X-Request-ID` 与 `X-Client-Request-ID`，并对关联 ID 执行长度（≤128）和字符白名单校验；此类任务创建状态不确定的协议错误不会重试 submit、也不会跨 provider 重放，避免掩盖真实业务故障或导致重复计费。
+
 ## [4.3.2] - 2026-07-20
 
 ### Changed

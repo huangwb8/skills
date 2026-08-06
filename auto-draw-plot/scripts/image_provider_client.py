@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -64,6 +65,49 @@ class ProviderHTTPError(RuntimeError):
         self.category = _classify_provider_error(http_status=self.code, error_code=self.error_code)
         machine_code = f" code={self.error_code}" if self.error_code else ""
         super().__init__(f"HTTP {self.code} {self.reason}{machine_code}: {self.safe_message}")
+
+
+class ProviderProtocolError(RuntimeError):
+    def __init__(
+        self,
+        *,
+        error_code: str,
+        http_status: int,
+        http_reason: str,
+        request_url: str,
+        final_url: str,
+        headers: Dict[str, str],
+        body: bytes,
+        request_client_request_id: str = "",
+    ) -> None:
+        self.error_type = "provider_protocol_error"
+        self.error_code = str(error_code or "PROVIDER_NON_JSON_RESPONSE")
+        self.http_status = int(http_status or 0)
+        self.http_reason = re.sub(r"[\r\n]+", " ", str(http_reason or "").strip())[:200]
+        self.request_location = _safe_url_origin_path(request_url)
+        self.response_location = _safe_url_origin_path(final_url)
+        self.was_redirected = str(request_url) != str(final_url)
+        self.final_origin_changed = _safe_url_origin(request_url) != _safe_url_origin(final_url)
+        self.content_type = _safe_response_header(headers, "Content-Type")
+        self.content_length = _safe_response_header(headers, "Content-Length")
+        self.request_id = _safe_correlation_id(_safe_response_header(headers, "X-Request-ID"))
+        self.client_request_id = _safe_correlation_id(
+            _safe_response_header(headers, "X-Client-Request-ID")
+        ) or _safe_correlation_id(request_client_request_id)
+        self.body_bytes = len(body)
+        self.body_sha256 = hashlib.sha256(body).hexdigest()
+        self.body_prefix_kind = _body_prefix_kind(body)
+        self.retryable = False
+        self.category = "provider_protocol_error"
+        self.safe_message = (
+            "image provider returned an empty success response"
+            if self.error_code == "PROVIDER_EMPTY_RESPONSE"
+            else "image provider returned a non-JSON success response"
+        )
+        super().__init__(
+            f"{self.error_code}: HTTP {self.http_status} {self.http_reason}; "
+            f"location={self.response_location}; body_bytes={self.body_bytes}"
+        )
 
 
 class ProviderJobError(RuntimeError):
@@ -608,7 +652,11 @@ _CLIENT_POLICY_ERROR_CODES = {
     "ACCESS_DENIED",
     "BILLING_NOT_ALLOWED",
 }
-_PROVIDER_FALLBACK_BLOCKED_ERROR_CODES = _CLIENT_POLICY_ERROR_CODES | {"BILLING_SERVICE_ERROR"}
+_PROVIDER_FALLBACK_BLOCKED_ERROR_CODES = _CLIENT_POLICY_ERROR_CODES | {
+    "BILLING_SERVICE_ERROR",
+    "PROVIDER_EMPTY_RESPONSE",
+    "PROVIDER_NON_JSON_RESPONSE",
+}
 
 
 def _parse_provider_error_detail(detail: str) -> Dict[str, Any]:
@@ -670,6 +718,8 @@ def _should_retry_provider_http_error(exc: ProviderHTTPError) -> bool:
 
 
 def is_provider_fallback_allowed(exc: BaseException) -> bool:
+    if isinstance(exc, ProviderProtocolError):
+        return False
     error_code = str(getattr(exc, "error_code", "") or "").strip().upper()
     category = str(getattr(exc, "category", "") or "").strip()
     cfg = load_config()
@@ -701,6 +751,32 @@ def provider_error_debug_payload(exc: BaseException) -> Dict[str, Any]:
                     "type": exc.error_type,
                     "code": exc.error_code,
                     "message": exc.safe_message,
+                },
+            }
+        )
+        return payload
+    if isinstance(exc, ProviderProtocolError):
+        payload.update(
+            {
+                "error": {
+                    "type": exc.error_type,
+                    "code": exc.error_code,
+                    "message": exc.safe_message,
+                },
+                "response": {
+                    "http_status": exc.http_status,
+                    "http_reason": exc.http_reason,
+                    "request_location": exc.request_location,
+                    "response_location": exc.response_location,
+                    "content_type": exc.content_type,
+                    "content_length": exc.content_length,
+                    "body_bytes": exc.body_bytes,
+                    "body_sha256": exc.body_sha256,
+                    "body_prefix_kind": exc.body_prefix_kind,
+                    "was_redirected": exc.was_redirected,
+                    "final_origin_changed": exc.final_origin_changed,
+                    "request_id": exc.request_id,
+                    "client_request_id": exc.client_request_id,
                 },
             }
         )
@@ -1219,19 +1295,29 @@ def _post_json(
     req.add_header("User-Agent", "OpenAI/Python 1.0.0")
     for key, value in (headers or {}).items():
         req.add_header(key, value)
+    client_request_id = _ensure_client_request_id(req)
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             raw = resp.read()
+            response_status = _response_status(resp)
+            response_reason = str(getattr(resp, "reason", "") or "")
+            response_url = str(resp.geturl() or url)
+            response_headers = {str(k): str(v) for k, v in getattr(resp, "headers", {}).items()}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         hdrs = {str(k): str(v) for k, v in getattr(exc, "headers", {}).items()}
         raise ProviderHTTPError(int(exc.code), str(exc.reason), detail[:1600], headers=hdrs) from exc
     except Exception as exc:
         raise RuntimeError(f"请求图片 provider 失败：{exc}") from exc
-    try:
-        data = json.loads(raw.decode("utf-8"))
-    except Exception as exc:
-        raise RuntimeError(f"图片 provider 响应 JSON 解析失败：{exc}") from exc
+    data = _decode_provider_json_response(
+        raw,
+        http_status=response_status,
+        http_reason=response_reason,
+        request_url=url,
+        final_url=response_url,
+        headers=response_headers,
+        request_client_request_id=client_request_id,
+    )
     if not isinstance(data, dict):
         raise RuntimeError("图片 provider 响应不是 JSON object。")
     return data
@@ -1253,22 +1339,138 @@ def _post_multipart(
     req.add_header("User-Agent", "OpenAI/Python 1.0.0")
     for key, value in (headers or {}).items():
         req.add_header(key, value)
+    client_request_id = _ensure_client_request_id(req)
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             raw = resp.read()
+            response_status = _response_status(resp)
+            response_reason = str(getattr(resp, "reason", "") or "")
+            response_url = str(resp.geturl() or url)
+            response_headers = {str(k): str(v) for k, v in getattr(resp, "headers", {}).items()}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         hdrs = {str(k): str(v) for k, v in getattr(exc, "headers", {}).items()}
         raise ProviderHTTPError(int(exc.code), str(exc.reason), detail[:1600], headers=hdrs) from exc
     except Exception as exc:
         raise RuntimeError(f"请求图片 provider 失败：{exc}") from exc
-    try:
-        data = json.loads(raw.decode("utf-8"))
-    except Exception as exc:
-        raise RuntimeError(f"图片 provider 响应 JSON 解析失败：{exc}") from exc
+    data = _decode_provider_json_response(
+        raw,
+        http_status=response_status,
+        http_reason=response_reason,
+        request_url=url,
+        final_url=response_url,
+        headers=response_headers,
+        request_client_request_id=client_request_id,
+    )
     if not isinstance(data, dict):
         raise RuntimeError("图片 provider 响应不是 JSON object。")
     return data
+
+
+def _decode_provider_json_response(
+    raw: bytes,
+    *,
+    http_status: int,
+    http_reason: str,
+    request_url: str,
+    final_url: str,
+    headers: Dict[str, str],
+    request_client_request_id: str = "",
+) -> Any:
+    if not raw.strip():
+        raise ProviderProtocolError(
+            error_code="PROVIDER_EMPTY_RESPONSE",
+            http_status=http_status,
+            http_reason=http_reason,
+            request_url=request_url,
+            final_url=final_url,
+            headers=headers,
+            body=raw,
+            request_client_request_id=request_client_request_id,
+        )
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProviderProtocolError(
+            error_code="PROVIDER_NON_JSON_RESPONSE",
+            http_status=http_status,
+            http_reason=http_reason,
+            request_url=request_url,
+            final_url=final_url,
+            headers=headers,
+            body=raw,
+            request_client_request_id=request_client_request_id,
+        ) from exc
+
+
+def _response_status(response: Any) -> int:
+    status = getattr(response, "status", None)
+    if status is None and hasattr(response, "getcode"):
+        status = response.getcode()
+    try:
+        return int(status or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_response_header(headers: Dict[str, str], name: str) -> str:
+    expected = name.lower()
+    for key, value in headers.items():
+        if str(key).lower() == expected:
+            raw = re.sub(r"[\r\n]+", " ", str(value or "").strip())[:200]
+            if expected == "content-length" and not raw.isdigit():
+                return ""
+            return raw
+    return ""
+
+
+def _safe_correlation_id(value: str) -> str:
+    value = str(value or "")
+    if not value or len(value) > 128 or not re.fullmatch(r"[A-Za-z0-9._:-]+", value):
+        return ""
+    return value
+
+
+def _ensure_client_request_id(req: urllib.request.Request) -> str:
+    existing = _safe_correlation_id(req.get_header("X-client-request-id") or "")
+    client_request_id = existing or f"auto-draw-plot:{uuid.uuid4()}"
+    req.add_header("X-Client-Request-ID", client_request_id)
+    return client_request_id
+
+
+def _safe_url_origin_path(value: str) -> str:
+    try:
+        parsed = urllib.parse.urlparse(str(value or ""))
+        hostname = str(parsed.hostname or "").lower()
+        if not parsed.scheme or not hostname:
+            return str(parsed.path or "/")
+        port = parsed.port
+        netloc = hostname if port is None else f"{hostname}:{port}"
+        return urllib.parse.urlunparse((parsed.scheme.lower(), netloc, parsed.path or "/", "", "", ""))
+    except (TypeError, ValueError):
+        return ""
+
+
+def _safe_url_origin(value: str) -> str:
+    safe_location = _safe_url_origin_path(value)
+    parsed = urllib.parse.urlparse(safe_location)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return ""
+
+
+def _body_prefix_kind(body: bytes) -> str:
+    stripped = body.lstrip()
+    if not stripped:
+        return "empty"
+    first = stripped[:1]
+    if first == b"<":
+        return "markup"
+    if first in {b"{", b"["}:
+        return "json_like"
+    if all(byte in {9, 10, 13} or 32 <= byte <= 126 for byte in stripped[:32]):
+        return "text"
+    return "binary"
 
 
 def _encode_multipart(*, fields: Dict[str, str], files: List[Tuple[str, str, str, bytes]], boundary: str) -> bytes:

@@ -105,13 +105,15 @@
 
 `auto-draw-plot` 会由当前宿主 AI 把你的需求拆成主体、结构、风格、硬约束和禁止项，然后按模式生成图片 prompt。第 1 轮按文本出图；第 2 轮起会自动把上一轮 `output.jpg` 作为第一参考图，并追加保留主体、构图和背景的保真约束。首轮已有用户参考图时也会正确记录为 `image-to-image`。
 
+它是自包含的图片生成工作流：本 skill 自己通过 BenszAPI 完成 prompt、出图、编辑与迭代，不依赖 `imagegen` skill。仅当你明确要求同时使用 `imagegen` 或其特有能力时，助手才应额外调用它，并说明两者独立的职责；正常使用 `auto-draw-plot` 时，不应出现“先由它写 prompt、再交给 imagegen 出图”的说法。
+
 图片生成默认使用 `auto` provider 选择：运行前按优先级寻找一个配置、连接和鉴权检查通过的图片 provider。这里的 `/v1/models` 探测不执行完整 Images 计费资格检查，因此输出 `connectivity/authentication_ok` 只表示“能连通且 Key 可鉴权”，不表示当前请求已经 `generation_eligible`。真实生成资格以 `/images/jobs/generations` 或 `/images/jobs/edits` 的 submit 响应为准。
 
-生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage 和计费服务错误即使开启该选项也不会跨 provider，以免掩盖真实业务故障。
+生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage、计费服务错误，以及 submit 空/非 JSON 等无法确认 job 是否已创建的协议错误，即使开启该选项也不会跨 provider，以免掩盖真实业务故障或重复生成计费。
 
 `gpt-image-2` 默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/images/jobs/generations`，参考图编辑提交到 `/images/jobs/edits`。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/images/generations` 或 `/images/edits` 长连接更容易暴露在 504 风险下。
 
-同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 时，脚本才会改用旧同步端点。服务端尚未确认持久幂等语义前，submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等 `retryable=false` 错误不会退避重试，poll/result 的临时故障独立处理。参考图证据记录 SHA-256，不记录 API Key 或内部订阅明细。
+同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 时，脚本才会改用旧同步端点。服务端尚未确认持久幂等语义前，submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等 `retryable=false` 错误不会退避重试，`2xx` 空/非 JSON 响应也不会重放，poll/result 的临时故障独立处理。JSON 与 multipart 请求都会发送单次生成的安全 `X-Client-Request-ID`；此类协议错误会在 `image-debug/gpt-image-2-error.json` 中记录服务端回传的安全 `X-Request-ID` / `X-Client-Request-ID`、HTTP 状态、origin/path、Content-Type、声明/实际长度、正文 SHA-256、首字节类别和重定向变化，但不会保存 query、鉴权头、prompt 或原始响应正文。参考图证据同样只记录 SHA-256，不记录 API Key 或内部订阅明细。
 
 ## 配置
 
@@ -198,6 +200,10 @@ A：这是预期行为。用户点名模型时，skill 会尊重这个选择；�
 ### Q：为什么 provider 检查显示 OK，提交图片时仍可能失败？
 
 A：检查阶段的 `OK connectivity/authentication_ok` 只证明 base URL 可连接且 Key 可鉴权。图片请求的模型、分组、订阅、余额、overage 等条件只有真实 submit 才能完整判断；请以 submit 返回的 `SUBSCRIPTION_REQUIRED`、`BILLING_SERVICE_ERROR`、`OVERAGE_LIMIT_EXCEEDED` 等结构化错误码为准。
+
+### Q：`PROVIDER_EMPTY_RESPONSE` 或 `PROVIDER_NON_JSON_RESPONSE` 是什么？
+
+A：它表示 HTTP 客户端收到了成功状态，但正文为空或不是 Sub2API Images 约定的 JSON。由于客户端无法确认服务端是否已经创建 job，脚本不会自动重试，也不会跨 provider 再生成；请保留 `image-debug/gpt-image-2-error.json`，用其中不含密钥和正文的 `request_id`、`client_request_id`、状态、路径、长度、类型与指纹联系管理员排查边缘/代理链路。
 
 ### Q：使用 `gpt-image-2` 时还会调用 Gemini 做文本规划或评估吗？
 

@@ -1,6 +1,6 @@
 ---
 name: auto-draw-plot
-description: 根据用户描述生成高质量绘图 prompt，并按通用、roadmap、schematic 模式调用 gpt-image-2 或 Nano Banana/Gemini 图片模型 API；gpt-image-2 默认使用低画质、原生尺寸和 JPEG，第 2 轮起基于上一轮图片做保真微调。
+description: 根据用户描述生成高质量绘图 prompt，并按通用、roadmap、schematic 模式通过 BenszAPI 直接完成 gpt-image-2 或 Nano Banana/Gemini 出图、编辑和多轮迭代；这是自包含的图片生成工作流，选中后不得调用或依赖 imagegen，除非用户明确要求同时使用 imagegen。
 metadata:
   author: Bensz Conan
   short-description: 模式化需求理解 + multi-round image-to-image optimization + gpt-image-2 低成本 JPEG
@@ -31,13 +31,20 @@ metadata:
 - 默认通过 `scripts/run_draw_plot.py` 在独立隐藏工作区里完成“parallel-vibe 规划留痕 → prompt → 出图 → 视觉评估 → 继续/停止”的闭环；`parallel-vibe` 是必选工作流的一部分，不是可选增强。
 - 默认工作区是当前目录下的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`；所有中间文件必须留在隐藏目录里。宿主 AI 在正式检查 API、初始化工作区或开始出图前，必须先向用户明确声明本次任务 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot` 根目录的绝对路径，方便用户实时监督。轻量测试目录固定为 `./tests/draw-plot`。
 
+## 技能边界
+
+- `auto-draw-plot` 独立负责需求拆解、prompt 生成、图片 generation/edit、多轮保真微调、评估与交付；图片请求由本 skill 的脚本通过 BenszAPI 提交，不调用也不依赖 `imagegen` skill。
+- 用户要求用 `auto-draw-plot` 画图、改图或基于上一轮继续微调时，只使用本 skill 完成完整链路。不得把它表述或编排为“先生成 prompt，再交给 `imagegen` 出图/编辑”的前处理步骤；这种说法会错误暗示依赖关系，并可能造成重复生图与重复计费。
+- 只有用户明确点名同时使用 `imagegen`，或明确要求其独有能力时，才允许额外调用 `imagegen`；调用前说明两者各自独立的职责，且不得将 `imagegen` 伪装成 `auto-draw-plot` 的内部依赖。
+- 默认用户可见说明应写明：`本次使用 auto-draw-plot，由其经 BenszAPI 完成 prompt、出图和后续编辑。` 不得默认承诺后续会调用 `imagegen`。
+
 ## 输入
 
 - `user_need`（必需）：自然语言描述的图像需求、输出用途、必要的视觉语义与格式要求。
 - `mode`（可选）：`general` / `roadmap` / `schematic`；默认 `general`。模式只改变 prompt preset、默认画布和评估口径，不引入 legacy draw.io 渲染器。
 - `api_config`（可选）：指向 `~/.bensz-skills/config/remote.env` 的路径；默认 `auto` 只在运行前按优先级选择连接与鉴权检查通过的 provider，真实生成资格以 Images submit 响应为准。
 - `image_provider`（可选）：用户明确指定的图片模型/provider，如 `gpt-image-2` 或 `nano_banana`。显式指定后必须只用该 provider，失败时暂停并报告原因，不得切换到其他模型。
-- `allow_provider_fallback`（可选）：只有用户明确说“失败可以换模型/可以回退到另一个 provider”时才为 true；该授权仅覆盖 provider 故障，不覆盖订阅、余额、权限、overage 或计费服务错误。
+- `allow_provider_fallback`（可选）：只有用户明确说“失败可以换模型/可以回退到另一个 provider”时才为 true；该授权仅覆盖已确认未创建任务的 provider 故障，不覆盖订阅、余额、权限、overage、计费服务错误或 submit 空/非 JSON 等任务创建状态不确定的协议错误。
 - `max_rounds`（可选）：最大优化轮数，默认 3；若用户另有指定，以用户为准。
 - `visual_constraints`（可选）：比例、期望布局、色调、字体等硬约束。尺寸只作为 provider 原生尺寸选择参考，不承诺最终导出像素。
 - `quality` / `provider_size` / `output_format` / `output_compression`（可选）：`gpt-image-2` 显式 provider 参数；默认分别为 `low`、`1024x1024`、`jpeg`、`85`，均执行白名单或范围校验。
@@ -49,7 +56,7 @@ metadata:
 - 至少 1 张合乎需求的图像；`gpt-image-2` 正式输出默认为 `jpeg`。
 - 隐藏目录里的 `meta/analysis.json` / `meta/result.json`：记录每轮 prompt、模型参数、参考图策略、评估结果、最终选图和停止原因。
 - 每轮图片 meta 必须区分 `requested_provider_size`、`native_size`、`output_size` 与 `postprocess_resize_applied`；默认 `postprocess_resize_applied=false`。
-- `image-debug/gpt-image-2-error.json` 只保留错误类别、HTTP 状态和服务端安全返回的 `error.type` / `error.code` / `error.message`；不得写入 Authorization、API Key、订阅明细或原始内部错误对象。
+- `image-debug/gpt-image-2-error.json` 只保留错误类别、HTTP 状态和服务端安全返回的 `error.type` / `error.code` / `error.message`。JSON 与 multipart 请求发送安全 `X-Client-Request-ID`；`2xx` 空正文或非 JSON 正文分别记录 `PROVIDER_EMPTY_RESPONSE` / `PROVIDER_NON_JSON_RESPONSE`，附经白名单校验的 `request_id` / `client_request_id`、origin/path、响应类型、声明/实际长度、SHA-256、首字节类别和重定向布尔值；不得写入 query、Authorization、API Key、Cookie、prompt、原始正文、订阅明细或原始内部错误对象。
 - 每轮目录：`rounds/round-XX/prompt.txt`、`rounds/round-XX/prompt-plan.json`、`rounds/round-XX/parallel-plan.json`、`rounds/round-XX/output.jpg`、`rounds/round-XX/evaluation.json` 以及 `image-debug/` / `evaluation-debug/`；`gpt-image-2` 默认主动使用 Sub2API image job endpoint，generation/edit 均显式发送 `quality=low`、原生尺寸和 `output_format=jpeg`，并在 debug meta 中保留参考图 SHA-256。
 - run 级 `parallel-vibe/parallel-plan.json` 与 `parallel-vibe/parallel-plan.round-XX.json`：每轮必留痕的 parallel-vibe plan。
 
@@ -59,7 +66,7 @@ metadata:
 2. 默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY | OPENAI_API`，再使用 `gpt-image-2`；环境变量与 `remote.env` 只作为缺失字段的兜底来源。
 3. `gpt-image-2` 只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。
 4. 如果用户点名 `gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider，运行前检查和后续出图都必须固定在该 provider；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
-5. 只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage 与 `BILLING_SERVICE_ERROR` 仍必须停在原 provider 并展示结构化错误。
+5. 只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage、`BILLING_SERVICE_ERROR` 与 submit 空/非 JSON 等任务创建状态不确定的协议错误仍必须停在原 provider 并展示结构化错误。
 6. 再运行 `scripts/nano_banana_check.py`。默认 `auto` 会按 provider 优先级检查配置、连接和鉴权；若用户指定 provider，应把 `--provider <name>` 传给主脚本。`/v1/models` 成功只能表述为 `connectivity/authentication_ok`，不得写成“可生图”或 `generation_eligible=true`；真实 Images submit 才是当前请求的准入判断。
 
 ## 工作流
@@ -76,7 +83,7 @@ metadata:
    - 优先由宿主 AI 在调用脚本前完成需求拆解与 prompt 规划；
    - `run_draw_plot.py` 只做本地模板拼装与护栏合并，不默认调用 Gemini / Nano Banana 等远端文本规划接口；
    - prompt 仍需忠实反映用户需求，不得暴露密钥或绝对路径。
-7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；`gpt-image-2` 纯文本出图默认提交到 `/images/jobs/generations`，存在参考图时默认提交到 `/images/jobs/edits`，同步端点只在 job endpoint 明确不支持时兼容回退。submit 在服务端尚无持久幂等契约时只提交一次；结构化 `retryable=false`（包括 `BILLING_PRICING_NOT_CONFIGURED`）立即停止，poll/result 的暂时故障独立处理。默认请求 `quality=low`、最小匹配原生尺寸和 `output_format=jpeg`，输出扩展名、magic bytes、MIME 与 meta 必须一致；PNG/WebP 回退结果导出 JPEG 时以白色合成透明背景。参考图编辑会追加“只改明确要求、保留主体/构图/背景”的契约，并记录原始参考图 SHA-256。
+7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；`gpt-image-2` 纯文本出图默认提交到 `/images/jobs/generations`，存在参考图时默认提交到 `/images/jobs/edits`，同步端点只在 job endpoint 明确不支持时兼容回退。submit 在服务端尚无持久幂等契约时只提交一次；结构化 `retryable=false`（包括 `BILLING_PRICING_NOT_CONFIGURED`）立即停止，`2xx` 空/非 JSON 响应也不重试或跨 provider，poll/result 的暂时故障独立处理。默认请求 `quality=low`、最小匹配原生尺寸和 `output_format=jpeg`，输出扩展名、magic bytes、MIME 与 meta 必须一致；PNG/WebP 回退结果导出 JPEG 时以白色合成透明背景。参考图编辑会追加“只改明确要求、保留主体/构图/背景”的契约，并记录原始参考图 SHA-256。
 8. **视觉评估**：
    - `scripts/evaluate_image.py` 默认只做启发式文件/分辨率检查并标记 `fallback_mode=heuristic`，不调用 Gemini 文本接口；
    - 宿主 AI 必须根据最终图片、用户需求与 `evaluation.json` 做语义把关，必要时人工触发下一轮。
