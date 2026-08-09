@@ -13,7 +13,8 @@
 
 用法:
     python3 verify_test_session.py <session_dir>
-    python3 verify_test_session.py .bensz-api/skills/auto-test-project/output/tests/v202601151400
+    python3 verify_test_session.py --task-root .bensz-api/task-20260115-1400-project-test <session_dir>
+    python3 verify_test_session.py --legacy-root .bensz-api/skills/auto-test-project <legacy_session_dir>
 
 退出码:
     0 - 验证通过
@@ -28,6 +29,12 @@ import re
 import argparse
 from pathlib import Path
 from typing import List, Tuple
+
+from workspace_paths import (
+    infer_active_workspace_from_session,
+    resolve_legacy_workspace,
+    resolve_workspace,
+)
 
 REQUIRED_FILES = ["TEST_PLAN.md", "TEST_REPORT.md"]
 
@@ -122,25 +129,8 @@ def _int_or(default: int, value: str | None) -> int:
 # Defaults (overrideable by CLI flags)
 MIN_REPORT_LENGTH = _int_or(500, _CFG_VER.get("min_report_length"))
 MIN_ISSUE_COUNT = _int_or(10, _CFG_VER.get("min_issue_count"))
-PLANS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("plans", ""), default="plans")
-TESTS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("tests", ""), default="tests")
-
-
-def _infer_project_root_from_session(session_dir: Path) -> Path:
-    """
-    Infer <project_root> from <project_root>/<configured tests dir>/<session>.
-
-    The tests directory may be nested (for example
-    .bensz-api/skills/auto-test-project/output/tests), so session_dir.parent.parent
-    is no longer a safe shortcut.
-    """
-    tests_parts = Path(TESTS_DIRNAME).parts
-    if not tests_parts:
-        return session_dir.parent.parent
-    try:
-        return session_dir.parents[len(tests_parts)]
-    except IndexError:
-        return session_dir.parent.parent
+PLANS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("plans", ""), default="output/plans")
+TESTS_DIRNAME = _safe_rel_path(_CFG_DIRS.get("tests", ""), default="output/tests")
 
 def _read_text(path: Path) -> str:
     # Be tolerant to non-UTF8 files in real projects; verification should not crash.
@@ -262,6 +252,7 @@ def check_evidence_presence(session_dir: Path) -> Tuple[bool, List[str]]:
 def check_plan_report_consistency(
     session_dir: Path,
     *,
+    plans_dir: Path,
     min_issue_count: int,
     require_plan: bool,
 ) -> Tuple[bool, List[str]]:
@@ -276,12 +267,11 @@ def check_plan_report_consistency(
 
     # 尝试找到对应的 plan 文件
     session_name = session_dir.name
-    project_root = _infer_project_root_from_session(session_dir)
-    plan_file = project_root / PLANS_DIRNAME / f"{session_name}.md"
+    plan_file = plans_dir / f"{session_name}.md"
 
     if not plan_file.exists():
         if require_plan:
-            issues.append(f"缺少规划文档: {PLANS_DIRNAME}/{session_name}.md")
+            issues.append(f"缺少规划文档: {plan_file}")
             return False, issues
         # 如果 plan 文件不存在且未强制要求，跳过一致性检查
         return True, issues
@@ -329,6 +319,7 @@ def check_plan_report_consistency(
 def verify_test_session(
     session_dir: Path,
     *,
+    plans_dir: Path,
     min_report_length: int,
     min_issue_count: int,
     require_plan: bool,
@@ -355,6 +346,7 @@ def verify_test_session(
     # 检查 5: 计划与报告一致性
     passed, issues = check_plan_report_consistency(
         session_dir,
+        plans_dir=plans_dir,
         min_issue_count=min_issue_count,
         require_plan=require_plan,
     )
@@ -379,12 +371,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an auto-test-project test session directory.")
     parser.add_argument(
         "session_dir",
-        help="Test session directory, e.g. .bensz-api/skills/auto-test-project/output/tests/v202601151400",
+        help="Explicit test session directory inside an active task workspace or --legacy-root.",
+    )
+    parser.add_argument(
+        "--project-root",
+        default=".",
+        help="Project root that owns .bensz-api (default: current directory).",
+    )
+    workspace_group = parser.add_mutually_exclusive_group()
+    workspace_group.add_argument(
+        "--task-root",
+        default="",
+        help="Active task root to verify; it is never created or renamed by this command.",
+    )
+    workspace_group.add_argument(
+        "--legacy-root",
+        default="",
+        help=(
+            "Explicit read-only compatibility root. Only "
+            ".bensz-api/skills/auto-test-project is accepted."
+        ),
     )
     parser.add_argument(
         "--require-plan",
         action="store_true",
-        help=f"Fail if {PLANS_DIRNAME}/<session_name>.md is missing or lacks issue ids like '#### P0-1:'.",
+        help="Fail if the task-local plans/<session_name>.md is missing or lacks issue ids like '#### P0-1:'.",
     )
     parser.add_argument(
         "--min-report-length",
@@ -400,7 +411,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    session_dir = Path(args.session_dir)
+    project_root = Path(args.project_root).expanduser().resolve()
+    session_dir = Path(args.session_dir).expanduser().resolve()
     if not session_dir.exists():
         print(f"错误: 目录不存在: {session_dir}", file=sys.stderr)
         return 1
@@ -408,8 +420,38 @@ def main() -> int:
         print(f"错误: 不是目录: {session_dir}", file=sys.stderr)
         return 1
 
+    try:
+        if args.task_root:
+            workspace = resolve_workspace(
+                project_root=project_root,
+                task_root_arg=args.task_root,
+                task_description="",
+                directories=_CFG_DIRS,
+                create=False,
+            )
+        elif args.legacy_root:
+            workspace = resolve_legacy_workspace(
+                project_root=project_root,
+                legacy_root_arg=args.legacy_root,
+                directories=_CFG_DIRS,
+            )
+        else:
+            workspace = infer_active_workspace_from_session(
+                project_root=project_root,
+                session_dir=session_dir,
+                directories=_CFG_DIRS,
+            )
+        if session_dir.parent != workspace.tests_dir:
+            raise ValueError(
+                f"session must be a direct child of configured tests directory: {workspace.tests_dir}"
+            )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"错误: {exc}", file=sys.stderr)
+        return 2
+
     is_valid, issues = verify_test_session(
         session_dir,
+        plans_dir=workspace.plans_dir,
         min_report_length=args.min_report_length,
         min_issue_count=args.min_issue_count,
         require_plan=args.require_plan,

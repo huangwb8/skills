@@ -2,7 +2,7 @@
 
 skill_info:
   name: "bensz-collect-bugs"
-  version: "0.3.1"
+  version: "0.4.0"
   description: "记录与公开上报 Bensz 系列 skills 在真实用户环境中暴露出的设计缺陷类 bug；本地落盘到 ~/.bensz-skills/bugs/，公开阶段使用 gh 直传 huangwb8/bensz-bugs"
   author: "Bensz Conan"
   category: "normal"
@@ -11,6 +11,7 @@ storage:
   local_root: "~/.bensz-skills/bugs"
   context_filename: "bug-context.json"
   report_filename: "BUG_REPORT.md"
+  resolution_filename: "RESOLUTION.md"
   path_pattern: "{skill_name}/{reporter}/{bug_hash}"
 
 github:
@@ -42,6 +43,7 @@ defaults:
 
 templates:
   bug_report: "templates/BUG_REPORT_TEMPLATE.md"
+  resolution: "templates/RESOLUTION_TEMPLATE.md"
 
 reporting:
   commit_message_template: "Report bug {bug_hash} for {skill_name}"

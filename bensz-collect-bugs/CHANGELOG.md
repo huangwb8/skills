@@ -5,7 +5,16 @@
 ## [Unreleased]
 
 ### Added（新增）
-- 暂无
+- 新增 `scripts/resolve_bug.py` 与 `templates/RESOLUTION_TEMPLATE.md`：在保留原始 `BUG_REPORT.md` / `bug-context.json` 的前提下追加 `RESOLUTION.md`，支持 `fixed`、`duplicate`、`--dry-run` 与重复执行幂等检查。
+- 新增 resolution 专项回归，覆盖缺少验证证据拒绝 fixed、duplicate 必须关联 canonical 记录、相同内容幂等和冲突内容拒绝覆盖。
+
+### Changed（变更）
+- 数据模型扩展为“原始证据 + 追加式 resolution”两层结构，版本号 `0.3.2 → 0.4.0`；每条 resolution 统一记录 canonical 根因、修复版本或 commit、验证证据、时间与重复关系。
+
+## [0.3.2] - 2026-08-08
+
+### Fixed（修复）
+- 修复 Windows 中文 locale 下 `subprocess` 用系统编码（GBK）解码 `gh` 的 UTF-8 输出，导致 `UnicodeDecodeError` 并丢失子进程 stderr 的问题：`common.py` 的 `run_command` / `gh_auth_ok` 与 `report_bugs.py` 的 `gh_api` 显式指定 `encoding="utf-8", errors="replace"`，提升 macOS/Windows/Linux 跨平台一致性
 
 ## [0.3.1] - 2026-03-27
 

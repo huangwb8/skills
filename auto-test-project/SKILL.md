@@ -24,20 +24,29 @@ metadata:
 
 ## Quick Start（最快路径）
 
-1. 在“目标项目根目录”创建本轮会话骨架（会自动创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`）：
+1. 使用宿主已公开并锁定的任务根创建本轮会话骨架：
 
 ```bash
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind a --create-plan
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
+python3 auto-test-project/scripts/create_test_session.py \
+  --project-root . \
+  --task-root "$TASK_ROOT" \
+  --kind a \
+  --create-plan
 ```
 
-安全提示：该脚本会在 `--project-root` 下创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`。为防止误用，默认拒绝将系统根目录或用户主目录作为 project-root；如你确有需要，可显式加 `--allow-unsafe-root` 覆盖。
+`--task-root` 省略时表示开始一个新逻辑任务，脚本会分配新的 `task-*` 根；A/B 轮或 continuation 必须显式回传同一个 task root，脚本不会猜测“最近任务”。旧 `.bensz-api/skills/auto-test-project/` 只能通过验证脚本的 `--legacy-root` 显式只读检查，创建命令绝不写入旧目录。
 
 2. 在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md` 写出本轮问题清单（至少 10 个），并使用可引用编号（如 `P0-1`）。
 3. 按计划修复，并补齐 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_PLAN.md` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/TEST_REPORT.md` 的可复现证据。
 4. 运行验证脚本（推荐收尾用严格模式）：
 
 ```bash
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py \
+  --project-root . \
+  --task-root "$TASK_ROOT" \
+  --require-plan \
+  "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 ```
 
 5. 重复 A 轮 N 次后，进入 B 轮质量检查与验证。
@@ -125,10 +134,11 @@ B轮：质量原则检查（以 `config.yaml:b_round_check.dimensions` 为准）
 推荐使用确定性脚本：
 
 ```bash
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind a --id vYYYYMMDDHHMM --create-plan
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
+python3 auto-test-project/scripts/create_test_session.py --project-root . --task-root "$TASK_ROOT" --kind a --id vYYYYMMDDHHMM --create-plan
 
 # 可选：如果你希望 TEST_PLAN.md 直接以计划文档为“种子”，再手动补齐测试细节
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind a --id vYYYYMMDDHHMM --seed-test-plan-from-plan
+python3 auto-test-project/scripts/create_test_session.py --project-root . --task-root "$TASK_ROOT" --kind a --id vYYYYMMDDHHMM --seed-test-plan-from-plan
 ```
 
 最低要求：
@@ -217,10 +227,10 @@ grep -r "{{" .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/ou
 # 如果有输出，说明模板未被正确替换，必须修复
 
 # 使用验证脚本（推荐）
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 
 # 可选：更严格模式（要求 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在且包含 P0-1 等编号，才能做计划-报告一致性检查）
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" --require-plan "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 ```
 
 **轻量测试原则**：
@@ -257,7 +267,7 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-a
 
 ```bash
 # 1. 检查模板占位符是否被替换
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 
 # 2. 检查计划与报告的一致性
 # - .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 中的每个问题是否在 TEST_REPORT.md 中有对应记录
@@ -319,7 +329,8 @@ python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymm
 建议显式提供 `--a-test-id`（对应 A 轮会话 ID），避免 B 轮文档中 A/B 关联被默认值误导。
 
 ```bash
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
+python3 auto-test-project/scripts/create_test_session.py --project-root . --task-root "$TASK_ROOT" --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM
 ```
 
 输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
@@ -336,17 +347,12 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 **最终验证命令**：
 
 ```bash
-# 验证所有测试会话的完整性
-for session in .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/v*/; do
-    echo "验证: $session"
-    python3 auto-test-project/scripts/verify_test_session.py "$session"
-done
-
-# 验证 B 轮会话（如有）
-for session in .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-*/; do
-    echo "验证: $session"
-    python3 auto-test-project/scripts/verify_test_session.py "$session"
-done
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
+# 验证同一 task root 下的全部 A/B 会话
+python3 auto-test-project/scripts/verify_all_sessions.py \
+  --project-root . \
+  --task-root "$TASK_ROOT" \
+  --require-plan
 ```
 
 ## 与 auto-test-skill 的区别

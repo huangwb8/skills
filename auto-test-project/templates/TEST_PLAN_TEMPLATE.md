@@ -78,5 +78,9 @@
 完成后建议运行验证脚本检查会话质量：
 
 ```bash
-python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/{{SESSION_NAME}}
+python3 auto-test-project/scripts/verify_test_session.py \
+  --project-root "{{PROJECT_ROOT}}" \
+  --task-root "{{TASK_ROOT}}" \
+  --require-plan \
+  "{{SKILL_WORKSPACE}}/output/tests/{{SESSION_NAME}}"
 ```

@@ -9,11 +9,13 @@ import sys
 import typing
 from pathlib import Path
 
+from workspace_paths import resolve_workspace
+
 _TEST_ID_RE = re.compile(r"^v\d{12}$")
 
 _DEFAULT_DIRECTORIES = {
-    "plans": "plans",
-    "tests": "tests",
+    "plans": "output/plans",
+    "tests": "output/tests",
 }
 
 _DEFAULT_TEMPLATES = {
@@ -245,6 +247,19 @@ def main() -> int:
         help="Session kind: a (default) or b (also accepts: A轮/B轮).",
     )
     parser.add_argument(
+        "--task-root",
+        default="",
+        help=(
+            "Existing task root to reuse, relative to --project-root or absolute. "
+            "It must be a direct .bensz-api/task-YYYYMMDD-HHMM-<description> child."
+        ),
+    )
+    parser.add_argument(
+        "--task-description",
+        default="auto-test-project",
+        help="Description slug used only when allocating a new task root (default: auto-test-project).",
+    )
+    parser.add_argument(
         "--id",
         default="",
         help="Explicit test id like vYYYYMMDDHHMM (optional).",
@@ -290,6 +305,21 @@ def main() -> int:
     if not _TEST_ID_RE.fullmatch(test_id):
         _fail(parser, "test id must match vYYYYMMDDHHMM (omit --id to auto-generate)")
 
+    if kind == "a":
+        session_name = test_id
+        round_kind = "A轮"
+        plan_rel = f"{test_id}.md"
+        plan_template_key = "optimization_plan"
+        a_test_id = test_id
+    else:
+        session_name = f"B轮-{test_id}"
+        round_kind = "B轮"
+        plan_rel = f"B轮-{test_id}.md"
+        plan_template_key = "b_round_check"
+        a_test_id = args.a_test_id.strip() or test_id
+        if not _TEST_ID_RE.fullmatch(a_test_id):
+            _fail(parser, "--a-test-id must match vYYYYMMDDHHMM (e.g. v202601151230)")
+
     project_root = Path(args.project_root).expanduser().resolve()
 
     # Safety guard: prevent accidental pollution of extremely broad directories.
@@ -299,49 +329,53 @@ def main() -> int:
     if (is_fs_root or is_home) and not args.allow_unsafe_root:
         _fail(parser, f"Refusing unsafe --project-root: {project_root} (use --allow-unsafe-root to override)")
 
-    skill_root = Path(__file__).resolve().parent.parent
-    cfg = _load_config_sections(skill_root / "config.yaml")
+    skill_source_root = Path(__file__).resolve().parent.parent
+    cfg = _load_config_sections(skill_source_root / "config.yaml")
     directories = _merge_section(base=_DEFAULT_DIRECTORIES, override=cfg.get("directories"))
     templates = _merge_section(base=_DEFAULT_TEMPLATES, override=cfg.get("templates"))
+
+    def template_path(config_key: str) -> Path | None:
+        rel = _safe_rel_path(templates.get(config_key, ""), default=_DEFAULT_TEMPLATES.get(config_key, ""))
+        if not rel:
+            return None
+        return _resolve_template_path(skill_root=skill_source_root, rel_path=rel)
+
+    try:
+        plan_template = template_path(plan_template_key)
+        test_plan_template = template_path("test_plan")
+        test_report_template = template_path("test_report")
+    except (FileNotFoundError, ValueError) as exc:
+        _fail(parser, str(exc))
 
     try:
         _validate_project_root(project_root)
     except FileNotFoundError as exc:
         _fail(parser, str(exc))
 
-    if kind == "a":
-        session_name = test_id
-        round_kind = "A轮"
-        plan_rel = f"{test_id}.md"
-        plan_template_key = "optimization_plan"
-    else:
-        session_name = f"B轮-{test_id}"
-        round_kind = "B轮"
-        plan_rel = f"B轮-{test_id}.md"
-        plan_template_key = "b_round_check"
+    try:
+        workspace = resolve_workspace(
+            project_root=project_root,
+            task_root_arg=args.task_root,
+            task_description=args.task_description,
+            directories=directories,
+            create=True,
+            now=now,
+        )
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        _fail(parser, str(exc))
 
-    plans_dir = project_root / _safe_rel_path(directories.get("plans", ""), default=_DEFAULT_DIRECTORIES["plans"])
-    tests_dir = project_root / _safe_rel_path(directories.get("tests", ""), default=_DEFAULT_DIRECTORIES["tests"])
-
-    _ensure_dir_within_root(parser, root=project_root, path=plans_dir, label="plans directory")
-    _ensure_dir_within_root(parser, root=project_root, path=tests_dir, label="tests directory")
-
-    def template_path(config_key: str) -> Path | None:
-        rel = _safe_rel_path(templates.get(config_key, ""), default=_DEFAULT_TEMPLATES.get(config_key, ""))
-        if not rel:
-            return None
-        return _resolve_template_path(skill_root=skill_root, rel_path=rel)
+    plans_dir = workspace.plans_dir
+    tests_dir = workspace.tests_dir
 
     plan_src = plans_dir / plan_rel
-    plan_template = template_path(plan_template_key)
-    test_plan_template = template_path("test_plan")
-    test_report_template = template_path("test_report")
 
     project_type = _detect_project_type(project_root)
     template_values: dict[str, str] = {
         "TEST_ID": test_id,
         "PROJECT_NAME": project_root.name,
         "PROJECT_ROOT": str(project_root),
+        "TASK_ROOT": workspace.task_root.relative_to(project_root).as_posix(),
+        "SKILL_WORKSPACE": workspace.skill_root.relative_to(project_root).as_posix(),
         "SESSION_NAME": session_name,
         "ROUND_KIND": round_kind,
         "TEST_TIME": now.strftime("%Y-%m-%d %H:%M:%S"),
@@ -353,15 +387,8 @@ def main() -> int:
         "PROJECT_TYPE": project_type,
     }
 
-    if kind == "b":
-        a_test_id = args.a_test_id.strip() or test_id
-        if not _TEST_ID_RE.fullmatch(a_test_id):
-            _fail(parser, "--a-test-id must match vYYYYMMDDHHMM (e.g. v202601151230)")
-        template_values["A_TEST_ID"] = a_test_id
-        template_values["A_ROUND_ID"] = a_test_id
-    else:
-        template_values["A_TEST_ID"] = test_id
-        template_values["A_ROUND_ID"] = test_id
+    template_values["A_TEST_ID"] = a_test_id
+    template_values["A_ROUND_ID"] = a_test_id
 
     if args.create_plan and (not plan_src.exists() or args.overwrite):
         if plan_template is not None:
@@ -374,9 +401,15 @@ def main() -> int:
             _safe_write(plan_src, f"# 计划文档（{session_name}）\n\n（未找到模板，请手动补全）\n", overwrite=args.overwrite)
 
     session_dir = tests_dir / session_name
-    _ensure_dir_within_root(parser, root=project_root, path=session_dir, label="session directory")
-    _ensure_dir(session_dir / "_artifacts")
-    _ensure_dir(session_dir / "_scripts")
+    _ensure_dir_within_root(
+        parser, root=workspace.skill_root, path=session_dir, label="session directory"
+    )
+    _ensure_dir_within_root(
+        parser, root=workspace.skill_root, path=session_dir / "_artifacts", label="artifacts directory"
+    )
+    _ensure_dir_within_root(
+        parser, root=workspace.skill_root, path=session_dir / "_scripts", label="scripts directory"
+    )
 
     _copy_or_template(
         dst_path=session_dir / "TEST_PLAN.md",

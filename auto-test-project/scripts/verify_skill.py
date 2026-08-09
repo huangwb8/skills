@@ -15,6 +15,10 @@ REQUIRED_FILES = [
     "CHANGELOG.md",
     "scripts/create_test_session.py",
     "scripts/verify_test_session.py",
+    "scripts/verify_all_sessions.py",
+    "scripts/workspace_paths.py",
+    "scripts/test_workspace_paths.py",
+    "scripts/test_workspace_cli.py",
     "templates/OPTIMIZATION_PLAN_TEMPLATE.md",
     "templates/B_ROUND_CHECK_TEMPLATE.md",
     "templates/TEST_PLAN_TEMPLATE.md",
@@ -59,6 +63,32 @@ def _assert_placeholders_replaced(path: Path, *, keys: list[str]) -> list[str]:
     return issues
 
 
+def _fill_valid_session(*, plan_path: Path, session_dir: Path) -> None:
+    issue_ids = [f"P0-{index}" for index in range(1, 11)]
+    plan_path.write_text(
+        "# Self-check plan\n\n"
+        + "\n".join(f"#### {issue_id}: deterministic check" for issue_id in issue_ids)
+        + "\n",
+        encoding="utf-8",
+    )
+    evidence = "\n".join(
+        f"- {issue_id}: verified by scripts/verify_skill.py:1 with reproducible output."
+        for issue_id in issue_ids
+    )
+    (session_dir / "TEST_PLAN.md").write_text(
+        "# TEST_PLAN\n\n" + "\n".join(issue_ids) + "\n",
+        encoding="utf-8",
+    )
+    (session_dir / "TEST_REPORT.md").write_text(
+        "# TEST_REPORT\n\n## Evidence\n\n"
+        + evidence
+        + "\n\n## Verification\n\n"
+        + ("The task-local workspace contract was verified. " * 20)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify auto-test-project skill integrity (deterministic checks).")
     parser.add_argument(
@@ -81,14 +111,39 @@ def main() -> int:
 
     # Basic syntax check for deterministic scripts.
     py_compile = _run(
-        [sys.executable, "-m", "py_compile", "scripts/create_test_session.py", "scripts/verify_test_session.py"],
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            "scripts/create_test_session.py",
+            "scripts/verify_test_session.py",
+            "scripts/verify_all_sessions.py",
+            "scripts/workspace_paths.py",
+            "scripts/test_workspace_paths.py",
+            "scripts/test_workspace_cli.py",
+        ],
         cwd=skill_root,
     )
     if py_compile.returncode != 0:
         failures.append("py_compile failed:\n" + py_compile.stderr.strip())
 
+    for test_script in [
+        "scripts/test_workspace_paths.py",
+        "scripts/test_workspace_cli.py",
+    ]:
+        proc = _run([sys.executable, test_script], cwd=skill_root)
+        if proc.returncode != 0:
+            failures.append(
+                f"{test_script} failed:\n"
+                + (proc.stderr or proc.stdout).strip()
+            )
+
     # CLI sanity.
-    for script in ["scripts/create_test_session.py", "scripts/verify_test_session.py"]:
+    for script in [
+        "scripts/create_test_session.py",
+        "scripts/verify_test_session.py",
+        "scripts/verify_all_sessions.py",
+    ]:
         proc = _run([sys.executable, script, "--help"], cwd=skill_root)
         if proc.returncode != 0:
             failures.append(f"{script} --help failed:\n{proc.stderr.strip()}")
@@ -122,30 +177,46 @@ def main() -> int:
 
         a_id = "v200001010000"
         b_id = "v200001010001"
+        task_root = dummy_root / ".bensz-api" / "task-20000101-0000-selfcheck"
 
         a_create = _run(
-            [sys.executable, str(skill_root / "scripts/create_test_session.py"), "--project-root", str(dummy_root), "--kind", "a", "--id", a_id, "--create-plan", "--overwrite"],
+            [
+                sys.executable,
+                str(skill_root / "scripts/create_test_session.py"),
+                "--project-root",
+                str(dummy_root),
+                "--task-root",
+                str(task_root),
+                "--kind",
+                "a",
+                "--id",
+                a_id,
+                "--create-plan",
+                "--overwrite",
+            ],
             cwd=skill_root,
         )
         if a_create.returncode != 0:
             failures.append("dummy A session creation failed:\n" + (a_create.stderr or a_create.stdout).strip())
         else:
+            a_plan = task_root / "auto-test-project" / "output" / "plans" / f"{a_id}.md"
+            a_session = task_root / "auto-test-project" / "output" / "tests" / a_id
             failures.extend(
                 _assert_placeholders_replaced(
-                    dummy_root / "plans" / f"{a_id}.md",
+                    a_plan,
                     keys=["PLAN_ID", "PROJECT_ROOT", "PLAN_TIME", "SESSION_NAME"],
                 )
             )
             failures.extend(
                 _assert_placeholders_replaced(
-                    dummy_root / "tests" / a_id / "TEST_PLAN.md",
-                    keys=["TEST_ID", "PROJECT_ROOT", "PROJECT_TYPE", "TEST_TIME", "PLAN_DOC_PATH", "ROUND_KIND", "SESSION_NAME"],
+                    a_session / "TEST_PLAN.md",
+                    keys=["TEST_ID", "PROJECT_ROOT", "PROJECT_TYPE", "TEST_TIME", "PLAN_DOC_PATH", "ROUND_KIND", "SESSION_NAME", "TASK_ROOT", "SKILL_WORKSPACE"],
                 )
             )
             failures.extend(
                 _assert_placeholders_replaced(
-                    dummy_root / "tests" / a_id / "TEST_REPORT.md",
-                    keys=["ROUND_KIND", "SESSION_NAME", "PROJECT_ROOT", "TEST_TIME", "PLAN_DOC_PATH"],
+                    a_session / "TEST_REPORT.md",
+                    keys=["ROUND_KIND", "SESSION_NAME", "PROJECT_ROOT", "TEST_TIME", "PLAN_DOC_PATH", "TASK_ROOT", "SKILL_WORKSPACE"],
                 )
             )
 
@@ -155,6 +226,8 @@ def main() -> int:
                 str(skill_root / "scripts/create_test_session.py"),
                 "--project-root",
                 str(dummy_root),
+                "--task-root",
+                str(task_root),
                 "--kind",
                 "b",
                 "--id",
@@ -169,12 +242,73 @@ def main() -> int:
         if b_create.returncode != 0:
             failures.append("dummy B session creation failed:\n" + (b_create.stderr or b_create.stdout).strip())
         else:
+            b_plan = task_root / "auto-test-project" / "output" / "plans" / f"B轮-{b_id}.md"
+            b_session = task_root / "auto-test-project" / "output" / "tests" / f"B轮-{b_id}"
             failures.extend(
                 _assert_placeholders_replaced(
-                    dummy_root / "plans" / f"B轮-{b_id}.md",
+                    b_plan,
                     keys=["SESSION_NAME", "PLAN_TIME", "PROJECT_NAME", "PROJECT_ROOT", "PROJECT_TYPE", "A_TEST_ID"],
                 )
             )
+
+        if a_create.returncode == 0 and b_create.returncode == 0:
+            _fill_valid_session(plan_path=a_plan, session_dir=a_session)
+            _fill_valid_session(plan_path=b_plan, session_dir=b_session)
+            for session_dir in (a_session, b_session):
+                verify = _run(
+                    [
+                        sys.executable,
+                        str(skill_root / "scripts/verify_test_session.py"),
+                        "--project-root",
+                        str(dummy_root),
+                        "--task-root",
+                        str(task_root),
+                        "--require-plan",
+                        str(session_dir),
+                    ],
+                    cwd=skill_root,
+                )
+                if verify.returncode != 0:
+                    failures.append(
+                        "task-local session verification failed:\n"
+                        + (verify.stderr or verify.stdout).strip()
+                    )
+
+            verify_all = _run(
+                [
+                    sys.executable,
+                    str(skill_root / "scripts/verify_all_sessions.py"),
+                    "--project-root",
+                    str(dummy_root),
+                    "--task-root",
+                    str(task_root),
+                    "--require-plan",
+                ],
+                cwd=skill_root,
+            )
+            if verify_all.returncode != 0:
+                failures.append(
+                    "task-local batch verification failed:\n"
+                    + (verify_all.stderr or verify_all.stdout).strip()
+                )
+
+        if (dummy_root / ".bensz-api" / "skills").exists():
+            failures.append("default self-check created the disabled .bensz-api/skills directory")
+
+        missing_root = dummy_root / ".bensz-api" / "task-20000101-0000-missing"
+        missing_verify = _run(
+            [
+                sys.executable,
+                str(skill_root / "scripts/verify_all_sessions.py"),
+                "--project-root",
+                str(dummy_root),
+                "--task-root",
+                str(missing_root),
+            ],
+            cwd=skill_root,
+        )
+        if missing_verify.returncode != 2 or "Traceback" in (missing_verify.stderr + missing_verify.stdout):
+            failures.append("missing task root did not produce a structured verification error")
 
     if failures:
         print("❌ verify_skill failed", file=sys.stderr)

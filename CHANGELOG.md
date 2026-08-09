@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.4] - 2026-08-09
+
+### Changed
+- **init-project 升级到 `2.3.4`**：在所有业务输出前集中配置 `stdout`/`stderr` 编码容错，保持宿主编码不变，仅把无法编码字符的错误策略收敛为 `backslashreplace`；不支持 `reconfigure()` 的嵌入流只在底层抛出 `UnicodeEncodeError` 时转义重试，普通 `OSError` 与业务异常继续传播，修复 Windows 中文（GBK）locale 下的初始化崩溃；新增自动模式、手动模式、UTF-8 与异常传播回归测试。
+- **bensz-collect-bugs 升级到 `0.4.0`**：数据模型扩展为「原始证据 + 追加式 resolution」两层结构，新增 `scripts/resolve_bug.py` 与 `templates/RESOLUTION_TEMPLATE.md`，在保留原始 `BUG_REPORT.md` / `bug-context.json` 前提下追加 `RESOLUTION.md`，支持 `fixed`、`duplicate`、`--dry-run` 与重复执行幂等检查，并补充 resolution 专项回归。
+- **auto-test-project 升级到 `1.3.2`**：新增统一运行态 task-root 解析器（`scripts/workspace_paths.py`），创建、单会话验证、批量验证与自检共用 `<task-root>/auto-test-project/output/{plans,tests}`；显式 task root 支持续跑原样复用、缺省时只分配新任务、legacy 根仅允许显式只读验证。`config.yaml:directories` 只保留 task-local 相对后缀，同步更新 SKILL、README、FAQ、严格模式示例、模板与 CLI help。
+- **@install 远程安装器跨平台编码容错**：对齐 init-project 的控制台编码策略，远程一键安装器在 Windows 中文（GBK）终端下使用 `--lang zh` 输出中文消息不再因 `UnicodeEncodeError` 中断；保持「仅标准库、轻量 bootstrap」设计与正常 UTF-8 输出语义不变。
+- **awesome-code 文档精简**：`README.md` 移除与 `writing-plans` 现状重复的「实施计划白话主线/逐行清单」说明与对应问答，避免与 SKILL 规则双写漂移。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.3.3` 更新为 `v4.3.4`。
+
+### Fixed
+- **bensz-collect-bugs Windows GBK 解码崩溃**：`common.py` 的 `run_command` / `gh_auth_ok` 与 `report_bugs.py` 的 `gh_api` 显式指定 `encoding="utf-8", errors="replace"`，修复 Windows 中文 locale 下用系统编码（GBK）解码 `gh` 的 UTF-8 输出导致的 `UnicodeDecodeError`，提升 macOS/Windows/Linux 跨平台一致性。
+- **auto-test-project 工作区迁移落地修复**：补齐此前「文档与配置已迁移、脚本仍写入 `.bensz-api/skills/auto-test-project/`」的断层，并新增 task root 越界、`..`、symlink、同分钟冲突、A/B continuation、legacy 只读与缺失路径的结构化失败测试，默认流程新增否定断言确保不再创建 `.bensz-api/skills/`。
+
 ## [4.3.3] - 2026-08-06
 
 ### Changed

@@ -6,6 +6,8 @@
 2. 让同一问题可以被稳定去重
 3. 让后续公开上报时不必重新补环境信息
 
+`RESOLUTION.md` 是独立的追加式闭环层。它不能改写或替代原始记录，只在修复与验证完成后创建。
+
 ## 顶层字段
 
 - `schema_version`
@@ -56,3 +58,16 @@
 - 同一 bug 在后续排查中常常会补充更多复现细节
 - 如果把步骤文本直接纳入哈希，补写一条步骤就会错误地产生一个新 bug 目录
 - 复现步骤仍然完整保留在 `bug-context.json` 与 `BUG_REPORT.md` 中，只是不参与去重指纹
+
+## Resolution 模型
+
+`RESOLUTION.md` 的 YAML frontmatter 固定包含：
+
+- `status`：`fixed` 或 `duplicate`
+- `canonical_root_cause`：稳定的 canonical 根因 ID
+- `fixed_version_or_commit`：已验证的 skill 版本或源码 commit
+- `resolved_at`：ISO 8601 时间
+- `duplicate_of`：重复记录指向的 canonical bug；canonical 记录为 `null`
+- `resolution_fingerprint`：忽略时间后的内容指纹，用于幂等判断
+
+正文 `Verification` 至少保留一条可复核证据。已有 resolution 的指纹相同则视为幂等重跑，指纹不同则拒绝覆盖。

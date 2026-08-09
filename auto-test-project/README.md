@@ -90,17 +90,22 @@
 ### 创建 A 轮或 B 轮会话
 
 ```bash
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
 python3 auto-test-project/scripts/create_test_session.py \
   --project-root . \
+  --task-root "$TASK_ROOT" \
   --kind a \
   --create-plan
 ```
+
+省略 `--task-root` 会分配一个全新的任务根；A/B 轮与 continuation 应始终回传同一个 task root，不能靠脚本猜测最近任务。
 
 ### 用现有计划填充 TEST_PLAN
 
 ```bash
 python3 auto-test-project/scripts/create_test_session.py \
   --project-root . \
+  --task-root "$TASK_ROOT" \
   --kind a \
   --create-plan \
   --seed-test-plan-from-plan
@@ -110,9 +115,13 @@ python3 auto-test-project/scripts/create_test_session.py \
 
 ```bash
 python3 auto-test-project/scripts/verify_test_session.py \
+  --project-root . \
+  --task-root "$TASK_ROOT" \
   --require-plan \
-  .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/v202603241200
+  "$TASK_ROOT/auto-test-project/output/tests/v202603241200"
 ```
+
+旧 `.bensz-api/skills/auto-test-project/` 只支持显式只读验证：传入 `--legacy-root .bensz-api/skills/auto-test-project`。创建脚本没有 legacy 写入模式。
 
 ## 常见问题
 

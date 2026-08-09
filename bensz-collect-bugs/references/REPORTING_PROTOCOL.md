@@ -28,3 +28,12 @@
 - 已公开 bug 不重复上传，不做远端覆盖
 - 本地只把公开状态标记为完成
 - `--dry-run` 只输出“预计上传项”，不修改本地文件，也不创建远端文件
+
+## Resolution 阶段
+
+- 只有源码修复、专项回归和版本核对全部通过后，才创建 `RESOLUTION.md`
+- canonical 记录使用稳定的 `canonical_root_cause`；重复记录额外使用 `duplicate_of` 指向 canonical bug
+- resolution 必须包含修复版本或 commit 与至少一条验证证据
+- `resolve_bug.py --dry-run` 不创建文件；相同参数重复执行幂等
+- `RESOLUTION.md` 一旦存在，不允许覆盖、截断或静默更新；内容变化应先人工审计原记录
+- 原始 `BUG_REPORT.md` 与 `bug-context.json` 永远保持不变

@@ -30,6 +30,7 @@
 - 统一 bug 的本地存储位置：`~/.bensz-skills/bugs/`
 - 为每个 bug 自动生成结构化 `bug-context.json`
 - 为每个 bug 自动生成统一格式的 `BUG_REPORT.md`
+- 在修复通过验证后追加不可覆盖的 `RESOLUTION.md`，并把重复记录关联到同一 canonical 根因
 - 自动采集当前 OS、shell、常见软件版本
 - 在本地写入前自动清洗自由文本里的密钥、密码、身份信息、电话、邮箱、银行卡号和私密路径
 - 按 `config.yaml:hashing.stable_fields` 计算稳定 `bug_hash`，避免重复上传同一问题
@@ -57,7 +58,8 @@
 ```text
 ~/.bensz-skills/bugs/{skill_name}/{reporter}/{bug_hash}/
 ├── bug-context.json
-└── BUG_REPORT.md
+├── BUG_REPORT.md
+└── RESOLUTION.md  # 仅在完成修复闭环后追加
 ```
 
 说明：
@@ -107,6 +109,20 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --dry-run
 python3 bensz-collect-bugs/scripts/report_bugs.py --skill-name "example-skill"
 ```
 
+修复和专项回归都通过后，先用 dry-run 预演 resolution：
+
+```bash
+python3 bensz-collect-bugs/scripts/resolve_bug.py \
+  --bug-dir ~/.bensz-skills/bugs/example-skill/octocat/<bug_hash> \
+  --status fixed \
+  --canonical-root-cause BRCC-2026-001 \
+  --fixed-version-or-commit v1.2.3 \
+  --verification "pytest tests/test_regression.py: 4 passed" \
+  --dry-run
+```
+
+确认后移除 `--dry-run`。重复记录使用 `--status duplicate --duplicate-of <canonical_bug_hash>`；相同参数重复执行不会改写文件，内容冲突时脚本会拒绝覆盖。
+
 ## 公开上报前提
 
 - 你的机器已安装 `gh`
@@ -116,6 +132,7 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --skill-name "example-skill"
 ## 输出
 
 - 本地记录阶段：生成 `bug-context.json` 与 `BUG_REPORT.md`
+- 修复闭环阶段：追加 `RESOLUTION.md`；缺少修复版本或验证证据时拒绝标记 resolved
 - 公开上报阶段：把新 bug 上传到 `https://github.com/huangwb8/bensz-bugs`
 - 已公开的本地 bug 会在 `bug-context.json` 里被标记为 `public_reported=true`
 

@@ -52,7 +52,15 @@ def gh_api(
         command.extend(["--method", method])
     for key, value in (fields or {}).items():
         command.extend(["-f", f"{key}={value}"])
-    return subprocess.run(command, check=False, capture_output=True, text=True, timeout=20)
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=20,
+    )
 
 
 def remote_file_exists(owner: str, repo: str, path: str, host: str) -> bool:

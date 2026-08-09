@@ -126,6 +126,7 @@ python3 init-project/scripts/generate.py \
 
 ## 错误处理
 
+- Windows GBK 等非 UTF-8 控制台不会因装饰性 Unicode 状态符号中止；脚本保留宿主编码，仅转义无法编码的字符，业务异常与退出码仍按原逻辑传播。
 - 输出目录越界、目标目录不存在或不是目录：停止。
 - `docs` / `docs/plans` 已存在但不是目录：停止。
 - BAC 安装、导入、初始化或验证失败：停止，并提示可用 `--disable-bac` 显式关闭。

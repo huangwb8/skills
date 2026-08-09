@@ -6,8 +6,14 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+
+- 修复任务工作区迁移只更新文档、配置与脚本仍写入 `.bensz-api/skills/auto-test-project/` 的问题：新增统一运行态 task-root 解析器，创建、单会话验证、批量验证与自检现共用 `<task-root>/auto-test-project/output/{plans,tests}`；显式 task root 支持续跑原样复用，缺省时只分配新任务，legacy 根仅允许显式只读验证。
+- 补充 task root 越界、`..`、symlink、同分钟冲突、A/B continuation、legacy 只读和缺失路径结构化失败测试；默认流程新增否定断言，确保不再创建 `.bensz-api/skills/`。
+
 ### Changed（变更）
 
+- 版本升级：`1.3.1 → 1.3.2`；`config.yaml:directories` 只保留 task-local 相对后缀，并同步更新 SKILL、README、FAQ、严格模式示例、模板与 CLI help。
 - 版本升级：1.3.0 → 1.3.1；将计划与测试会话默认目录从项目根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`，同步更新 `SKILL.md`、README、references 与验证脚本的路径口径。
 
 ### Added（新增）

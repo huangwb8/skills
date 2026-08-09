@@ -26,6 +26,50 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 
+
+class _UnicodeSafeTextStream:
+    """Retry only Unicode encoding failures; propagate every other write error."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, text):
+        try:
+            return self._stream.write(text)
+        except UnicodeEncodeError:
+            encoding = getattr(self._stream, "encoding", None) or "ascii"
+            escaped = text.encode(encoding, errors="backslashreplace").decode(encoding)
+            return self._stream.write(escaped)
+
+    def writelines(self, lines):
+        for line in lines:
+            self.write(line)
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+def _configure_console_streams() -> None:
+    """Keep the host encoding while preventing decorative Unicode from aborting the CLI."""
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None or isinstance(stream, _UnicodeSafeTextStream):
+            continue
+
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(errors="backslashreplace")
+                continue
+            except (AttributeError, TypeError, ValueError):
+                pass
+
+        setattr(sys, stream_name, _UnicodeSafeTextStream(stream))
+
+
+_configure_console_streams()
+
 try:
     import yaml
 except ImportError:

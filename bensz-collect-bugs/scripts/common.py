@@ -217,6 +217,8 @@ def run_command(command: list[str], timeout: int = 8) -> str | None:
             check=False,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -250,6 +252,8 @@ def gh_auth_ok() -> bool:
             check=False,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=8,
         )
     except (OSError, subprocess.TimeoutExpired):

@@ -7,16 +7,17 @@
 优先使用验证脚本（推荐），并在需要时启用严格模式。
 
 ```bash
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
 # 1) 快速检查：是否残留模板占位符（双大括号）
-grep -r "{{" .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM/
+grep -r "{{" "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM/"
 
 # 2) 验证脚本（推荐）
-python3 auto-test-project/scripts/verify_test_session.py .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 
 # 3) 严格模式（推荐在收尾/回归阶段使用）
 # - 要求 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/vYYYYMMDDHHMM.md 存在
 # - 要求 plan 内包含形如 "#### P0-1:" 的编号，才能做计划-报告一致性检查
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" --require-plan "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 ```
 
 ## Q: 如果发现计划与执行脱节怎么办？
@@ -43,8 +44,11 @@ python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-a
 ## Q: 如何避免运行示例命令时污染项目根目录？
 
 - 确认自己在“目标项目根目录”执行 `create_test_session.py`，不要在仓库根目录随手运行。
+- 调用方已有本轮 task root 时，用 `--task-root` 显式复用；省略它只用于开始新逻辑任务，脚本会分配唯一的 `task-*` 根，不会自动选择最近任务。
 - 脚本会在 `--project-root` 下创建 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/`；默认拒绝将系统根目录或用户主目录作为 project-root，如需覆盖请显式使用 `--allow-unsafe-root`。
 - 中间产物统一放进 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/<session>/_artifacts/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/<session>/_scripts/`，避免在项目根散落临时文件。
+
+旧 `.bensz-api/skills/auto-test-project/` 只能通过 `verify_test_session.py --legacy-root ...` 或 `verify_all_sessions.py --legacy-root ...` 显式只读验证；默认创建和验证不会扫描或写入它。
 
 ## Q: 项目类型识别失败怎么办？
 

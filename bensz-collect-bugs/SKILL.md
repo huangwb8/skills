@@ -38,6 +38,7 @@ metadata:
 - 每个 bug 目录必须包含：
   - `bug-context.json`
   - `BUG_REPORT.md`
+- `RESOLUTION.md` 只能在源码修复、专项回归和版本核对完成后追加；不得覆盖原始证据
 - 用户明确要求“report bensz skills bugs”之前，只做本地记录，不做公开上传
 - 公开上传时必须走用户本机的 `gh` 能力；如果 `gh` 未登录，先协助用户完成 `gh auth login`
 - 上传阶段**不要 pull / clone 整个 `bensz-bugs` 仓库**；直接用 `gh api` 按文件路径创建内容
@@ -157,6 +158,22 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --dry-run
 
 `--dry-run` 只输出“预计会上传哪些 bug”，不会修改本地状态，也不会触碰远端仓库。
 
+### 阶段五：追加 resolution 闭环
+
+修复、专项回归和版本核对全部通过后，先预演：
+
+```bash
+python3 bensz-collect-bugs/scripts/resolve_bug.py \
+  --bug-dir "<bug目录>" \
+  --status fixed \
+  --canonical-root-cause "<canonical ID>" \
+  --fixed-version-or-commit "<版本或 commit>" \
+  --verification "<可复核的测试命令与结果>" \
+  --dry-run
+```
+
+确认后移除 `--dry-run`。重复报告改用 `--status duplicate` 并提供 `--duplicate-of`。脚本只创建 `RESOLUTION.md`：相同 resolution 重复执行返回 unchanged，已有内容不同时拒绝覆盖；缺少验证证据或修复版本时拒绝标记 resolved。
+
 ## 输入契约
 
 ### 本地记录时必需信息
@@ -181,6 +198,7 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --dry-run
 
 - `~/.bensz-skills/bugs/{skill_name}/{reporter}/{bug_hash}/bug-context.json`
 - `~/.bensz-skills/bugs/{skill_name}/{reporter}/{bug_hash}/BUG_REPORT.md`
+- 完成闭环后追加 `~/.bensz-skills/bugs/{skill_name}/{reporter}/{bug_hash}/RESOLUTION.md`
 
 ### 公开上报输出
 
@@ -205,5 +223,6 @@ python3 bensz-collect-bugs/scripts/report_bugs.py --dry-run
 ## 参考资源
 
 - 规范模板：`templates/BUG_REPORT_TEMPLATE.md`
+- resolution 模板：`templates/RESOLUTION_TEMPLATE.md`
 - 数据模型说明：`references/DATA_MODEL.md`
 - 公开上报约定：`references/REPORTING_PROTOCOL.md`

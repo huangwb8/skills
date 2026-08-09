@@ -24,6 +24,7 @@
 
 ### Changed（变更）
 
+- **跨平台控制台兼容**：版本号 `2.3.3 → 2.3.4`；保持宿主 stdout/stderr 编码，只把不可编码字符的错误策略收敛为 `backslashreplace`，UTF-8 输出与业务退出语义不变
 - **.gitignore 中间目录忽略规则**：基于 `pipelines/skills/` 与 `ChineseResearchLaTeX/skills/` 的现有 skill 工作区约定，新增 `.systematic-literature-review/`、`.complete_example/`、`.latex-cache/`、`.make_latex_model/`、`.nsfc-budget/`、`.nsfc-code/`、`.nsfc-length-aligner/`、`.nsfc-qc/`、`*.nsfc-qc/`、`.nsfc-ref-alignment/`、`.research-idea/`、`.write-paper/` 与 `.secrets/` 到生成模板和 PyYAML 缺失时的脚本内置兜底规则；`.check-review-alignment/` 已在模板中保留；技能版本号 `2.3.2 → 2.3.3`
 - **.gitignore 中间目录忽略规则**：新增 `.parallel-vibe/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于匹配 `parallel-vibe` 默认中间工作区新目录；保留 `.parallel_vibe/` 兼容旧运行产物
 - **.gitignore 中间目录忽略规则**：新增 `.bensz-api/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于忽略 api-prompt 协作产物目录；技能版本号 `2.3.1 → 2.3.2`
@@ -43,6 +44,7 @@
 
 ### Fixed（修复）
 
+- **Windows GBK 初始化崩溃**：在任何业务输出前集中配置 stdout/stderr 编码容错；不支持 `reconfigure()` 的嵌入流仅在底层抛出 `UnicodeEncodeError` 时转义并重试，普通 `OSError` 和业务异常继续传播；新增自动模式、手动模式、UTF-8 与异常传播回归测试
 - **占位符误报**：将模板示例中的 `{时间戳}` 识别为代码示例占位符，避免初始化时出现无效未替换警告
 - **裸 Python 启动**：`PyYAML` 缺失时不再导入崩溃，改为使用内置默认配置和默认 `.gitignore` 规则兜底
 

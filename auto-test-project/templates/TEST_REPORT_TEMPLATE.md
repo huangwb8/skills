@@ -130,11 +130,11 @@
 
 ```bash
 # 方法 1: 检查模板占位符
-grep -r "{{" tests/{{SESSION_NAME}}/
+grep -r "{{" "{{SKILL_WORKSPACE}}/output/tests/{{SESSION_NAME}}/"
 
 # 方法 2: 使用验证脚本（推荐）
-python3 auto-test-project/scripts/verify_test_session.py tests/{{SESSION_NAME}}
+python3 auto-test-project/scripts/verify_test_session.py --project-root "{{PROJECT_ROOT}}" --task-root "{{TASK_ROOT}}" "{{SKILL_WORKSPACE}}/output/tests/{{SESSION_NAME}}"
 
 # 方法 3: 严格模式（推荐在收尾/回归阶段使用）
-python3 auto-test-project/scripts/verify_test_session.py --require-plan tests/{{SESSION_NAME}}
+python3 auto-test-project/scripts/verify_test_session.py --project-root "{{PROJECT_ROOT}}" --task-root "{{TASK_ROOT}}" --require-plan "{{SKILL_WORKSPACE}}/output/tests/{{SESSION_NAME}}"
 ```

@@ -32,7 +32,8 @@
 修复后: --kind b 可创建 .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/B轮-vYYYYMMDDHHMM/
 
 验证方法:
-python3 auto-test-project/scripts/create_test_session.py --project-root . --kind b --id vYYYYMMDDHHMM
+TASK_ROOT=".bensz-api/task-{yyyymmdd-hhmm}-{简短描述}"
+python3 auto-test-project/scripts/create_test_session.py --project-root . --task-root "$TASK_ROOT" --kind b --id vYYYYMMDDHHMM
 ```
 
 ## 严格验证命令
@@ -40,5 +41,5 @@ python3 auto-test-project/scripts/create_test_session.py --project-root . --kind
 在项目根目录执行：
 
 ```bash
-python3 auto-test-project/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/vYYYYMMDDHHMM
+python3 auto-test-project/scripts/verify_test_session.py --project-root . --task-root "$TASK_ROOT" --require-plan "$TASK_ROOT/auto-test-project/output/tests/vYYYYMMDDHHMM"
 ```
