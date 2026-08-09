@@ -111,7 +111,7 @@
 
 生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage、计费服务错误，以及 submit 空/非 JSON 等无法确认 job 是否已创建的协议错误，即使开启该选项也不会跨 provider，以免掩盖真实业务故障或重复生成计费。
 
-`gpt-image-2` 默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/images/jobs/generations`，参考图编辑提交到 `/images/jobs/edits`。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/images/generations` 或 `/images/edits` 长连接更容易暴露在 504 风险下。
+`gpt-image-2` 默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/v1/images/jobs/generations`，参考图编辑提交到 `/v1/images/jobs/edits`。配置为 `https://<subdomain>.benszresearch.com` 的根地址时，客户端会在安全校验后自动规范为 `.../v1`；已显式配置 `/v1` 时保持不变。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/v1/images/generations` 或 `/v1/images/edits` 长连接更容易暴露在 504 风险下。
 
 同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 时，脚本才会改用旧同步端点。服务端尚未确认持久幂等语义前，submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等 `retryable=false` 错误不会退避重试，`2xx` 空/非 JSON 响应也不会重放，poll/result 的临时故障独立处理。JSON 与 multipart 请求都会发送单次生成的安全 `X-Client-Request-ID`；此类协议错误会在 `image-debug/gpt-image-2-error.json` 中记录服务端回传的安全 `X-Request-ID` / `X-Client-Request-ID`、HTTP 状态、origin/path、Content-Type、声明/实际长度、正文 SHA-256、首字节类别和重定向变化，但不会保存 query、鉴权头、prompt 或原始响应正文。参考图证据同样只记录 SHA-256，不记录 API Key 或内部订阅明细。
 

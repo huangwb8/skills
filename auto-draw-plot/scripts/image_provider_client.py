@@ -233,6 +233,8 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
     base_url = str(base_url).strip().rstrip("/")
     allowed_domains = [str(item).strip().lower() for item in (gpt_cfg.get("allowed_base_domains") or ["benszresearch.com"])]
     _validate_benszresearch_base_url(base_url, allowed_domains=allowed_domains)
+    if urllib.parse.urlparse(base_url).path.rstrip("/") == "":
+        base_url = f"{base_url}/v1"
     return ImageProviderConfig(
         provider="gpt-image-2",
         base_url=base_url,

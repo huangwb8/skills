@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.5] - 2026-08-09
+
+### Fixed
+- **auto-draw-plot 升级到 `0.2.17`，修复 BenszAPI 子域名根地址落入边缘 HTML fallback**：`gpt-image-2` 配置加载在完成 HTTPS、子域名与路径校验后，若 base URL 仅给出子域名根地址（无路径），统一补齐 `/v1`，确保文本出图（`/v1/images/jobs/generations`）、参考图编辑（`/v1/images/jobs/edits`）、异步 job 轮询与结果下载都使用规范 API 基址，避免请求落到站点边缘层 HTML fallback；已显式配置 `/v1` 时保持不变。`SKILL.md` 与 `README.md` 同步说明该规范化行为。
+
+### Changed
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.3.4` 更新为 `v4.3.5`。
+
 ## [4.3.4] - 2026-08-09
 
 ### Changed
