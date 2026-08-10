@@ -134,6 +134,8 @@ python3 init-project/scripts/generate.py --auto --bac-file docs/audit/contributi
 python3 init-project/scripts/generate.py --auto --disable-bac
 ```
 
+关闭后，生成的 `AGENTS.md` 会明确 BAC 当前未启用，不再保留“默认且强制”的启用态指令。
+
 BAC 基于 <https://github.com/huangwb8/bensz-auto-contribution>，用于客观记录人类与 AI 的协作过程和证据，不替代最终署名、责任或合规判断。
 
 ## 常见问题

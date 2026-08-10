@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.6] - 2026-08-10
+
+### Fixed
+- **init-project 禁用 BAC 后的指令一致性**：修复 `--disable-bac` 生成的 `AGENTS.md` 仍声明 BAC“默认且强制”的问题；统一自动与手动模式的模板变量构造，确保关闭状态不残留启用态政策或未替换占位符，并补充启用/禁用分支回归测试。该修复对应 `huangwb8/bensz-bugs#3`。
+
+### Changed
+- **init-project 升级到 `2.3.5`**：README 明确关闭 BAC 后的生成结果，子技能变更日志同步记录修复范围。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 从 `v4.3.5` 更新为 `v4.3.6`。
+
 ## [4.3.5] - 2026-08-09
 
 ### Fixed

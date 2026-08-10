@@ -115,6 +115,11 @@ class ConsoleEncodingTest(unittest.TestCase):
         self.assertNotIn("UnicodeEncodeError", output)
         self.assertTrue((project_root / "AGENTS.md").exists())
         self.assertTrue((project_root / "CLAUDE.md").exists())
+        agents_content = (project_root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("本项目当前未启用", agents_content)
+        self.assertIn("贡献记录当前处于关闭状态", agents_content)
+        self.assertNotIn("{贡献记录政策说明}", agents_content)
+        self.assertNotIn("本项目默认且强制", agents_content)
 
     def test_utf8_behavior_remains_successful(self) -> None:
         proc, project_root = self._run_cli(["--auto", "--disable-bac"], encoding="utf-8")
@@ -122,6 +127,36 @@ class ConsoleEncodingTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, output)
         self.assertIn("已生成", output)
         self.assertTrue((project_root / "AGENTS.md").exists())
+
+    def test_bac_policy_matches_enabled_state(self) -> None:
+        generator = self.module.ProjectInitGenerator()
+        analysis = {
+            "name": "bac-policy-test",
+            "description": "BAC policy regression",
+            "type_info": {"name": "通用项目"},
+            "directory_tree": "bac-policy-test/",
+        }
+
+        enabled_variables = generator._prepare_variables(
+            analysis, "简体中文", Path.cwd(), bac_enabled=True
+        )
+        enabled_agents = generator.generate_agents_md(enabled_variables)
+        self.assertIn("本项目默认且强制", enabled_agents)
+        self.assertIn("BAC 是默认强制执行步骤", enabled_agents)
+        self.assertNotIn("本项目当前未启用", enabled_agents)
+
+        disabled_variables = generator._prepare_variables(
+            analysis, "简体中文", Path.cwd(), bac_enabled=False
+        )
+        disabled_agents = generator.generate_agents_md(disabled_variables)
+        self.assertIn("本项目当前未启用", disabled_agents)
+        self.assertIn("贡献记录当前处于关闭状态", disabled_agents)
+        for forbidden_text in (
+            "本项目默认且强制",
+            "BAC 是默认强制执行步骤",
+            "默认贡献托管文件",
+        ):
+            self.assertNotIn(forbidden_text, disabled_agents)
 
 
 if __name__ == "__main__":
