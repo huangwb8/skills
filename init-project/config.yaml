@@ -8,7 +8,7 @@
 
 skill_info:
   name: init-project
-  version: 2.3.5
+  version: 2.3.6
   description: 完全自动生成 AI 项目指令文档（AGENTS.md + CLAUDE.md + README.md + CHANGELOG.md + .gitignore）
   author: "Bensz Conan"
   category: 项目初始化

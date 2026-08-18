@@ -6,7 +6,7 @@
 # ================================
 skill_info:
   name: awesome-code
-  version: 3.0.2
+  version: 3.0.3
   description: "AI 自主规划多代理软件开发协调系统"
   category: "软件开发工具"
   author: "Bensz Conan"

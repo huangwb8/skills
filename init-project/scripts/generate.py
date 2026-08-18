@@ -1289,6 +1289,32 @@ class ProjectInitGenerator:
 
         return success
 
+    def _bac_notes(self, bac_file: str, bac_enabled: bool) -> dict:
+        """按 BAC 启用状态生成贡献记录相关模板变量"""
+        if bac_enabled:
+            return {
+                "贡献记录政策说明": (
+                    "本项目默认且强制基于 "
+                    "[bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) "
+                    f"使用 `bac` 工具，客观记录人类与 AI 的协作贡献边界；默认贡献托管文件为 `{bac_file}`"
+                ),
+                "贡献记录初始化说明": "初始化项目时必须检查 Python 环境、确认 `bac` 包可用；若环境未配置好，必须自动安装该 Python 依赖并初始化账本",
+                "贡献记录开关说明": "BAC 是默认强制执行步骤；除非项目负责人明确要求使用脚本级 `--disable-bac` 逃生开关，否则不得跳过依赖检查、安装与账本初始化",
+                "贡献记录README说明": f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`",
+                "贡献记录变更说明": f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`",
+            }
+        return {
+            "贡献记录政策说明": (
+                "本项目当前未启用 "
+                "[bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) "
+                f"的 `bac` 贡献记录；如后续重新启用，贡献托管文件建议使用 `{bac_file}`"
+            ),
+            "贡献记录初始化说明": "本次初始化已显式关闭 BAC 自动安装与账本初始化，之后可移除关闭开关重新启用",
+            "贡献记录开关说明": "贡献记录当前处于关闭状态；用户可以随时重新开启，例如运行初始化脚本时不要传入 `--disable-bac`",
+            "贡献记录README说明": f"本次初始化已显式关闭 BAC 贡献记录；默认托管文件仍建议使用 `{bac_file}`，后续可重新启用",
+            "贡献记录变更说明": "本次初始化显式关闭 BAC 贡献记录，未创建默认 `.bac` 文件",
+        }
+
     def _prepare_variables(
         self,
         analysis: dict,
@@ -1301,26 +1327,7 @@ class ProjectInitGenerator:
         project_type = analysis['type_info']['name']
         today = datetime.now().strftime("%Y-%m-%d")
         bac_file = bac_file or self.get_bac_config().get("default_bac_file", "docs/contribution.bac")
-        if bac_enabled:
-            bac_policy_note = (
-                "本项目默认且强制基于 "
-                "[bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) "
-                f"使用 `bac` 工具，客观记录人类与 AI 的协作贡献边界；默认贡献托管文件为 `{bac_file}`"
-            )
-            bac_init_note = "初始化项目时必须检查 Python 环境、确认 `bac` 包可用；若环境未配置好，必须自动安装该 Python 依赖并初始化账本"
-            bac_toggle_note = "BAC 是默认强制执行步骤；除非项目负责人明确要求使用脚本级 `--disable-bac` 逃生开关，否则不得跳过依赖检查、安装与账本初始化"
-            bac_readme_note = f"默认使用 `{bac_file}` 记录人类与 AI 协作过程；如项目决定关闭，可在初始化时使用 `--disable-bac`"
-            bac_changelog_note = f"初始化 BAC 贡献记录：默认托管文件为 `{bac_file}`"
-        else:
-            bac_policy_note = (
-                "本项目当前未启用 "
-                "[bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) "
-                f"的 `bac` 贡献记录；如后续重新启用，贡献托管文件建议使用 `{bac_file}`"
-            )
-            bac_init_note = "本次初始化已显式关闭 BAC 自动安装与账本初始化，之后可移除关闭开关重新启用"
-            bac_toggle_note = "贡献记录当前处于关闭状态；用户可以随时重新开启，例如运行初始化脚本时不要传入 `--disable-bac`"
-            bac_readme_note = f"本次初始化已显式关闭 BAC 贡献记录；如后续启用，建议使用 `{bac_file}`"
-            bac_changelog_note = "本次初始化显式关闭 BAC 贡献记录，未创建默认 `.bac` 文件"
+        bac_notes = self._bac_notes(bac_file, bac_enabled)
 
         # 根据项目类型生成默认工作流描述
         workflow_templates = {
@@ -1392,11 +1399,7 @@ class ProjectInitGenerator:
             "工作流描述": workflow_templates.get(project_type, workflow_templates["通用项目"]),
             "目录树": analysis['directory_tree'],
             "项目类型": project_type,
-            "贡献记录政策说明": bac_policy_note,
-            "贡献记录初始化说明": bac_init_note,
-            "贡献记录开关说明": bac_toggle_note,
-            "贡献记录README说明": bac_readme_note,
-            "贡献记录变更说明": bac_changelog_note,
+            **bac_notes,
             # README.md 专用变量
             "项目特性": feature_templates.get(project_type, feature_templates["通用项目"]),
             "环境要求": env_templates.get(project_type, env_templates["通用项目"]),
@@ -1558,21 +1561,21 @@ def main():
     bac_config = generator.get_bac_config()
     bac_file = args.bac_file or bac_config.get("default_bac_file", "docs/contribution.bac")
     bac_enabled = bool(bac_config.get("enabled_by_default", True)) and not args.disable_bac
-    manual_project_type = "[项目类型，如：数据分析、Web开发等]"
-    variables = generator._prepare_variables(
-        {
-            "name": args.project_name,
-            "description": args.project_description,
-            "type_info": {"name": manual_project_type},
-            "directory_tree": "[请根据实际项目结构补充]",
-        },
-        language,
-        output_dir,
-        bac_file,
-        bac_enabled,
-    )
-    variables["工作目录"] = os.path.relpath(args.output_dir) if args.output_dir != "." else "本项目"
-    variables["工作流描述"] = args.workflow or "[待补充工作流描述]"
+
+    variables = {
+        "项目名称": args.project_name,
+        "项目描述": args.project_description,
+        "工作目录": os.path.relpath(args.output_dir) if args.output_dir != "." else "本项目",
+        "默认语言": language,
+        "项目用途": args.project_description,
+        "核心功能描述": args.project_description,
+        "工作流描述": args.workflow or "[待补充工作流描述]",
+        "目录树": "[请根据实际项目结构补充]",
+        "项目类型": "[项目类型，如：数据分析、Web开发等]",
+        **generator._bac_notes(bac_file, bac_enabled),
+        "版本号": "1.0.0",
+        "一句话概括项目的价值主张": args.project_description,
+    }
 
     # 手动模式也补齐标准 docs 目录
     try:
