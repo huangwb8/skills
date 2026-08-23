@@ -63,11 +63,12 @@ metadata:
 ## 运行前检查
 
 1. 先解析本次任务的隐藏工作区根目录：若用户传入 `workspace_base`，解析该路径；否则使用 `project_root/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。必须把解析后的绝对路径用可见消息告诉用户，例如：`本次 auto-draw-plot .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。这条消息必须出现在 API 检查、`init_workspace.py`、`run_draw_plot.py` 或任何图片生成调用之前；不要只把路径写进 `run-manifest.json`。
-2. 默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY | OPENAI_API`，再使用 `gpt-image-2`；环境变量与 `remote.env` 只作为缺失字段的兜底来源。
-3. `gpt-image-2` 只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。若配置只提供子域名根地址，客户端会在校验后统一规范为带 `/v1` 的 API 基址，避免 Images 请求落入站点 HTML fallback。
-4. 如果用户点名 `gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider，运行前检查和后续出图都必须固定在该 provider；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
-5. 只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage、`BILLING_SERVICE_ERROR` 与 submit 空/非 JSON 等任务创建状态不确定的协议错误仍必须停在原 provider 并展示结构化错误。
-6. 再运行 `scripts/nano_banana_check.py`。默认 `auto` 会按 provider 优先级检查配置、连接和鉴权；若用户指定 provider，应把 `--provider <name>` 传给主脚本。`/v1/models` 成功只能表述为 `connectivity/authentication_ok`，不得写成“可生图”或 `generation_eligible=true`；真实 Images submit 才是当前请求的准入判断。
+2. 默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY | OPENAI_API`，再使用 `gpt-image-2`；环境变量与 `remote.env` 只作为缺失字段的兜底来源。Windows 同时兼容 `%USERPROFILE%`、`%HOMEDRIVE%%HOMEPATH%` 与 Git Bash/PowerShell 的 `HOME`。
+3. 配置加载必须记录实际配置文件路径、来源和 API Key 不可逆短指纹；若 Codex 配置与 BenszAPI 环境变量同时存在且 Base URL/API Key 不一致，必须在发图前停止并报告冲突字段，不得静默使用旧配置。诊断证据不得写入完整密钥。
+4. `gpt-image-2` 只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。若配置只提供子域名根地址，客户端会在校验后统一规范为带 `/v1` 的 API 基址，避免 Images 请求落入站点 HTML fallback。
+5. 如果用户点名 `gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider，运行前检查和后续出图都必须固定在该 provider；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
+6. 只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage、`BILLING_SERVICE_ERROR` 与 submit 空/非 JSON 等任务创建状态不确定的协议错误仍必须停在原 provider 并展示结构化错误。
+7. 再运行 `scripts/nano_banana_check.py`。默认 `auto` 会按 provider 优先级检查配置、连接和鉴权；若用户指定 provider，应把 `--provider <name>` 传给主脚本。`/v1/models` 成功只能表述为 `connectivity/authentication_ok`，不得写成“可生图”或 `generation_eligible=true`；真实 Images submit 才是当前请求的准入判断。
 
 ## 工作流
 

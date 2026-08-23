@@ -4,6 +4,7 @@
 - 明确 `auto-draw-plot` 是经 BenszAPI 自行完成 prompt、generation/edit 与多轮迭代的自包含图片工作流；选中后不得默认调用或依赖 `imagegen`，并把版本号从 `0.2.13` 更新至 `0.2.14`
 
 ### Fixed
+- 修复 Windows/Git Bash/PowerShell 可能因 HOME 与 USERPROFILE 不一致而读取旧 Codex 配置的问题：统一解析用户目录，检测 Codex 与 BenszAPI 环境变量的 Base URL/API Key 冲突，并在脱敏诊断证据中记录实际路径与 Key 短指纹；同步将版本号 `0.2.17 → 0.2.18`
 - 修复 Codex 或环境变量提供 BenszAPI 子域名根地址时，Images job 请求可能落入边缘层 HTML fallback 的问题：`gpt-image-2` 配置加载会在完成 HTTPS、子域名与路径校验后统一补齐 `/v1`，generation/edit、轮询和结果下载均使用规范 API 基址；同步将版本号 `0.2.16 → 0.2.17`
 - 补齐 Images submit 的端到端低敏关联证据：JSON 与 multipart 请求自动发送安全 `X-Client-Request-ID`，空/非 JSON 协议错误优先保存服务端回传的 `X-Request-ID` 与 `X-Client-Request-ID`，并对关联 ID 执行长度和字符白名单校验；同步将版本号 `0.2.15 → 0.2.16`
 - 修复 Images generation/edit 在 `2xx` 空正文或非 JSON 正文时只抛出裸解析异常、无法关联边缘链路的问题：JSON 与 multipart 路径新增 `PROVIDER_EMPTY_RESPONSE` / `PROVIDER_NON_JSON_RESPONSE`，仅记录状态、origin/path、Content-Type、声明/实际长度、SHA-256、首字节类别和重定向变化；不保存 query、鉴权、prompt 或原始正文，并继续禁止 submit 重试及不确定任务跨 provider 重放；同步将版本号 `0.2.14 → 0.2.15`

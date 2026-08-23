@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from common import ensure_dir, load_config, warn, write_json
-from env_utils import find_remote_env, mask_secret, merged_env
+from env_utils import find_remote_env, mask_secret, merged_env, resolve_config_path
 from nano_banana_client import (
     generate_png as generate_nano_banana_png,
     load_gemini_config,
@@ -37,6 +37,10 @@ class ImageProviderConfig:
     preflight_status: str = "not_checked"
     preflight_scope: str = "configuration_only"
     generation_eligibility: str = "unknown_until_image_submit"
+    config_path: Optional[Path] = None
+    auth_path: Optional[Path] = None
+    api_key_fingerprint: str = ""
+    config_conflicts: Tuple[str, ...] = ()
 
     def with_preflight(self, *, status: str, scope: str) -> "ImageProviderConfig":
         return replace(
@@ -221,6 +225,13 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
         auth_key_names=gpt_cfg.get("codex_auth_key_names") or gpt_cfg.get("env_api_key_keys") or ["OPENAI_API_KEY", "OPENAI_API"],
     )
     base_url, api_key, model, source = _resolve_gpt_image_2_inputs(codex=codex, env=env, gpt_cfg=gpt_cfg)
+    conflicts = _config_conflicts(codex=codex, env=env, gpt_cfg=gpt_cfg)
+    if conflicts:
+        raise ProviderUnavailable(
+            "检测到图片配置来源冲突（{}），请清理 Windows 环境变量或更新 Codex 配置后重试。".format(
+                ", ".join(conflicts)
+            )
+        )
     if not model:
         model = str(gpt_cfg.get("model") or "gpt-image-2")
     if str(model).strip() != str(gpt_cfg.get("model") or "gpt-image-2"):
@@ -242,6 +253,10 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
         model=str(model).strip(),
         env_path=env_path,
         source=source,
+        config_path=codex_config_path,
+        auth_path=codex_auth_path,
+        api_key_fingerprint=_secret_fingerprint(str(api_key).strip()),
+        config_conflicts=tuple(conflicts),
     )
 
 
@@ -1848,6 +1863,42 @@ def _validate_benszresearch_base_url(base_url: str, *, allowed_domains: List[str
         raise ProviderUnavailable("gpt-image-2 base_url 必须是 benszresearch.com 的子域名")
 
 
+def _secret_fingerprint(value: str) -> str:
+    """Return a stable, non-reversible identifier for diagnostics; never log the secret itself."""
+    return hashlib.sha256(str(value or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _canonical_config_base_url(value: str) -> str:
+    raw = str(value or "").strip().rstrip("/")
+    if not raw:
+        return ""
+    parsed = urllib.parse.urlparse(raw)
+    path = parsed.path.rstrip("/") or "/v1"
+    return urllib.parse.urlunparse((parsed.scheme.lower(), parsed.netloc.lower(), path, "", "", ""))
+
+
+def _is_allowed_config_host(value: str, allowed_domains: List[str]) -> bool:
+    host = (urllib.parse.urlparse(str(value or "")).hostname or "").lower()
+    return any(host == domain or host.endswith("." + domain) for domain in allowed_domains)
+
+
+def _config_conflicts(*, codex: Dict[str, Any], env: Dict[str, str], gpt_cfg: Dict[str, Any]) -> List[str]:
+    """Detect competing BenszAPI sources while ignoring unrelated global OpenAI env vars."""
+    env_base = _first_env(env, gpt_cfg.get("env_base_url_keys") or ["OPENAI_BASE_URL", "OPENAI_API_BASE"])
+    env_key = _first_env(env, gpt_cfg.get("env_api_key_keys") or ["OPENAI_API_KEY", "OPENAI_API"])
+    codex_base = str(codex.get("base_url") or "").strip()
+    codex_key = str(codex.get("api_key") or "").strip()
+    allowed = [str(item).lower().lstrip(".") for item in (gpt_cfg.get("allowed_base_domains") or ["benszresearch.com"])]
+    if not _is_allowed_config_host(env_base, allowed):
+        return []
+    conflicts: List[str] = []
+    if codex_base and env_base and _canonical_config_base_url(codex_base) != _canonical_config_base_url(env_base):
+        conflicts.append("base_url_mismatch")
+    if codex_key and env_key and codex_key != env_key:
+        conflicts.append("api_key_mismatch")
+    return conflicts
+
+
 def _resolve_gpt_image_2_inputs(*, codex: Dict[str, Any], env: Dict[str, str], gpt_cfg: Dict[str, Any]) -> Tuple[str, str, str, str]:
     env_base_url = _first_env(env, gpt_cfg.get("env_base_url_keys") or ["OPENAI_BASE_URL", "OPENAI_API_BASE"])
     env_api_key = _first_env(env, gpt_cfg.get("env_api_key_keys") or ["OPENAI_API_KEY", "OPENAI_API"])
@@ -1880,8 +1931,8 @@ def _resolve_gpt_image_2_inputs(*, codex: Dict[str, Any], env: Dict[str, str], g
 
 
 def _codex_config_paths(*, api_cfg: Dict[str, Any]) -> Tuple[Path, Path]:
-    config_path = Path(str(api_cfg.get("codex_config_path") or "~/.codex/config.toml")).expanduser()
-    auth_path = Path(str(api_cfg.get("codex_auth_path") or "~/.codex/auth.json")).expanduser()
+    config_path = resolve_config_path(str(api_cfg.get("codex_config_path") or "~/.codex/config.toml"))
+    auth_path = resolve_config_path(str(api_cfg.get("codex_auth_path") or "~/.codex/auth.json"))
     return config_path, auth_path
 
 
@@ -2032,7 +2083,11 @@ def _debug_provider(cfg: ImageProviderConfig) -> Dict[str, Any]:
         "model": cfg.model,
         "api_key": mask_secret(cfg.api_key),
         "env_path": str(cfg.env_path) if cfg.env_path else None,
+        "config_path": str(cfg.config_path) if cfg.config_path else None,
+        "auth_path": str(cfg.auth_path) if cfg.auth_path else None,
         "source": cfg.source,
+        "api_key_fingerprint": cfg.api_key_fingerprint or _secret_fingerprint(cfg.api_key),
+        "config_conflicts": list(cfg.config_conflicts),
         "preflight_status": cfg.preflight_status,
         "preflight_scope": cfg.preflight_scope,
         "generation_eligibility": cfg.generation_eligibility,

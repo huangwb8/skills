@@ -1,6 +1,6 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.2.17"
+  version: "0.2.18"
   description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
   author: "Bensz Conan"
   category: "image-generation"

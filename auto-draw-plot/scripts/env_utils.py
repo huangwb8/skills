@@ -2,12 +2,33 @@ from __future__ import annotations
 
 import os
 import re
+import ntpath
 from pathlib import Path
 from typing import Dict, Optional
 
 
 DEFAULT_REMOTE_ENV = Path.home() / ".bensz-skills" / "config" / "remote.env"
 _LINE_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
+
+
+def resolve_config_path(value: str, *, environ: Optional[Dict[str, str]] = None, platform_name: Optional[str] = None) -> Path:
+    """Resolve skill config paths consistently across PowerShell, Git Bash and POSIX shells."""
+    raw = str(value or "").strip()
+    env = dict(os.environ if environ is None else environ)
+    platform = str(platform_name or os.name).lower()
+    if raw == "~" or raw.startswith("~/") or raw.startswith("~\\"):
+        if platform.startswith("win") or platform == "nt":
+            home = env.get("USERPROFILE") or (
+                f"{env.get('HOMEDRIVE', '')}{env.get('HOMEPATH', '')}".strip()
+            )
+            if home:
+                suffix = raw[2:] if len(raw) > 1 else ""
+                return Path(ntpath.join(home, suffix.replace("/", "\\")))
+        home = env.get("HOME")
+        if home:
+            suffix = raw[2:] if len(raw) > 1 else ""
+            return Path(home) / suffix
+    return Path(raw).expanduser()
 
 
 def find_remote_env(preferred: Optional[Path] = None) -> Optional[Path]:

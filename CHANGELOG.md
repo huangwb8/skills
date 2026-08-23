@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [4.3.8] - 2026-08-23
+
+### Changed
+- **auto-draw-plot 升级到 `0.2.18`**：Windows、Git Bash 与 PowerShell 统一解析 Codex 配置路径，优先兼容 `%USERPROFILE%` / `%HOMEDRIVE%%HOMEPATH%` 并兼容 `HOME`；诊断证据新增实际配置路径、来源和不可逆 API Key 短指纹，便于定位配置来源。
+- **发布提示更新**：`Prompts.md` 中的目标发布 tag 更新为 `v4.3.8`。
+
+### Fixed
+- **auto-draw-plot 配置冲突拦截**：当 Codex 配置与 BenszAPI 环境变量同时存在且 Base URL 或 API Key 不一致时，在提交图片请求前报告 `base_url_mismatch` / `api_key_mismatch` 并停止，避免静默读取旧配置；完整密钥不会写入诊断日志。
+
 ## [4.3.7] - 2026-08-18
 
 ### Changed

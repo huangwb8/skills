@@ -131,7 +131,7 @@ GEMINI_API=你的密钥
 GEMINI_MODEL=nano-banana-preview
 ```
 
-默认情况下，skill 会先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY` / `OPENAI_API`。只有 Codex 本地配置缺少对应字段时，才使用环境变量或 `remote.env` 作为兜底。
+默认情况下，skill 会先读取本地 Codex 配置：从 `~/.codex/config.toml` 获取 BenszAPI base URL，从 `~/.codex/auth.json` 获取 `OPENAI_API_KEY` / `OPENAI_API`。只有 Codex 本地配置缺少对应字段时，才使用环境变量或 `remote.env` 作为兜底。Windows 会优先按 `%USERPROFILE%`、`%HOMEDRIVE%%HOMEPATH%` 解析 `~`，同时兼容 Git Bash/PowerShell 的 `HOME`。每次运行会在脱敏诊断证据中记录实际配置路径、来源和 API Key 短指纹；如果 Codex 配置与 BenszAPI 环境变量冲突，会在发图前停止并指出 `base_url_mismatch` 或 `api_key_mismatch`，避免静默读取旧配置。
 
 ## 输出结果
 
