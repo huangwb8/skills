@@ -12,6 +12,19 @@ version = 4.3.8
 
 ---
 
+目前，本项目有非常巨大的变动。 直接改造成 /Volumes/2T01/Test/@legacy-projects/old-skills （只读）的形式； 基本上大部分东西都直接挪过来。 这是一些冲突处理的方式：
+
+- 本项目的 @install 脚本的能力应该直接融入 install-bensz-skills 这个skill里
+
+- 本项目里目前已经存在的skills，都是比较成熟的，适合发布的skill。 它们的位置可以放在 ./skills/alpha 里。 有一些skill，仅在 /Volumes/2T01/Test/@legacy-projects/old-skills 里出现但本项目目前还没有的，都是一些还没有开发成熟的skill； 应该放在 ./skills/beta 里。
+- install-bensz-skills 的逻辑要优化：默认仅安装  ./skills/alpha 里的skill。除非用户特别指定，否则约不能安装  ./skills/alpha 里的skill。 install-bensz-skills 的远程安装的脚本应该要调整下，确保仅安装  ./skills/alpha 里的skill
+- 系统文件冲突： Prompts.md、CHANGELOG.md、LICENSE、AGENTS.md、CLAUDE.md、readme类md、skills.code-workspace 以本项目为准。
+- 因为有很多新目录，所以目录管理是有所讲究的； 以 /Volumes/2T01/Test/@legacy-projects/old-skills 里 AGENTS.md 的约定为准
+
+请进行改动。 本项目已经事先进行git备份，因此你可以大胆操作。
+
+---
+
 最近，./install-bensz-skills 的策略有一些轻的变化。  请问， @install 里的脚本要不要对齐一下？ 如果有必要，请你优化一下。
 
 ---

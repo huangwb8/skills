@@ -1,0 +1,91 @@
+# prompt-programming 技能配置文件
+
+skill_info:
+  name: prompt-programming
+  version: 0.2.1
+  description: "将用户原始 prompt 翻译为具有程序架构的人类自然语言"
+  author: "Bensz Conan"
+  category: "Prompt 结构化"
+
+kernel:
+  dialect_name: "Prompt Program"
+  default_language: "zh-CN"
+  semantic_atoms:
+    - entity
+    - intent
+    - operation
+    - constraint
+    - control
+    - check
+
+rendering:
+  block_order:
+    - program
+    - goal
+    - input
+    - output
+    - definition
+    - constraint
+    - flow
+    - validation
+    - gap_handling
+    - return
+  optional_blocks:
+    - program
+    - definition
+    - gap_handling
+  omit_empty_blocks: true
+  required_blocks:
+    - goal
+    - input
+    - output
+    - flow
+    - validation
+    - return
+  block_semantics:
+    output: "目标产物、目标格式或目标效果"
+    return: "对 output 的交付动作；不得引入新产物"
+  sentence_patterns:
+    flow:
+      - "执行：把 A 转换为 B。"
+      - "先……，再……，最后……。"
+      - "若 X 成立，则……；否则……。"
+      - "对每个 X，执行……。"
+      - "重复……，直到……为止。"
+    validation:
+      - "在输出前，核对……。"
+      - "确认……满足……。"
+    gap_handling:
+      - "若信息不足，则先……；仍不足时……。"
+      - "若存在冲突，则保留冲突并显式标注。"
+    return:
+      - "返回上述输出。"
+      - "最终交付……。"
+
+translation:
+  default_output_mode: "final_only"
+  input_validation:
+    min_length: 6
+    reject_non_prompt_like_input: true
+  infer_low_risk_context: true
+  expose_high_risk_gaps: true
+  keep_domain_terms: true
+  preserve_output_contract: true
+  preserve_explicit_format: true
+  preserve_sequence_constraints: true
+  strip_social_filler: true
+  control_inference_policy: "only_when_explicit_or_strongly_implied"
+  conflict_resolution_order:
+    - core_intent
+    - hard_constraints
+    - output_contract
+    - validation_requirements
+    - style_preferences
+
+quality_bar:
+  must_include_control_when_present: true
+  must_include_validation: true
+  must_preserve_core_intent: true
+  max_redundant_constraints: 2
+  soft_sentence_budget: 18
+  relax_budget_when_complex: true

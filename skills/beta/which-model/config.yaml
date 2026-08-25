@@ -1,0 +1,270 @@
+# which-model 技能配置文件
+
+# ==================== Skill 信息 ====================
+skill_info:
+  name: "which-model"
+  version: "0.1.0"
+  description: "当用户需要调研某个 skill 的模型选择最佳实践时使用：分析目标技能的源代码与工作流 → 通过联网搜索（Tavily/SearXNG/DuckDuckGo）收集官方文档与社区经验 → 总结出哪些场景该用什么模型/参数 → 生成 WHICHMODEL 小节插入目标技能的 README.md。"
+  author: "Bensz Conan"
+  category: "调研与文档"
+
+# ==================== 调研参数 ====================
+research:
+  # 每个任务类型生成的检索词组数
+  query_groups_per_task: 5
+
+  # 每组检索词获取的最大结果数
+  max_results_per_query: 10
+
+  # 相关度阈值（低于此分数的结果被过滤）
+  relevance_threshold: 0.6
+
+  # 目标模型厂商（检索词会自动包含这些厂商的模型名）
+  # 开发者默认配置：Anthropic + OpenAI
+  # 支持的厂商：Anthropic、OpenAI、Google、Meta、Mistral、DeepSeek、Qwen、Moonshot、Zhipu
+  target_vendors:
+    - Anthropic      # Claude (Opus/Sonnet/Haiku)
+    - OpenAI         # GPT-4/GPT-4o/o1
+
+# ==================== 来源可信度评分配置 ====================
+# 硬编码配置确保评分稳定性
+source_credibility:
+  # 域名类型到可信度的映射（权重 0-1）
+  domain_weights:
+    # 第一梯队：高可信度（0.8-1.0）
+    academic:
+      weight: 1.0
+      description: "学术论文和预印本，同行评审，方法透明"
+      domains:
+        - arxiv.org
+        - semanticscholar.org
+        - scholar.google.com
+        - openreview.net
+        - aclanthology.org
+        - proceedings.mlr.press
+        - neurips.cc
+        - openreview.net
+
+    open_benchmarks:
+      weight: 0.9
+      description: "开源基准测试，社区维护，可复现"
+      domains:
+        - huggingface.co
+        - lmsys.org
+        - evals.alignment.org
+        - paperswithcode.com
+        - chat.lmsys.org
+
+    community_discussions:
+      weight: 0.85
+      description: "真实用户讨论，无商业动机，但可能有样本偏差"
+      domains:
+        - reddit.com
+        - news.ycombinator.com
+        - stackoverflow.com
+        - github.com
+        - discord.com
+
+    # 第二梯队：中可信度（0.5-0.7）
+    tech_blogs:
+      weight: 0.6
+      description: "技术博客，可能有赞助或倾向性"
+      domains:
+        - towardsdatascience.com
+        - distill.pub
+        - opensource.com
+        - infoq.com
+        - medium.com
+        - substack.com
+
+    developer_blogs:
+      weight: 0.65
+      description: "独立开发者博客，通常较客观"
+      domains:
+        - jakobzagermann.de
+        - jalammar.github.io
+        - benvanderslice.com
+        - fastml.com
+        - colahs.github.io
+
+    # 第三梯队：低可信度（0.2-0.4）
+    official_docs:
+      weight: 0.3
+      description: "厂商官方文档，权威但有营销倾向"
+      domains:
+        - docs.anthropic.com
+        - platform.openai.com
+        - ai.google.dev
+        - docs.mistral.ai
+        - docs.deepseek.ai
+        - docs.moonshot.cn
+        - help.aliyun.com
+
+    vendor_blogs:
+      weight: 0.25
+      description: "厂商技术博客，营销味较重"
+      domains:
+        - blog.anthropic.com
+        - openai.com/blog
+        - blog.google
+        - medium.com/molecule-ai
+        - deepseek.com/blog
+
+    commercial_reports:
+      weight: 0.2
+      description: "商业咨询报告，可能有商业关联"
+      domains:
+        - gartner.com
+        - forrester.com
+        - idc.com
+
+  # 未知域名的默认权重
+  unknown_domain_weight: 0.5
+
+# ==================== 情绪/营销倾向检测配置 ====================
+# 硬编码关键词确保检测一致性
+bias_detection:
+  # 营销语言关键词（过度正面）
+  marketing_words:
+    positive_excess:
+      - revolutionary
+      - state-of-the-art
+      - unmatched
+      - best-in-class
+      - unparalleled
+      - unprecedented
+      - game-changer
+      - cutting-edge
+      - groundbreaking
+      - world-class
+      - industry-leading
+      - most-powerful
+      - superior
+      - ultimate
+      - breakthrough
+      - innovative
+      - advanced
+      - next-generation
+
+    absolute_words:
+      - best
+      - perfect
+      - always
+      - never
+      - every
+      - all
+      - unbeatable
+      - unmatched
+      - incomparable
+      - nothing-compares
+
+  # 平衡性指标（负面/中性词汇）
+  balanced_indicators:
+    - however
+    - but
+    - limitation
+    - drawback
+    - tradeoff
+    - caveat
+    - constraint
+    - restriction
+    - issue
+    - problem
+    - challenge
+    - weakness
+    - disadvantage
+    - although
+    - despite
+    - except
+    - limitations
+    - drawbacks
+
+  # 情绪检测阈值
+  sentiment_thresholds:
+    marketing_too_positive: 3      # 过度正面词汇数量阈值
+    lacking_balance: 0             # 缺少平衡词汇
+    absolute_excess: 2             # 绝对化词语数量阈值
+
+# ==================== 综合评分公式配置 ====================
+# 硬编码公式确保评分一致性
+scoring:
+  # 综合评分公式：final_score = relevance * w1 + credibility * w2 + neutrality * w3
+  formula:
+    relevance_weight: 0.30         # 相关性权重（基于查询匹配）
+    credibility_weight: 0.50       # 可信度权重（基于来源类型）
+    neutrality_weight: 0.20        # 中立性权重（基于营销检测）
+
+  # 最低可接受分数
+  min_acceptable_score: 0.4
+
+# ==================== 厂商覆盖度警告 ====================
+vendor_coverage:
+  # 所有可用厂商列表
+  all_available_vendors:
+    - Anthropic
+    - OpenAI
+    - Google
+    - Meta
+    - Mistral
+    - DeepSeek
+    - Qwen           # 阿里通义千问
+    - Moonshot       # 月之暗面
+    - Zhipu          # 智谱AI
+
+  # 覆盖度警告阈值
+  warning_thresholds:
+    poor: 0.33          # < 33% 覆盖度 = 警告
+    fair: 0.50          # 33-50% = 提醒
+    good: 0.67          # 50-67% = 良好
+    excellent: 0.83     # > 83% = 优秀
+
+# MCP 工具优先级
+mcp_tools:
+  # 搜索工具优先级（按顺序尝试）
+  search_priority:
+    - tavily-search      # Tavily（深度搜索，优先）
+    - searxng_web_search # SearXNG（多源聚合）
+    - search             # DuckDuckGo（备选）
+
+  # 所有 MCP 工具都失败时的超时时间（秒）
+  timeout: 30
+
+# 文档生成参数
+document_generation:
+  # WHICHMODEL 小节模板路径
+  template_path: references/WHICHMODEL_template.md
+
+  # 最小场景数
+  min_scenarios: 3
+
+  # 最大场景数
+  max_scenarios: 8
+
+  # 每个场景的最大描述长度（字符）
+  max_scenario_length: 300
+
+# 插入策略
+insertion:
+  # 自动插入（true）或等待用户确认（false）
+  auto_insert: false
+
+  # 如已存在 WHICHMODEL 小节时的默认行为
+  on_existing: prompt  # 可选：overwrite / append / prompt / skip
+
+  # 插入位置检测关键词（按优先级查找）
+  section_keywords:
+    - 档位选择指南
+    - 设计理念
+    - 快速开始
+    - 提示词示例
+
+# 输出控制
+output:
+  # 是否保留调研原始数据
+  keep_raw_data: true
+
+  # 是否生成完整报告
+  generate_full_report: false
+
+  # 报告路径
+  report_path: which_model_report.md

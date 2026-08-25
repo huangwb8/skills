@@ -1,0 +1,60 @@
+# download-fulltext-pdf 配置文件
+# 版本号管理：本文件是版本信息的唯一来源（Single Source of Truth）
+
+skill_info:
+  name: download-fulltext-pdf
+  version: 0.1.2
+  description: "通过 DOI 号下载学术论文全文 PDF，支持多源策略（arXiv、Sci-Hub、Unpaywall、期刊官网）"
+  author: "Bensz Conan"
+  category: "文献获取"
+
+# 下载策略配置
+download:
+  # Sci-Hub 配置
+  scihub:
+    enabled: true
+    timeout: 30  # 秒
+    retries: 3
+    domain: "https://sci-hub.se"  # 可根据需要更新
+
+  # arXiv 配置
+  arxiv:
+    enabled: true
+    timeout: 30
+    base_url: "https://arxiv.org/pdf"
+
+  # Unpaywall 配置（合法开放获取）
+  unpaywall:
+    enabled: true
+    timeout: 30
+    api_url: "https://api.unpaywall.org/v2"
+    # Unpaywall 不需要 API key，但建议带 email 参数以获得更稳定的速率限制口径。
+    # 为了负载均衡（分摊速率限制），支持配置多个邮箱并选择策略。
+    #
+    # - emails：推荐使用（可配置多个邮箱）
+    # - email：兼容旧字段；当 emails 为空时才会使用
+    emails:
+      - "hwb2012@qq.com"
+      - "huangwb886@gmail.com"
+    email_strategy: "round_robin"  # round_robin | hash_doi | random
+    state_file: ".bensz-api/skills/download-fulltext-pdf/state/unpaywall_email_state.json"  # round_robin 的状态文件（相对 cwd）
+    email: ""  # 兼容旧字段（可选）
+
+# 验证配置
+verification:
+  check_pdf_header: true
+  require_pypdf2: false  # 是否强制要求 PyPDF2
+  max_file_size: 100_000_000  # 100 MB
+  min_file_size: 1024  # 1 KB
+
+# 输出配置
+output:
+  default_filename: "paper.pdf"
+  overwrite: false  # 是否覆盖已存在文件
+  create_missing_dirs: true  # 自动创建缺失的目录
+
+# 日志配置
+logging:
+  enabled: true
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "download-fulltext-pdf.log"

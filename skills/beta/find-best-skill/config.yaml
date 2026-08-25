@@ -1,0 +1,89 @@
+# 技能基本信息
+skill_info:
+  name: find-best-skill
+  version: 0.4.1
+  description: 根据用户需求智能推荐最佳 Agent Skills
+  author: "Bensz Conan"
+  category: 技能发现
+
+# 搜索平台配置
+platforms:
+  github:
+    base_url: https://github.com
+    # 使用 WebSearch 工具搜索，语法示例：site:github.com "SKILL.md" {关键词}
+
+  skillsmp:
+    base_url: https://skillsmp.com
+    # 使用 WebSearch 工具搜索，语法示例：site:skillsmp.com {关键词} skill
+
+  awesome_list:
+    repo: VoltAgent/awesome-claude-skills
+    url: https://github.com/VoltAgent/awesome-claude-skills
+
+# 搜索关键词模板
+search_keywords:
+  - "{topic} + claude skill"
+  - "{topic} + agent skill"
+  - "{topic} + codex skill"
+  - "{topic} + claude code"
+
+# 推荐筛选标准
+recommendation_criteria:
+  min_stars: 10  # 最少 Stars 数量
+  max_age_months: 12  # 最大未更新月数
+  require_github: true  # 必须有 GitHub 仓库
+  require_skill_md: true  # 必须有 SKILL.md 文件
+
+# 推荐数量配置
+recommendation:
+  default_min: 5        # 默认最少推荐数量
+  default_max: 10       # 默认最多推荐数量
+  target_count: 8       # 默认目标推荐数量
+  absolute_min: 3       # 绝对最少数量（找不到更多时）
+  absolute_max: 20      # 绝对最多数量（避免信息过载）
+  user_override: true   # 允许用户指定数量覆盖默认值
+
+# 官方仓库列表
+# 最后验证时间：2026-01-18
+official_repos:
+  - anthropics/skills           # Anthropic 官方技能仓库（已验证）
+  - openai/skills               # OpenAI Codex Skills Catalog（已验证）
+
+# 知名社区仓库
+# 最后验证时间：2026-01-18
+notable_repos:
+  - VoltAgent/awesome-claude-skills    # 社区精选列表（已验证）
+  - vercel-labs/agent-skills          # Vercel Agent Skills（已验证，原 claude-skills 已重命名）
+
+# 输出格式配置
+output:
+  include_metrics: true  # 包含指标（Stars、Forks 等）
+  include_limitations: true  # 包含局限性分析
+
+# 缓存配置
+cache:
+  enabled: true  # 是否启用缓存
+  dir: .bensz-api/skills/find-best-skill/cache  # 缓存目录路径（相对当前工作目录）
+  ttl_days: 180  # 缓存过期时间（默认半年，可配置）
+  max_size: 1000  # 最大缓存技能数
+  similarity_threshold: 0.3  # 关键词相似度匹配阈值（0-1）
+
+# 缓存策略
+cache_strategy:
+  # 本地缓存命中时的处理方式
+  on_hit:
+    show_results: true  # 显示本地结果
+    ask_user: true  # 询问用户是否联网扩展
+    default_action: "ask"  # 默认动作: ask/online_only/local_only
+
+  # 本地缓存未命中时的处理方式
+  on_miss:
+    auto_search: true  # 自动联网搜索
+    save_to_cache: true  # 搜索结果自动写入缓存
+
+  # 联网搜索后的数据处理
+  after_search:
+    merge_results: true  # 合并本地和联网结果
+    dedup_method: "url"  # 去重方法: url/name
+    update_cache: true  # 更新缓存
+    priority: "online"  # 排序优先级: online/local/merged

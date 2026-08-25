@@ -1,0 +1,281 @@
+# bensz-rmd-rules 配置文件
+# R Markdown 开发规范与最佳实践
+#
+# 注意：
+# - Rmd 的 YAML 头（含 author）以 `rmd_template.yaml_header` 为准（单一真相来源）。
+#   为了便于“复制即用”，`templates/Rmd_template.Rmd` 内会保留一份 YAML header 的拷贝；
+#   维护者修改本节后，应同步更新模板（可用 `scripts/check_rmd_template_yaml.py` 做一致性校验）。
+# - luckyBase 是本 skill 的硬前提：包加载统一通过 `luckyBase::Plus.library()` 完成。
+
+skill_info:
+  name: bensz-rmd-rules
+  version: "0.22.0"
+  description: "规范 AI 开发 R Markdown 分析脚本的行为准则。核心原则：遵循主业与副业分离架构（.R 保留完整数据，.Rmd 应用业务阈值），优先使用用户已有 R 包资源。图表默认按 Nature 级别可读性与出版质量生成（PDF 矢量优先、色盲友好配色、字体/线宽自适应）。专家级解读默认假定读者相关背景较弱：提供四层解读框架、指标导读和不常用指标首次解释协议，在保持数字可追溯与论文级准确性的同时增强学习友好度。路径验证：提供自动化验证脚本确保跨平台兼容性。前提：luckyBase 为硬依赖"
+  author: "Bensz Conan"
+  category: "开发规范"
+
+# R 包资源配置
+# 优先级：user_developed > candidate_r > CRAN/Bioconductor > 自定义函数
+r_packages:
+  # 用户开发的核心包（优先级最高）
+  user_developed:
+    - name: ccs
+      description: "Cohort Congress System，泛癌症基因组分类"
+    - name: GSClassifier
+      description: "Gene Signature Classifier，转录组分类"
+    - name: lucky
+      description: "常规 R 函数集合（生存分析、差异表达、可视化）"
+    - name: luckyBase
+      description: "lucky 系列基础包（包管理 Plus.library）"
+    - name: luckyExperiment
+      description: "生物学实验数据处理"
+    - name: luckyGEO
+      description: "GEO 数据下载与处理"
+    - name: luckyModel
+      description: "第三方生物信息学模型集成"
+
+  # candidate_r 函数库
+  # - 默认：仅当 source("00.Environment.R") 后相关函数已存在时才使用（不猜路径、不扫描磁盘）
+  # - 可选：用户可在环境设置代码块中定义 `candidate_r_path`，AI 再按该路径 source() 需要的脚本
+  candidate_r:
+    description: "独立分析脚本集合（特征选择、聚类、生存分析等）"
+
+# Rmd 模板配置
+rmd_template:
+  yaml_header:
+    title: "分析标题"
+    author: "Bensz Conan"
+    date: "`r Sys.Date()`"
+    params:
+      analysis_mode: "full"
+      top_n: 3
+      q_cutoff: 0.05
+      min_sample_n: 30
+      interpret_top_n: 3
+      interpret_min_stratum_n: 30
+      interpret_min_consistent_prop: 0.70
+      interpret_min_boot_prop: 0.70
+      # Plot delivery helpers (optional):
+      # - plot_run_dir: parent directory for run_* previews; default uses .bensz-api/skills/bensz-rmd-rules
+      # - plot_preview_dpi: raster preview DPI (higher => clearer but larger files)
+      plot_run_dir: ~
+      plot_preview_dpi: 200
+    output:
+      html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 3
+        number_sections: true
+        theme: default
+        highlight: tango
+        code_folding: show
+        includes:
+          after_body: "templates/liquid_glass_lightbox.html"
+        css: "templates/liquid_glass_theme.css"
+  # DT::datatable 标准化调用
+  datatables_helper: "templates/datatables_helper.R"
+# 注意：完整的 YAML 头配置说明、Liquid Glass 主题特性、自定义选项详见：
+#   references/liquid_glass_theme_guide.md（说明文档；具体字段以本文件 rmd_template.yaml_header 为准）
+
+# 图表语言配置
+plot_language:
+  # 默认语言：en（英文）或 zh（中文）
+  default: "en"
+  # 强制英文：图表轴标题、图例、标题等必须使用英文
+  # 例外场景：中文期刊投稿可在 YAML params 中设置 plot_language: "zh"
+  force_english: true
+
+# 图表质量配置（默认即 Nature 级别）
+plot_quality:
+  default_level: "nature"
+  supported_packages:
+    - ggplot2
+    - ComplexHeatmap
+    - plotly
+  allowed_levels:
+    - nature
+
+# 图表可读性硬检查阈值（经验默认值，可按项目需求调整）
+# 用途：指导 AI 在生成绘图代码后“必须显式检查并修复”的常见问题。
+plot_readability:
+  # 轴刻度过密阈值（> max_ticks 时，优先减少 breaks 或采样显示）
+  max_ticks: 20
+  # 最小可接受字体（pt）；低于该值通常打印/投影不可读
+  min_font_pt: 8
+  # 分类标签过长的参考阈值（字符数）；超过后优先旋转/换行/缩写
+  long_label_chars: 20
+  # Heatmap 行/列名建议最大长度；超过后优先截断并保留前缀
+  heatmap_max_label_chars: 15
+
+# 文件结构配置（核心约定，不建议修改）
+file_structure:
+  # 主脚本：数据计算与处理
+  data_script: "{主脚本名}.R"
+  # 主脚本：可视化与分析
+  main_script: "{主脚本名}.Rmd"
+  # 函数脚本：中间函数
+  functions_script: "{主脚本名}_functions.R"
+  # 环境脚本：全局配置
+  environment_script: "00.Environment.R"
+  # 临时文件夹：局部分析与结果缓存
+  temp_folder: "tmp/{主脚本名}"
+
+# 文件命名约定
+naming_convention:
+  # 核心约定：.R、.Rmd、.html 除后缀外名称完全一致
+  core_files_same_name: true
+  # 示例：cf01.R, cf01.Rmd, cf01.html
+  example_prefix: "cf01"
+
+# 输出配置
+output:
+  # 使用 knit-rmd-html skill 输出 HTML
+  html_skill: "knit-rmd-html"
+  # HTML 保存在 Rmd 同级目录
+  html_location: "same_directory"
+
+# 指标解释协议：常用指标使用白名单；未命中、无法确定或非标准定义时按不常用指标处理。
+metric_explanation:
+  audience_assumption: "相关背景较弱，但需要获得专业、准确且可复核的解释"
+  classification: "common_allowlist_else_uncommon"
+  require_guide_table_for_uncommon: true
+  require_full_first_mention: true
+  concise_after_first_mention: true
+  reset_when_definition_changes: true
+  common_metrics:
+    descriptive:
+      - "样本量/频数/比例"
+      - "均值/中位数/标准差/四分位距"
+      - "发生率"
+    inference:
+      - "p 值"
+      - "q 值/FDR"
+      - "95% 置信区间"
+    effect_and_association:
+      - "均值差/回归系数"
+      - "OR/RR/HR"
+      - "Pearson r/Spearman rho"
+    survival:
+      - "Kaplan-Meier 生存概率/中位生存期"
+      - "log-rank 检验"
+      - "Cox HR"
+      - "C-index"
+    diagnostic_and_binary_prediction:
+      - "ROC AUC"
+      - "灵敏度/特异度"
+      - "阳性预测值/阴性预测值"
+      - "准确率"
+
+# 图表/表格解读覆盖检验（硬编码静态检查）
+# 目的：彻底解决“有图表/表格但缺少解读”的漏项。
+figure_interpretation_check:
+  enabled: true
+  # 默认仅报告（不阻断），交付前请在 CLI 显式加 --strict 做“Fail Fast”门禁
+  strict_mode: false
+  required_layers: 4  # 期望四层解读框架（脚本主要做覆盖检查，层数作为口径）
+  max_distance_lines: 50  # 允许解读距离图表/表格输出块的最大行距
+  require_reference: false  # 是否强制要求显式引用“Figure/图/Table/表 N”（更严格但更易误杀）
+  # 是否要求解读段落包含某些“解读/结论/观察”等标记词（默认 true；marker 更中性，不再强迫四层标签）
+  # - 设为 false：仅做“有 prose + 最低长度/要素”门禁
+  # - 设为 true 且 markers 为空：自动跳过 marker 检查（避免误杀）
+  require_markers: true
+  # 解读最小长度门槛（脚本默认值从此读取，CLI 仍可覆盖）
+  min_cjk_chars: 80
+  min_en_words: 40
+  # 证据锚定要素数量（启发式 proxy，避免“空话解读”）
+  min_content_elements: 2
+  check_patterns:
+    figure_generation:
+      - "\\bggplot\\s*\\("
+      - "\\bgeom_[a-zA-Z0-9_]+\\s*\\("
+      - "\\bplot\\s*\\("
+      - "\\bheatmap\\b"
+      - "\\bComplexHeatmap\\b"
+      - "\\bHeatmap\\s*\\("
+      - "\\bpheatmap\\s*\\("
+      - "\\bggsave\\s*\\("
+      - "\\bpdf\\s*\\("
+      - "\\bpng\\s*\\("
+      - "\\btiff\\s*\\("
+      - "\\bjpeg\\s*\\("
+    table_generation:
+      - "\\bknitr::kable\\s*\\("
+      - "\\bkable\\s*\\("
+      - "\\bDT::datatable\\s*\\("
+      - "\\brender_dt_output\\s*\\("
+      - "\\brender_dt\\s*\\("
+      - "\\bgt::gt\\s*\\("
+      - "\\bflextable::flextable\\s*\\("
+      - "\\breactable::reactable\\s*\\("
+    interpretation_markers:
+      # 更中性的 marker：用于识别“这是在写解读/结论/观察”，而非强制四层标签写法
+      - "解读"
+      - "结论"
+      - "小结"
+      - "观察"
+      - "核心结论"
+      - "结果(?:显示|表明|提示|可见)"
+      - "\\binterpretation\\b"
+      - "\\btakeaway\\b"
+      - "(?:图|表|Figure|Table)\\s*\\d+.*?(?:解读|分析|结果|interpretation|analysis)"
+
+# 解读质量静态预检（启发式检查）
+# 脚本：scripts/check_interpretation_quality.py
+# 说明：脚本优先使用此配置；若未配置则使用脚本内置默认值（降级）
+interpretation_quality_check:
+  enabled: true
+  min_inline_r: 3
+  min_current_observation: 3
+  # 推荐结构（默认不强迫；交付/收敛阶段可用 --strict 或改此配置启用）
+  require_top_hits: false
+  require_uncertainty_hits: false
+  require_actionability: false
+
+  # 数字可追溯：识别 prose 中“字面数字”但缺少附近 `r ...` 的情况（启发式）
+  check_untracked_numbers: true
+  max_untracked_numbers: 1
+  # 允许的“字面数字”白名单（避免误杀：年份/图表编号等）
+  untracked_number_exempt_patterns:
+    - "\\b20\\d{2}\\b"
+    - "(?:Figure|Table|图|表)\\s*\\d+"
+  check_tone: true
+  max_teaching_hits: 2
+  check_title_style: false
+  check_bold: false
+  max_bold_per_1000: 10.0
+  check_actionability: true
+  max_actionability_issues: 2
+  check_template_labels: true
+  max_tier_label_lines: 8
+  teaching_markers:
+    - "提示："
+    - "注意："
+    - "需要注意的是"
+    - "即："
+    - "即:"
+    - "用于快速识别"
+    - "用于快速判断"
+    - "帮助你判断"
+    - "用于把方向落到"
+  # 硬黑名单：命中即阻断交付（尽量少用；优先用“反模板/可证伪/可执行”检查替代）
+  blacklist_patterns: []
+
+  # 机械模板检测：命中即判定为“结构填空”，通常不看数据也能写出来
+  check_mechanical_templates: true
+  max_mechanical_template_hits: 0
+  mechanical_template_patterns:
+    - "这张(?:图|表|图/表).{0,20}?(?:在)?本次.{0,20}?直接观察是[:：].*?统计.{0,20}?含义是[:：].*?研究者.{0,20}?意义是[:：].*?(?:你可以)?(?:立即)?(?:执行)?的?下一步"
+
+  # 空泛句式检测：这些短语不一定永远错误，但若附近缺少“对象+数值证据”，通常意味着在说官话
+  check_vague_phrases: true
+  vague_phrase_window_chars: 160
+  max_vague_phrase_issues: 2
+  vague_phrase_patterns:
+    - "提示可能"
+    - "可能提示"
+    - "值得深入探讨"
+    - "需要进一步研究"
+    - "建议进一步研究"
+    - "建议进一步验证"
+    - "需要进一步验证"
+    - "为.*提供依据"

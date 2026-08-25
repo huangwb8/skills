@@ -1,0 +1,31 @@
+# 技能基本信息（版本号 Single Source of Truth）
+skill_info:
+  name: md-to-word
+  version: 0.4.0
+  description: 将一个或多个 Markdown 文档转换为格式优美的 Word（.docx），基于 Pandoc + 内置 reference.docx 模板（可选自定义模板），并确保不修改任何原始 Markdown 文件。内置模板已修复命名空间兼容性问题，支持 RGBA 图片自动转换。
+  author: "Bensz Conan"
+  category: 文档转换
+
+pandoc:
+  executable: pandoc
+  from: markdown+smart
+  to: docx
+  standalone: true
+  wrap: preserve
+  default_template: default
+
+templates:
+  default: assets/reference-default.docx
+  cn-modern: assets/reference-cn-modern.docx
+  compact: assets/reference-compact.docx
+
+io:
+  overwrite: false
+  default_output_dir: null
+  allowed_input_extensions:
+    - .md
+    - .markdown
+
+limits:
+  max_inputs: 200
+

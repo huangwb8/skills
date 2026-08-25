@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bensz-skill-kernel"
+version = "0.1.0"
+description = "Append-only lifecycle runtime for Bensz Agent Skills"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+bsk = "bensz_skill_kernel.runtime:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["bensz_skill_kernel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

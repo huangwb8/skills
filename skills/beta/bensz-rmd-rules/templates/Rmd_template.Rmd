@@ -1,0 +1,247 @@
+---
+# NOTE:
+# - YAML header is defined in bensz-rmd-rules/config.yaml:rmd_template.yaml_header (single source of truth).
+# - This template keeps a convenience copy for "copy-and-start"; keep it in sync with config.yaml.
+#
+# Liquid Glass Theme (glassmorphism):
+# - Glassmorphism effects with backdrop blur
+# - Fluid gradients (static by default; avoid distracting motion during copy/paste)
+# - Smooth transitions (no infinite animations)
+# - Automatic dark mode support
+# - Enhanced readability with modern typography
+title: "分析标题"
+author: "Bensz Conan"
+date: "`r Sys.Date()`"
+params:
+  analysis_mode: "full"
+  top_n: 3
+  q_cutoff: 0.05
+  min_sample_n: 30
+  interpret_top_n: 3
+  interpret_min_stratum_n: 30
+  interpret_min_consistent_prop: 0.70
+  interpret_min_boot_prop: 0.70
+  # Plot delivery helpers (optional):
+  # - plot_run_dir: parent directory for run_* previews; default uses .bensz-api/skills/bensz-rmd-rules
+  # - plot_preview_dpi: raster preview DPI (higher => clearer but larger files)
+  plot_run_dir: ~
+  plot_preview_dpi: 200
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    theme: default
+    highlight: tango
+    code_folding: show
+    includes:
+      after_body: "templates/liquid_glass_lightbox.html"
+    css: "templates/liquid_glass_theme.css"
+---
+
+```{r load-data, message=FALSE, warning=FALSE}
+# 目的：加载 .R 脚本产物，准备后续分析
+# 输入：tmp/{主脚本名}/ 下的 .rds 文件
+# 参数：无需（依赖 00.Environment.R 的统一配置）
+# 输出：processed_data / computation_results
+
+# Step 1: 环境与基础校验
+# 加载 .R 脚本生成的数据
+if (!file.exists("00.Environment.R")) stop("Missing 00.Environment.R in project root.")
+source("00.Environment.R")
+
+# Step 2: 数据目录检查
+# 检查 .R 脚本是否已运行
+data_dir <- file.path("tmp", "{主脚本名}")
+if (!dir.exists(data_dir)) {
+  stop("数据目录不存在: ", data_dir, "\n",
+       "请先运行 {主脚本名}.R 生成数据！")
+}
+
+# Step 3: 数据加载
+# 加载处理后的数据
+processed_data <- readRDS(file.path(data_dir, "processed_data.rds"))
+
+# 加载计算结果
+computation_results <- readRDS(file.path(data_dir, "computation_results.rds"))
+
+options(stringsAsFactors = FALSE)
+```
+
+```{r plot-style, message=FALSE, warning=FALSE}
+# 目的：加载 Nature 级别图表主题与配色（如项目中已放置 templates/）
+# 输入：templates/nature_colors.R / templates/nature_theme.R / templates/complexheatmap_template.R / templates/plotly_template.R
+# 可选输入：templates/plot_delivery_helpers.R（PDF 交付 + JPG 预览）
+# 输出：nature_colors / theme_nature() / make_heatmap_nature() / make_plotly_nature() / run_dir / bensz_pdf_to_jpg()
+
+if (file.exists(file.path("templates", "nature_colors.R"))) source(file.path("templates", "nature_colors.R"))
+if (file.exists(file.path("templates", "nature_theme.R"))) source(file.path("templates", "nature_theme.R"))
+if (file.exists(file.path("templates", "complexheatmap_template.R"))) source(file.path("templates", "complexheatmap_template.R"))
+if (file.exists(file.path("templates", "plotly_template.R"))) source(file.path("templates", "plotly_template.R"))
+
+# Formal delivery = vector PDF. After saving each PDF, render a JPG preview for visual self-check.
+run_dir <- NULL
+if (file.exists(file.path("templates", "plot_delivery_helpers.R"))) {
+  source(file.path("templates", "plot_delivery_helpers.R"))
+  plot_run_root <- NULL
+  if (exists("params") && is.list(params) && !is.null(params$plot_run_dir) && is.character(params$plot_run_dir) && nzchar(params$plot_run_dir)) {
+    plot_run_root <- params$plot_run_dir
+  }
+  run_dir <- bensz_run_dir(root_dir = plot_run_root)
+  message("Plot preview run dir: ", run_dir)
+} else {
+  run_dir <- file.path(getwd(), ".bensz-api", "skills", "bensz-rmd-rules", paste0("run_", format(Sys.time(), "%Y%m%d%H%M%S")))
+  dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+}
+```
+
+## 数据概览
+
+```{r data-preview}
+# 数据结构
+str(processed_data)
+
+# 数据摘要
+summary(processed_data)
+
+# 数据表格
+dt_helper <- file.path("templates", "datatables_helper.R")
+if (!file.exists(dt_helper)) {
+  stop(
+    "Missing templates/datatables_helper.R. ",
+    "Please run bootstrap_liquid_glass.py --with-extras in project root (recommended), ",
+    "or copy it from the installed bensz-rmd-rules skill templates/."
+  )
+}
+source(dt_helper)
+render_dt_output(processed_data, n = 100, scrollX = TRUE, pageLength = 10)  # 必须为 chunk 最后表达式
+```
+
+## 关键函数、参数与源代码位置
+
+本节用于“可追溯性”：让审稿/复盘时能快速回答“关键分析过程是什么、调用了什么函数、关键参数为何这样设、实现代码在哪里”。
+
+请至少覆盖：
+
+- 关键的分析过程（按顺序）
+- 用了哪些关键函数（推荐写成 `pkg::fn()`）
+- 函数的关键参数是什么；为什么要这么设置（绑定本次数据/假设/阈值）
+- 源代码在哪个文件的第几行（建议用 `相对路径:行号`，例如 `{主脚本名}.R:42`、`{主脚本名}_functions.R:120`、`{主脚本名}.Rmd:88`）
+
+| 分析过程/产物 | 关键函数/对象 | 关键参数（是什么） | 为什么这样设置（理由） | 源代码位置（文件:行号） |
+|---|---|---|---|---|
+| 数据加载与整理 | `readRDS()` / `dplyr::mutate()` | `path=...` / `na.rm=TRUE` | 读取主脚本产物；避免 NA 影响统计量 | `{主脚本名}.R:42` / `{主脚本名}.Rmd:28` |
+| 主要统计分析 | `survival::coxph()` | `formula=...` / `ties="efron"` | 选择 Cox 模型；ties 处理与数据规模匹配 | `{主脚本名}_functions.R:85` |
+| 可视化输出 | `ggplot2::ggplot()` / `ggplot2::ggsave()` | `width/height/base_size` | 确保 Nature 级别可读性与打印清晰 | `{主脚本名}.Rmd:92` |
+
+<!-- 仅当报告存在不常用、任务自定义或采用非标准定义的指标时保留本节；否则删除。 -->
+## 指标导读
+
+本节先建立阅读后续结果所需的最小背景。表格只解释指标的判读规则；具体数值及其研究含义仍在相应结果小节展开。
+
+| 指标 | 它回答什么问题 | 尺度、参考点与趋势含义 | 不确定性与置信区间怎么读 | 本报告为何使用 | 判读边界 |
+|---|---|---|---|---|---|
+| `{metric}` | 待补充 | 待补充 | 待补充；没有 CI 时说明实际稳定性证据 | 待补充 | 待补充；自定义指标注明公式或代码位置 |
+
+## 可视化分析
+
+```{r visualization}
+# 在此添加可视化代码
+# 示例 1：ggplot2（Nature 级别；参数面向用户 + PDF 交付 + JPG 视觉自检）
+# ==== Figure 1: Scatter（用户可调参数）====
+# 说明：下面所有参数都是“面向用户”的调参入口；默认值是 Nature 级别可读性起点。
+# fig1 <- list(
+#   # 画布尺寸（英寸）。调大：更不拥挤、更适合长标签；调小：更紧凑但更易溢出/字体显得小。
+#   width_in  = 6.0,
+#   height_in = 4.0,
+#
+#   # 字体基准（pt）。影响轴刻度/图例等整体尺度；打印/投影不清晰时优先调大。
+#   base_size = 10,
+#
+#   # 线条/点大小（ggplot2 常用：线用 pt，点用 mm）。点太密：减小 point_size 或加 alpha；线看不清：增大 line_size。
+#   line_size   = 0.8,
+#   point_size  = 1.2,
+#   point_alpha = 0.85,
+#
+#   # 图例位置：避免遮挡数据。常用："right" / "bottom" / "left" / "top" / "none"。
+#   legend_position = "right",
+#
+#   # x 轴文字角度。长分类名常用 45/60；角度越大越不重叠，但需要更大的 bottom margin。
+#   x_text_angle = 0
+# )
+#
+# p <- ggplot2::ggplot(processed_data, ggplot2::aes(x = x, y = y, color = group)) +
+#   ggplot2::geom_point(size = fig1$point_size, alpha = fig1$point_alpha) +
+#   theme_nature_readable(base_size = fig1$base_size, x_text_angle = fig1$x_text_angle, legend_position = fig1$legend_position) +
+#   ggplot2::scale_color_manual(values = nature_colors) +
+#   ggplot2::labs(x = "X", y = "Y", color = "Group")
+#
+# out_pdf <- file.path("tmp", "{主脚本名}", "figure_scatter.pdf")  # 正式交付唯一格式：矢量 PDF
+# ggplot2::ggsave(filename = out_pdf, plot = p, width = fig1$width_in, height = fig1$height_in, device = grDevices::cairo_pdf)
+#
+# # 保存 PDF 后，自动生成 JPG 预览图用于视觉自检（不作为正式交付）
+# out_jpg <- file.path(run_dir, "figure_scatter.jpg")
+# dpi <- if (exists("params") && is.list(params) && !is.null(params$plot_preview_dpi)) params$plot_preview_dpi else 200
+# if (exists("bensz_pdf_to_jpg")) bensz_pdf_to_jpg(out_pdf, out_jpg, dpi = dpi)
+#
+# # HTML 内展示：优先展示“由 PDF 渲染得到的 JPG 预览图”，保证 HTML 与 PDF 的比例一致；
+# # 图可以偏小（建议 chunk 用 out.width="70%"），Liquid Glass 支持点击放大，无需放太大。
+# # knitr::include_graphics(out_jpg)
+#
+# 示例 2：ComplexHeatmap（Nature 级别）
+# ht <- make_heatmap_nature(mat = as.matrix(processed_data[1:50, 1:10]), name = "Value")
+# out_pdf <- file.path("tmp", "{主脚本名}", "heatmap.pdf")  # 正式交付：矢量 PDF
+# save_heatmap_pdf(ht, out_pdf, width = 7, height = 7)
+# if (exists("bensz_pdf_to_jpg")) bensz_pdf_to_jpg(out_pdf, file.path(run_dir, "heatmap.jpg"), dpi = dpi)
+#
+# 示例 3：plotly（交互式，Nature 级别）
+# fig <- make_plotly_nature(processed_data, x = ~x, y = ~y, color = ~group,
+#   x_title = "X", y_title = "Y")
+# save_plotly_html(fig, file.path("tmp", "{主脚本名}", "plotly_figure.html"))
+```
+
+## 结果解读
+
+本节必须基于**当前数据**做连贯叙述式解读：先给出 1–3 个最强信号与数值证据，再补统计含义与领域映射，并用“方法 + 输入 + 判据”落地后续验证。
+
+- 默认读者相关背景较弱。不常用指标首次出现时，先用短段落解释它是什么、如何计算、为何用于本分析、如何判读和它补充了什么信息，再紧接本次结果；第二次起不重复原理。
+- 同名指标若公式、尺度、方向、参考点或时间窗变化，应视为新指标重新解释。
+- 若存在多个 cohort/亚组，建议每个 cohort 固定写一个“核心结论（证据链收敛）”段落：Top 1–3（带数值）+ 证据等级（带稳定性当前值与阈值）+ 3 条可执行后续（方法+输入+判据）。
+- 所有阈值统一来自 YAML `params`（单一真相来源），并在解读中同时报告“阈值 + 当前值”。
+- Top 信号：对象 + 方向/对比 + 数值证据（优先 `` `r ...` ``）
+- 不确定性：CI/SE/bootstrap/CV 等至少一种
+- 可落地后续：方法 + 输入 + 判据（支持/不支持怎么判）
+
+## 讨论与分析
+
+### 主要发现
+
+1. 待补充
+2. 待补充
+
+### 局限性
+
+1. 待补充
+2. 待补充
+3. 待补充
+
+### 进一步分析建议
+
+1. 待补充
+2. 待补充
+
+## 数字准确性验证
+
+本报告中的关键数字应可追溯到具体变量或计算逻辑，并优先使用 `` `r ...` `` 动态嵌入以保持与数据同步。
+
+| 数字描述 | 来源变量/计算 | 位置 |
+|---|---|---|
+| 样本量 | `nrow(processed_data)` | 数据概览 |
+| ... | ... | ... |
+
+验证结论：
+
+- [ ] 所有数字均可追溯到变量或计算逻辑
+- [ ] 关键数字均使用 `` `r ...` `` 动态嵌入（或明确说明计算来源）
+- [ ] 未出现无法解释来源的数字或“凭空捏造”的比例/效应

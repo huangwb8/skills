@@ -1,0 +1,105 @@
+# 技能基本信息
+skill_info:
+  name: any-picture-format
+  version: 0.2.0
+  description: "任意格式图片转换工具，支持本地文件/URL/剪贴板输入，批量处理"
+  author: "Bensz Conan"
+  category: "数据处理"
+
+# 默认配置
+defaults:
+  # 默认输出格式
+  output_format: "PNG"
+
+  # 默认输出策略: new/overwrite
+  output_strategy: "new"
+
+  # 默认质量参数 (用于JPEG/WEBP，范围1-100)
+  quality: 85
+
+  # 默认PNG压缩级别 (范围0-9)
+  png_compression: 6
+
+  # 批量处理时是否递归子目录
+  recursive: false
+
+  # URL下载超时时间(秒)
+  download_timeout: 30
+
+  # 临时文件目录 (留空使用系统默认)
+  temp_dir: ""
+
+# 支持的输入格式（空列表表示自动检测）
+input_formats: []
+
+# 支持的输出格式
+output_formats:
+  - PNG
+  - JPEG
+  - JPG
+  - WEBP
+  - GIF
+  - BMP
+  - TIFF
+  - ICO
+
+# 格式特定配置
+format_config:
+  JPEG:
+    quality_range: [1, 100]
+    default_quality: 85
+    supports_transparency: false
+    description: "有损压缩，文件体积小，适合照片"
+
+  PNG:
+    compression_range: [0, 9]
+    default_compression: 6
+    supports_transparency: true
+    description: "无损压缩，支持透明度，适合图形"
+
+  WEBP:
+    quality_range: [1, 100]
+    default_quality: 85
+    supports_transparency: true
+    description: "现代Web格式，体积与质量平衡"
+
+  GIF:
+    supports_transparency: true
+    supports_animation: true
+    description: "支持动画，但色彩限制为256色"
+
+  BMP:
+    supports_transparency: false
+    description: "无压缩Windows位图，文件体积大"
+
+  TIFF:
+    supports_transparency: true
+    supports_multipage: true
+    description: "专业用途，支持多页和元数据"
+
+  ICO:
+    supports_transparency: true
+    description: "Windows图标格式，通常用于favicon"
+
+# 质量检查
+validation:
+  # 最小文件大小(字节)，小于此值警告
+  min_file_size: 1024
+
+  # 最大文件大小(字节)，大于此值警告
+  max_file_size: 104857600  # 100MB
+
+  # 转换后最小尺寸(像素)
+  min_dimensions:
+    width: 1
+    height: 1
+
+  # 转换后最大尺寸(像素)
+  max_dimensions:
+    width: 30000
+    height: 30000
+
+# 错误处理
+error_handling:
+  # 单个文件失败时是否继续批量处理
+  continue_on_error: true

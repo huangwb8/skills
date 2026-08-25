@@ -1,0 +1,6 @@
+skill_info:
+  name: knit-rmd-html
+  version: 0.1.1
+  description: 可靠地将 R Markdown 渲染为 HTML，并按需引导安装 Pandoc
+  author: "Bensz Conan"
+  category: R Markdown

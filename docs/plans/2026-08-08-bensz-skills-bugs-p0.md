@@ -1,0 +1,34 @@
+# Bensz Skills Bug 修复 p0 计划集合
+
+## 问题是什么
+
+`huangwb8/bensz-bugs` 同时包含 GitHub Issues 与目录化 Bug 记录。三份独立审查一致确认 GitHub Issues #1、#2 在当前授权源码中仍可复现；目录化记录还提供了其它候选缺陷，但其中包含重复报告、已自然修复项和不在授权源码根内的 skill，不能机械地全部改动或标记完成。
+
+## 三份独立计划
+
+- **远端盘点与源码映射：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/multi-agent-coordinator/output/p0-agent-1-bug-inventory.md`
+- **根因与回归测试：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/systematic-debugging/output/p0-agent-2-root-cause-tests.md`
+- **生态一致性与交付闭环：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/skill-creator/output/p0-agent-3-ecosystem-consistency.md`
+
+三份计划均由只读 subagent 独立生成，没有互相读取结论，也没有修改正式源码或远端状态。
+
+## 已形成的共识
+
+- GitHub Issue #1 的根因是 `init-project` 未建立控制台编码容错，却在多条执行路径输出 GBK 无法编码的 Unicode 状态符号。
+- GitHub Issue #2 的根因是 `auto-test-project` 的任务工作区迁移只更新了文档，没有同步配置和路径消费脚本。
+- 两项 Issue 只命中当前 `pipelines/skills` 源码根；其余三个授权源码根不应因这两个 Issue 产生改动。
+- 修复必须先有根因级回归验证，再同步 skill 版本、skill CHANGELOG 和项目 CHANGELOG，最后以脱敏证据关闭远端 Bug。
+- 不在授权源码根中的记录不得修改或标记 fixed；重复记录应指向一个 canonical 根因，不能重复实现。
+
+## 需要 p1 消歧的事项
+
+- 目录化 Bug 中哪些高风险、源码可证实项值得在本轮一并修复，哪些应留待独立任务。
+- `auto-test-project` 未显式提供 task root 时，是安全分配新根还是要求调用方显式传入；必须同时满足首次使用便利性与 continuation 复用不变量。
+- `init-project` 应采用流级编码容错还是 ASCII 状态前缀加安全输出函数；方案不能让兼容层吞掉业务异常。
+- 目录化记录的 fixed 标记尚无正式协议，本轮是只关闭 Issues，还是先扩展 `bensz-collect-bugs` 的 resolution 数据模型后再回写记录。
+
+## p1 的完成标准
+
+- 明确本轮实际实施的 skill 与 Bug 清单，并为每项给出源码证据、最小改动、测试、版本和远端状态动作。
+- 明确不实施项及原因，防止范围无意扩张。
+- 形成单一、无冲突、可由主 agent 直接执行的综合计划。

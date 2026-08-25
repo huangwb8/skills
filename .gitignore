@@ -60,6 +60,7 @@ htmlcov/
 *.tmp
 *.bak
 *.log
+tmp/
 *.pid
 *.seed
 *.pid.lock
@@ -75,9 +76,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Skill output directories
-**/tests/
-**/plans/
-docs/
+# Formal test and plan boundaries
+# Functional test scripts under tests/ and packages/*/tests/ are reviewable assets
+# and must remain version-controlled; only caches and Skill-local legacy fixtures
+# are ignored. Formal plans belong under docs/plans/.
+!/tests/
+!/tests/**
+!/packages/**/tests/
+!/packages/**/tests/**
+tests/**/__pycache__/
+!/tests/**/*.py
+packages/**/tests/**/__pycache__/
+skills/*/tests/
+skills/*/plans/
 .git-pr-review/
 .bensz-api

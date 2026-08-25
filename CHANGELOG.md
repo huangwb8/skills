@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed
+- **根级功能测试显式纳入 Git**：强化 `.gitignore` 对 `tests/**/*.py` 的放行规则，明确测试脚本可版本控制，仅忽略测试缓存。
+- **清理无用途的根级脚本目录**：删除空的 `./scripts/`；各 Skill 的功能脚本仍保留在自身 `skills/<channel>/<skill>/scripts/` 边界内。
+- **测试过程目录约定明确**：根级 `tests/` 仅保存可执行测试脚本；测试计划、报告、artifacts、fixture、日志和缓存统一承载于 `./tmp/`，并通过 `.gitignore` 排除运行产物。
+- **工作区约定文档归档**：将根目录 `WORKSPACE.md` 重命名并移动至 `docs/bensz-api-workspace.md`，使运行时工作区契约归入统一文档目录。
+- **根级测试目录职责收敛**：删除历史 Skill 测试会话、报告、artifacts、fixture 与缓存；`tests/` 仅保留用于验证 `packages/` Python 包核心公开 API 的可执行脚本，包内单元测试仍保留在各自包边界内。
+- **仓库目录与安装边界重构**：吸收只读 legacy 项目的 `skills/`、`packages/`、`docs/`、根级测试与工作区约定；将当前已有 Skill 迁移到 `skills/alpha/`，将 legacy 独有 Skill 迁移到 `skills/beta/`，同名 Skill 以当前仓库版本为准。
+- **install-bensz-skills 安装器整合**：将根级 `@install` 标准库远程引导能力并入 `install-bensz-skills` Skill；本地与远程默认只扫描/安装 `skills/alpha/`，beta Skill 仅在显式指定 beta 源目录时处理。
+- **目录治理对齐 legacy 约定**：正式 Skill 统一位于 `skills/<alpha|beta>/<skill-name>/`，运行时包位于 `packages/`，计划文档位于 `docs/plans/`，仓库级测试位于 `tests/`，清理 Skill 目录内的历史 `plans/` 与 `tests/` 夹具。
+- **忽略规则同步**：调整 `.gitignore`，保留根级与包级正式测试资产，仅忽略缓存及 Skill 内历史测试/计划目录。
+
 ## [4.3.8] - 2026-08-23
 
 ### Changed

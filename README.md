@@ -46,7 +46,7 @@
 
 ## 🧩 核心技能
 
-仓库根目录下提供以下核心技能：
+`skills/alpha/` 提供可发布的核心技能；`skills/beta/` 保存尚未成熟、默认不安装的候选技能：
 
 | 技能 | 主要用途 | 适用场景 |
 |------|----------|----------|
@@ -108,12 +108,12 @@
 
 ### ⚡ 推荐：一行远程安装
 
-无需先克隆仓库，直接用 `@install/install.py` 安装到系统级目录。这个安装器是单文件 Python 脚本，只依赖标准库；它会从 GitHub zip 包下载远程源，遇到临时网络错误会自动重试，按 MD5 跳过未变化的 skill，并写入安装清单。
+无需先克隆仓库，直接运行 `install-bensz-skills` 内置的标准库 bootstrap 脚本。它会从 GitHub zip 包下载远程源，遇到临时网络错误会自动重试，按 MD5 跳过未变化的 skill，并写入安装清单；本仓库的 `general` 源固定只包含 `skills/alpha`。
 
 | 平台 | 命令 |
 |------|------|
-| 全平台（Python） | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
-| macOS / Linux 备用 | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
+| 全平台（Python） | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
+| macOS / Linux 备用 | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 
 默认安装的远程源：
 
@@ -130,41 +130,44 @@
 
 ```bash
 # 只安装本仓库通用技能
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --source general
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
 
 # 只安装到 Codex 或 Claude Code
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --codex
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --claude
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
 
 # 预览安装动作，不写入文件
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --check
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
 # 使用中文安装输出
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --lang zh
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --lang zh
 ```
 
 ### 🛠️ 本地开发安装
 
-如果你已经克隆仓库，或正在开发本仓库里的 skills，可以使用本地安装脚本。它会优先从当前目录自动识别 `pipelines/skills/`、`skills/` 或当前目录本身。
+如果你已经克隆仓库，或正在开发本仓库里的 skills，可以使用本地安装脚本。它默认只识别 `skills/alpha/`；`skills/beta/` 必须通过 `--source` 显式指定。
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
-python3 install-bensz-skills/scripts/install.py
+python3 skills/alpha/install-bensz-skills/scripts/install.py
 ```
 
 如果你只想装到某一个平台：
 
 ```bash
-python3 install-bensz-skills/scripts/install.py --codex
-python3 install-bensz-skills/scripts/install.py --claude
+python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
+python3 skills/alpha/install-bensz-skills/scripts/install.py --claude
 ```
 
 如果安装器已经系统级安装，也可以在其它项目中直接调用已安装脚本，并显式指定源目录：
 
 ```bash
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills
-python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
+python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
+
+# beta 仅在明确需要时安装
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/beta
 ```
 
 ### 🤖 让 AI 调用安装 skill
@@ -186,4 +189,4 @@ python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skil
 - [Agent Skills 开放标准](https://agentskills.io)
 - [AGENTS.md](AGENTS.md)
 - [CLAUDE.md](CLAUDE.md)
-- [install-bensz-skills 用户指南](install-bensz-skills/README.md)
+- [install-bensz-skills 用户指南](skills/alpha/install-bensz-skills/README.md)

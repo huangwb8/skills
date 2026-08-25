@@ -11,6 +11,18 @@
 - 确保技能质量（安全性、可靠性、通用性）
 - 支持有机迭代和持续优化
 
+## 目录结构与边界
+
+- `skills/alpha/<skill-name>/`：可发布、默认安装的成熟 Skill；每个目录以自身 `SKILL.md` 为识别边界，可包含该 Skill 专属的 `scripts/`、`references/`、`templates/` 和资源文件。
+- `skills/beta/<skill-name>/`：尚未成熟的候选 Skill；不进入默认安装源，只有用户显式指定 beta 源目录时才处理。
+- `packages/<project>/`：独立运行时包边界，拥有自己的项目配置、版本、依赖和测试；不得在包内放置领域 Skill 流程。
+- `docs/plans/`：正式计划、迁移说明和治理文档；不得在 Skill 目录内新建 `plans/`。
+- `tests/`：面向 `packages/` Python 包核心公开 API 的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
+- `tmp/`：测试脚本运行过程的临时承载目录，可包含测试计划、报告、artifacts、fixture、日志和缓存；这些内容不得回写到 `tests/`。
+- `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：本轮任务的输入、过程产物、日志和验证证据；正式交付物不写入其中。
+
+Skill 目录不得新建历史计划、测试夹具或运行缓存目录；包内单元测试放在对应 `packages/<project>/tests/`，跨包或公开 API smoke/integration 脚本放在根级 `tests/`，测试运行过程产物统一写入根级 `tmp/`。AI 任务级中间材料仍按本轮 `.bensz-api` 工作区约定收敛。
+
 ## 核心工作流
 
 当用户提出 Skills 开发相关需求时，按以下流程执行：
@@ -84,7 +96,7 @@
 
 ## 变更边界
 
-- 只修改 `pipelines/skills/` 内文件，除非用户明确授权扩展到其它目录
+- 默认只修改 `skills/alpha/`、`skills/beta/` 与其配套的 `packages/`、`docs/`、`tests/`；本次迁移由用户明确授权扩展到整个仓库
 - 不批量重写与当前任务无关的文档与结构；保持最小可用、可迭代
 - 修改技能时，优先优化而非重写，保留用户自定义内容
 
@@ -204,10 +216,10 @@ grep -A 3 "project_info:" config.yaml | grep "version"
 
 系统级安装通过两个安装入口实现，二者必须保持业务逻辑对齐：
 
-- **本地开发版**：`install-bensz-skills/scripts/install.py`，从仓库本地目录复制安装，功能完整（i18n、配置化、`--skill` 过滤等），是安装逻辑的**单一真理来源**。
-- **远程一键版**：`@install/install.py`，从 GitHub 拉取 zip 远程安装，仅依赖 Python 标准库，面向最终用户。
+- **本地开发版**：`skills/alpha/install-bensz-skills/scripts/install.py`，从 `skills/alpha/` 复制安装，功能完整（i18n、配置化、`--skill` 过滤等），是安装逻辑的**单一真理来源**。
+- **标准库 bootstrap 版**：`skills/alpha/install-bensz-skills/scripts/bootstrap_install.py`，从 GitHub 拉取 zip 远程安装，仅依赖 Python 标准库，作为本地安装器的远程引导入口。
 
-⚠️ **强制联动**：当 `install-bensz-skills` 发生业务逻辑变更（安装流程、版本控制策略、命令行参数、目标目录约定、manifest 格式等）时，必须检查 `@install/install.py` 是否需要同步对齐，保证两者可观测行为一致；仅远程拉取特有逻辑（下载、解压、远程源发现）允许不同。
+⚠️ **强制联动**：当 `install-bensz-skills` 发生业务逻辑变更（安装流程、版本控制策略、命令行参数、目标目录约定、manifest 格式等）时，必须检查 `bootstrap_install.py` 是否需要同步对齐，保证两者对 alpha 默认源、manifest 和安装目标的可观测行为一致；仅 Git 缓存与远程拉取实现允许不同。
 
 ## 兼容的平台
 
@@ -251,11 +263,11 @@ grep -A 3 "project_info:" config.yaml | grep "version"
    - 首次生成时，使用 which-model skill 为 README.md 添加 WHICHMODEL 章节，记录模型选择最佳实践
 
 5. **测试验证**：
-   - 在 `tests/{test_name}/` 进行轻量测试
-   - 生成测试报告
+   - 在根级 `tests/` 编写或运行面向 `packages/` 核心功能的可执行测试脚本
+   - 测试计划、报告、artifacts、fixture、日志和缓存写入根级 `tmp/`，不落入 `tests/`
 
 6. **系统安装**：
-   - 运行 `python3 install-bensz-skills/scripts/install.py`
+   - 运行 `python3 skills/alpha/install-bensz-skills/scripts/install.py`
    - 验证技能在任意项目中可被发现
 
 ## Agent Skills 标准规范

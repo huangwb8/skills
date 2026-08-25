@@ -1,0 +1,1231 @@
+/*
+ * Liquid Glass Theme for R Markdown
+ * Glassmorphism-inspired design language with fluid aesthetics (motionless by default).
+ *
+ * Features:
+ * - Glassmorphism: Frosted glass effects with backdrop blur
+ * - Fluid gradients: Organic color transitions
+ * - Smooth transitions: Micro-interactions without infinite animations
+ * - Depth layers: Ambient shadows and inner highlights
+ * - Dark mode support: Automatic theme detection
+ */
+
+/* ============================================
+   CSS Custom Properties (Design Tokens)
+   ============================================ */
+:root {
+  /* Core Colors - Light Mode */
+  --lg-bg-primary: #f5f5f7;
+  --lg-bg-secondary: #ffffff;
+  --lg-bg-tertiary: #f0f0f2;
+  --lg-bg-glass: rgba(255, 255, 255, 0.72);
+
+  /* Text Colors */
+  --lg-text-primary: #1d1d1f;
+  --lg-text-secondary: #6e6e73;
+  --lg-text-tertiary: #86868b;
+
+  /* Accent Colors - Fluid Gradients */
+  --lg-accent-blue: #007aff;
+  --lg-accent-purple: #5856d6;
+  --lg-accent-pink: #ff2d55;
+  --lg-accent-orange: #ff9500;
+  --lg-accent-green: #34c759;
+
+  /* Gradient Definitions */
+  --lg-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --lg-gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --lg-gradient-glass: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  --lg-gradient-shimmer: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+
+  /* Glassmorphism Settings */
+  --lg-glass-blur: 20px;
+  --lg-glass-saturate: 180%;
+  --lg-glass-brightness: 1.1;
+
+  /* Shadows - Multi-layer for depth */
+  --lg-shadow-sm:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
+  --lg-shadow-md:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02) inset;
+  --lg-shadow-lg:
+    0 12px 32px rgba(0, 0, 0, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  --lg-shadow-xl:
+    0 20px 48px rgba(0, 0, 0, 0.16),
+    0 10px 24px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+
+  /* Border Radius - Fluid values */
+  --lg-radius-sm: 8px;
+  --lg-radius-md: 12px;
+  --lg-radius-lg: 16px;
+  --lg-radius-xl: 20px;
+  --lg-radius-2xl: 24px;
+
+  /* Spacing */
+  --lg-spacing-xs: 4px;
+  --lg-spacing-sm: 8px;
+  --lg-spacing-md: 16px;
+  --lg-spacing-lg: 24px;
+  --lg-spacing-xl: 32px;
+  --lg-spacing-2xl: 48px;
+
+  /* Transitions - Elastic smooth */
+  --lg-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --lg-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --lg-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --lg-transition-bounce: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --lg-transition-elastic: 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lg-bg-primary: #000000;
+    --lg-bg-secondary: #1c1c1e;
+    --lg-bg-tertiary: #2c2c2e;
+    --lg-bg-glass: rgba(28, 28, 30, 0.72);
+
+    --lg-text-primary: #f5f5f7;
+    --lg-text-secondary: #98989d;
+    --lg-text-tertiary: #636366;
+
+    --lg-glass-brightness: 1.0;
+
+    --lg-shadow-sm:
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.2);
+    --lg-shadow-md:
+      0 4px 12px rgba(0, 0, 0, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    --lg-shadow-lg:
+      0 12px 32px rgba(0, 0, 0, 0.5),
+      0 6px 16px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+}
+
+/* ============================================
+   Global Styles & Reset
+   ============================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  /* Avoid scroll/selection "moving" sensations; keep behavior deterministic. */
+  scroll-behavior: auto;
+  font-size: 20px;
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  background: var(--lg-bg-primary);
+  color: var(--lg-text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fluid background gradient (static by default) */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(255, 45, 85, 0.1) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================
+   Main Container
+   ============================================ */
+.main-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--lg-spacing-2xl) var(--lg-spacing-lg);
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--lg-text-primary);
+  margin-bottom: var(--lg-spacing-md);
+  /* 确保通过 TOC 点击跳转时，标题不会贴边显示 */
+  scroll-margin-top: 2rem;
+  scroll-snap-margin-top: 2rem; /* Firefox 旧版兼容 */
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: var(--lg-gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--lg-spacing-lg);
+}
+
+h2 {
+  font-size: 1.8rem;
+  padding: var(--lg-spacing-md) 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 60px;
+  height: 2px;
+  background: var(--lg-gradient-primary);
+}
+
+h3 {
+  font-size: 1.4rem;
+  color: var(--lg-text-secondary);
+}
+
+h4 {
+  font-size: 1.1rem;
+  color: var(--lg-text-tertiary);
+}
+
+p {
+  margin-bottom: var(--lg-spacing-md);
+  color: var(--lg-text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+/* ============================================
+   Links & Buttons
+   ============================================ */
+a {
+  color: var(--lg-accent-blue);
+  text-decoration: none;
+  position: relative;
+  transition: color var(--lg-transition-fast);
+}
+
+a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--lg-gradient-primary);
+  transition: width var(--lg-transition-base);
+}
+
+a:hover {
+  color: var(--lg-accent-purple);
+}
+
+a:hover::after {
+  width: 100%;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lg-spacing-sm);
+  padding: var(--lg-spacing-sm) var(--lg-spacing-md);
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--lg-radius-lg);
+  color: var(--lg-text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--lg-transition-base);
+  box-shadow: var(--lg-shadow-sm);
+}
+
+.btn:hover {
+  box-shadow: var(--lg-shadow-md);
+}
+
+.btn:active {
+  transform: none;
+}
+
+/* ============================================
+   Code Blocks
+   ============================================ */
+pre {
+  background: var(--lg-bg-secondary);
+  border-radius: var(--lg-radius-lg);
+  padding: var(--lg-spacing-md);
+  margin: var(--lg-spacing-lg) 0;
+  box-shadow:
+    var(--lg-shadow-md),
+    0 0 0 1px rgba(0, 0, 0, 0.03) inset;
+  position: relative;
+  /* Avoid horizontal scrollbar "progress bar" in code folding blocks */
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+/* Pandoc/rmarkdown sometimes wraps source blocks with div.sourceCode that can scroll horizontally.
+   Use "clip" instead of "hidden": hidden forces overflow-y to compute as "auto" (CSS spec),
+   which clips absolutely-positioned children when the container collapses (e.g. code folding).
+   "clip" only affects the x-axis and keeps overflow-y: visible. */
+div.sourceCode {
+  overflow-x: clip !important;
+  position: relative;
+  margin: var(--lg-spacing-lg) 0;
+  /* Ensure the container never collapses below the toolbar height
+     when code is folded (pre hidden by Bootstrap collapse). */
+  min-height: 44px;
+}
+
+/* Collapsed/folded state: show a subtle card so the toolbar isn't floating in void */
+div.sourceCode.lg-code-folded {
+  background: var(--lg-bg-secondary);
+  border-radius: var(--lg-radius-lg);
+  box-shadow:
+    var(--lg-shadow-md),
+    0 0 0 1px rgba(0, 0, 0, 0.03) inset;
+}
+
+/* Hide copy button when code is hidden — nothing to copy */
+div.sourceCode.lg-code-folded .lg-copy-btn {
+  display: none;
+}
+
+div.sourceCode > pre {
+  margin: 0;
+}
+
+div.sourceCode > .panel-heading,
+div.sourceCode > .lg-code-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--lg-radius-md);
+  box-shadow: var(--lg-shadow-sm);
+}
+
+div.sourceCode > .panel-heading + pre,
+div.sourceCode > .lg-code-toolbar + pre {
+  /* Reserve space for the floating toolbar to avoid covering the first line. */
+  padding-top: calc(var(--lg-spacing-md) + 28px);
+}
+
+div.sourceCode > .panel-heading .btn,
+div.sourceCode > .panel-heading button,
+div.sourceCode > .lg-code-toolbar .btn,
+div.sourceCode > .lg-code-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 4px 10px;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--lg-radius-sm);
+  color: var(--lg-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: none;
+  transition: all var(--lg-transition-fast);
+}
+
+div.sourceCode > .panel-heading .btn:hover,
+div.sourceCode > .panel-heading button:hover,
+div.sourceCode > .lg-code-toolbar .btn:hover,
+div.sourceCode > .lg-code-toolbar button:hover {
+  background: rgba(0, 122, 255, 0.10);
+  color: var(--lg-accent-blue);
+  box-shadow: var(--lg-shadow-sm);
+}
+
+div.sourceCode > .panel-heading .btn:active,
+div.sourceCode > .panel-heading button:active,
+div.sourceCode > .lg-code-toolbar .btn:active,
+div.sourceCode > .lg-code-toolbar button:active {
+  transform: none;
+}
+
+.lg-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--lg-radius-sm);
+  color: var(--lg-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--lg-transition-fast);
+}
+
+.lg-copy-btn:hover {
+  background: rgba(0, 122, 255, 0.10);
+  color: var(--lg-accent-blue);
+  box-shadow: var(--lg-shadow-sm);
+}
+
+.lg-copy-btn:active {
+  transform: none;
+}
+
+.lg-copy-btn.copied {
+  background: var(--lg-accent-green);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Reset rmarkdown-injected code-folding-btn styles when adopted into toolbar */
+div.sourceCode > .panel-heading .code-folding-btn,
+div.sourceCode > .lg-code-toolbar .code-folding-btn {
+  margin: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  float: none;
+}
+
+pre code,
+code.sourceCode {
+  /* Wrap long lines to avoid horizontal scrolling */
+  white-space: pre-wrap !important;
+  word-break: break-word;
+}
+
+/* Glass effect overlay on code blocks */
+/* NOTE:
+ * Previously we had a moving "shine" overlay on code blocks (pre::before).
+ * It made text selection highlight look like it was "moving", which is
+ * confusing and annoying during copy/paste, so it's removed by default.
+ */
+
+code {
+  font-family:
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace;
+  font-size: 0.9em;
+  color: var(--lg-text-primary);
+}
+
+:not(pre) > code {
+  background: var(--lg-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: var(--lg-radius-sm);
+  font-size: 0.85em;
+  color: var(--lg-accent-purple);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Tables
+   ============================================ */
+/*
+ * NOTE: DT::datatable() (DataTables) may split header/body into separate tables
+ * under scroll modes. Avoid layout-affecting "card" decorations on DataTables
+ * tables (including DT's initial `class="display"` before JS adds `.dataTable`)
+ * to prevent header/body width mismatch.
+ */
+table:not(.dataTable):not(.display) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: var(--lg-spacing-lg) 0;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border-radius: var(--lg-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--lg-shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+table:not(.dataTable):not(.display) thead tr {
+  background: var(--lg-gradient-primary);
+  color: white;
+}
+
+table:not(.dataTable):not(.display) th {
+  padding: var(--lg-spacing-md);
+  font-weight: 600;
+  text-align: left;
+  letter-spacing: -0.01em;
+}
+
+table:not(.dataTable):not(.display) td {
+  padding: var(--lg-spacing-md);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--lg-text-secondary);
+}
+
+table:not(.dataTable):not(.display) tbody tr {
+  transition: all var(--lg-transition-base);
+}
+
+table:not(.dataTable):not(.display) tbody tr:hover {
+  background: rgba(0, 122, 255, 0.05);
+  transform: scale(1.01);
+}
+
+/* ============================================
+   Blockquotes
+   ============================================ */
+blockquote {
+  margin: var(--lg-spacing-lg) 0;
+  padding: var(--lg-spacing-md) var(--lg-spacing-lg);
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur));
+  border-left: 4px solid;
+  border-image: var(--lg-gradient-primary) 1;
+  border-radius: 0 var(--lg-radius-md) var(--lg-radius-md) 0;
+  box-shadow: var(--lg-shadow-md);
+  position: relative;
+}
+
+blockquote::before {
+  content: '"';
+  position: absolute;
+  top: var(--lg-spacing-sm);
+  left: var(--lg-spacing-sm);
+  font-size: 3rem;
+  color: var(--lg-accent-blue);
+  opacity: 0.2;
+  font-family: Georgia, serif;
+}
+
+/* ============================================
+   Lists
+   ============================================ */
+ul, ol {
+  margin: var(--lg-spacing-md) 0;
+  padding-left: var(--lg-spacing-lg);
+}
+
+li {
+  margin-bottom: var(--lg-spacing-sm);
+  color: var(--lg-text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+li::marker {
+  color: var(--lg-accent-blue);
+  font-weight: 600;
+}
+
+/* ============================================
+   Images & Figures
+   ============================================ */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--lg-radius-lg);
+  box-shadow: var(--lg-shadow-lg);
+  /* Only transition visual properties; keep right-click/context menu behavior stable. */
+  transition: transform var(--lg-transition-base),
+              box-shadow var(--lg-transition-base);
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Center standalone images without breaking inline icons/text. */
+p > img:only-child,
+p > a:only-child > img,
+figure img,
+div.figure > img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* R Markdown often wraps plots as div.figure > p > img; center that too. */
+div.figure,
+div.figure > p {
+  text-align: center;
+}
+
+div.figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+img:hover {
+  transform: scale(1.02);
+  box-shadow: var(--lg-shadow-xl);
+}
+
+/* Lightbox (click-to-zoom images) */
+img:not(.no-lightbox) {
+  cursor: zoom-in;
+}
+
+#lg-lightbox {
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 9999;
+}
+
+#lg-lightbox.is-open {
+  display: block;
+}
+
+.lg-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.lg-lightbox__panel {
+  position: absolute;
+  inset: var(--lg-spacing-2xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lg-lightbox__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--lg-radius-xl);
+  box-shadow: var(--lg-shadow-xl);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lg-lightbox__close {
+  position: absolute;
+  top: var(--lg-spacing-lg);
+  right: var(--lg-spacing-lg);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: var(--lg-bg-glass);
+  color: var(--lg-text-primary);
+  font-size: 28px;
+  line-height: 44px;
+  cursor: pointer;
+  box-shadow: var(--lg-shadow-lg);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+}
+
+html.lg-lightbox-open,
+html.lg-lightbox-open body {
+  overflow: hidden;
+}
+
+figure {
+  margin: var(--lg-spacing-xl) 0;
+  text-align: center;
+}
+
+figcaption {
+  margin-top: var(--lg-spacing-sm);
+  color: var(--lg-text-tertiary);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+/* Ensure common R Markdown figure wrappers don't accidentally block image interactions. */
+figure,
+p img,
+div.figure {
+  pointer-events: auto;
+}
+
+/* ============================================
+   Horizontal Rule
+   ============================================ */
+hr {
+  border: none;
+  height: 2px;
+  background: var(--lg-gradient-primary);
+  margin: var(--lg-spacing-xl) 0;
+  border-radius: var(--lg-radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+hr::after {
+  content: none;
+}
+
+/* ============================================
+   TOC (Table of Contents)
+   ============================================ */
+#TOC {
+  position: fixed;
+  top: var(--lg-spacing-lg);
+  left: var(--lg-spacing-lg);
+  width: 280px;
+  max-height: calc(100vh - var(--lg-spacing-2xl));
+  overflow-y: auto;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border-radius: var(--lg-radius-xl);
+  padding: var(--lg-spacing-md);
+  box-shadow: var(--lg-shadow-xl);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1000;
+}
+
+#TOC::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--lg-gradient-primary);
+  border-radius: var(--lg-radius-xl) var(--lg-radius-xl) 0 0;
+}
+
+#TOC h2 {
+  font-size: 1.1rem;
+  margin: 0 0 var(--lg-spacing-md) 0;
+  padding: 0;
+  border: none;
+  color: var(--lg-text-primary);
+}
+
+#TOC h2::before {
+  display: none;
+}
+
+#TOC ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#TOC li {
+  margin: var(--lg-spacing-xs) 0;
+}
+
+#TOC a,
+#TOC .list-group-item {
+  display: block;
+  padding: var(--lg-spacing-sm) var(--lg-spacing-md);
+  border-radius: var(--lg-radius-md);
+  color: var(--lg-text-secondary);
+  font-size: 0.9rem;
+  transition: all var(--lg-transition-base);
+  background: transparent;
+  border: none;
+}
+
+#TOC a:hover,
+#TOC .list-group-item:hover {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--lg-accent-blue);
+}
+
+#TOC a::after {
+  display: none;
+}
+
+#TOC .toc-active {
+  background: var(--lg-gradient-primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* More balanced TOC typography across heading levels (tocify/rmarkdown toc_float). */
+#TOC.tocify li.tocify-header > a {
+  font-size: 1.00rem !important;
+  font-weight: 650;
+}
+
+/* tocify ships a hardcoded 12px for subheaders; override to avoid huge jumps. */
+#TOC.tocify .tocify-subheader li {
+  font-size: inherit !important;
+}
+
+#TOC.tocify .tocify-subheader li > a {
+  font-size: 0.92rem !important;
+}
+
+#TOC.tocify .tocify-subheader .tocify-subheader li > a {
+  font-size: 0.88rem !important;
+}
+
+#TOC.tocify .tocify-subheader .tocify-subheader .tocify-subheader li > a {
+  font-size: 0.86rem !important;
+}
+
+/* tocify (rmarkdown toc_float) commonly uses bootstrap "active" classes. */
+#TOC .list-group-item.active,
+#TOC li.active > a,
+#TOC a.active {
+  background: var(--lg-gradient-primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* --------------------------------------------
+   TOC Header (injected by liquid_glass_lightbox.html)
+   -------------------------------------------- */
+#TOC .lg-toc-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lg-spacing-sm);
+  padding: var(--lg-spacing-sm) var(--lg-spacing-sm);
+  margin-bottom: var(--lg-spacing-sm);
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border-radius: var(--lg-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  z-index: 1;
+}
+
+#TOC .lg-toc-header__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--lg-text-primary);
+  letter-spacing: -0.01em;
+}
+
+#TOC .lg-toc-mode-toggle {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--lg-text-secondary);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--lg-transition-fast);
+}
+
+#TOC .lg-toc-mode-toggle:hover {
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--lg-accent-blue);
+  border-color: rgba(0, 122, 255, 0.30);
+}
+
+/* Responsive TOC */
+@media (max-width: 1400px) {
+  #TOC {
+    width: 240px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  #TOC {
+    position: static;
+    width: 100%;
+    max-height: none;
+    margin-bottom: var(--lg-spacing-lg);
+  }
+
+  html.lg-toc-mobile #TOC {
+    /* Keep the TOC "within reach" while reading on narrow screens. */
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + var(--lg-spacing-sm));
+    z-index: 1001;
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--lg-spacing-sm);
+    padding-bottom: calc(var(--lg-spacing-sm) + env(safe-area-inset-bottom));
+    margin-bottom: var(--lg-spacing-md);
+    overscroll-behavior: contain;
+  }
+
+  html.lg-toc-mobile #TOC h2 {
+    display: none;
+  }
+
+  html.lg-toc-mobile #TOC .lg-toc-header {
+    /* Ensure the collapsed bar stays compact while the toggle remains touch-friendly. */
+    padding: 6px 8px;
+  }
+
+  html.lg-toc-mobile #TOC a,
+  html.lg-toc-mobile #TOC .list-group-item {
+    font-size: 0.95rem;
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  html.lg-toc-mobile #TOC li {
+    margin: 6px 0;
+  }
+
+  html.lg-toc-mobile #TOC .lg-toc-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 0.9rem;
+  }
+
+  html.lg-toc-mobile #TOC.lg-toc-collapsed {
+    max-height: 60px;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  html.lg-toc-mobile #TOC.lg-toc-collapsed .lg-toc-header {
+    margin-bottom: 0;
+  }
+
+  html.lg-toc-mobile #TOC.lg-toc-collapsed > ul,
+  html.lg-toc-mobile #TOC.lg-toc-collapsed .tocify-subheader,
+  html.lg-toc-mobile #TOC.lg-toc-collapsed li {
+    display: none;
+  }
+
+  /* Anchor jump offset: keep headings visible below the sticky TOC bar on mobile. */
+  html.lg-toc-mobile {
+    --lg-toc-mobile-sticky-offset: calc(env(safe-area-inset-top) + 72px);
+    scroll-padding-top: var(--lg-toc-mobile-sticky-offset);
+  }
+
+  html.lg-toc-mobile h1,
+  html.lg-toc-mobile h2,
+  html.lg-toc-mobile h3,
+  html.lg-toc-mobile h4,
+  html.lg-toc-mobile h5,
+  html.lg-toc-mobile h6 {
+    scroll-margin-top: var(--lg-toc-mobile-sticky-offset);
+    scroll-snap-margin-top: var(--lg-toc-mobile-sticky-offset);
+  }
+}
+
+/* --------------------------------------------
+   TOC Layout Modes
+   - static: current behavior (always visible, reserves content space)
+   - dynamic: collapses to a small circle; expands on hover/focus
+   -------------------------------------------- */
+@media (min-width: 1025px) {
+  /* Use fixed TOC, but don't waste layout width on the bootstrap grid column. */
+  html.lg-toc-layout [data-lg-toc-col="1"] {
+    display: none;
+  }
+  html.lg-toc-layout .toc-content {
+    width: 100% !important;
+    float: none !important;
+    padding-left: var(--lg-spacing-lg);
+    padding-right: var(--lg-spacing-lg);
+  }
+
+  /* Cancel old "shift whole container" heuristics once the layout class is present. */
+  html.lg-toc-layout .main-container {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Static mode: reserve space for the fixed TOC so text never sits underneath it. */
+  html.lg-toc-mode-static.lg-toc-layout .toc-content {
+    padding-left: 328px; /* 280px TOC + 2*24px gutter */
+  }
+
+  /* Dynamic mode: the TOC overlays content, only expanding when needed. */
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC {
+    width: 48px;
+    height: 48px;
+    max-height: 48px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 999px;
+    box-shadow: var(--lg-shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    transition:
+      width var(--lg-transition-base),
+      max-height var(--lg-transition-base),
+      padding var(--lg-transition-base),
+      border-radius var(--lg-transition-base),
+      box-shadow var(--lg-transition-base);
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC::before {
+    display: none;
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC::after {
+    content: "TOC";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--lg-text-secondary);
+    opacity: 1;
+    transition: opacity var(--lg-transition-base);
+    pointer-events: none;
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC > * {
+    opacity: 0;
+    transition: opacity var(--lg-transition-base);
+    transition-delay: 0ms;
+    pointer-events: none;
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:hover,
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:focus-within {
+    width: 280px;
+    height: auto;
+    max-height: calc(100vh - var(--lg-spacing-2xl));
+    padding: var(--lg-spacing-md);
+    overflow-y: auto;
+    border-radius: var(--lg-radius-xl);
+    box-shadow: var(--lg-shadow-xl);
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:hover::after,
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:focus-within::after {
+    opacity: 0;
+  }
+
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:hover > *,
+  html.lg-toc-mode-dynamic.lg-toc-layout #TOC:focus-within > * {
+    opacity: 1;
+    transition-delay: 80ms;
+    pointer-events: auto;
+  }
+}
+
+/* ============================================
+   DataTables Overrides
+   ============================================ */
+.dataTables_wrapper {
+  margin: var(--lg-spacing-lg) 0;
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border-radius: var(--lg-radius-lg);
+  padding: var(--lg-spacing-md);
+  box-shadow: var(--lg-shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Keep DataTables table "calculable" (avoid layout-affecting decorations) */
+.dataTables_wrapper table.dataTable,
+.dataTables_wrapper table.display {
+  margin: 0 !important;
+  background: transparent;
+  box-shadow: none;
+  border: none !important;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.dataTables_wrapper tbody tr:hover {
+  transform: none !important;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+  background: var(--lg-bg-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--lg-radius-md);
+  padding: var(--lg-spacing-sm) var(--lg-spacing-md);
+  outline: none;
+  transition: all var(--lg-transition-fast);
+}
+
+.dataTables_wrapper .dataTables_filter input:focus {
+  border-color: var(--lg-accent-blue);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+}
+
+.dataTables_wrapper .dataTables_length select {
+  background: var(--lg-bg-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--lg-radius-md);
+  padding: var(--lg-spacing-sm);
+  outline: none;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  background: var(--lg-bg-secondary) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--lg-radius-sm) !important;
+  margin: 0 2px !important;
+  transition: all var(--lg-transition-fast) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: var(--lg-accent-blue) !important;
+  color: white !important;
+  border-color: var(--lg-accent-blue) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--lg-gradient-primary) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* ============================================
+   Plotly Charts
+   ============================================ */
+/*
+Plotly 的 htmlwidgets 外层容器与 Plotly.js 内部绘图节点都会出现 `.plotly` class。
+如果直接写 `.plotly { ... }`，会误伤内部节点，导致“图浮在背景/双层背景/额外阴影与内边距”等观感问题。
+
+这里仅对 htmlwidgets 外层容器做最小、非侵入式的样式：
+- 不再默认加玻璃背景/阴影/内边距（避免“贴在卡片上”的感觉）
+- 保留圆角并裁切溢出（让图表背景在圆角下更干净）
+需要玻璃卡片效果时，建议在 Rmd 中用外层 div 自己包一层 `.lg-glass`。
+*/
+.plotly.html-widget {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: var(--lg-radius-lg);
+  overflow: hidden;
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+  body {
+    background: white;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  #TOC {
+    display: none;
+  }
+
+  .main-container {
+    padding: 0;
+  }
+}
+
+/* ============================================
+   Accessibility Enhancements
+   ============================================ */
+:focus-visible {
+  outline: 2px solid var(--lg-accent-blue);
+  outline-offset: 2px;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+.lg-glass {
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur)) saturate(var(--lg-glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lg-gradient-text {
+  background: var(--lg-gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.lg-card {
+  background: var(--lg-bg-glass);
+  backdrop-filter: blur(var(--lg-glass-blur));
+  -webkit-backdrop-filter: blur(var(--lg-glass-blur));
+  border-radius: var(--lg-radius-lg);
+  padding: var(--lg-spacing-lg);
+  box-shadow: var(--lg-shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all var(--lg-transition-base);
+}
+
+.lg-card:hover {
+  box-shadow: var(--lg-shadow-xl);
+}

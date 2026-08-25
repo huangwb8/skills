@@ -46,7 +46,7 @@ For background on AI compute and the broader setup around this repository, see:
 
 ## 🧩 Core Skills
 
-There are 12 installable skills at the repository root:
+`skills/alpha/` contains publishable skills; `skills/beta/` contains immature candidates and is never installed by default:
 
 | Skill | Primary purpose | Typical use case |
 |-------|------------------|------------------|
@@ -107,12 +107,12 @@ Based on this repository's conventions and the surrounding Agent Skills ecosyste
 
 ### ⚡ Recommended: One-Line Remote Installation
 
-Install directly to system-level skill directories with `@install/install.py`, without cloning the repo first. This is a single-file Python installer that uses only the standard library; it downloads GitHub zip archives, skips unchanged skills by MD5, and writes install manifests.
+Install directly to system-level skill directories with the standard-library bootstrap bundled inside `install-bensz-skills`, without cloning the repo first. It downloads GitHub zip archives, skips unchanged skills by MD5, and writes install manifests. The repository's `general` source is fixed to `skills/alpha`.
 
 | Platform | Command |
 |----------|---------|
-| All platforms with Python | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
-| macOS / Linux fallback | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())"` |
+| All platforms with Python | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
+| macOS / Linux fallback | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 
 Default remote sources:
 
@@ -129,41 +129,41 @@ Common options:
 
 ```bash
 # Install only the general skills from this repository
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --source general
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
 
 # Install only to Codex or Claude Code
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --codex
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --claude
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
 
 # Preview actions without writing files
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --check
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
 # Print installer output in Chinese
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/@install/install.py').read())" --lang zh
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --lang zh
 ```
 
 ### 🛠️ Local Development Installation
 
-If you have cloned this repository, or you are actively developing these skills, use the local installer. It auto-detects `pipelines/skills/`, `skills/`, or the current directory as the source root.
+If you have cloned this repository, or you are actively developing these skills, use the local installer. It auto-detects `skills/alpha/` only; `skills/beta/` requires an explicit `--source`.
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
-python3 install-bensz-skills/scripts/install.py
+python3 skills/alpha/install-bensz-skills/scripts/install.py
 ```
 
 If you only want one target platform:
 
 ```bash
-python3 install-bensz-skills/scripts/install.py --codex
-python3 install-bensz-skills/scripts/install.py --claude
+python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
+python3 skills/alpha/install-bensz-skills/scripts/install.py --claude
 ```
 
 If the installer skill is already installed system-wide, you can also call it from another project and point it at a local source directory:
 
 ```bash
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills
-python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
+python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
 ```
 
 ### 🤖 Ask the AI to Run the Installer Skill
@@ -196,4 +196,4 @@ If you plan to change project instructions, workflow, or the README files, start
 - [Agent Skills Open Standard](https://agentskills.io)
 - [AGENTS.md](AGENTS.md)
 - [CLAUDE.md](CLAUDE.md)
-- [install-bensz-skills User Guide](install-bensz-skills/README.md)
+- [install-bensz-skills User Guide](skills/alpha/install-bensz-skills/README.md)
