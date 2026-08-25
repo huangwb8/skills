@@ -115,6 +115,8 @@
 | 全平台（Python） | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 | macOS / Linux 备用 | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 
+支持矩阵：仓库开发与本地完整安装使用 Python 3.10+；无第三方依赖的 bootstrap 入口最低支持 Python 3.8，并只使用标准库。
+
 默认安装的远程源：
 
 - `general`：`huangwb8/skills` 通用技能
@@ -168,6 +170,9 @@ python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skil
 
 # beta 仅在明确需要时安装
 python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/beta
+
+# 迁移旧仓库时才显式启用历史 pipelines/skills/alpha
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
 ```
 
 ### 🤖 让 AI 调用安装 skill

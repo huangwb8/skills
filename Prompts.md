@@ -12,12 +12,23 @@ version = 4.3.8
 
 ---
 
+基于 docs/plans/2026-08-25-install-bensz-skills-optimization.md 优化本项目源代码。
+
+---
+
+本项目刚刚完成一场大改造，可能存在一些逻辑不太自洽的地方。 请你重点看：
+
+- AGENTS.md 等系统文件的约定
+- install-bensz-skills 是否仍能正常工作
+
+---
+
 目前，本项目有非常巨大的变动。 直接改造成 /Volumes/2T01/Test/@legacy-projects/old-skills （只读）的形式； 基本上大部分东西都直接挪过来。 这是一些冲突处理的方式：
 
 - 本项目的 @install 脚本的能力应该直接融入 install-bensz-skills 这个skill里
 
 - 本项目里目前已经存在的skills，都是比较成熟的，适合发布的skill。 它们的位置可以放在 ./skills/alpha 里。 有一些skill，仅在 /Volumes/2T01/Test/@legacy-projects/old-skills 里出现但本项目目前还没有的，都是一些还没有开发成熟的skill； 应该放在 ./skills/beta 里。
-- install-bensz-skills 的逻辑要优化：默认仅安装  ./skills/alpha 里的skill。除非用户特别指定，否则约不能安装  ./skills/alpha 里的skill。 install-bensz-skills 的远程安装的脚本应该要调整下，确保仅安装  ./skills/alpha 里的skill
+- install-bensz-skills 的逻辑要优化：默认仅安装 `./skills/alpha` 里的 skill。除非用户特别指定，否则不能安装 `./skills/beta` 里的 skill。install-bensz-skills 的远程安装脚本也必须遵循这一边界。
 - 系统文件冲突： Prompts.md、CHANGELOG.md、LICENSE、AGENTS.md、CLAUDE.md、readme类md、skills.code-workspace 以本项目为准。
 - 因为有很多新目录，所以目录管理是有所讲究的； 以 /Volumes/2T01/Test/@legacy-projects/old-skills 里 AGENTS.md 的约定为准
 

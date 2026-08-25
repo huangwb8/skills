@@ -17,27 +17,27 @@
 - `skills/beta/<skill-name>/`：尚未成熟的候选 Skill；不进入默认安装源，只有用户显式指定 beta 源目录时才处理。
 - `packages/<project>/`：独立运行时包边界，拥有自己的项目配置、版本、依赖和测试；不得在包内放置领域 Skill 流程。
 - `docs/plans/`：正式计划、迁移说明和治理文档；不得在 Skill 目录内新建 `plans/`。
-- `tests/`：面向 `packages/` Python 包核心公开 API 的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
+- `tests/`：面向 `packages/` Python 包核心公开 API 及仓库级公开入口（例如安装器）的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
 - `tmp/`：测试脚本运行过程的临时承载目录，可包含测试计划、报告、artifacts、fixture、日志和缓存；这些内容不得回写到 `tests/`。
 - `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：本轮任务的输入、过程产物、日志和验证证据；正式交付物不写入其中。
 
-Skill 目录不得新建历史计划、测试夹具或运行缓存目录；包内单元测试放在对应 `packages/<project>/tests/`，跨包或公开 API smoke/integration 脚本放在根级 `tests/`，测试运行过程产物统一写入根级 `tmp/`。AI 任务级中间材料仍按本轮 `.bensz-api` 工作区约定收敛。
+Skill 目录不得新建历史计划、测试夹具或运行缓存目录；包内单元测试放在对应 `packages/<project>/tests/`，跨包或仓库公开入口 smoke/integration 脚本放在根级 `tests/`，测试运行过程产物统一写入根级 `tmp/`。AI 任务级中间材料仍按本轮 `.bensz-api` 工作区约定收敛。
 
 ## 核心工作流
 
 当用户提出 Skills 开发相关需求时，按以下流程执行：
 
-### 1. 任务理解
+### 任务理解
 
 - 理解用户的真实需求和意图
 - 确认任务范围和预期输出
 - 识别可能的依赖和约束
 
-### 2. 执行流程
+### 执行流程
 
 内容规划 → 撰写 → 审校 → 发布
 
-### 3. 输出规范
+### 输出规范
 
 - 代码变更应遵循项目现有风格
 - 文档更新应保持一致性
@@ -140,6 +140,8 @@ Skill 目录不得新建历史计划、测试夹具或运行缓存目录；包�
 
 **核心原则**：项目的版本号统一通过配置文件管理（Single Source of Truth），确保版本信息的一致性和可追溯性。
 
+本仓库当前不维护根级 `config.yaml`：仓库发布版本以 Git tag 为准，各 Skill 的版本以自身目录中的 `config.yaml:skill_info.version` 为准。下面的 `project_info` 示例仅供需要项目级版本治理的下游仓库参考，不是本仓库必须创建的文件。
+
 ### 配置文件结构
 
 如果项目需要版本管理，应在根目录的配置文件中包含版本信息：
@@ -206,7 +208,7 @@ grep -A 3 "project_info:" config.yaml | grep "version"
 
 ## 高质量技能开发原则
 
-基于实战经验总结，开发高质量 Agent Skills 需遵循以下六大原则：
+基于实战经验总结，开发高质量 Agent Skills 需遵循以下八项原则：
 
 ## 本机可发现性（系统级安装）
 
@@ -253,7 +255,7 @@ grep -A 3 "project_info:" config.yaml | grep "version"
    - 按需添加 `config.yaml`、`scripts/`、`references/`、`assets/`
 
 3. **质量检查**：
-   - 通过"六大质量原则"验证
+   - 通过"八项质量原则"验证
    - 运行静态自检清单
 
 4. **生成用户文档**：
@@ -301,15 +303,15 @@ description: Brief description of what this Skill does and when to use it
 
 当需要更新本文档时：
 
-### 1. 理解意图
+### 理解意图
 
 首先理解用户需求背后的意图和在工作流中的本质作用
 
-### 2. 定位生态位
+### 定位生态位
 
 每条规则/要求都应找到其在整个文档结构中的"生态位"——它与其他内容的关系、它服务的目标、它影响的其他部分
 
-### 3. 协调生长
+### 协调生长
 
 更新一个部分时，检查并同步更新相关部分：
 - 更新工作流步骤时，同步更新示例和验证清单
@@ -319,11 +321,11 @@ description: Brief description of what this Skill does and when to use it
 - **更新本文档后，确保 CLAUDE.md 的核心内容保持一致**
 - 保持文档格式规范：层级标题不使用序号前缀（用 `##` 而非 `## 1)`），因为 Markdown 本身有层级结构
 
-### 4. 保持呼吸感
+### 保持呼吸感
 
 文档应该像生物体一样有"呼吸感"——章节之间有逻辑流动，而非割裂的清单
 
-### 5. 定期修剪整合
+### 定期修剪整合
 
 当某个章节变得过于臃肿时，主动重构
 

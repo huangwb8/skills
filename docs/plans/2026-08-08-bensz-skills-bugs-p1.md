@@ -30,7 +30,7 @@
 | P0 | Issue #2 / `auto-test-project` | 统一 task-root 解析、路径安全、continuation、legacy 只读验证、自检与文档口径 | 验证通过后评论并关闭 #2 |
 | P0 | Issue #1 / `init-project` | 增加集中式 GBK 安全输出边界及自动/手动模式回归 | 验证通过后评论并关闭 #1 |
 
-本轮正式源码只修改 `/Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills` 中上述两个 skill 及该仓库的 `CHANGELOG.md`。另外三个已授权源码根只做过只读核对，没有这两个 Issue 的直接调用链，不产生修改。
+本轮正式源码只修改迁移前的 `pipelines/skills` 源码根（历史快照）中上述两个 skill 及该仓库的 `CHANGELOG.md`。该绝对路径不再作为当前源码入口；当前仓库实现位于 `skills/alpha/`。
 
 ## 改进方向
 

@@ -6,9 +6,9 @@
 
 ## 三份独立计划
 
-- **远端盘点与源码映射：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/multi-agent-coordinator/output/p0-agent-1-bug-inventory.md`
-- **根因与回归测试：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/systematic-debugging/output/p0-agent-2-root-cause-tests.md`
-- **生态一致性与交付闭环：** `../../.bensz-api/task-20260808-2204-修复-bensz-skills-bugs/skill-creator/output/p0-agent-3-ecosystem-consistency.md`
+- **远端盘点与源码映射：** 历史任务产物未随仓库保留，以下结论按当时快照记录。
+- **根因与回归测试：** 历史任务产物未随仓库保留，以下结论按当时快照记录。
+- **生态一致性与交付闭环：** 历史任务产物未随仓库保留，以下结论按当时快照记录。
 
 三份计划均由只读 subagent 独立生成，没有互相读取结论，也没有修改正式源码或远端状态。
 
@@ -16,7 +16,7 @@
 
 - GitHub Issue #1 的根因是 `init-project` 未建立控制台编码容错，却在多条执行路径输出 GBK 无法编码的 Unicode 状态符号。
 - GitHub Issue #2 的根因是 `auto-test-project` 的任务工作区迁移只更新了文档，没有同步配置和路径消费脚本。
-- 两项 Issue 只命中当前 `pipelines/skills` 源码根；其余三个授权源码根不应因这两个 Issue 产生改动。
+- 两项 Issue 只命中迁移前 `pipelines/skills` 源码根（历史快照）；当前实现已迁移到 `skills/alpha/`。
 - 修复必须先有根因级回归验证，再同步 skill 版本、skill CHANGELOG 和项目 CHANGELOG，最后以脱敏证据关闭远端 Bug。
 - 不在授权源码根中的记录不得修改或标记 fixed；重复记录应指向一个 canonical 根因，不能重复实现。
 

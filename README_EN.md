@@ -114,6 +114,8 @@ Install directly to system-level skill directories with the standard-library boo
 | All platforms with Python | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 | macOS / Linux fallback | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
 
+Support matrix: repository development and the full local installer use Python 3.10+; the dependency-free bootstrap requires Python 3.8+ and uses only the standard library.
+
 Default remote sources:
 
 - `general`: general-purpose skills from `huangwb8/skills`
@@ -164,6 +166,9 @@ If the installer skill is already installed system-wide, you can also call it fr
 ```bash
 python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
 python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
+
+# Only for an explicit migration from the historical pipelines layout
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
 ```
 
 ### 🤖 Ask the AI to Run the Installer Skill

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed
+- **install-bensz-skills 安装入口契约对齐**：本地默认源收敛为 `skills/alpha`，历史 `pipelines/skills/alpha` 仅可通过显式兼容参数使用；本地与 bootstrap manifest 统一包含版本、来源、目标和逐 skill 状态核心字段，并补充安装器回归测试。
+- **仓库约定一致性修正**：统一 AGENTS.md 的原则数量与标题格式，修正 Prompts.md 中 alpha/beta 的反义描述，并同步安装器 Python 支持矩阵与版本来源说明。
+- **测试边界补充公开入口**：AGENTS.md 明确根级 `tests/` 可承载安装器等仓库公开入口的 smoke/integration 测试，保持测试脚本与运行产物目录分离。
 - **根级功能测试显式纳入 Git**：强化 `.gitignore` 对 `tests/**/*.py` 的放行规则，明确测试脚本可版本控制，仅忽略测试缓存。
 - **清理无用途的根级脚本目录**：删除空的 `./scripts/`；各 Skill 的功能脚本仍保留在自身 `skills/<channel>/<skill>/scripts/` 边界内。
 - **测试过程目录约定明确**：根级 `tests/` 仅保存可执行测试脚本；测试计划、报告、artifacts、fixture、日志和缓存统一承载于 `./tmp/`，并通过 `.gitignore` 排除运行产物。
