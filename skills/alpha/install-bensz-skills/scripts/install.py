@@ -32,6 +32,7 @@ from remove_legacy_skills import (
 )
 
 _INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
+MANIFEST_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -170,7 +171,7 @@ def _looks_like_skills_root(root: Path) -> bool:
     return False
 
 
-def _detect_default_source_roots(script_path: Path) -> list[Path]:
+def _detect_default_source_roots(script_path: Path, include_legacy: bool = False) -> list[Path]:
     """Detect a sensible default source root for local install.
 
     Goal: allow running this installer from a system-installed location (e.g. ~/.codex/skills)
@@ -179,15 +180,23 @@ def _detect_default_source_roots(script_path: Path) -> list[Path]:
     cwd = Path.cwd().resolve()
     candidates: list[Path] = []
 
-    # Production layout: only the alpha channel is selected implicitly.
-    # Beta skills remain available through an explicit --source path.
-    for p in (cwd / "pipelines" / "skills" / "alpha", cwd / "skills" / "alpha"):
+    # Production layout: only the canonical alpha channel is selected implicitly.
+    # Historical pipelines paths are never selected implicitly; callers that need
+    # them must opt in explicitly (or pass --source).
+    if include_legacy:
+        candidates_to_check = [
+            cwd / "pipelines" / "skills" / "alpha",
+            cwd / "skills" / "alpha",
+        ]
+    else:
+        candidates_to_check = [cwd / "skills" / "alpha"]
+    for p in candidates_to_check:
         if _looks_like_skills_root(p):
             candidates.append(p)
             break
 
     # Fallback to "repo-local" layout when this script lives in the same checkout.
-    repo_candidate = script_path.parents[2]  # .../skills/alpha/ (in this repo)
+    repo_candidate = script_path.parents[2] if len(script_path.parents) > 2 else Path()
     installed_roots = [
         Path.home() / ".codex" / "skills",
         Path.home() / ".claude" / "skills",
@@ -350,10 +359,18 @@ def _save_skill_manifest(dest_dir: Path, md5: str, source: str | Path, target: T
     # 平台特定的 manifest 文件名
     manifest_file = dest_dir / f".skill-manifest.{target.label}.json"
     manifest_data = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
         "md5": md5,
         "source": str(source),
         "installed_at": _now_stamp(),
         "target": target.label,
+        "target_root": str(target.root),
+        "skills": [{
+            "name": dest_dir.name,
+            "md5": md5,
+            "status": "installed",
+            "reason": "",
+        }],
     }
     manifest_file.write_text(json.dumps(manifest_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -1469,6 +1486,20 @@ def _remote_install_main(
 
         print(f"{'=' * 60}\n")
 
+        # Remote runs use the same public manifest contract as local runs.
+        manifest_dir = _get_manifest_dir()
+        manifest_path = manifest_dir / f"install-manifest.{_now_stamp()}.json"
+        manifest_path.write_text(
+            json.dumps(
+                {"runs": [r.to_manifest_dict(source="remote") for r in all_reports]},
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(t.summary_manifest_saved(path=manifest_path.relative_to(Path.home())))
+
     if skill_filter:
         missing_names = [name for name in skill_filter if name not in matched_skill_names]
         if missing_names:
@@ -1509,7 +1540,7 @@ class InstallReport:
         if self.removed_existing is None:
             self.removed_existing = []
 
-    def to_manifest_dict(self) -> dict:
+    def to_manifest_dict(self, source: str | Path | None = None) -> dict:
         """转换为可序列化的字典格式（用于 manifest 文件）。"""
         skills_list = []
         for skill in self.installed_skills:
@@ -1532,8 +1563,20 @@ class InstallReport:
                 "status": "skipped",
                 "reason": skill.reason,
             })
+        for skill in [*self.auxiliary_skills, *self.test_skills]:
+            skills_list.append({
+                "name": skill.name,
+                "src": str(skill.src),
+                "dest": str(skill.dest),
+                "md5": skill.md5,
+                "type": skill.skill_type,
+                "status": "ignored",
+                "reason": skill.reason,
+            })
 
         return {
+            "schema_version": MANIFEST_SCHEMA_VERSION,
+            "source": str(source) if source is not None else "local",
             "installed_at": _now_stamp(),
             "target": self.target_label,
             "target_root": str(self.target_root),
@@ -1875,6 +1918,11 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
     parser.add_argument("--skill", action="append", default=[], help=t.get("arg_help_skill"))
     parser.add_argument("--source", type=str, default=None, help="指定额外的 skills 源目录路径")
+    parser.add_argument(
+        "--legacy-source",
+        action="store_true",
+        help="显式启用历史 pipelines/skills/alpha 源（仅兼容迁移使用）",
+    )
     parser.add_argument("--remote", action="store_true", help=t.get("arg_help_remote"))
     parser.add_argument("--check", action="store_true", help=t.get("arg_help_check"))
     parser.add_argument("--auto", action="store_true", help=t.get("arg_help_auto"))
@@ -1949,7 +1997,7 @@ def main(argv: list[str]) -> int:
         # 使用第一个指定的源目录作为主目录（用于版本控制等）
         skills_root = source_paths[0]
     else:
-        detected = _detect_default_source_roots(script_path)
+        detected = _detect_default_source_roots(script_path, include_legacy=args.legacy_source)
         if not detected:
             print(t.get("error_source_root_not_found"))
             return 1
@@ -2094,7 +2142,10 @@ def main(argv: list[str]) -> int:
 
     # Write one manifest per run for traceability.
     # 将 reports 转换为可序列化的格式
-    manifests_for_save = [r.to_manifest_dict() for r in reports]
+    manifests_for_save = [
+        r.to_manifest_dict(source="local:" + ",".join(str(p) for p in source_paths))
+        for r in reports
+    ]
     manifests_for_save.append({
         "skills_source_roots": [str(p) for p in source_paths],
         "skill_type_counts": {

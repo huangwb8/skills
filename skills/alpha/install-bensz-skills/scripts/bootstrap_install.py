@@ -70,6 +70,9 @@ def _configure_console_streams() -> None:
 _configure_console_streams()
 
 MIN_PYTHON = (3, 8)
+MANIFEST_SCHEMA_VERSION = 1
+FALLBACK_CONFIG_VERSION = "0.6.0"
+REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 DOWNLOAD_RETRIES = 3
 DOWNLOAD_RETRY_DELAY_SECONDS = 2
@@ -136,6 +139,7 @@ MESSAGES = {
         "skill_missing": "Requested skill(s) not found in selected sources: {skills}",
         "skill_not_installable": "Requested skill(s) are non-production and were not installed: {skills}",
         "legacy_config_loaded": "Loaded legacy cleanup list from {path} ({count} names)",
+        "config_fallback": "Remote config unavailable; using versioned fallback {version}.",
         "removed_legacy": "Removed legacy skill: {path}",
         "skip_legacy_path": "Skipped legacy path that is not a symlink: {path}",
         "removed": "Removed existing skill: {path}",
@@ -166,6 +170,7 @@ MESSAGES = {
         "skill_missing": "请求的技能未在所选源中找到: {skills}",
         "skill_not_installable": "请求的技能不是生产技能，未安装: {skills}",
         "legacy_config_loaded": "已从 {path} 读取 legacy 清理名单（{count} 个）",
+        "config_fallback": "远程配置不可用，使用带版本标记的 fallback {version}。",
         "removed_legacy": "已移除 legacy 技能: {path}",
         "skip_legacy_path": "跳过非软链接 legacy 路径: {path}",
         "removed": "已删除旧技能: {path}",
@@ -202,10 +207,19 @@ class InstallResult:
     skipped: int = 0
     ignored: int = 0
     messages: list[str] | None = None
+    installed_names: list[str] | None = None
+    skipped_names: list[str] | None = None
+    ignored_names: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.messages is None:
             self.messages = []
+        if self.installed_names is None:
+            self.installed_names = []
+        if self.skipped_names is None:
+            self.skipped_names = []
+        if self.ignored_names is None:
+            self.ignored_names = []
 
 
 def tr(lang: str, key: str, **kwargs: object) -> str:
@@ -321,10 +335,18 @@ def installed_md5(dest_dir: Path, target: Target) -> str | None:
 def save_skill_manifest(dest_dir: Path, md5: str, source: str, target: Target) -> None:
     manifest_file = dest_dir / f".skill-manifest.{target.label}.json"
     data = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
         "md5": md5,
         "source": source,
         "installed_at": stamp(),
         "target": target.label,
+        "target_root": str(target.root),
+        "skills": [{
+            "name": dest_dir.name,
+            "md5": md5,
+            "status": "installed",
+            "reason": "",
+        }],
     }
     manifest_file.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -594,6 +616,72 @@ def load_legacy_skill_names_from_remote_config() -> tuple[list[str], str] | None
     return names, url
 
 
+def parse_remote_sources_from_text(text: str) -> list[dict[str, str]]:
+    """Parse the small public source contract without requiring PyYAML.
+
+    The bootstrap intentionally accepts only scalar source fields.  Unknown or
+    malformed entries are ignored so a partially edited remote config cannot
+    replace the safe fallback list with an unusable source.
+    """
+    sources: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    in_section = False
+    allowed = {"id", "name", "url", "branch", "skills_path"}
+    for raw_line in text.splitlines():
+        stripped = raw_line.split("#", 1)[0].strip()
+        if not stripped:
+            continue
+        if stripped == "remote_sources:":
+            in_section = True
+            continue
+        if not in_section:
+            continue
+        if not raw_line.startswith((" ", "\t")):
+            if stripped.endswith(":"):
+                break
+            continue
+        if stripped.startswith("- "):
+            if current and {"id", "url", "branch", "skills_path"} <= current.keys():
+                sources.append(current)
+            current = {}
+            stripped = stripped[2:].strip()
+        if ":" not in stripped or current is None:
+            continue
+        key, value = stripped.split(":", 1)
+        key = key.strip()
+        if key not in allowed:
+            continue
+        value = value.strip().strip('"').strip("'")
+        if value:
+            current[key] = value
+    if current and {"id", "url", "branch", "skills_path"} <= current.keys():
+        sources.append(current)
+    return sources
+
+
+def load_remote_config_contract() -> tuple[list[dict[str, str]], list[str], str] | None:
+    """Load sources and legacy names from the canonical remote config.
+
+    Returns ``None`` on any network or parsing failure; callers then retain the
+    versioned fallback and expose its provenance in the run manifest.
+    """
+    general_source = next((source for source in DEFAULT_SOURCES if source["id"] == "general"), None)
+    if general_source is None:
+        return None
+    try:
+        url = github_raw_file_url(
+            general_source["url"], general_source["branch"], REMOTE_CONFIG_PATH
+        )
+        text = download_text(url)
+        sources = parse_remote_sources_from_text(text)
+        names = parse_legacy_skill_names_from_text(text)
+    except (OSError, RuntimeError, UnicodeDecodeError, urllib.error.URLError, ValueError):
+        return None
+    if not sources:
+        return None
+    return sources, names, url
+
+
 def archive_member_relative_path(member_name: str) -> Path | None:
     parts = Path(member_name).parts
     if len(parts) <= 1:
@@ -734,8 +822,10 @@ def install_skills(
     force: bool,
     dry_run: bool,
     lang: str,
+    ignored_names: set[str] | None = None,
 ) -> InstallResult:
     result = InstallResult(ignored=ignored_count)
+    result.ignored_names.extend(sorted(ignored_names or set()))
     active_names = {skill.name for skill in skills}
     remove_legacy_skills(target, active_names, legacy_skill_names, lang, dry_run, result)
 
@@ -747,6 +837,7 @@ def install_skills(
         current_md5 = None if force else installed_md5(dest, target)
         if current_md5 == skill.md5:
             result.skipped += 1
+            result.skipped_names.append(skill.name)
             print_msg(lang, "skipped", name=skill.name)
             continue
 
@@ -763,6 +854,7 @@ def install_skills(
             )
             save_skill_manifest(dest, skill.md5, source_label, target)
         result.installed += 1
+        result.installed_names.append(skill.name)
 
     return result
 
@@ -782,15 +874,19 @@ def save_run_manifest(records: list[dict[str, object]], dry_run: bool, lang: str
     print_msg(lang, "manifest", path=path_label(path))
 
 
-def select_sources(source_ids: str | None) -> list[dict[str, str]]:
+def select_sources(
+    source_ids: str | None,
+    available_sources: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]]:
+    sources = available_sources or DEFAULT_SOURCES
     if not source_ids:
-        return DEFAULT_SOURCES
+        return sources
     wanted = {item.strip() for item in source_ids.split(",") if item.strip()}
-    known = {source["id"] for source in DEFAULT_SOURCES}
+    known = {source["id"] for source in sources}
     unknown = sorted(wanted - known)
     if unknown:
         raise ValueError(",".join(unknown))
-    return [source for source in DEFAULT_SOURCES if source["id"] in wanted]
+    return [source for source in sources if source["id"] in wanted]
 
 
 def build_targets(args: argparse.Namespace) -> list[Target]:
@@ -831,8 +927,16 @@ def main(argv: list[str] | None = None) -> int:
     matched_installable_names: set[str] = set()
     matched_non_installable_names: set[str] = set()
 
+    config_provenance = f"fallback:{FALLBACK_CONFIG_VERSION}"
+    configured_sources = list(DEFAULT_SOURCES)
+    legacy_skill_names = list(FALLBACK_LEGACY_SKILL_NAMES)
+    remote_contract = load_remote_config_contract()
+    if remote_contract is not None:
+        configured_sources, legacy_skill_names, config_provenance = remote_contract
+    else:
+        print_msg(lang, "config_fallback", version=FALLBACK_CONFIG_VERSION)
     try:
-        sources = select_sources(args.source)
+        sources = select_sources(args.source, configured_sources)
     except ValueError as exc:
         print_msg(lang, "unknown_source", ids=exc)
         return 1
@@ -847,13 +951,17 @@ def main(argv: list[str] | None = None) -> int:
     total_skipped = 0
     total_ignored = 0
     source_errors = 0
-    legacy_skill_names = list(FALLBACK_LEGACY_SKILL_NAMES)
-    legacy_config_loaded = False
+    legacy_config_loaded = remote_contract is not None
     records: list[dict[str, object]] = []
 
-    remote_legacy_names = load_legacy_skill_names_from_remote_config()
+    remote_legacy_names = (
+        None
+        if remote_contract is not None
+        else load_legacy_skill_names_from_remote_config()
+    )
     if remote_legacy_names is not None:
         legacy_skill_names, legacy_config_url = remote_legacy_names
+        config_provenance = legacy_config_url
         legacy_config_loaded = True
         print_msg(
             lang,
@@ -890,11 +998,13 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
             skills, ignored, ignored_names = discover_skills(skills_root)
+            selected_ignored_names = set(ignored_names)
             if selected_skill_names:
                 matched_installable_names.update(skill.name for skill in skills if skill.name in selected_skill_set)
                 matched_non_installable_names.update(ignored_names & selected_skill_set)
                 skills = [skill for skill in skills if skill.name in selected_skill_set]
-                ignored = len(ignored_names & selected_skill_set)
+                selected_ignored_names &= selected_skill_set
+                ignored = len(selected_ignored_names)
 
             total_ignored += ignored
             if not skills:
@@ -917,6 +1027,7 @@ def main(argv: list[str] | None = None) -> int:
                     force=args.force,
                     dry_run=dry_run,
                     lang=lang,
+                    ignored_names=selected_ignored_names,
                 )
                 total_installed += result.installed
                 total_skipped += result.skipped
@@ -924,12 +1035,31 @@ def main(argv: list[str] | None = None) -> int:
                     print_msg(lang, "ignored", count=result.ignored)
                 records.append(
                     {
+                        "schema_version": MANIFEST_SCHEMA_VERSION,
                         "source": source_label,
+                        "config_source": config_provenance,
                         "target": target.label,
                         "target_root": str(target.root),
                         "installed_count": result.installed,
                         "skipped_count": result.skipped,
                         "ignored_count": result.ignored,
+                        "skills": [
+                            {
+                                "name": skill.name,
+                                "md5": skill.md5,
+                                "status": "installed" if skill.name in result.installed_names else "skipped",
+                                "reason": "" if skill.name in result.installed_names else "unchanged",
+                            }
+                            for skill in skills
+                        ] + [
+                            {
+                                "name": name,
+                                "md5": calculate_md5(skills_root / name),
+                                "status": "ignored",
+                                "reason": "non-production",
+                            }
+                            for name in result.ignored_names
+                        ],
                         "messages": result.messages,
                     }
                 )

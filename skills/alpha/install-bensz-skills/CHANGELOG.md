@@ -3,6 +3,9 @@
 ## [0.6.0] - 2026-08-25
 
 ### Changed
+- 本地默认发现不再隐式扫描历史 `pipelines/skills/alpha`；新增 `--legacy-source` 作为显式迁移兼容入口。
+- 本地安装器与标准库 bootstrap 统一 manifest 核心字段（`schema_version`、`source`、`target`、`target_root`、`skills[]`），并让 bootstrap 从远程 canonical config 读取 source/legacy 契约；远程配置不可用时使用带版本标记的 fallback。
+- 新增根级 `tests/test_install_bensz_skills.py`，覆盖规范 alpha 优先、manifest 契约、远程配置解析和选择性解压。
 
 - 默认源调整为仓库 `skills/alpha`，`skills/beta` 仅在显式 `--source` 时安装；远程路径不再对显式缺失的 `skills_path` 回退到仓库根目录。
 - 吸收原根级 `@install/install.py` 为 `scripts/bootstrap_install.py`，保留无第三方依赖的 GitHub zip 远程 bootstrap，并将 general 源固定到 `skills/alpha`。
@@ -10,7 +13,7 @@
 ## [Unreleased]
 
 ### Changed
-- `config.yaml` 版本号更新至 0.5.10，并增强默认 research 源远程更新的缓存兜底与失败状态传播：当浅 fetch / sparse checkout 因 GitHub reset、low-speed 或 ref listing 错误失败时，若本地远程缓存仍包含可安装 skills，安装器会复用 last-known-good 缓存继续完成本轮对比/安装，不再立即删除缓存并触发更慢的完整重克隆；下载失败或复用旧缓存会以非零退出码结束，避免远程更新假成功。同步更新 `SKILL.md`、README、i18n 文案与测试。
+- `config.yaml` 版本号更新至 0.6.0，并增强默认 research 源远程更新的缓存兜底与失败状态传播：当浅 fetch / sparse checkout 因 GitHub reset、low-speed 或 ref listing 错误失败时，若本地远程缓存仍包含可安装 skills，安装器会复用 last-known-good 缓存继续完成本轮对比/安装，不再立即删除缓存并触发更慢的完整重克隆；下载失败或复用旧缓存会以非零退出码结束，避免远程更新假成功。同步更新 `SKILL.md`、README、i18n 文案与测试。
 - `config.yaml` 版本号更新至 0.5.9，并增强远程 GitHub 下载链路稳定性：clone/fetch/sparse checkout 统一通过带重试的 Git 命令包装执行，遇到 `Recv failure: Connection reset by peer`、timeout 等临时传输失败会自动重试；Git HTTP low-speed 卡死会提前失败并进入重试；sparse checkout 持续失败时会清理半成品缓存并回退到完整浅克隆。同步更新 `SKILL.md`、README 与测试。
 - `config.yaml` 版本号更新至 0.5.8，并新增远程仓库持久缓存：远程源 repo 缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过 `git fetch --depth 1 --no-tags` 增量更新，避免每次从零 clone；clone/fetch 均禁用 tag 拉取，缓存损坏或 Git 更新失败时自动删除并重建。同步更新 `SKILL.md`、README 与测试，进一步缩短重复远程更新等待时间。
 - `config.yaml` 版本号更新至 0.5.7，并优化远程源下载策略：当 `skills_path` 指向仓库子目录（如 `ChineseResearchLaTeX/skills`）时，优先使用 Git sparse checkout 只拉取目标 skill 子目录；指定 `--skill` 时进一步只拉取 `skills_path/<skill-name>`，且某个源中缺失目标 skill 时不再完整下载该源。对同一远程源安装到 Codex/Claude 的流程复用远程 MD5 计算，减少重复本地哈希；sparse 下载超时时直接失败，不再触发第二轮更慢的完整克隆等待。同步更新 `SKILL.md`、README 与测试，避免大仓库远程更新无谓下载非 skill 内容。
@@ -111,7 +114,7 @@
 - 修复总体摘要中技能个数统计逻辑：使用 set 去重，确保同一技能在多个平台安装时只计数一次（如 3 个技能安装到 2 个平台应显示 3 个，而非 6 个）
 - 修复文档与实现不一致：更新 manifest 命名规则与 MD5 说明
 - 修复中文本地化输出中 legacy 文案未翻译的问题
-- 修复从系统级已安装位置运行安装器时，默认源目录误指向 `~/.codex/skills` / `~/.claude/skills` 的问题：现在优先从当前工作目录自动识别 `./pipelines/skills`、`./skills` 或当前目录
+- （历史记录）修复从系统级已安装位置运行安装器时，默认源目录误指向 `~/.codex/skills` / `~/.claude/skills` 的问题；当时曾兼容识别 `./pipelines/skills`，现行版本已收紧为 `./skills/alpha`，历史路径仅通过 `--legacy-source` 显式启用。
 
 ## 2026-01-12: Manifest 文件存储优化
 
