@@ -1,144 +1,270 @@
-# Verifiers 基础设施评估与落地计划
+# 通用 Agent Verifiers 基础设施设计与落地计划
 
 ## 通俗解释：究竟发生了什么
 
-- **一句话说明：** 现有 Skill 主要告诉 Agent“怎样完成一件事”，却没有一套可复用的机制稳定判断“结果是否真的够好、哪里最值得返工”。
-- **具体场景：** 这像一间只有生产线、没有统一质检台的工厂。每个车间都在按自己的经验检查成品，有的看外观，有的看尺寸，有的只在出货前粗略看一眼；产品可以被生产出来，却很难解释为什么合格，也很难比较两个版本哪个更好。Verifier 是质检台上的检查项目，Meta-Judge 是决定哪些缺陷必须返工的总质检员，Verifier Router 则负责根据产品类型和当前阶段选择需要做的检查。
-- **对应到本项目：** Business Skill 负责领域流程和产出；Verifier 负责发现缺陷、给出证据和判断严重度；Router 负责按规则和预算调度检查；Meta-Judge 负责合并冲突、排序问题和决定是否值得修改；`bensz-skill-kernel` 负责把运行事实、验证证据、等待、返工和交付状态留痕。它们不是同一个层次。
-- **改变前后：** 现在“润色标书”可能只是增加术语和内容，且无法证明改后更好；改进后，系统先检查科学问题、假说、证据、可行性和范围，再只挑最致命的少数问题修改，并用同一套结果结构比较修改前后，质量不升反降时可以拒绝保留新版本。
+- **一句话说明：** Agent 可以说“任务完成了”，但目前缺少一套通用机制逐项证明它真的满足了用户要求。
+- **具体场景：** 这更像包裹签收系统，而不只是文章评分器。系统既要检查包裹是否存在、地址是否正确、运输过程是否合规，也要确认收件人是否真的收到；贵重物品还可能需要人工签字。不同任务的检查方法不同，但都可以归结为“要证明什么、检查什么、证据在哪里、证据是否足以放行”。
+- **对应到本项目：** 业务 Skill 负责执行任务；Verifier 负责检验某个声明；`bensz-skill-verifiers` 统一声明、证据、执行和门禁协议；`bensz-skill-kernel` 记录验证事实及任务生命周期。
+- **改变前后：** 现在 Agent 可能因为命令退出码为零就宣布部署成功；改进后，它还需证明远端服务可访问、配置生效、关键副作用没有重复执行，无法确认时必须进入等待或人工复核。
 
-## 专业判断：问题在哪里
+## 专业判断：设计中心应该是什么
 
-### 当前项目已经具备的基础
+系统要覆盖的不是某一种内容评价，而是几乎所有 Agent 任务中的**可验证声明**。一个任务完成时通常同时作出多类声明：产物存在、格式正确、行为符合预期、过程没有越权、外部状态已生效、内容质量达标。通用基础设施不理解每个领域，却可以统一表达这些声明，找到适用的 Verifier，收集证据，再按照任务策略决定通过、拒绝、等待或人工复核。
 
-仓库正在建设 `bensz-skill-kernel`。它已经采用追加式事件账本、确定性状态投影、验证证据和交付守卫的方向；当前实现也已为 `validation.completed` 保留 `verdict`、证据引用和完成前检查。这解决的是“发生了什么、是否有证据、任务能否交付”的运行时问题。
+参考文章《用 Verifier 提升 AI 标书写作能力：从“生成”走向“可迭代优化”》提供了专门化 Verifier、按需路由、成本分层、早停和持续校准等重要思路。这些原则适用于通用系统，但文章讨论的开放式知识工作只是其中一种场景。版本排序、Meta-Judge、`ProjectSpec` 和专家偏好数据应作为语义质量扩展，不应进入最小核心。
 
-外部备忘录提出的 Verifier 思路解决的是另一层问题：开放式知识工作没有天然的二元正确答案，生成模型很容易把“增加内容”误当成“提高质量”。真正有价值的评价不应只是一个总分，而应由专门检查科学问题、假说、创新、证据、叙事闭环、评审怀疑和范围膨胀的多个 verifier 组成，并通过比较、排序、早停和持续校准形成迭代闭环。
-
-### 为什么不能只做一个总分模型
-
-单一总分会掩盖关键缺陷：一份标书可以文风漂亮但科学问题不成立，也可以创新很强但前期基础无法支撑。开放任务中的评价还存在专家分歧，因此首要目标应是稳定发现可行动的缺陷和比较版本，而不是制造看似精确的 `87.3/100`。
-
-Verifier 至少需要能够：指出问题所在、引用输入中的证据、标明严重度和不确定性、说明建议的修复方向，并在无法判断时明确 abstain/不确定。它不应直接修改原稿；否则创新、可行性和范围检查会互相覆盖，最终变成由所有 reviewer 意见拼接出的“超级缝合怪”。
-
-### 主要架构判断
-
-不建议二选一地把 Verifiers 做成“一个 Agent Skill”或“并入 `bensz-skill-kernel`”。两种纯方案都有结构性问题：
-
-| 方案 | 优点 | 主要问题 | 判断 |
-|---|---|---|---|
-| 单一 `verifier` Skill | 易触发、易演示、初期开发快 | 上下文会膨胀；领域知识、路由、结果协议和运行留痕混在一起；难以被程序稳定组合 | 可作为原型入口，不作为基础设施终局 |
-| 并入 `bensz-skill-kernel` | 事件与验证证据天然相连 | kernel 会被迫理解创新性、临床价值等领域语义，破坏“极简核心”和无第三方运行时边界 | 不采用 |
-| 独立 `bensz-skill-verifiers` Python 包 | 可提供稳定协议、注册表、路由、成本和聚合；可被多个 Skill/宿主复用 | 需要设计与 kernel 的边界和版本兼容 | 作为推荐的运行时基础 |
-| 只有一组领域 Verifier Skill | 专家知识易迭代、可按需加载、符合 Agent Skills 标准 | 若没有统一结果协议，难以比较、审计和恢复 | 作为领域能力层，与独立包配合 |
-
-推荐的目标形态是三层分离：
-
-1. **`bensz-skill-kernel`：生命周期与证据控制面。** 只负责事件、状态、契约、证据引用、恢复、交付和副作用，不判断“科学问题是否重要”。
-2. **`bensz-skill-verifiers`：评价运行时。** 提供 `Verifier`/`VerifierResult` 协议、注册表、输入投影、规则触发、成本预算、超时/重试、早停、版本化和结果聚合；默认不绑定某个模型供应商，也不把模型调用写死在包里。
-3. **领域 Verifier Skill：可寻址的判断知识。** 例如 `scientific-question-verifier`、`evidence-support-verifier`、`scope-control-verifier`、`reviewer-skepticism-verifier`。它们定义检查口径、证据要求、适用条件和输出解释，必要时通过宿主模型或确定性脚本执行。
-
-业务 Skill 不重复实现这些 verifier，而是在自己的契约中声明 `evaluation_policy`：mandatory、conditional、adaptive verifier，阶段预算，每轮最多处理的问题数，以及是否必须做版本比较。这样“如何做事”和“怎样算做好”分别演进，又能在同一任务账本中留下可审计的验证事实。
+仓库已有的 `bensz-skill-kernel` 解决“发生了什么、任务处于什么状态、能否交付”；`bensz-skill-verifiers` 解决“一个完成声明是否有足够证据”。两者通过事件适配器协作，但 Verifiers 核心必须能够脱离 kernel 独立运行，避免把通用验证能力绑定到单一生命周期实现。
 
 ## 要达到什么目标
 
 ### 完成后的变化
 
-- 任何需要质量控制的 Skill 都能声明要调用的评价能力，而不必复制 reviewer prompt 或自建结果格式。
-- Verifier 输出统一包含 `verdict`（pass/fail/uncertain 等）、`findings`、严重度、置信度或不确定性、`evidence_refs`、`repair_action`、`validator` 版本、输入/候选版本标识和成本摘要。
-- 系统支持绝对检查与 pairwise/ranking 检查；对两个版本不能可靠排序时可以 abstain，而不是伪造精确分数。
-- Router 先执行确定性 mandatory/conditional 检查，再按信息增益与成本选择 adaptive 检查；发现上游致命问题时早停，不继续浪费 token。
-- Meta-Judge 只负责合并和排序，不直接改稿；Revision Planner/Generator 执行修改，随后重新验证并比较前后版本。
-- 每一轮的 verifier 运行、结果、证据、采纳/拒绝理由、版本比较和最终交付都能通过 `bensz-skill-kernel` 事件重建。
+- 任何 Agent、Skill 或工作流都能把完成条件拆成机器可读的 `Requirement`，把“我已满足它”登记为 `Claim`，并为每项声明找到 Verifier 或明确标记“当前不可验证”。
+- 同一协议可以验证文件、文本、代码、命令、结构化数据、执行轨迹、外部服务、副作用、安全约束、语义质量和人工审批。
+- 每个结论都能追溯到固定版本的验证对象、Verifier、策略和证据；输入不足、超时、外部状态未知不会被伪装成通过。
+- 确定性检查优先，模型判断和人工判断按需使用；高成本检查只在其可能改变决策时运行。
+- 验证结果与门禁决策分离：Verifier 只报告事实和判断，Policy/Gate 决定这些结果是否足以继续、交付或等待。
+- 核心包不绑定模型供应商、业务领域或 `bensz-skill-kernel`，通过适配器接入 Python、命令、Agent Skill、外部服务和人工审核。
 
 ### 不在本次处理范围
 
-- 不承诺构建数学证明器，也不把“中标概率”伪装成可精确预测的指标。
-- 不在首版训练专有 reward model、收集真实基金申请结果，或接入多个外部模型供应商；先冻结协议和可复核试点。
-- 不把全部 verifier prompt 常驻注入上下文；注册表只提供能力索引，具体 Skill 按需加载。
-- 不让 verifier 直接改写标书、代码或用户文件；写回仍受原 Skill 的授权、备份和交付契约控制。
-- 不一次性迁移全部现有 Skill；先选一个能体现开放式判断、又能安全人工复核的标书相关试点。
+- 不承诺让所有现实问题变成确定性验证；无法观察或存在价值判断的任务必须允许 `uncertain` 和人工复核。
+- 不建立一个包办所有任务的“超级评审 prompt”，也不把所有 Verifier 常驻注入上下文。
+- 不允许 Verifier 借检查之名修改正式产物或执行未经授权的远程写入；修复由原执行者或专门 remediation 流程完成。
+- 首版不建设分布式调度、远程队列、训练 reward model 或通用模型网关。
 
-## 改进方向
+## 核心设计原则
 
-### 先建立独立的评价协议，而不是先堆 verifier 数量
+### 验证声明，而不是给整个任务打总分
 
-在 `packages/` 下建立独立的 `bensz-skill-verifiers` 项目边界（具体包名可在协议冻结时确认），并为每次运行固定输入快照、verifier 身份与版本、policy 版本、候选 artifact、作用域、预算和输出格式。运行时包应保持轻量、可测试、与模型供应商解耦；模型调用通过宿主适配器或显式 provider 接口注入。
+任务契约先拆成要求，例如“输出文件必须存在”“所有引用必须可访问”；Agent 完成工作后再提交对应声明，例如“输出文件已经生成”“引用已经核验”。每个声明单独产生结论，最终门禁按 required/optional、严重度和授权规则组合；不使用一个平均分掩盖关键失败。
 
-`VerifierResult` 应能表达至少四种事实：通过、发现可修复问题、发现阻断问题、无法判断。结果必须区分观察到的证据、推断出的判断和建议的动作，避免把模型意见当成事实。对同一候选重复运行时使用幂等键和输入摘要，防止重复记录或把不同版本的结果混在一起。
+### 证据优先，结论与证据分离
 
-这意味着 kernel 的 `validation.completed` 需要在后续兼容扩展中承载更完整的 verifier 元数据，但扩展应保持向后兼容；kernel 只保存和校验结果，不解释领域字段。
+Verifier 必须说明观察到了什么、据此作出什么判断、证据位于哪里。自述“我已经测试过”不是高可信证据；命令输出、文件摘要、只读 API 响应、事件记录和人工签名才是可审计证据。证据需要绑定验证对象摘要和有效时间，避免旧证据误用于新版本。
 
-### 用注册表和策略声明实现可组合能力
+### 结果与门禁分离
 
-注册表保存 verifier 的名称、能力标签、输入要求、输出 schema、成本等级、确定性/模型依赖、敏感数据需求和版本。领域 Skill 通过 `evaluation_policy` 声明：
+Verifier 返回 `pass`、`fail`、`uncertain`、`not_applicable` 或 `error`；是否阻断由 Policy 决定。同一个可访问性失败，在草稿阶段可以告警，在正式发布阶段可以阻断。`error` 表示检查没有成功执行，绝不能等价为被检查对象失败或通过。
 
-- **mandatory：** 无论场景如何都必须运行的检查；
-- **conditional：** 由可解释规则触发的检查，例如出现因果措辞、强创新表述或 Aim 数量超限；
-- **adaptive：** 由 Router 根据当前不确定性和预期信息增益选择的少量长尾检查。
+### 默认只读，副作用显式授权
 
-对标书首个试点，可先做最小集合：`scientific_question`、`hypothesis_coherence`、`evidence_support`、`scope_control`、`feasibility`。`novelty`、`reviewer_skepticism` 和文献检索联动随后加入；它们更依赖领域语料和专家校准，不应在协议尚未稳定时被当作核心正确性依据。
+Verifier 默认只能读取和探测。需要编译、运行测试或生成临时文件时，只能在声明的隔离边界内产生可清理副作用；外部写入、删除、发布和补偿不属于验证动作。远端结果未知时先 reconciliation（重新探测真实状态），不能盲目重试。
 
-### 采用结构化项目表示，降低重复阅读和上下文污染
+### 小核心、可插拔能力
 
-在全文进入深度 verifier 前，先由业务 Skill 或独立 extractor 产生可引用的 `ProjectSpec`：科学问题、知识缺口、中心假说、Aim、关键主张、证据、方法、预期结果、风险和范围边界。不同 verifier 只读取所需字段；需要语言风格判断时才读取原文片段，并保留来源位置。
+核心只管理协议、注册、规划、执行、证据和门禁。具体检查通过 Python callable、命令适配器、Agent Skill、模型 provider、只读外部探针或人工审核插件提供。Registry 初始只暴露轻量能力索引，选中后才加载完整实现和说明。
 
-该表示不是第二套事实来源，而是带来源锚点、可重建或可重新提取的中间 artifact。若提取结果与原文冲突，必须标记不确定并回到原文，不得静默覆盖。
+## 通用验证对象与 Verifier 类型
 
-### 以“发现—排序—修改—比较”取代“批量打分—全部采纳”
+### 验证对象 `SubjectRef`
 
-Verifier 输出问题清单，不输出最终稿。Meta-Judge 根据严重度、证据强度、影响范围、修改成本和 verifier 间的一致/冲突关系，选出每轮最多 3–5 个问题。Revision Planner 再生成可执行修改方案，Generator 产出候选版本；系统重新运行必要检查，只有质量没有下降且关键问题确实改善时才保留新版本。
+统一引用以下对象，而不是假设输入总是一篇文稿：
 
-首版应把 pairwise 比较作为主要评价目标之一：它比绝对分数更接近真实决策，也更容易让专家标注。绝对分数只用于排序辅助和趋势观察，不作为“合格”或“中标”的单一依据。
+- `artifact`：文件、目录、图片、PDF、数据集或结构化输出；
+- `response`：Agent 给用户的回答、决策或计划；
+- `execution`：命令、测试、构建、工具调用及其退出状态；
+- `trace`：阶段、事件、授权、来源和执行轨迹；
+- `external_state`：远端 API、数据库记录、部署、消息或第三方资源的可观察状态；
+- `effect`：写入、发布、删除、扣费等副作用及其后置条件；
+- `environment`：依赖、版本、权限、配置和运行平台；
+- `candidate_set`：多个候选结果，仅供比较或排序场景使用。
 
-### 把安全、隐私和专家校准作为基础能力
+每个引用至少包含 `subject_id`、`kind`、`locator`、`digest/version`、`snapshot_time`、`sensitivity` 和允许的读取方式。易变外部状态必须额外记录观察窗口和新鲜度要求。
 
-Verifier 会读取高敏感的申请书、未发表数据和专家意见，必须沿用任务工作区和路径边界，不记录密钥、Cookie、私人路径或不必要原文。输入文本可能包含提示注入，Verifier 只能把输入当作待评估材料，不得让材料改变系统规则、路由或交付授权。
+### Verifier 能力分类
 
-对高风险判断必须允许人工复核；系统记录专家采纳、拒绝、修改和最终版本，但不把一次专家意见自动升级为普遍规则。后续若积累了足够的“修改前—专家意见—修改后”或同项目多专家 pairwise 数据，再评估校准模型和领域专用 reward model。
+| 类型 | 主要回答的问题 | 常见实现 |
+|---|---|---|
+| 结构与静态检查 | 产物是否存在、格式/schema/引用是否正确 | 文件检查、解析器、schema、AST、规则 |
+| 行为与可执行检查 | 代码或流程实际运行是否符合预期 | 测试、构建、沙箱命令、仿真 |
+| 过程与来源检查 | 必需步骤、授权、来源和审计链是否完整 | 事件/trace 校验、签名、策略规则 |
+| 外部状态与副作用检查 | 远端操作是否真的生效、是否重复或处于未知状态 | 只读 API probe、reconciliation、幂等记录 |
+| 安全与合规检查 | 是否越权、泄密、越界或违反政策 | 密钥扫描、路径/权限检查、策略引擎 |
+| 事实与语义检查 | 内容中的主张是否有依据、是否一致 | 检索、引用核查、模型或专家判断 |
+| 质量与偏好检查 | 结果是否清晰、有用，哪个候选更好 | rubric、pairwise、panel、Meta-Judge |
+| 人工门禁 | 机器证据不足或风险需要谁确认 | 明确身份、范围和有效期的审批 |
+
+一个 Verifier 应尽量只负责一个能力；需要组合多个能力时由 Verification Plan 编排，而不是在插件内部隐藏不可观察的子流程。
+
+## 公开协议（首版必须先冻结）
+
+### `Requirement`
+
+表示一项完成条件，至少包含：`requirement_id`、自然语言声明、`subject_refs`、`capability`、`required`、`severity`、`evidence_policy`、`gate_policy`、`depends_on` 和 `applicability`。无法映射到能力时必须报告 `unverifiable`，不能静默省略。
+
+### `Claim`
+
+表示执行者声称某项要求已经满足，至少包含：`claim_id`、`requirement_id`、`subject_refs`、可验证谓词或预期后置条件、`asserted_by`、`asserted_at`、`attempt_id` 和执行者提供的初始 evidence refs。Claim 不是事实；它只有在 Verifier 独立观察后才可能获得 `pass`。如果执行者没有显式提交 Claim，runner 可以在交付检查时为 required Requirement 生成“待验证但尚未声明”的缺口，不能替执行者假定成功。
+
+### `VerifierSpec`
+
+Registry 条目至少包含：`verifier_id`、`version`、`capabilities`、可接受的 `subject_kinds`、输入/输出 schema、`execution_mode`、`determinism`、`side_effect_profile`、`network_policy`、`sensitivity_limit`、`cost_class`、`trust_level`、超时/重试语义和适用条件。
+
+### `VerificationRequest`
+
+至少包含：`verification_id`、`requirements[]`、`claims[]`、`subjects[]`、`policy_ref/version`、可用 Verifier 约束、预算、权限、环境快照、证据新鲜度和幂等键。请求可以只验证一个 Claim，也可以编译成带依赖关系的 Verification Plan。
+
+### `Evidence`
+
+至少包含：`evidence_id`、`kind`、`producer`、`subject_digest`、`locator` 或内联摘要、`observed_at`、`valid_until`、`integrity`、`sensitivity` 和 `collection_method`。默认保存最小必要证据；密钥、Cookie、完整私密文档和无关原始响应不得进入日志。
+
+### `VerificationResult`
+
+执行状态与业务结论必须分开：
+
+- `execution_status`：`completed`、`skipped`、`cancelled`、`timed_out`、`error`；
+- `verdict`：`pass`、`fail`、`uncertain`、`not_applicable` 或 `unchecked`；
+- 关联字段：`requirement_id`、`claim_id`、Verifier id/version、subject/evidence refs、观察事实、finding、严重度、置信或不确定原因、repair hint、耗时/成本、输入与策略摘要。
+
+只有 `execution_status=completed` 时才能给出 `pass`、`fail`、`uncertain` 或 `not_applicable`；其余状态一律为 `unchecked`。`skipped` 说明规划器没有运行检查，`not_applicable` 说明检查成功判断该要求不适用，两者不可混用。`timed_out` 或 `error` 不能聚合为 `pass`。
+
+### `GateDecision`
+
+门禁输出固定为 `allow`、`allow_with_warnings`、`reject`、`wait` 或 `manual_review`，并列出导致决定的 requirement/result、授权级别、未解决的不确定性和恢复条件。它是策略计算结果，不是 Verifier 自己的意见。
+
+### 可选扩展
+
+- `ComparisonResult`：用于候选 pairwise/ranking，不是所有任务必需；
+- `RubricResult` 与 `MetaJudgement`：用于开放式语义质量和冲突意见；
+- `ReconciliationResult`：用于副作用结果未知后的外部状态探测；
+- 领域投影（如 `ProjectSpec`）：减少重复读取，但必须带来源锚点且可重建。
+
+## 一次通用验证如何运行
+
+1. **编译完成契约**：把用户要求、Skill 契约和运行时约束转换为 Requirements；无法验证的要求显式进入缺口清单。
+2. **登记完成声明**：执行者把本轮声称满足的 Requirement 登记为 Claim；未声明的 required Requirement 直接形成覆盖缺口。
+3. **冻结验证对象**：为本地产物计算摘要，为执行/trace 固定事件范围，为外部状态记录观察窗口，防止验证期间对象被偷换。
+4. **规划检查 DAG**：先按 required 和依赖关系选择 mandatory Verifier，再运行规则触发项；adaptive 选择只处理长尾，不得跳过必检项。
+5. **收集或复用证据**：优先复用对象摘要、版本、策略和新鲜度均匹配的证据；不匹配时重新检查。
+6. **执行检查**：按执行模式调用纯函数、沙箱命令、只读 probe、模型或人工审核；遵守预算、权限、超时、重试和幂等边界。
+7. **标准化结果**：把各插件输出转换为统一 Result；保留冲突和不确定性，不以多数票自动覆盖高严重度失败。
+8. **计算门禁**：逐 Requirement 应用 Policy，输出 allow/reject/wait/manual_review；聚合结果不依赖一个通用总分。
+9. **修复并局部重验**：由原任务执行者修复；只重新运行受影响节点及依赖节点。对象摘要变化后旧证据自动失效。
+10. **登记验证事实**：独立运行时返回报告；接入 kernel 时由适配器追加事件和证据引用，不直接写状态投影。
+
+## 路由、成本、信任和冲突规则
+
+### 路由与早停
+
+- Mandatory 由 Requirements 和 Policy 决定，Agent 不能为了省成本自行跳过。
+- Conditional 由确定性、可解释规则触发，例如远端写入后必须 reconciliation，含代码变更必须执行声明的测试集合。
+- Adaptive 按“对当前门禁决策的预期信息增益 ÷ 成本”选择额外检查；选择与不选择的理由都要记录。
+- DAG 早停只跳过依赖于失败前提的下游检查；无依赖的安全、授权和副作用检查仍需运行，避免因为业务失败而漏掉安全问题。
+
+### 成本等级
+
+- **Tier 0**：文件、schema、规则、AST、事件完整性等确定性检查；
+- **Tier 1**：局部执行、轻量模型或只读探针；
+- **Tier 2**：强模型、跨产物推理、完整构建或较高成本外部检查；
+- **Tier 3**：对抗性 panel、专家审批或高成本端到端验证。
+
+成本等级只影响路由和预算，不代表可信度。一个廉价的确定性测试可以比昂贵的模型评审具有更高门禁权威。
+
+### 信任与冲突
+
+- 生成者的自检可以提供证据，但高风险任务不能只依赖同一执行者的无外部证据自评。
+- `trust_level`、独立性、证据质量和适用范围由 Policy 声明；“更多 Verifier 投票”不天然等于更可信。
+- 确定性反例通常优先于主观 `pass`；两个语义判断冲突时保留双方证据并按策略进入 Meta-Judge 或人工复核。
+- Quorum 只在明确声明的同质检查组中使用，不能把安全失败与文风通过平均抵消。
+
+## 安全与副作用边界
+
+- Verifier 输入始终视为不可信数据；文档、网页和日志中的提示不得改变系统规则、权限或路由。
+- 命令检查必须声明工作目录、超时、环境变量白名单、网络权限和可写临时目录；默认不继承凭据。
+- 外部 probe 默认只读，并限制 host、方法、响应大小和敏感字段；是否成功提交过未知时禁止自动重放写请求。
+- 正式产物、用户文件和外部资源的修改由 remediation/effect 层执行，Verifier 只返回 repair hint 和后置检查要求。
+- Evidence 和日志按 sensitivity 最小化保存；公开或跨任务复用前必须脱敏并确认授权。
+
+## 与 `bensz-skill-kernel` 的边界
+
+Verifiers 核心不依赖 kernel；`kernel_adapter` 负责把通用结果映射为追加式事件。建议首版映射：
+
+| 验证事实 | kernel 事件 | 关键字段 |
+|---|---|---|
+| 验证计划开始 | `validation.started` | verification、requirements、subjects、policy 摘要 |
+| 单项结果 | `validation.recorded` | requirement、verifier、execution status、verdict、evidence |
+| 门禁决定 | `validation.completed` | gate decision、required 结果、未解决不确定性、报告引用 |
+| 等待输入/审批 | `task.waiting` | wait reason、恢复条件、关联 requirement |
+| 外部状态核对 | `effect.reconciled` | effect id、observed state、freshness、evidence |
+| 人工决定 | `validation.reviewed` | reviewer authority、scope、decision、有效期 |
+
+现有 `validation.completed` 的 `verdict`/`evidence_refs` 保持兼容；kernel 只保存和检查通用交付条件，不解释领域 finding。删除投影后，仍应能从事件与证据重建验证事实。
+
+## 首版包和插件边界
+
+建立 `packages/bensz-skill-verifiers/`，发布包 `bensz-skill-verifiers`，导入名 `bensz_skill_verifiers`，Python 3.10+，核心无第三方运行时依赖。最小模块职责：
+
+- `contracts`：Subject、Requirement、Claim、Spec、Request、Evidence、Result、Gate；
+- `registry`：能力索引、版本、适用性和按需加载；
+- `planner`：Requirement 编译、Verifier 选择、DAG 与预算；
+- `executors`：pure、command、probe、provider、human 适配接口；
+- `evidence`：摘要、新鲜度、完整性、最小化和缓存；
+- `policy`：门禁、信任、冲突、重试和证据要求；
+- `runner`：执行、超时、取消、幂等和局部重验；
+- `reporting`：结构化报告和人类可读摘要；
+- `adapters/kernel`：可选 kernel 事件桥接；
+- `cli`：计划预览、运行、报告和离线重放。
+
+首批 reference Verifier 只用于证明协议通用性：文件存在/摘要、JSON/schema、命令退出与输出、事件链完整性、敏感信息扫描、只读 HTTP 状态（fake probe）和人工审批占位器。语义模型先用 fake provider 验证适配协议，不内置领域 prompt。
+
+Verifier 插件可位于 Python 包、可执行脚本或独立 Agent Skill 中。Agent Skill 仍以自身 `SKILL.md` 为边界，Registry 只索引公开 metadata；选中后再加载完整指令。插件不能自行修改全局 Policy 或绕过 runner 写 kernel。
+
+## 代表性任务覆盖矩阵
+
+首版不以标书作为唯一试点，而用四类任务证明抽象没有偏科：
+
+| 任务原型 | 主要验证对象 | 必须覆盖的能力 |
+|---|---|---|
+| 文件/文档转换 | artifact、execution | 文件存在、格式、结构、摘要、可打开性 |
+| 代码修改 | artifact、execution、trace | diff 范围、测试/构建、安全扫描、变更要求 |
+| 外部系统操作 | external_state、effect、trace | 授权、幂等、只读 reconciliation、未知状态 |
+| 开放式知识输出 | response、candidate_set | 事实证据、rubric、uncertain、pairwise、人工复核 |
+
+只有四类原型都能使用同一 Requirement/Claim/Request/Result/Gate 协议，才能宣称核心具有通用性。标书写作可以作为第四类的后续领域插件试点，但不决定核心数据模型。
 
 ## 实施范围与顺序
 
-1. **冻结概念和边界。** 在不改动现有业务 Skill 的前提下，补充 Verifier、Router、Meta-Judge、ProjectSpec、结果 schema、abstain、pairwise 和成本等级的设计说明，并明确其与 `bensz-skill-kernel` 的职责分界。
-2. **实现最小评价运行时。** 建立独立 Python 包和纯本地测试夹具，先支持注册表、输入/结果 schema 校验、确定性 verifier、模拟模型 verifier、预算/超时、幂等、早停和结果聚合；不接真实模型和远程服务也应能完整重放。
-3. **接入 kernel 的事实留痕。** 将 verifier 开始、完成、失败、不确定、采纳/拒绝和版本比较映射为统一验证事件；扩展字段时保持旧 `validation.completed` 读取兼容，禁止 verifier 绕过事件账本直接写状态。
-4. **建设标书最小试点。** 选择项目中已有或后续接入的 NSFC/标书工作流作为可人工复核入口；若该领域 Skill 尚未迁入，则先用脱敏夹具模拟其输入。先接入科学问题、假说连贯性、证据支持、可行性和范围控制五个 verifier；以一份基线稿、若干人工构造缺陷和至少两个修改版本验证“能否发现问题、能否正确排序、是否避免越改越复杂”。
-5. **加入 Router 和 Meta-Judge。** 在试点数据证明 mandatory 结果稳定后，再加入条件触发、adaptive 选择、冲突处理、每轮问题上限和 early-stop；Meta-Judge 的输出先作为建议，保留人工确认门，不自动覆盖原稿。
-6. **建立校准和迁移门禁。** 记录 verifier 版本、输入摘要、专家反馈、采纳率、误报/漏报、pairwise 一致率、成本和延迟；只有在试点达到约定阈值后，才迁移论文、研究计划、代码审查等其它开放式 Skill。任何协议变更同步更新 `CHANGELOG.md` 和版本迁移说明。
+1. **冻结通用词汇和协议**：定义 Subject、Requirement、Claim、Evidence、Result、Gate、执行状态与 verdict 的差异，并提供四类任务的 JSON 示例。
+2. **实现最小本地核心**：完成 contracts、registry、planner、policy、runner 和 Tier 0 reference Verifier；不接模型、网络和 kernel 也能端到端运行。
+3. **实现隔离执行与证据层**：加入 command sandbox 契约、fake probe、证据摘要/新鲜度/失效和局部重验；验证检查本身不会越权改动正式对象。
+4. **接入 kernel 适配器**：映射开始、单项结果、门禁、等待、reconciliation 和人工审核事件，保持现有验证字段向后兼容。
+5. **完成四类原型测试**：先用人工构造的无敏感夹具覆盖确定性、外部状态未知、语义不确定和人工门禁，不为单个场景增加核心特判。
+6. **开放插件生态**：稳定 Registry metadata 和 Agent Skill 适配接口后，再建设代码、科研、文档、部署等领域 Verifier；按真实使用数据校准误报、漏报、成本和信任策略。
 
 ## 如何确认完成
 
-### 架构与协议
+### 协议通用性
 
-- `bensz-skill-verifiers` 是独立项目边界，安装、版本和测试不污染 `bensz-skill-kernel`；两者通过稳定事件/结果协议协作。
-- 同一个 verifier 在相同输入快照、策略和版本下可重放得到一致结构；输入、结果、证据和成本字段均可校验。
-- 领域 verifier 可以按需寻址，不需要把整个 registry 或所有 prompt 注入一次任务上下文。
+- 四类任务使用相同的 Subject/Requirement/Claim/Evidence/Result/Gate 协议，没有为“文稿”或“代码”增加核心特例。
+- 新增一个 Verifier 只需注册能力和适配器，不需要修改 runner、Gate 或 kernel reducer。
+- 每项 required Requirement 都有结果或明确的 unverifiable/manual-review 状态，不存在静默漏检。
 
-### 质量闭环
+### 正确性与可重放
 
-- 五个首批 verifier 能在人工夹具中指出预先植入的缺陷，并给出原文/结构化字段证据；无法判断的案例会返回 uncertain/abstain。
-- pairwise 比较能稳定区分明显更好的版本；对冲突意见不会机械合并，而会进入 Meta-Judge 的排序或人工复核队列。
-- 每轮最多处理约定数量的问题；上游阻断问题出现时会早停；修改后若关键维度下降，系统保留旧版本并拒绝自动晋级。
+- 相同对象摘要、Verifier/policy 版本和环境快照能重放出相同结构；非确定性判断明确记录 provider、参数和不确定性。
+- 对象内容变化、证据过期或外部观察窗口失效后，旧证据不会继续放行。
+- 超时、取消、检查器崩溃、网络未知和不适用被准确区分，不会折叠成 pass/fail。
 
-### 运行与安全
+### 门禁与安全
 
-- verifier 运行、失败、等待、证据和版本比较均可从 kernel 事件账本重建；删除投影不会丢失评价事实。
-- 超时、预算耗尽、模型不可用、输入不完整和外部状态未知都有明确结果，不被伪装成 pass。
-- 路径越界、敏感字段、提示注入和未授权写回有测试；Verifier 本身不会直接修改用户原稿或发布产物。
+- required 确定性失败能够阻断；optional 失败可按 Policy 告警；人工门禁能记录权限范围和有效期。
+- 命令、probe、模型和人工适配器不能绕过权限及 sensitivity 限制；提示注入不能改变 Verification Plan。
+- 外部写入结果未知时进入 wait/reconciliation，不自动重复副作用。
 
-### 校准与成本
+### 集成与扩展
 
-- 记录每个 verifier 的成本、延迟、误报/漏报、专家采纳率和 pairwise 一致率，能够回答“它是否值得在当前阶段运行”。
-- 首个试点完成后，能明确哪些检查是共识性缺陷，哪些只是个人偏好；未达到校准门槛的 verifier 只能作为 advisory，不得阻断交付。
+- 核心包可独立运行；安装 kernel adapter 后能追加兼容事件并从账本重建验证事实。
+- capability index 无需加载所有 Verifier 的完整说明；实际运行只加载选中的插件。
+- 报告能回答“验证了什么、没有验证什么、用了什么证据、为什么放行、还剩什么风险”。
 
 ## 风险与待确认事项
 
-- **包名和公开 API：** 建议采用 `packages/bensz-skill-verifiers/` 与 `bensz_skill_verifiers`，但应在第一阶段与现有 `bensz-skill-kernel` 命名、版本和发布策略一起冻结。
-- **Verifier Skill 的安装形态：** Agent Skills 标准要求可安装目录以直接 `SKILL.md` 为边界。若未来出现大量领域 verifier，应采用独立 `skills/<verifier-name>/` 目录和轻量 registry metadata，不在一个巨型目录中隐藏多个不可寻址能力。
-- **模型调用归属：** 首版不应在包内绑定某家模型 API；需要明确宿主适配器、超时、重试、费用和敏感数据策略，否则评价结果不可复现且难以测试。
-- **标书数据授权：** 真实中标/未中标数据、评审意见和未发表前期数据涉及隐私与版权。没有明确授权前，只使用脱敏、人工构造或用户明确提供的夹具。
-- **成功阈值：** “70%–80% 能判断哪版更好”只能作为研究假设，不能直接写成已验证指标；应先设计小规模基线和人工标注协议，再决定门槛。
-- **评价函数反噬：** 一旦把 verifier 分数当成唯一目标，Generator 可能学会迎合检查表。必须保留专家抽查、随机对抗案例、版本比较和“拒绝修改”的路径。
-- **与现有状态计划的衔接：** 当前状态控制计划已把验证作为证据和交付边界；本计划不重定义生命周期状态，只增加可组合的评价事实和策略字段。若协议需要扩展，应通过版本化迁移而不是新增一套平行账本。
+- **“通用”边界：** 系统可以统一表达和编排验证，但不能凭空创造领域真值；无法观察的要求必须暴露为 verification gap。
+- **Requirement 编译质量：** 如果遗漏用户真实要求，后续检查再准确也无效；需要把“需求覆盖率”本身作为可检查对象，并允许用户确认关键完成条件。
+- **Verifier 可信度：** 自检、模型评审和外部专家的权威不同；首版必须先冻结 trust/evidence 规则，不能只靠投票数。
+- **环境可复现性：** 执行检查受平台、依赖和外部状态影响；结果需要环境摘要和新鲜度，不能宣传绝对可复现。
+- **kernel 兼容性：** 当前完成守卫只查看最后一条 passing validation，后续若接入多 Requirement Gate，需要向后兼容地扩展，不能让 advisory pass 覆盖 required fail。
+- **生态复杂度：** 不在首版创建大量领域 Skill；先证明核心协议对四类任务成立，再按真实需求增加插件。
 
-本计划的核心结论是：Verifier 值得建设，但它首先是一个可审计的评价基础设施，而不是一个更长的 reviewer prompt。最稳妥的路线是让 Python 包提供协议和调度，让领域 Skill 承载可寻址的专家判断，让 `bensz-skill-kernel` 记录事实和交付边界；先以标书质量评估做小规模、可人工复核的试点，再决定是否扩大到整个开放式知识工作生态。
+本计划的核心结论是：`bensz-skill-verifiers` 不应被设计成开放式写作评审器，而应成为 Agent 完成声明的通用“证据与门禁层”。确定性测试、外部状态核对、安全检查、语义评价和人工审批都只是可插拔 Verifier；核心只负责把要求、对象、证据、结果和放行决策可靠地连接起来。

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed
+- **通用 Agent Verifiers 计划重构**：将 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 从开放式知识工作评价方案重构为 Agent 完成声明的通用证据与门禁层；冻结 `Subject`、`Requirement`、`Claim`、`Evidence`、`VerificationResult`、`GateDecision` 核心协议，区分检查执行状态与业务 verdict，覆盖静态产物、可执行行为、过程来源、外部状态、副作用、安全、语义质量和人工审批，并补充插件边界、信任/冲突规则、kernel 适配器及四类代表性任务验收矩阵。
+- **Verifier 参考文章定位修正**：保留文章启发的专门化能力、按需路由、成本分层、依赖 DAG、早停和校准原则；将 pairwise、Meta-Judge、`ProjectSpec` 与专家偏好数据降为开放式语义质量的可选扩展，不再主导通用核心模型。
 - **install-bensz-skills 安装入口契约对齐**：本地默认源收敛为 `skills/alpha`，历史 `pipelines/skills/alpha` 仅可通过显式兼容参数使用；本地与 bootstrap manifest 统一包含版本、来源、目标和逐 skill 状态核心字段，并补充安装器回归测试。
 - **仓库约定一致性修正**：统一 AGENTS.md 的原则数量与标题格式，修正 Prompts.md 中 alpha/beta 的反义描述，并同步安装器 Python 支持矩阵与版本来源说明。
 - **测试边界补充公开入口**：AGENTS.md 明确根级 `tests/` 可承载安装器等仓库公开入口的 smoke/integration 测试，保持测试脚本与运行产物目录分离。
