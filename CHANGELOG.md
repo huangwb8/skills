@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **validate-md-ref 强制运行时门禁**：要求每次执行先通过 `bsk` 状态机完成 `input-ready` → `checking` → `reported` 生命周期，并强制调用 `markdown.link-integrity@1.0.0` Verifier；kernel、状态转移或 Verifier 不可用时必须失败并保留诊断，不得静默降级。
 - **validate-md-ref 文档分层收敛**：Skill 升级至 `0.8.1`，将状态机与 Verifier 的详细契约迁移到 `references/` 下的独立 Markdown，主 `SKILL.md` 聚焦 Markdown 引用适配、事实采集与结果汇总。
 - **Verifier 包内资产迁移**：将 `bensz-skill-kernel` 的内置 `verifiers/` 移入 `src/bensz_skill_kernel/verifiers/`，CLI 和 `validate-md-ref` 通过公开 `builtin_verifier_root()` 定位，wheel package data 同步包含状态与 verifier 资产，消除对源码仓库层级的依赖。
 - **状态机协议重构**：`bensz-skill-kernel` 升级至 `0.8.0`，状态包新增可选 JSON-stdio helper、系统与 Skill 状态组合发现、Skill 声明文件、转移检查与持久化标准回执；工作区为每个 Skill 保存独立元状态快照，并创建共享目录边界。`validate-md-ref` 升级至 `0.8.0`，作为声明式状态机试点。

@@ -1,8 +1,8 @@
 # validate-md-ref
 
-当前版本：`0.8.1`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。它不把链接可达性冒充语义结论，也不自动修改原文档。
+当前版本：`0.8.2`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。每次运行都会强制经过 kernel 状态机并执行链接完整性 Verifier；它不把链接可达性冒充语义结论，也不自动修改原文档。
 
-它适合跨格式引用核验；Markdown 只是当前可用的输入适配器。语义引擎缺口会明确标为 `unchecked` 或 `manual_review`。
+它适合跨格式引用核验；Markdown 只是当前可用的输入适配器。语义引擎缺口会明确标为 `unchecked` 或 `manual_review`。调用脚本时请使用能够导入 `bensz_skill_kernel`、且与 `bsk` 同一环境的 Python 解释器。
 
 执行细节按需阅读：
 
@@ -79,6 +79,7 @@
   - `summary.skipped`
   - `references[*].validation`
 - 当前脚本直接把 JSON 结果输出到标准输出，不会自动生成独立 Markdown 报告文件。
+- 每次核查都会产生 `log/meta-state.json` 状态快照和 `log/events.ndjson` Verifier 事件账本；缺少其中任一项即代表执行未完成。
 - `verification.results` 保存原子规则结果与证据引用；本 Skill 的 `verification.gate` 用 `allow` 或 `reject` 表达链接完整性结果。格式无关的语义 Pack 才用 `manual_review` 表达验证缺口。
 
 ## 配置

@@ -10,6 +10,7 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **强制状态机与 Verifier**：Skill 升级至 `0.8.2`。每次运行必须完成 `input-ready`、`checking`、`reported` 状态转移，并运行 `markdown.link-integrity@1.0.0` 与事件账本记录；kernel、转移或 Verifier 不可用时明确失败，禁止静默降级。
 - **受众定位修正**：重写 `SKILL.md` 的执行说明，去除面向 Skill 开发者的内部措辞，改为面向用户和 AI 的输入边界、工具选择、参考资料和结果汇总指引；保留协议细节在 `references/` 中维护。
 - **状态机与 Verifier 文档分层**：Skill 升级至 `0.8.1`；将状态机操作、状态不变量和 Verifier 调用边界迁移至 `references/state-machine.md` 与 `references/verifiers.md`，使 `SKILL.md` 聚焦 Markdown 输入适配、事实采集和结果汇总。
 
