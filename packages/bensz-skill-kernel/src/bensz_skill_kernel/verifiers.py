@@ -64,6 +64,7 @@ class VerifierSpec:
     evidence_requirements: tuple[str, ...] = ()
     uncertainty_policy: Mapping[str, str] = field(default_factory=dict)
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
@@ -145,6 +146,16 @@ class PackRegistry:
         if not candidates:
             raise KeyError(f"pack not found: {verifier_id}")
         return sorted(candidates, key=lambda p: p.spec.version)[-1]
+
+    def specs(self, *, tag: str | None = None) -> tuple[VerifierSpec, ...]:
+        """Return a deterministic catalog view, optionally filtered by tag."""
+        specs = [pack.spec for pack in self._packs.values()]
+        if tag:
+            specs = [spec for spec in specs if tag in spec.tags]
+        return tuple(sorted(specs, key=lambda spec: (spec.verifier_id, spec.version)))
+
+    def describe(self, verifier_id: str, version: str | None = None) -> VerifierSpec:
+        return self.resolve(verifier_id, version).spec
 
 
 def snapshot_evidence(items: Iterable[Evidence | Mapping[str, Any]]) -> tuple[Evidence, ...]:

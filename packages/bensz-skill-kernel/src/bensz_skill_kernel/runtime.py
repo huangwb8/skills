@@ -6,11 +6,9 @@ newline-delimited JSON and are the source of truth; ``state.json`` is disposable
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
-import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -306,10 +304,26 @@ class EventLog:
     def projection(self) -> dict[str, Any]:
         return reduce_events(self.read())
 
-    def transition(self, to: str, **payload: Any) -> EventEnvelope:
+    def transition(
+        self,
+        to: str,
+        *,
+        scope: str = "task",
+        actor: str = "runtime",
+        attempt_id: str = "default",
+        idempotency_key: str | None = None,
+        **payload: Any,
+    ) -> EventEnvelope:
         """Append a state transition using the canonical event type."""
         payload["to"] = to
-        return self.append("state.transition", payload=payload)
+        return self.append(
+            "state.transition",
+            payload=payload,
+            scope=scope,
+            actor=actor,
+            attempt_id=attempt_id,
+            idempotency_key=idempotency_key,
+        )
 
     def record_artifact(self, artifact_id: str, *, required: bool = False, **metadata: Any) -> EventEnvelope:
         return self.append("artifact.registered", payload={"artifact_id": artifact_id, "required": required, **metadata})
@@ -317,13 +331,38 @@ class EventLog:
     def record_validation(self, verdict: str, *, evidence_refs: Iterable[str] = (), **metadata: Any) -> EventEnvelope:
         return self.append("validation.completed", payload={"verdict": verdict, "evidence_refs": list(evidence_refs), **metadata}, evidence_refs=evidence_refs)
 
-    def record_verification(self, result: Mapping[str, Any], gate: Mapping[str, Any] | None = None) -> tuple[EventEnvelope, EventEnvelope | None]:
+    def record_verification(
+        self,
+        result: Mapping[str, Any],
+        gate: Mapping[str, Any] | None = None,
+        *,
+        scope: str = "task",
+        actor: str = "runtime",
+        attempt_id: str = "default",
+        idempotency_key: str | None = None,
+    ) -> tuple[EventEnvelope, EventEnvelope | None]:
         """Append a replayable verifier result and optional gate decision."""
         refs = tuple(result.get("evidence_refs", ()))
-        verification = self.append("verification.result", payload=dict(result), evidence_refs=refs)
+        verification = self.append(
+            "verification.result",
+            payload=dict(result),
+            evidence_refs=refs,
+            scope=scope,
+            actor=actor,
+            attempt_id=attempt_id,
+            idempotency_key=idempotency_key,
+        )
         gate_event = None
         if gate is not None:
-            gate_event = self.append("verification.gate", payload=dict(gate), evidence_refs=refs)
+            gate_event = self.append(
+                "verification.gate",
+                payload=dict(gate),
+                evidence_refs=refs,
+                scope=scope,
+                actor=actor,
+                attempt_id=attempt_id,
+                idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None,
+            )
         return verification, gate_event
 
     def record_delivery(self, report: str, **metadata: Any) -> EventEnvelope:
@@ -339,35 +378,10 @@ class EventLog:
         return projection
 
 
-def _cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="bsk", description="Bensz Skill lifecycle kernel")
-    parser.add_argument("--status", metavar="EVENTS", help="show the current projection")
-    parser.add_argument("--rebuild", metavar="EVENTS", help="rebuild state.json from events.ndjson")
-    parser.add_argument("--append-event", metavar="EVENTS", help="append one event")
-    parser.add_argument("--type", dest="event_type", help="event type for --append-event")
-    parser.add_argument("--payload", default="{}", help="event payload as JSON")
-    parser.add_argument("--summary", default="")
-    args = parser.parse_args(argv)
-    try:
-        if args.status:
-            print(json.dumps(EventLog(args.status).projection(), ensure_ascii=False, sort_keys=True, indent=2))
-        elif args.rebuild:
-            print(json.dumps(EventLog(args.rebuild).rebuild(), ensure_ascii=False, sort_keys=True, indent=2))
-        elif args.append_event:
-            if not args.event_type:
-                parser.error("--append-event requires --type")
-            event = EventLog(args.append_event).append(args.event_type, payload=json.loads(args.payload), summary=args.summary)
-            print(json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True))
-        else:
-            parser.print_help()
-        return 0
-    except (KernelError, ValueError, OSError) as exc:
-        print(f"bsk: {exc}", file=sys.stderr)
-        return 2
-
-
 def main() -> int:
-    return _cli()
+    from .cli import main as cli_main
+
+    return cli_main()
 
 
 if __name__ == "__main__":  # pragma: no cover
