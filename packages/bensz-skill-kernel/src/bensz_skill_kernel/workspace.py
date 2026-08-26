@@ -12,6 +12,7 @@ from typing import Any
 
 WORKSPACE_KINDS = frozenset({"input", "output", "log"})
 WORKSPACE_PROTOCOL_VERSION = "bensz-api-task-v1"
+META_STATE_SNAPSHOT_VERSION = "bensz-meta-state-v1"
 
 
 class WorkspaceError(ValueError):
@@ -48,6 +49,10 @@ class WorkspacePaths:
     @property
     def state(self) -> Path:
         return self.task_root / "log" / "state.json"
+
+    @property
+    def meta_state(self) -> Path:
+        return self.skill_root / "log" / "meta-state.json"
 
 
 class TaskWorkspace:
@@ -122,6 +127,8 @@ class TaskWorkspace:
                 if existing.get("protocol") != WORKSPACE_PROTOCOL_VERSION:
                     raise WorkspaceError("workspace protocol version mismatch")
         (candidate / "log").mkdir(exist_ok=True)
+        for kind in WORKSPACE_KINDS:
+            (candidate / "shared" / kind).mkdir(parents=True, exist_ok=True)
         return workspace
 
     def paths(self, skill: str, *, create: bool = True) -> WorkspacePaths:
@@ -146,8 +153,31 @@ class TaskWorkspace:
 
     def status(self) -> dict[str, Any]:
         manifest = self.manifest()
-        skills = sorted(path.name for path in self.task_root.iterdir() if path.is_dir() and path.name != "log" and not path.name.startswith("."))
+        skills = sorted(path.name for path in self.task_root.iterdir() if path.is_dir() and path.name not in {"log", "shared"} and not path.name.startswith("."))
         return {"task_root": str(self.task_root), "manifest": manifest, "skills": skills, "events": str(self.events), "state": str(self.state)}
+
+    def read_meta_state(self, skill: str) -> dict[str, Any]:
+        paths = self.paths(skill)
+        if not paths.meta_state.is_file():
+            return {
+                "protocol": META_STATE_SNAPSHOT_VERSION,
+                "skill": paths.skill,
+                "current_state": "workspace.ready",
+                "state_version": "1.0.0",
+                "workspace_state": self.manifest().get("state"),
+            }
+        try:
+            return json.loads(paths.meta_state.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise WorkspaceError(f"invalid meta-state snapshot: {paths.meta_state}") from exc
+
+    def write_meta_state(self, skill: str, snapshot: dict[str, Any]) -> Path:
+        paths = self.paths(skill)
+        target = paths.meta_state
+        temporary = target.with_name(target.name + ".tmp")
+        temporary.write_text(json.dumps(snapshot, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(target)
+        return target
 
 
 def workspace_path(

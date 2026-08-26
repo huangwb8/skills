@@ -23,12 +23,13 @@ from .verifiers import (
     VerificationRequest,
     VerificationResult,
     apply_gate,
+    builtin_verifier_root,
     normalize_result,
     snapshot_evidence,
 )
 from .builtins import CITATION_TRUTH_FIT_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
-from .states import FilesystemStateRegistry, StateDefinition, StateDefinitionError, StateTransitionError, StateMachine, build_builtin_state_registry
-from .workspace import TaskWorkspace, WorkspaceError, WorkspacePaths, WORKSPACE_KINDS, WORKSPACE_PROTOCOL_VERSION, workspace_path
+from .states import CombinedStateRegistry, FilesystemStateRegistry, META_STATE_PROTOCOL_VERSION, SKILL_STATE_DECLARATION_VERSION, SkillStateDeclaration, StateDefinition, StateDefinitionError, StateExecutionError, StateExecutionResult, StateTransitionError, StateMachine, build_builtin_state_registry, build_state_registry, execute_state
+from .workspace import META_STATE_SNAPSHOT_VERSION, TaskWorkspace, WorkspaceError, WorkspacePaths, WORKSPACE_KINDS, WORKSPACE_PROTOCOL_VERSION, workspace_path
 
 __all__ = [
     "CompletionError",
@@ -51,6 +52,7 @@ __all__ = [
     "VerificationRequest",
     "VerificationResult",
     "apply_gate",
+    "builtin_verifier_root",
     "normalize_result",
     "snapshot_evidence",
     "CITATION_TRUTH_FIT_SPEC",
@@ -58,17 +60,26 @@ __all__ = [
     "build_builtin_registry",
     "collect_markdown",
     "FilesystemStateRegistry",
+    "CombinedStateRegistry",
+    "META_STATE_PROTOCOL_VERSION",
+    "SKILL_STATE_DECLARATION_VERSION",
+    "SkillStateDeclaration",
     "StateDefinition",
     "StateDefinitionError",
+    "StateExecutionError",
+    "StateExecutionResult",
     "StateTransitionError",
     "StateMachine",
     "build_builtin_state_registry",
+    "build_state_registry",
+    "execute_state",
     "TaskWorkspace",
     "WorkspaceError",
     "WorkspacePaths",
     "WORKSPACE_KINDS",
     "WORKSPACE_PROTOCOL_VERSION",
+    "META_STATE_SNAPSHOT_VERSION",
     "workspace_path",
 ]
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

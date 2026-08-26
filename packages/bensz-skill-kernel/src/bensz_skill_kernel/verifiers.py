@@ -23,6 +23,11 @@ EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", 
 MODES = frozenset({"rule", "prompt", "hybrid", "human"})
 
 
+def builtin_verifier_root() -> Path:
+    """Return the verifier assets bundled with this installed Python package."""
+    return Path(__file__).with_name("verifiers")
+
+
 def _version_key(version: str) -> tuple[tuple[int, Any], ...]:
     """Sort semantic-ish versions numerically while tolerating labels."""
     return tuple((0, int(part)) if part.isdigit() else (1, part) for part in re.split(r"[.-]", version))

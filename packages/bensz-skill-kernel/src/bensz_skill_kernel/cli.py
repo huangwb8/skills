@@ -11,14 +11,15 @@ import argparse
 import hashlib
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 from .builtins import build_builtin_registry, collect_markdown
 from .runtime import EventLog, KernelError
-from .states import FilesystemStateRegistry, build_builtin_state_registry
+from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, execute_state
 from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
-from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate
+from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root
 
 
 def _json_value(raw: str, *, label: str) -> Any:
@@ -162,11 +163,27 @@ def build_parser() -> argparse.ArgumentParser:
     state = commands.add_parser("state", help="inspect declarative meta-state definitions")
     state_commands = state.add_subparsers(dest="state_command", metavar="ACTION")
     state_list = state_commands.add_parser("list", help="list available states")
-    state_list.add_argument("--root", help="additional state definition root")
+    _add_state_source(state_list)
     state_list.add_argument("--kind")
     state_describe = state_commands.add_parser("describe", help="show one state definition")
     state_describe.add_argument("state_id")
-    state_describe.add_argument("--root", help="additional state definition root")
+    _add_state_source(state_describe)
+    state_check = state_commands.add_parser("check", help="check whether a meta-state transition is allowed")
+    state_check.add_argument("current_state")
+    state_check.add_argument("target_state")
+    _add_state_source(state_check)
+    state_execute = state_commands.add_parser("execute", help="run one state helper without changing a workspace snapshot")
+    state_execute.add_argument("state_id")
+    state_execute.add_argument("--context-json", default="{}", help="JSON object passed to the state helper")
+    state_execute.add_argument("--timeout", type=int, default=10)
+    _add_state_source(state_execute)
+    state_transition = state_commands.add_parser("transition", help="run a state helper and persist an allowed Skill transition")
+    state_transition.add_argument("task_root")
+    state_transition.add_argument("skill")
+    state_transition.add_argument("target_state")
+    state_transition.add_argument("--context-json", default="{}", help="JSON object passed to the state helper")
+    state_transition.add_argument("--timeout", type=int, default=10)
+    _add_state_source(state_transition)
 
     workspace = commands.add_parser("workspace", help="initialize and resolve BenszAPI task workspaces")
     workspace_commands = workspace.add_subparsers(dest="workspace_command", metavar="ACTION")
@@ -212,20 +229,104 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
 
 
 def _verifier_registry() -> FilesystemVerifierRegistry:
-    root = Path(__file__).resolve().parents[2] / "verifiers"
-    return FilesystemVerifierRegistry(root)
+    return FilesystemVerifierRegistry(builtin_verifier_root())
 
 
-def _state_registry(root: str | None = None):
-    return build_builtin_state_registry() if root is None else FilesystemStateRegistry(root)
+def _add_state_source(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--root", action="append", default=[], help="additional directory containing STATE.md packages; repeatable")
+    parser.add_argument("--skill-root", help="Skill root containing state-machine.json; selects only its declared state packages")
+
+
+def _state_registry(args: argparse.Namespace):
+    roots = tuple(getattr(args, "root", ()) or ())
+    skill_root = getattr(args, "skill_root", None)
+    if roots and skill_root:
+        raise ValueError("--root and --skill-root cannot be combined")
+    if skill_root:
+        declaration = SkillStateDeclaration.from_skill_root(skill_root)
+        return declaration.registry(), declaration
+    return build_state_registry(*roots), None
+
+
+def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None) -> dict[str, Any]:
+    output: dict[str, Any] = {
+        "protocol": META_STATE_PROTOCOL_VERSION,
+        "operation": operation,
+        "status": status,
+        "current_state": current_state,
+        "target_state": target_state,
+    }
+    if definition is not None:
+        output["state"] = definition.to_dict()
+    if execution is not None:
+        output["execution"] = execution.to_dict()
+    if snapshot is not None:
+        output["snapshot"] = snapshot
+    if reason:
+        output["reason"] = reason
+    return output
+
+
+def _require_declared_state(registry: Any, declaration: SkillStateDeclaration | None, state_id: str) -> None:
+    if declaration and state_id not in {*declaration.states, declaration.initial_state} and registry.resolve(state_id).kind != "system":
+        raise ValueError(f"state {state_id!r} is not declared by {declaration.source}")
 
 
 def _run_state_command(args: argparse.Namespace) -> int:
-    registry = _state_registry(getattr(args, "root", None))
+    registry, declaration = _state_registry(args)
     if args.state_command == "list":
-        _print({"states": [item.to_dict() for item in registry.definitions(kind=args.kind)]}, pretty=True)
+        states = registry.definitions(kind=args.kind)
+        if declaration:
+            allowed = set(declaration.states) | {declaration.initial_state}
+            states = tuple(item for item in states if item.id in allowed or item.kind == "system")
+        _print({"states": [item.to_dict() for item in states], "declaration": declaration.to_dict() if declaration else None}, pretty=True)
     elif args.state_command == "describe":
+        _require_declared_state(registry, declaration, args.state_id)
         _print(registry.resolve(args.state_id).to_dict(), pretty=True)
+    elif args.state_command == "check":
+        _require_declared_state(registry, declaration, args.current_state)
+        _require_declared_state(registry, declaration, args.target_state)
+        machine = StateMachine(registry, args.current_state)
+        target = registry.resolve(args.target_state)
+        if machine.can_transition(args.target_state):
+            _print(_state_response("check", "allowed", current_state=args.current_state, target_state=args.target_state, definition=target), pretty=True)
+        else:
+            _print(_state_response("check", "rejected", current_state=args.current_state, target_state=args.target_state, definition=target, reason="The target is not an allowed transition from the current state."), pretty=True)
+    elif args.state_command == "execute":
+        _require_declared_state(registry, declaration, args.state_id)
+        definition = registry.resolve(args.state_id)
+        context = _json_object(args.context_json, label="--context-json")
+        execution = execute_state(definition, {"operation": "execute", "context": context}, timeout=args.timeout)
+        _print(_state_response("execute", "completed", target_state=args.state_id, definition=definition, execution=execution), pretty=True)
+    elif args.state_command == "transition":
+        _require_declared_state(registry, declaration, args.target_state)
+        workspace = TaskWorkspace.open_existing(args.task_root)
+        previous = workspace.read_meta_state(args.skill)
+        current = str(previous.get("current_state", "workspace.ready"))
+        _require_declared_state(registry, declaration, current)
+        machine = StateMachine(registry, current)
+        target = registry.resolve(args.target_state)
+        if not machine.can_transition(args.target_state):
+            _print(_state_response("transition", "rejected", current_state=current, target_state=args.target_state, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
+            return 0
+        context = _json_object(args.context_json, label="--context-json")
+        execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": context}, timeout=args.timeout)
+        if execution.execution_status != "not_applicable" and execution.verdict != "pass":
+            _print(_state_response("transition", "rejected", current_state=current, target_state=args.target_state, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
+            return 0
+        machine.transition(args.target_state)
+        snapshot = {
+            "protocol": META_STATE_PROTOCOL_VERSION,
+            "skill": workspace.paths(args.skill).skill,
+            "current_state": target.id,
+            "state_version": target.version,
+            "workspace_state": workspace.manifest().get("state"),
+            "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "last_operation": _state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution),
+        }
+        path = workspace.write_meta_state(args.skill, snapshot)
+        snapshot["path"] = str(path)
+        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot), pretty=True)
     else:
         build_parser().parse_args(["state", "--help"])
     return 0

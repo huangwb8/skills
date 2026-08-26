@@ -10,6 +10,7 @@ from bensz_skill_kernel import (
     VerifierSpec,
     VerificationRequest,
     apply_gate,
+    builtin_verifier_root,
     FilesystemVerifierRegistry,
     VerifierDefinition,
 )
@@ -104,6 +105,13 @@ def test_filesystem_registry_discovers_markdown_contract(tmp_path):
     assert definition.version == "1.2.0"
     assert definition.instructions.startswith("# Instructions")
     assert "demo" in definition.tags
+
+
+def test_builtin_verifiers_are_package_assets():
+    root = builtin_verifier_root()
+    assert root.parent.name == "bensz_skill_kernel"
+    assert (root / "markdown-link-integrity" / "VERIFIER.md").is_file()
+    assert FilesystemVerifierRegistry(root).resolve("citation.truth-and-fit").version == "1.0.0"
 
 
 def test_instruction_only_verifier_returns_standard_unchecked_result(tmp_path):

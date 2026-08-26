@@ -3,7 +3,7 @@ id: workspace.ready
 version: 1.0.0
 kind: system
 description: The logical task root is locked and Skill-scoped directories are available.
-transitions: workspace.closed
+transitions: [workspace.closed, "*"]
 ---
 
 # Workspace ready

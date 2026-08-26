@@ -6,6 +6,7 @@ import pytest
 
 from bensz_skill_kernel import (
     FilesystemStateRegistry,
+    SkillStateDeclaration,
     StateDefinitionError,
     StateMachine,
     StateTransitionError,
@@ -56,6 +57,8 @@ def test_workspace_is_locked_and_skill_paths_are_scoped(tmp_path: Path):
     assert workspace.manifest()["state"] == "workspace.ready"
     assert paths.path("input").is_dir()
     assert paths.events == workspace.task_root / "log" / "events.ndjson"
+    assert (workspace.task_root / "shared" / "input").is_dir()
+    assert workspace.read_meta_state("validate-md-ref")["current_state"] == "workspace.ready"
     assert workspace_path(tmp_path, skill="validate-md-ref", kind="log", task_root=workspace.task_root) == paths.path("log")
 
     reopened = TaskWorkspace.open(tmp_path, task_root=workspace.task_root)
@@ -85,3 +88,85 @@ def test_malformed_state_definition_is_rejected(tmp_path: Path):
     (tmp_path / "STATE.md").write_text("---\nid: bad id\n---\n", encoding="utf-8")
     with pytest.raises(StateDefinitionError):
         FilesystemStateRegistry(tmp_path)
+
+
+def test_skill_declaration_combines_system_and_skill_state_packages(tmp_path: Path):
+    skill = tmp_path / "demo-skill"
+    state = skill / "states" / "collect" / "STATE.md"
+    state.parent.mkdir(parents=True)
+    (skill / "state-machine.json").write_text(
+        '{"protocol":"bensz-skill-state-v1","initial_state":"workspace.ready",'
+        '"state_roots":["states"],"states":["demo.collect"]}\n',
+        encoding="utf-8",
+    )
+    state.write_text(
+        "---\n"
+        "id: demo.collect\n"
+        "version: 1.0.0\n"
+        "kind: skill\n"
+        "entry_conditions: workspace.ready\n"
+        "transitions: workspace.closed\n"
+        "---\n\n# Collect\n",
+        encoding="utf-8",
+    )
+    declaration = SkillStateDeclaration.from_skill_root(skill)
+    machine = StateMachine(declaration.registry(), declaration.initial_state)
+    assert machine.can_transition("demo.collect")
+    assert declaration.registry().resolve("workspace.ready").kind == "system"
+
+
+def test_state_transition_cli_executes_helper_and_persists_snapshot(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="demo")
+    skill = tmp_path / "demo-skill"
+    state = skill / "states" / "collect" / "STATE.md"
+    script = state.parent / "check.py"
+    state.parent.mkdir(parents=True)
+    (skill / "state-machine.json").write_text(
+        '{"protocol":"bensz-skill-state-v1","initial_state":"workspace.ready",'
+        '"state_roots":["states"],"states":["demo.collect"]}\n',
+        encoding="utf-8",
+    )
+    state.write_text(
+        "---\n"
+        "id: demo.collect\n"
+        "version: 1.0.0\n"
+        "kind: skill\n"
+        "entry_conditions: workspace.ready\n"
+        "entrypoint: check.py\n"
+        "---\n\n# Collect\n",
+        encoding="utf-8",
+    )
+    script.write_text(
+        "import json, sys\n"
+        "payload = json.load(sys.stdin)\n"
+        "print(json.dumps({'verdict': 'pass', 'facts': {'operation': payload['request']['operation']}, 'evidence_refs': ['check.py']}))\n",
+        encoding="utf-8",
+    )
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "demo.collect",
+        "--skill-root", str(skill), "--context-json", "{\"document\": \"README.md\"}",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "transitioned"
+    assert payload["execution"]["verdict"] == "pass"
+    assert workspace.read_meta_state("demo-skill")["current_state"] == "demo.collect"
+
+
+def test_state_transition_cli_keeps_snapshot_when_helper_fails(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="demo")
+    skill = tmp_path / "demo-skill"
+    state = skill / "states" / "collect" / "STATE.md"
+    script = state.parent / "check.py"
+    state.parent.mkdir(parents=True)
+    (skill / "state-machine.json").write_text(
+        '{"protocol":"bensz-skill-state-v1","states":["demo.collect"]}\n', encoding="utf-8"
+    )
+    state.write_text(
+        "---\nid: demo.collect\nentry_conditions: workspace.ready\nentrypoint: check.py\n---\n\n# Collect\n",
+        encoding="utf-8",
+    )
+    script.write_text("import json\nprint(json.dumps({'verdict': 'fail'}))\n", encoding="utf-8")
+    assert main(["state", "transition", str(workspace.task_root), "demo-skill", "demo.collect", "--skill-root", str(skill)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "rejected"
+    assert workspace.read_meta_state("demo-skill")["current_state"] == "workspace.ready"
