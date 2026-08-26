@@ -14,10 +14,13 @@ import socket
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.error import HTTPError, URLError
-from urllib.parse import unquote, urlparse
-from urllib.request import Request, urlopen
+from urllib.parse import unquote, urljoin, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .verifiers import Evidence, PackRegistry, VerifierPack, VerifierSpec
+
+
+_MAX_REDIRECTS = 5
 
 
 def _anchor_ids(content: str) -> set[str]:
@@ -72,49 +75,73 @@ def _blocked(url: str, blacklist: tuple[str, ...]) -> bool:
         return False
 
 
-def _probe(url: str, timeout: int, blacklist: tuple[str, ...], whitelist: tuple[str, ...]) -> dict[str, Any]:
+def _skip_reason(url: str, blacklist: tuple[str, ...], whitelist: tuple[str, ...]) -> str | None:
     parsed = urlparse(url)
-    result: dict[str, Any] = {'url': url, 'valid': False, 'status_code': None, 'redirected': False, 'final_url': url, 'error': None}
     if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
-        result['error'] = 'URL 格式非法或协议不受支持'
-        return result
+        return 'URL 格式非法或协议不受支持'
     hostname = (parsed.hostname or '').lower().rstrip('.')
     if whitelist and not any(hostname == item.lower().lstrip('*.') or hostname.endswith('.' + item.lower().lstrip('*.')) for item in whitelist):
-        result['skipped'] = True
-        result['reason'] = '域名不在白名单中'
-        return result
+        return '域名不在白名单中'
     if _blocked(url, blacklist):
-        result['skipped'] = True
-        result['reason'] = '本地、回环或内部域名'
-        return result
-    try:
-        request = Request(url, method='HEAD', headers={'User-Agent': 'bensz-skill-kernel/0.3'})
-        with urlopen(request, timeout=timeout) as response:
-            status = int(response.status)
-            final_url = response.geturl()
-        if status in {403, 405}:
-            request = Request(url, method='GET', headers={'Range': 'bytes=0-0', 'User-Agent': 'bensz-skill-kernel/0.3'})
-            with urlopen(request, timeout=timeout) as response:
+        return '本地、回环或内部域名'
+    return None
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+def _request_with_checked_redirects(url: str, method: str, timeout: int, blacklist: tuple[str, ...], whitelist: tuple[str, ...], opener: Any) -> tuple[int | None, str, str | None]:
+    current_url = url
+    for _ in range(_MAX_REDIRECTS + 1):
+        headers = {'User-Agent': 'bensz-skill-kernel/0.3'}
+        if method == 'GET':
+            headers['Range'] = 'bytes=0-0'
+        request = Request(current_url, method=method, headers=headers)
+        try:
+            with opener.open(request, timeout=timeout) as response:
                 status = int(response.status)
-                final_url = response.geturl()
+        except HTTPError as exc:
+            status = exc.code
+            location = exc.headers.get('Location') if exc.headers else None
+        else:
+            location = None
+
+        if 300 <= status < 400 and location:
+            next_url = urljoin(current_url, location)
+            if _skip_reason(next_url, blacklist, whitelist):
+                return None, next_url, '重定向目标不在允许范围内'
+            current_url = next_url
+            continue
+        return status, current_url, None
+    return None, current_url, f'重定向次数超过限制（>{_MAX_REDIRECTS}）'
+
+
+def _probe(url: str, timeout: int, blacklist: tuple[str, ...], whitelist: tuple[str, ...], *, opener: Any | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {'url': url, 'valid': False, 'status_code': None, 'redirected': False, 'final_url': url, 'error': None}
+    initial_skip_reason = _skip_reason(url, blacklist, whitelist)
+    if initial_skip_reason:
+        if initial_skip_reason == 'URL 格式非法或协议不受支持':
+            result['error'] = initial_skip_reason
+        else:
+            result['skipped'] = True
+            result['reason'] = initial_skip_reason
+        return result
+    opener = opener or build_opener(_NoRedirectHandler())
+    try:
+        status, final_url, redirect_error = _request_with_checked_redirects(url, 'HEAD', timeout, blacklist, whitelist, opener)
+        if redirect_error:
+            result.update(final_url=final_url, redirected=final_url != url, skipped=True, reason=redirect_error)
+            return result
+        if status in {403, 405}:
+            status, final_url, redirect_error = _request_with_checked_redirects(url, 'GET', timeout, blacklist, whitelist, opener)
+            if redirect_error:
+                result.update(final_url=final_url, redirected=final_url != url, skipped=True, reason=redirect_error)
+                return result
         result.update(status_code=status, final_url=final_url, redirected=final_url != url, valid=200 <= status < 400)
         if not result['valid']:
             result['error'] = f'HTTP {status}'
-    except HTTPError as exc:
-        if exc.code in {403, 405}:
-            try:
-                request = Request(url, method='GET', headers={'Range': 'bytes=0-0', 'User-Agent': 'bensz-skill-kernel/0.3'})
-                with urlopen(request, timeout=timeout) as response:
-                    status = int(response.status)
-                    final_url = response.geturl()
-                result.update(status_code=status, final_url=final_url, redirected=final_url != url, valid=200 <= status < 400)
-                if not result['valid']:
-                    result['error'] = f'HTTP {status}'
-            except (HTTPError, URLError, TimeoutError, OSError) as fallback_exc:
-                code = fallback_exc.code if isinstance(fallback_exc, HTTPError) else exc.code
-                result.update(status_code=code, error=f'HTTP {code}' if isinstance(fallback_exc, HTTPError) else str(fallback_exc))
-        else:
-            result.update(status_code=exc.code, error=f'HTTP {exc.code}')
     except (URLError, TimeoutError, OSError) as exc:
         result['error'] = str(exc)
     return result
