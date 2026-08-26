@@ -1,24 +1,26 @@
 ---
 name: validate-md-ref
-description: 当用户要求验证 Markdown 文档中的 URL、站内锚点或引用链接是否可访问、生成链接核验报告，或在文档交付前检查 Markdown 引用时使用。它执行只读的 URL/anchor 验证，并以 bensz-skill-kernel Verifier Pack 输出可追溯结论；不用于核实网页正文是否支持某个论断。
+description: 当用户要求验证 Markdown 文档中的 URL、站内锚点或引用链接是否可访问、生成链接核验报告，或在文档交付前检查 Markdown 引用时使用。
 metadata:
   author: Bensz Conan
   short-description: 基于证据与门禁协议的 Markdown 引用可达性核验
   keywords: [Markdown, URL, 锚点, 引用验证, verifier]
 ---
 
-# Markdown 引用可达性 Verifier
+## 适用范围
 
 版本由 `config.yaml:skill_info.version` 管理。此 Skill 是只读检查器：它提取 Markdown 引用、验证站内 anchor 与可声明的 HTTP(S) 可达性，并报告验证边界；绝不改写文档、删除链接或替用户判断网页内容的学术/事实支持关系。
 
-## Kernel Verifier 声明
+## 调用方式
 
-本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排：
+本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排。调用方式如下：
 
 - 命令：`bsk verifier run markdown.references.v1 --input MARKDOWN`；需要审计时追加 `--events EVENTS --run-id RUN_ID`。
 - 所需 verifier：`markdown.references.v1`。
 - 标签：`vertical`、`markdown`、`references`、`network-read`。
 - 可发现性：`bsk verifier list --tag markdown`；契约详情：`bsk verifier describe markdown.references.v1`。
+
+## 验证器边界
 
 `markdown.references.v1` 是 kernel 内置的 hybrid verifier：规则组件检查引用提取、站内 anchor 和 HTTP(S) 可达性；语义组件明确返回 `unchecked`，不把链接可达性解释为正文论断成立。Skill 不手写 `verification.result`、Gate 或事件格式。
 

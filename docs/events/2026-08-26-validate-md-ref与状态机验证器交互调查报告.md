@@ -20,11 +20,9 @@
 
 - Skill 契约与执行说明：`skills/beta/validate-md-ref/SKILL.md:24-58`
 - Skill CLI 接入点：`skills/beta/validate-md-ref/scripts/validate_links.py:21-28`、`:525-563`
-- 领域 Pack：`skills/beta/validate-md-ref/scripts/verifier_pack.py:15-45`
-- Pack 声明：`skills/beta/validate-md-ref/verifier-pack.yaml:1-25`
+- 内置 Pack：`packages/bensz-skill-kernel/src/bensz_skill_kernel/builtins.py:147-170`
 - 通用 Verifier 内核：`packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py:30-214`
 - 状态机事件投影与写入 API：`packages/bensz-skill-kernel/src/bensz_skill_kernel/runtime.py:146-204`、`:252-327`
-- 校准样例：`skills/beta/validate-md-ref/calibration.json:1-22`
 - 已执行测试：`packages/bensz-skill-kernel/tests/runtime` 与 `skills/beta/validate-md-ref/qa/test_anchor_and_get_fallback.py`，共 11 项通过。
 
 ## 改造前后对比
@@ -75,7 +73,7 @@ sequenceDiagram
 
 ### 适配器如何构造 Verifier 请求
 
-`validate_links.py` 动态把仓库内核源码加入导入路径，加载 `Evidence`、`VerificationRequest`、`VerifierRunner` 和 `build_registry()`。随后构造：
+`validate_links.py` 动态把仓库内核源码加入导入路径，加载 `Evidence`、`VerificationRequest`、`VerifierRunner` 和 `build_builtin_registry()`。随后构造：
 
 - `subject`：Markdown 类型、文件路径和内容 SHA-256；
 - `requirements`：`references.reachable`；
@@ -87,7 +85,7 @@ sequenceDiagram
 
 ### Pack 如何分工
 
-`verifier-pack.yaml` 与 Python 适配器共同声明 `markdown.references.v1@1.0.0`，模式为 `hybrid`，能力包括引用提取、URL 可达性和本地 anchor。
+kernel 内置 registry 声明并注册 `markdown.references.v1@1.0.0`，模式为 `hybrid`，能力包括引用提取、URL 可达性和本地 anchor；Skill 侧不再复制 Pack 声明或注册实现。
 
 - `url-reachability` 规则读取 `reference.results`。只要存在未跳过且 `valid=false` 的引用，就产生 `fail` finding，并引用 `reference:<index>`；没有此类引用则产生 `pass`。
 - `content-entailment` 目前是确定性的占位组件，始终输出 `unchecked`，原因是链接可达性不能证明正文主张得到来源支持。
@@ -161,7 +159,7 @@ sequenceDiagram
 2. 为一次运行传入稳定的 `run_id`、`scope` 和 `attempt_id`，不要只使用文件名生成 `request_id`。
 3. 明确 Gate 到生命周期状态的映射：`reject` 至少阻止交付，`manual_review` 进入 `waiting + wait_reason=approval` 或专门的检查等待路径；映射动作必须追加状态事件。
 4. 将验证结果事件与 Markdown artifact、交付报告关联，再由完成守卫决定是否允许 `delivering → completed`。
-5. 为 YAML 与 Python Pack spec 增加一致性检查，并继续维护 `calibration.json` 中的通过、失败和缺证据样例。
+5. 对需要经验校准的模型型 Verifier 单独维护脱敏回归样例；`validate-md-ref` 的确定性 URL/anchor 规则直接复用 kernel 测试，不在 Skill 目录托管校准文件。
 
 ## 最终判断
 

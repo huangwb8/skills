@@ -86,7 +86,7 @@
   - `domain_blacklist`
 - `output` 相关字段目前更偏预留配置，不是当前 CLI 的核心生效入口。
 
-Pack 契约见 `verifier-pack.yaml`，脱敏边界样例见 `calibration.json`。
+Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 
 ## 备选用法（脚本/硬编码）
 

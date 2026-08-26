@@ -26,9 +26,8 @@ def _load_verifier_runtime():
     kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
     if str(kernel_src) not in sys.path:
         sys.path.insert(0, str(kernel_src))
-    from bensz_skill_kernel import Evidence, VerificationRequest, VerifierRunner
-    from verifier_pack import build_registry
-    return Evidence, VerificationRequest, VerifierRunner, build_registry
+    from bensz_skill_kernel import Evidence, VerificationRequest, VerifierRunner, build_builtin_registry
+    return Evidence, VerificationRequest, VerifierRunner, build_builtin_registry
 
 
 def get_skill_root() -> Path:
@@ -620,7 +619,7 @@ def main(argv=None):
     # The legacy fields above remain stable for callers.  The verifier envelope
     # adds versioned evidence, component results and a conservative gate.
     try:
-        Evidence, VerificationRequest, VerifierRunner, build_registry = _load_verifier_runtime()
+        Evidence, VerificationRequest, VerifierRunner, build_builtin_registry = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         request = VerificationRequest(
@@ -632,7 +631,7 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        verifier_results, gate = VerifierRunner(build_registry()).run(request, 'markdown.references.v1')
+        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'markdown.references.v1')
         output['verification'] = {
             'request_id': request.request_id,
             'results': [item.to_dict() for item in verifier_results],

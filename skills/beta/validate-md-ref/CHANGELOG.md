@@ -10,8 +10,9 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **SKILL.md 结构收敛**：description 仅保留触发条件；正文移除重复一级标题，并将范围、调用方式和验证器边界分为独立小节。
 - **Kernel Verifier 接入**：验证脚本改为薄封装，调用内置 `bsk verifier run markdown.references.v1`；Skill 只声明命令、所需 verifier 和标签，`--events`、`--run-id`、`--attempt-id` 用于可选审计记录。
-- **Verifier Pack 声明补齐**：`verifier-pack.yaml` 增加公开命令、所需 verifier ID 与标签，便于 AI 或工具发现调用契约。
+- **Verifier 声明收敛**：移除 Skill 目录中未被 Runtime 消费的 Pack YAML、校准样例和重复 Python 注册器；脚本回退路径直接使用 kernel 内置 registry，避免多份来源漂移。
 
 ### Added（新增）
 - 接入 `bensz-skill-kernel` Verifier Pack：以版本化 `hybrid` 契约输出证据快照、规则结果、语义检查缺口与保守 Gate 决策；保留原有 JSON 字段以兼容既有调用方。

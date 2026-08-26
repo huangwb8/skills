@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **kernel 使用说明**：新增 `packages/bensz-skill-kernel/README.md`，列出内置 verifier、标签和 Skill 调用示例。
 
 ### Changed（变更）
+- **validate-md-ref Skill 文档层级收敛**：description 仅保留触发条件，正文去除重复 `#` 标题，并拆分适用范围、调用方式和验证器边界。
+- **validate-md-ref 声明边界收敛**：删除未被 Runtime 消费的 `verifier-pack.yaml`、`calibration.json` 及重复 Skill 侧 Pack 注册器；回退路径统一使用 kernel 内置 verifier registry，落实 Skill 只声明调用方式与验证边界。
 - **Runtime 接入调查报告状态同步**：在原始调查结论后补充 `validate-md-ref` 通过 `bsk verifier run` 写入事件账本的落地状态，区分“验证事实记录”与“领域状态转移策略”。
 
 ### Added（新增）
