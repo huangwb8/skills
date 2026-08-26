@@ -1,6 +1,6 @@
 # validate-md-ref
 
-当前版本：`0.4.0`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。运行时记录通过 `bensz-skill-kernel` 提供的 `bsk` 命令完成。
+当前版本：`0.4.1`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。每一跳重定向均在请求前重新执行协议、白名单与内网地址检查。运行时记录通过 `bensz-skill-kernel` 提供的 `bsk` 命令完成。
 
 这个 skill 用来验证 Markdown 文档中的 URL 引用是否可访问，并输出结构化结果供后续处理。它现在也会给出版本化的 Verifier 结果和 Gate；这能明确区分“链接不可达”与“链接虽然可达、但不能据此证明正文论断”。
 
@@ -78,15 +78,16 @@
 
 - 配置文件：`validate-md-ref/config.yaml`
 - 默认超时：`10` 秒
-- 默认跟随重定向：`true`
+- 重定向由 kernel 以固定上限逐跳处理，并在每一跳发起请求前重新执行安全检查。
 - 支持域名白名单和黑名单。
 - 关键配置节：
   - `validation`
   - `domain_whitelist`
   - `domain_blacklist`
-- `output` 相关字段目前更偏预留配置，不是当前 CLI 的核心生效入口。
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
+
+直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.references.v1`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
 
 ## 备选用法（脚本/硬编码）
 
@@ -114,7 +115,8 @@ python3 validate-md-ref/scripts/validate_links.py \
 bsk verifier list --tag markdown
 bsk verifier describe markdown.references.v1
 bsk verifier run markdown.references.v1 \
-  --input docs/review.md \
+  --input docs/review.md --timeout 10 \
+  --blacklist localhost --blacklist '*.internal' \
   --events "$EVENTS" --run-id "review-20260826-01"
 ```
 

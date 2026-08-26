@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed（修复）
+- **Markdown verifier 重定向安全**：`bensz-skill-kernel` 在每一跳 HTTP 重定向发起前重新校验协议、白名单、显式黑名单和私网地址，阻止公开 URL 经重定向访问内网；新增回归测试。
+
+### Changed（变更）
+- **validate-md-ref 调用契约**：Skill 与 README 明确 kernel runtime 预检、审计事件的写入副作用，以及直接 CLI 调用和 YAML 配置封装各自的域名/超时策略传入方式；Skill 升级至 `0.4.1`，kernel 升级至 `0.3.1`。
+
 ### Added（新增）
 - **Skill Runtime Verifier 命令接口重构**：`bensz-skill-kernel` 新增带标签的内置 verifier 目录及 `bsk verifier list/describe/run` 命令；`validate-md-ref` 改为只声明 `markdown.references.v1`，减少 Skill 自行拼接验证与状态机细节。
 - **kernel 使用说明**：新增 `packages/bensz-skill-kernel/README.md`，列出内置 verifier、标签和 Skill 调用示例。

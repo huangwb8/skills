@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+- **重定向安全边界**：kernel verifier 改为逐跳检查重定向目标的协议、白名单、显式黑名单与私网地址，拒绝目标不会被请求；`SKILL.md` 和 README 同步说明该约束。
+
+### Changed（变更）
+- **公开调用契约**：明确 `bsk` runtime/verifier 的预检、事件账本的写入副作用，以及直接调用时应通过 CLI 参数传入超时和域名策略；需要 YAML 配置时使用脚本封装。
+- **配置收敛**：移除未被公开运行时消费的重定向、User-Agent 与输出配置项，仅保留实际生效的超时、域名白名单和黑名单。
+- **版本**：Skill `0.4.0 → 0.4.1`。
+
 ### Changed（变更）
 - **SKILL.md 结构收敛**：description 仅保留触发条件；正文移除重复一级标题，并将范围、调用方式和验证器边界分为独立小节。
 - **Kernel Verifier 接入**：验证脚本改为薄封装，调用内置 `bsk verifier run markdown.references.v1`；Skill 只声明命令、所需 verifier 和标签，`--events`、`--run-id`、`--attempt-id` 用于可选审计记录。

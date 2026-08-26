@@ -13,9 +13,10 @@ metadata:
 
 ## 调用方式
 
-本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排。调用方式如下：
+本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排。运行前先执行 `bsk verifier describe markdown.references.v1`；若命令或 verifier 不可用，明确报告运行时依赖缺失，不尝试 hidden legacy 路径或自行拼接结果。调用方式如下：
 
 - 命令：`bsk verifier run markdown.references.v1 --input MARKDOWN`；需要审计时追加 `--events EVENTS --run-id RUN_ID`。
+- 域名与超时策略：直接调用时显式传入 `--timeout SECONDS`、重复的 `--blacklist DOMAIN` 和重复的 `--whitelist DOMAIN`；如需复用 `config.yaml`，使用脚本封装 `python3 scripts/validate_links.py MARKDOWN [CONFIG]`。
 - 所需 verifier：`markdown.references.v1`。
 - 标签：`vertical`、`markdown`、`references`、`network-read`。
 - 可发现性：`bsk verifier list --tag markdown`；契约详情：`bsk verifier describe markdown.references.v1`。
@@ -26,7 +27,7 @@ metadata:
 
 ## BenszAPI 任务工作区
 
-新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；正式交付文件按用户指定的位置保存。复用同一逻辑任务既有工作区，不保存密钥、Cookie、私人正文或不必要的完整网页内容。
+新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；正式交付文件按用户指定的位置保存。复用同一逻辑任务既有工作区，不保存密钥、Cookie、私人正文或不必要的完整网页内容。仅在用户要求审计时传入 `--events`，因为它会追加事件账本；源 Markdown 始终只读。
 
 ## 与 bensz-collect-bugs 的协作约定
 
@@ -47,7 +48,7 @@ Pack：`markdown.references.v1@1.0.0`，模式：`hybrid`。
 ## 执行步骤
 
 1. 读取目标 Markdown，确认只读范围和域名策略。
-2. 运行 `bsk verifier run markdown.references.v1 --input <markdown_file>`；脚本入口只是对该命令的薄封装。需要保留事件账本时追加 `--events EVENTS --run-id RUN_ID`。
+2. 先确认 `bsk verifier describe markdown.references.v1` 成功，再按已确认的域名与超时策略运行 verifier；脚本入口只是对该命令的薄封装。需要保留事件账本时追加 `--events EVENTS --run-id RUN_ID`。
 3. 保存或呈现 JSON 中的原始 `summary`、`references` 和 `verification` 三部分；不要把 `manual_review` 解释成 `pass`。
 4. 如需处理失败链接，先给出定位与原因；只有用户另行授权才修改正文。
 
@@ -66,6 +67,6 @@ Pack：`markdown.references.v1@1.0.0`，模式：`hybrid`。
 
 ## 安全与限制
 
-- 不访问 `localhost`、回环地址、`.local` 或 `.internal`；配置白名单时只验证列出的域名。
-- 传给 `curl` 的 URL 使用参数数组和协议校验，避免命令注入；超时按配置限制。
+- 不访问 `localhost`、回环地址、私网解析地址、`.local` 或 `.internal`；每一跳重定向都会在发起请求前重复检查，配置白名单时只验证列出的域名。
+- 验证器只接受 HTTP(S) URL，以受限运行时 API 发起请求；超时与域名策略须通过公开 CLI 参数或脚本配置传入。
 - URL 可访问不等于来源真实、内容相关、引用准确或许可合规；这些事项必须由具备正文证据的独立 Pack 验证。
