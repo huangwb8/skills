@@ -74,6 +74,17 @@
 - 面向系统级可发现性的安装机制
 - 面向长期演进的工程约束：KISS、YAGNI、DRY、Single Source of Truth、有机更新
 
+## 🗂️ 目录结构
+
+```text
+skills/alpha/      # 可发布、默认安装的成熟 Skill
+skills/beta/       # 候选 Skill，需显式指定源目录
+packages/          # 独立运行时包及其测试
+docs/              # 项目文档；计划统一放在 docs/plans/
+tests/             # 根级 smoke/integration 测试脚本
+tmp/               # 测试运行过程产物
+```
+
 ## 🗂️ 任务工作区
 
 需要落盘的 skill 任务默认把过程材料集中到项目内的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`，避免把计划、日志和临时输出散落到项目根目录。单 skill 任务只创建该 skill 的边界；多 skill 协作时才使用 `shared/` 传递任务级材料。
@@ -88,6 +99,16 @@
 ```
 
 正式交付物、用户要求保存的文件、项目文档和源代码仍按项目原有目录约定存放，不会默认写入该隐藏工作区。历史隐藏目录只用于显式兼容读取、迁移或清理。
+
+## 🧾 贡献记录
+
+本仓库当前未初始化 `bensz-auto-contribution` 的 BAC 账本；默认文件位置为 `docs/contribution.bac`。本次系统文件维护按 `init-project --disable-bac` 处理，未安装外部 `bac` 依赖或创建空账本。后续如需启用，可在仓库根目录运行：
+
+```bash
+python3 skills/alpha/init-project/scripts/generate.py --auto
+```
+
+贡献记录启用后只保存协作过程与验证证据，不记录密钥、完整私有 Prompt 或无关个人隐私，也不替代最终署名、责任或合规判断。
 
 ## 🌐 平台兼容性
 
