@@ -10,6 +10,9 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **SKILL.md 精简**：合并重复说明并压缩执行契约，保留引用检查范围、Kernel 状态机与 Verifier 门禁、输入输出、安全边界及工具命令。
+
+### Changed（变更）
 - **职责边界收敛**：将 `SKILL.md` 从状态机和 Verifier 的手工操作手册收敛为 Markdown 引用核查的业务契约；仅用自然语言声明运行时门禁，具体协议保留在 references，避免模型绕过执行器自行编排底层流程。
 - **强制状态机与 Verifier**：Skill 升级至 `0.8.2`。每次运行必须完成 `input-ready`、`checking`、`reported` 状态转移，并运行 `markdown.link-integrity@1.0.0` 与事件账本记录；kernel、转移或 Verifier 不可用时明确失败，禁止静默降级。
 - **受众定位修正**：重写 `SKILL.md` 的执行说明，去除面向 Skill 开发者的内部措辞，改为面向用户和 AI 的输入边界、工具选择、参考资料和结果汇总指引；保留协议细节在 `references/` 中维护。
