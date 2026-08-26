@@ -12,6 +12,10 @@ version = 4.3.8
 
 ---
 
+skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述，还是适合在 references 文件夹里用额外md托管； 让该文件更加专注于它自己的任务。请修改。
+
+---
+
 `BenszAPI 任务工作区新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；同一逻辑任务复用已锁定的任务根目录，多 Skill 协作时共享材料放在任务根目录的 `shared/`。正式交付物、用户指定文件和源 Markdown 不写入该目录；不得归档密钥、令牌、Cookie、私有指令、隐私或不必要的大体积原始数据。历史 `.bensz-api/skills/` 等目录仅按需显式兼容读取、迁移或清理，新任务不得创建这些目录。`这个可以是不是可以内化进去状态机里？然后，每个skill都通过状态机函数来引用位置。 我认为，状态机其实也可以采用和verifier系统类似的设计。我认为应该这样：
 
 - 代码只负责定义格式； 即保证任何使用该系统的agent skill在工作时都使用一套标准的协议进行状态管理

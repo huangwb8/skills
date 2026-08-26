@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **validate-md-ref 文档分层收敛**：Skill 升级至 `0.8.1`，将状态机与 Verifier 的详细契约迁移到 `references/` 下的独立 Markdown，主 `SKILL.md` 聚焦 Markdown 引用适配、事实采集与结果汇总。
+- **Verifier 包内资产迁移**：将 `bensz-skill-kernel` 的内置 `verifiers/` 移入 `src/bensz_skill_kernel/verifiers/`，CLI 和 `validate-md-ref` 通过公开 `builtin_verifier_root()` 定位，wheel package data 同步包含状态与 verifier 资产，消除对源码仓库层级的依赖。
+- **状态机协议重构**：`bensz-skill-kernel` 升级至 `0.8.0`，状态包新增可选 JSON-stdio helper、系统与 Skill 状态组合发现、Skill 声明文件、转移检查与持久化标准回执；工作区为每个 Skill 保存独立元状态快照，并创建共享目录边界。`validate-md-ref` 升级至 `0.8.0`，作为声明式状态机试点。
+- **macOS 系统文件忽略规则修正**：在项目级测试目录放行规则之后重新屏蔽 `.DS_Store`、AppleDouble、资源分叉和 Finder 图标元数据，避免显式放行测试资产时产生系统文件噪声。
 - **状态机运行时目录化重构**：`bensz-skill-kernel` 升级至 `0.7.0`，新增可发现的元状态注册表与 BenszAPI 任务工作区解析器；通过 `bsk state` 查询状态定义、通过 `bsk workspace` 初始化和解析 Skill 的 `input`/`output`/`log` 路径，保留原有生命周期事件账本与 CLI 兼容入口。
 - **Verifier 系统目录化重构**：`bensz-skill-kernel` 升级至 `0.6.0`，新增基于 `verifiers/<name>/VERIFIER.md` 的发现与执行协议，支持可选脚本、JSON stdio、超时/错误归一化和 instruction-only verifier；`validate-md-ref` 升级至 `0.7.0` 并接入 `markdown.link-integrity` 目录 verifier。
 - **引用 Verifier 定位修正**：内置引用 Verifier 统一为不受文档类型限制的 `citation.truth-and-fit`；Markdown、LaTeX、Word 等仅作为输入适配器，提交论断上下文、来源元数据和来源摘录。缺少语义引擎时保守返回 `unchecked`。kernel 升级至 `0.5.0`，`validate-md-ref` 升级至 `0.6.0`。
