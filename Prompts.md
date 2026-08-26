@@ -1,4 +1,6 @@
-## 更新
+## General
+
+- 更新
 
 ```
 version = 4.3.8
@@ -6,6 +8,12 @@ version = 4.3.8
 - 根据源代码的实际变化写 ./CHANGELOG.md 、 优化 README 或 优化 @install 里的脚本。
 - 创建新的tag v{version}。 用 git-commit skill 提交commit，commit信息里要带版本号。
 - 用 git-publish-release skill 发布新的release。
+```
+
+- 测试
+
+```
+使用 validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。如果该skill有要提交给用户审查的内容，可以放在 ./tmp/validate-md-ref/01 这个文件夹里。
 ```
 
 # 日常
@@ -24,10 +32,6 @@ skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述�
 - 而且，可以认为，关于类似 BenszAPI 任务工作区 也可以是状态机的一部分； 这是一种强制状态，或者说是每个skill的初始的、默认的第1个状态，即确定skill工作时中间文件的托管目录。 
 
 你觉得这个想法如何？
-
----
-
-使用 validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。如果该skill有要提交给用户审查的内容，可以放在 ./tmp/validate-md-ref/01 这个文件夹里。
 
 ---
 
