@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- **Skill Runtime Verifier 命令接口重构**：`bensz-skill-kernel` 新增带标签的内置 verifier 目录及 `bsk verifier list/describe/run` 命令；`validate-md-ref` 改为只声明 `markdown.references.v1`，减少 Skill 自行拼接验证与状态机细节。
+- **kernel 使用说明**：新增 `packages/bensz-skill-kernel/README.md`，列出内置 verifier、标签和 Skill 调用示例。
+
+### Changed（变更）
+- **Runtime 接入调查报告状态同步**：在原始调查结论后补充 `validate-md-ref` 通过 `bsk verifier run` 写入事件账本的落地状态，区分“验证事实记录”与“领域状态转移策略”。
+
+### Added（新增）
+- **validate-md-ref Runtime 接入调查报告**：新增 `docs/events/2026-08-26-validate-md-ref与状态机验证器交互调查报告.md`，说明试点 Skill 已实现的 Verifier Pack 调用链、尚未接通的事件账本闭环，以及后续最小接入建议。
+
+### Added（新增）
 - **Verifier 原型基础设施与 `validate-md-ref` 试点**：在 `packages/bensz-skill-kernel` 增加版本化 Verifier Pack、证据快照、统一结果、保守 Gate 与可重放 kernel 事件；`skills/beta/validate-md-ref` 接入 `markdown.references.v1` hybrid Pack，在保留兼容字段的同时输出结构化验证结果和 verification gap。
 
 ### Added（新增）
