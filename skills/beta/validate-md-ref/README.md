@@ -1,6 +1,6 @@
 # validate-md-ref
 
-当前版本：`0.3.0`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。
+当前版本：`0.4.0`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。运行时记录通过 `bensz-skill-kernel` 提供的 `bsk` 命令完成。
 
 这个 skill 用来验证 Markdown 文档中的 URL 引用是否可访问，并输出结构化结果供后续处理。它现在也会给出版本化的 Verifier 结果和 Gate；这能明确区分“链接不可达”与“链接虽然可达、但不能据此证明正文论断”。
 
@@ -105,6 +105,20 @@ python3 validate-md-ref/scripts/validate_links.py \
   docs/review.md \
   validate-md-ref/config.yaml
 ```
+
+### 调用 kernel 内置 Verifier
+
+这个 Skill 只声明一个命令和一个 verifier：
+
+```bash
+bsk verifier list --tag markdown
+bsk verifier describe markdown.references.v1
+bsk verifier run markdown.references.v1 \
+  --input docs/review.md \
+  --events "$EVENTS" --run-id "review-20260826-01"
+```
+
+所需 verifier：`markdown.references.v1`。它带有 `vertical`、`markdown`、`references`、`network-read` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
 
 ## 常见问题
 

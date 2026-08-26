@@ -32,6 +32,23 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
         self.assertIn('-I', call.call_args_list[0].args[0])
         self.assertIn('--range', call.call_args_list[1].args[0])
 
+    def test_runtime_events_use_kernel_command(self) -> None:
+        import tempfile
+        from bensz_skill_kernel import EventLog
+
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / 'events.ndjson'
+            result = MODULE.record_runtime_events(
+                str(events),
+                [{'verifier_id': 'markdown.references.v1', 'verdict': 'pass', 'execution_status': 'completed', 'evidence_refs': ['reference.results']}],
+                {'decision': 'allow', 'reason': 'all required verifiers passed'},
+                'run-test',
+            )
+            self.assertTrue(result['recorded'])
+            projection = EventLog(events).projection()
+            self.assertEqual(projection['verifications'][0]['request_id'], 'run-test')
+            self.assertEqual(projection['gate_decisions'][0]['decision'], 'allow')
+
 
 if __name__ == '__main__':
     unittest.main()

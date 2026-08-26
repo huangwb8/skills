@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: validate-md-ref
-  version: 0.3.0
+  version: 0.4.0
   description: 验证 Markdown 文档中 URL 引用的可访问性
   author: "Bensz Conan"
   category: 文档质量
@@ -20,7 +20,7 @@ validation:
   max_redirects: 5
 
   # 用户代理字符串（避免被某些网站拒绝）
-  user_agent: "Mozilla/5.0 (compatible; validate-md-ref/0.1.0)"
+  user_agent: "Mozilla/5.0 (compatible; validate-md-ref/0.4.0)"
 
 # 域名白名单（空列表表示不限制）
 # 添加域名到白名单以只验证特定域名

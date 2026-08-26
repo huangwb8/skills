@@ -11,6 +11,9 @@ Markdown 引用验证脚本
 import re
 import sys
 import json
+import argparse
+import hashlib
+import shutil
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from typing import List, Dict, Optional
@@ -452,28 +455,107 @@ def generate_summary(results: List[Dict]) -> Dict:
     }
 
 
-def main():
+def _kernel_command() -> tuple[list[str], dict[str, str]]:
+    """Resolve the public kernel command, with a source-tree fallback for development."""
+    executable = shutil.which('bsk')
+    if executable:
+        probe = subprocess.run([executable, '--help'], capture_output=True, text=True, check=False)
+        if probe.returncode == 0 and 'verification' in probe.stdout:
+            return [executable], os.environ.copy()
+
+    kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
+    env = os.environ.copy()
+    env['PYTHONPATH'] = str(kernel_src) + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+    return [sys.executable, '-m', 'bensz_skill_kernel.cli'], env
+
+
+def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, request_id: str, attempt_id: str = 'default') -> Dict:
+    """Compatibility helper for callers that already have normalized results."""
+    command, env = _kernel_command()
+    result_payload = [{**item, 'request_id': request_id} for item in results]
+    gate_payload = {**gate, 'request_id': request_id}
+    args = command + [
+        'verification', events_path,
+        '--result-json', json.dumps(result_payload, ensure_ascii=False, separators=(',', ':')),
+        '--gate-json', json.dumps(gate_payload, ensure_ascii=False, separators=(',', ':')),
+        '--scope', 'skill',
+        '--actor', 'validate-md-ref',
+        '--attempt-id', attempt_id,
+        '--idempotency-key', request_id,
+    ]
+    completed = subprocess.run(args, capture_output=True, text=True, env=env, check=False)
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or 'bsk verification failed'
+        raise RuntimeError(detail)
+    return {'recorded': True, 'events': json.loads(completed.stdout)}
+
+
+def run_kernel_verifier(args) -> int:
+    """Delegate the public Skill entry point to a tagged kernel verifier."""
+    command, env = _kernel_command()
+    cmd = command + ['verifier', 'run', 'markdown.references.v1', '--input', str(Path(args.markdown_file).resolve())]
+    if args.config_file:
+        try:
+            import yaml
+            config = yaml.safe_load(Path(args.config_file).read_text(encoding='utf-8')) or {}
+            timeout = config.get('validation', {}).get('timeout')
+            if timeout is not None:
+                cmd.extend(['--timeout', str(int(timeout))])
+            for domain in config.get('domain_blacklist', []) or []:
+                cmd.extend(['--blacklist', str(domain)])
+            for domain in config.get('domain_whitelist', []) or []:
+                cmd.extend(['--whitelist', str(domain)])
+        except (ImportError, OSError, ValueError) as exc:
+            print(json.dumps({'error': f'加载配置失败: {exc}'}, ensure_ascii=False))
+            return 1
+    if args.events:
+        cmd.extend(['--events', args.events])
+    if args.run_id:
+        cmd.extend(['--run-id', args.run_id])
+    if args.attempt_id:
+        cmd.extend(['--attempt-id', args.attempt_id])
+    completed = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
+    if completed.stdout:
+        print(completed.stdout, end='' if completed.stdout.endswith('\n') else '\n')
+    if completed.returncode != 0 and completed.stderr:
+        print(completed.stderr, file=sys.stderr, end='' if completed.stderr.endswith('\n') else '\n')
+    return completed.returncode
+
+
+def main(argv=None):
     """主函数"""
-    if len(sys.argv) < 2:
+    parser = argparse.ArgumentParser(description='验证 Markdown 引用并输出结构化结果')
+    parser.add_argument('markdown_file')
+    parser.add_argument('config_file', nargs='?')
+    parser.add_argument('--events', help='通过 bsk verifier run 追加到指定 events.ndjson')
+    parser.add_argument('--run-id', help='本次验证的稳定运行 ID')
+    parser.add_argument('--attempt-id', default='default')
+    parser.add_argument('--legacy-local', action='store_true', help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
+
+    if not args.markdown_file:
         print(json.dumps({
             'error': '用法: validate_links.py <markdown_file> [config_file]'
         }))
-        sys.exit(1)
+        return 1
 
-    md_file = Path(sys.argv[1])
+    if not args.legacy_local:
+        return run_kernel_verifier(args)
+
+    md_file = Path(args.markdown_file)
 
     # 路径安全验证（防止路径遍历攻击）
     if not validate_path(md_file):
         print(json.dumps({
             'error': f'路径不安全或超出允许范围: {md_file}'
         }))
-        sys.exit(1)
+        return 1
 
     if not md_file.exists():
         print(json.dumps({
             'error': f'文件不存在: {md_file}'
         }))
-        sys.exit(1)
+        return 1
 
     # 读取 Markdown 内容
     content = md_file.read_text(encoding='utf-8')
@@ -485,9 +567,9 @@ def main():
     config = {}
     config_path = None
 
-    if len(sys.argv) >= 3:
+    if args.config_file:
         # 用户提供了配置文件路径
-        config_path = Path(sys.argv[2])
+        config_path = Path(args.config_file)
     else:
         # 自动使用技能默认配置文件
         try:
@@ -505,14 +587,14 @@ def main():
             print(json.dumps({
                 'error': '未安装 yaml 库，请先安装：pip install pyyaml'
             }))
-            sys.exit(1)
+            return 1
 
         try:
             if not config_path.exists():
                 print(json.dumps({
                     'error': f'配置文件不存在: {config_path}'
                 }))
-                sys.exit(1)
+                return 1
 
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f) or {}
@@ -520,7 +602,7 @@ def main():
             print(json.dumps({
                 'error': f'加载配置失败: {e}'
             }))
-            sys.exit(1)
+            return 1
 
     # 验证引用
     results = validate_references(references, config, content)
@@ -539,14 +621,16 @@ def main():
     # adds versioned evidence, component results and a conservative gate.
     try:
         Evidence, VerificationRequest, VerifierRunner, build_registry = _load_verifier_runtime()
+        content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
+        request_id = args.run_id or f"markdown:{content_hash[:16]}"
         request = VerificationRequest(
-            subject={'type': 'markdown', 'path': str(md_file), 'content_hash': __import__('hashlib').sha256(content.encode('utf-8')).hexdigest()},
+            subject={'type': 'markdown', 'path': str(md_file), 'content_hash': content_hash},
             requirements=('references.reachable',),
             evidence=(
                 Evidence('markdown.snapshot', 'markdown', {'path': str(md_file), 'content': content}),
                 Evidence('reference.results', 'validator', {'summary': summary, 'references': results}),
             ),
-            request_id=f'markdown:{md_file.name}',
+            request_id=request_id,
         )
         verifier_results, gate = VerifierRunner(build_registry()).run(request, 'markdown.references.v1')
         output['verification'] = {
@@ -560,8 +644,23 @@ def main():
             'gate': {'decision': 'unchecked', 'reason': f'kernel unavailable: {exc}'},
         }
 
+    if args.events and output.get('verification', {}).get('results'):
+        try:
+            output['runtime'] = record_runtime_events(
+                args.events,
+                output['verification']['results'],
+                output['verification']['gate'],
+                request_id,
+                args.attempt_id,
+            )
+        except Exception as exc:
+            output['runtime'] = {'recorded': False, 'error': str(exc)}
+            print(json.dumps(output, ensure_ascii=False, indent=2))
+            return 2
+
     print(json.dumps(output, ensure_ascii=False, indent=2))
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

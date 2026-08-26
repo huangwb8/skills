@@ -1,6 +1,14 @@
 verifier_id: markdown.references.v1
 version: 1.0.0
 mode: hybrid
+command: bsk verifier run markdown.references.v1 --input <markdown_file>
+required_verifiers:
+  - markdown.references.v1
+tags:
+  - vertical
+  - markdown
+  - references
+  - network-read
 capabilities:
   - markdown.reference_extraction
   - url.reachability

@@ -11,6 +11,17 @@ metadata:
 
 版本由 `config.yaml:skill_info.version` 管理。此 Skill 是只读检查器：它提取 Markdown 引用、验证站内 anchor 与可声明的 HTTP(S) 可达性，并报告验证边界；绝不改写文档、删除链接或替用户判断网页内容的学术/事实支持关系。
 
+## Kernel Verifier 声明
+
+本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排：
+
+- 命令：`bsk verifier run markdown.references.v1 --input MARKDOWN`；需要审计时追加 `--events EVENTS --run-id RUN_ID`。
+- 所需 verifier：`markdown.references.v1`。
+- 标签：`vertical`、`markdown`、`references`、`network-read`。
+- 可发现性：`bsk verifier list --tag markdown`；契约详情：`bsk verifier describe markdown.references.v1`。
+
+`markdown.references.v1` 是 kernel 内置的 hybrid verifier：规则组件检查引用提取、站内 anchor 和 HTTP(S) 可达性；语义组件明确返回 `unchecked`，不把链接可达性解释为正文论断成立。Skill 不手写 `verification.result`、Gate 或事件格式。
+
 ## BenszAPI 任务工作区
 
 新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；正式交付文件按用户指定的位置保存。复用同一逻辑任务既有工作区，不保存密钥、Cookie、私人正文或不必要的完整网页内容。
@@ -34,7 +45,7 @@ Pack：`markdown.references.v1@1.0.0`，模式：`hybrid`。
 ## 执行步骤
 
 1. 读取目标 Markdown，确认只读范围和域名策略。
-2. 运行 `scripts/validate_links.py <markdown_file> [config_file]`；外部 URL 仅允许 `http/https`，HEAD 得到 403/405 时有限 GET 回退，`#anchor` 在当前文件本地检查。
+2. 运行 `bsk verifier run markdown.references.v1 --input <markdown_file>`；脚本入口只是对该命令的薄封装。需要保留事件账本时追加 `--events EVENTS --run-id RUN_ID`。
 3. 保存或呈现 JSON 中的原始 `summary`、`references` 和 `verification` 三部分；不要把 `manual_review` 解释成 `pass`。
 4. 如需处理失败链接，先给出定位与原因；只有用户另行授权才修改正文。
 
