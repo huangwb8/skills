@@ -492,7 +492,7 @@ def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, req
 def run_kernel_verifier(args) -> int:
     """Delegate the public Skill entry point to a tagged kernel verifier."""
     command, env = _kernel_command()
-    cmd = command + ['verifier', 'run', 'markdown.references', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
+    cmd = command + ['verifier', 'run', 'markdown.link-integrity', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
     if args.config_file:
         try:
             import yaml
@@ -631,7 +631,7 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'markdown.references', version='1.0.0')
+        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'markdown.link-integrity', version='1.0.0')
         output['verification'] = {
             'request_id': request.request_id,
             'results': [item.to_dict() for item in verifier_results],

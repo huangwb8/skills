@@ -170,15 +170,26 @@ def collect_markdown(path: str | Path, *, timeout: int = 10, blacklist: tuple[st
     return {'path': str(target), 'content_hash': hashlib.sha256(content.encode('utf-8')).hexdigest(), 'summary': summary, 'references': collected}
 
 
-MARKDOWN_SPEC = VerifierSpec(
-    verifier_id='markdown.references',
+MARKDOWN_LINK_SPEC = VerifierSpec(
+    verifier_id='markdown.link-integrity',
     version='1.0.0',
-    mode='hybrid',
+    mode='rule',
     capabilities=('markdown.reference_extraction', 'url.reachability', 'anchor.local'),
     evidence_requirements=('markdown.snapshot', 'reference.results'),
-    uncertainty_policy={'semantic_gap': 'unchecked'},
-    tags=('vertical', 'markdown', 'references', 'network-read'),
+    tags=('vertical', 'markdown', 'links', 'network-read', 'deterministic'),
     metadata={'side_effects': 'none'},
+)
+
+
+CITATION_TRUTH_FIT_SPEC = VerifierSpec(
+    verifier_id='citation.truth-and-fit',
+    version='1.0.0',
+    mode='hybrid',
+    capabilities=('evidence.identity', 'semantic.entailment', 'semantic.appropriateness'),
+    evidence_requirements=('subject_context', 'source_metadata', 'source_excerpt'),
+    uncertainty_policy={'missing_evidence': 'manual_review', 'engine_unavailable': 'unchecked'},
+    tags=('common', 'citation', 'semantic', 'evidence'),
+    metadata={'side_effects': 'none', 'requires_external_engine': True},
 )
 
 
@@ -193,8 +204,14 @@ def _markdown_rule(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[st
     return {'verdict': 'fail' if findings else 'pass', 'facts': {'summary': summary}, 'findings': findings, 'evidence_refs': ['reference.results']}
 
 
-def _semantic_gap(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[str, Any]:
-    return {'execution_status': 'unchecked', 'verdict': 'unchecked', 'uncertainty_reason': 'URL reachability does not establish citation content support', 'evidence_refs': ['markdown.snapshot', 'reference.results'], 'model_or_engine': 'none'}
+def _citation_engine_gap(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[str, Any]:
+    return {
+        'execution_status': 'unchecked',
+        'verdict': 'unchecked',
+        'uncertainty_reason': 'semantic citation engine is not bundled with the kernel',
+        'evidence_refs': ['subject_context', 'source_metadata', 'source_excerpt'],
+        'model_or_engine': 'none',
+    }
 
 
 def _file_exists(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[str, Any]:
@@ -216,5 +233,6 @@ FILE_SPEC = VerifierSpec(
 def build_builtin_registry() -> PackRegistry:
     registry = PackRegistry()
     registry.register(VerifierPack(FILE_SPEC, rules=(('file-exists', _file_exists),)))
-    registry.register(VerifierPack(MARKDOWN_SPEC, rules=(('url-reachability', _markdown_rule),), prompts=(('content-entailment', _semantic_gap),)))
+    registry.register(VerifierPack(CITATION_TRUTH_FIT_SPEC, prompts=(('citation-semantics', _citation_engine_gap),)))
+    registry.register(VerifierPack(MARKDOWN_LINK_SPEC, rules=(('link-integrity', _markdown_rule),)))
     return registry

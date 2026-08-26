@@ -1,8 +1,8 @@
 # validate-md-ref
 
-当前版本：`0.5.0`。这个 skill 对 Markdown 引用做只读检查：站内 `#anchor` 在当前文档本地校验，外部 HTTP(S) 链接检查可达性，并报告行号、状态和跳过原因。它不判断网页内容是否支持正文论断，也不自动修改文档。
+当前版本：`0.6.0`。这个 skill 对 Markdown 链接做只读检查：站内 `#anchor` 在当前文档本地校验，外部 HTTP(S) 链接检查可达性，并报告行号、状态和跳过原因。它不判断网页内容是否支持正文论断，也不自动修改文档。
 
-它适合文档质检、交付前巡检和失效引用定位。底层运行时是实现手段，不是触发条件；结果中的验证缺口会明确标为 `unchecked` 或 `manual_review`。
+它适合文档质检、交付前巡检和失效引用定位。底层运行时是实现手段，不是触发条件；链接完整性结果使用 `allow` 或 `reject`，独立的语义核验缺口才使用 `unchecked` 或 `manual_review`。
 
 执行细节按需阅读：
 
@@ -77,7 +77,7 @@
   - `summary.skipped`
   - `references[*].validation`
 - 当前脚本直接把 JSON 结果输出到标准输出，不会自动生成独立 Markdown 报告文件。
-- `verification.results` 保存原子规则结果与证据引用；`verification.gate` 用 `reject` 或 `manual_review` 表达确定性失败和验证缺口。
+- `verification.results` 保存原子规则结果与证据引用；本 Skill 的 `verification.gate` 用 `allow` 或 `reject` 表达链接完整性结果。格式无关的语义 Pack 才用 `manual_review` 表达验证缺口。
 
 ## 配置
 
@@ -92,7 +92,9 @@
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 
-直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.references --version 1.0.0`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
+这里有两层不同能力：`markdown.link-integrity` 只检查 Markdown 链接完整性；格式无关的 `citation.truth-and-fit` 才负责来源身份、论断支持关系和引用恰当性。后者至少需要论断上下文、来源元数据和来源摘录，当前 Skill 不内置其领域 Pack。详见 [引用真实性与适切性契约](references/citation-truth-and-fit.md)。
+
+直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.link-integrity --version 1.0.0`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
 
 ## 备选用法（脚本/硬编码）
 
@@ -118,14 +120,14 @@ python3 validate-md-ref/scripts/validate_links.py \
 
 ```bash
 bsk verifier list --tag markdown
-bsk verifier describe markdown.references --version 1.0.0
-bsk verifier run markdown.references --version 1.0.0 \
+bsk verifier describe markdown.link-integrity --version 1.0.0
+bsk verifier run markdown.link-integrity --version 1.0.0 \
   --input docs/review.md --timeout 10 \
   --blacklist localhost --blacklist '*.internal' \
   --events "$EVENTS" --run-id "review-20260826-01"
 ```
 
-所需 verifier：`markdown.references`，版本 `1.0.0`。它带有 `vertical`、`markdown`、`references`、`network-read` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
+所需 verifier：`markdown.link-integrity`，版本 `1.0.0`。它带有 `vertical`、`markdown`、`links`、`network-read`、`deterministic` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
 
 ## 常见问题
 
@@ -143,4 +145,4 @@ A：默认黑名单会排除 `localhost`、`127.0.0.1`、`*.local`、`*.internal
 
 ### Q：它能检查 Markdown 以外的格式吗？
 
-A：这个 skill 的目标对象就是 Markdown 文档及其 URL 引用。
+A：链接提取层只支持 Markdown。引用真实性与恰当性属于格式无关的 `citation.truth-and-fit` 能力，Markdown、LaTeX、Word 等适配器都可以向它提交统一证据；当前 Skill 不内置该语义 Pack。

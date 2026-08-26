@@ -207,7 +207,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
     request_id = args.run_id or f"{pack.spec.verifier_id}:{content_hash[:16]}"
     evidence: tuple[Evidence, ...] = ()
     facts: dict[str, Any] = {}
-    if pack.spec.verifier_id == "markdown.references":
+    if pack.spec.verifier_id == "markdown.link-integrity":
         collected = collect_markdown(target, timeout=args.timeout, blacklist=tuple(args.blacklist), whitelist=tuple(args.whitelist))
         facts = {"summary": collected["summary"], "references": collected["references"]}
         evidence = (

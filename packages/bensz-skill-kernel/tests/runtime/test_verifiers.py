@@ -11,7 +11,7 @@ from bensz_skill_kernel import (
     VerificationRequest,
     apply_gate,
 )
-from bensz_skill_kernel.builtins import _probe
+from bensz_skill_kernel.builtins import _probe, build_builtin_registry
 
 
 class _RedirectingOpener:
@@ -61,6 +61,21 @@ def test_missing_evidence_cannot_pass():
     registry = PackRegistry()
     registry.register(VerifierPack(spec, rules=(("rule", lambda *_: {"verdict": "pass"}),)))
     results, gate = VerifierRunner(registry).run(VerificationRequest(subject={}), "needs.v1")
+    assert results[0].verdict == "unchecked"
+    assert gate.decision == "manual_review"
+
+
+def test_generic_citation_pack_is_format_agnostic_and_conservative():
+    registry = build_builtin_registry()
+    request = VerificationRequest(
+        subject={"type": "citation"},
+        evidence=(
+            Evidence("subject_context", "context", {"claim": "x"}),
+            Evidence("source_metadata", "metadata", {"title": "source"}),
+            Evidence("source_excerpt", "excerpt", {"text": "evidence"}),
+        ),
+    )
+    results, gate = VerifierRunner(registry).run(request, "citation.truth-and-fit", version="1.0.0")
     assert results[0].verdict == "unchecked"
     assert gate.decision == "manual_review"
 

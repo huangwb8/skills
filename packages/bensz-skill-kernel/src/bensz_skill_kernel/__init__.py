@@ -23,7 +23,7 @@ from .verifiers import (
     normalize_result,
     snapshot_evidence,
 )
-from .builtins import MARKDOWN_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
+from .builtins import CITATION_TRUTH_FIT_SPEC, MARKDOWN_LINK_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
 
 __all__ = [
     "CompletionError",
@@ -45,10 +45,11 @@ __all__ = [
     "apply_gate",
     "normalize_result",
     "snapshot_evidence",
-    "MARKDOWN_SPEC",
+    "MARKDOWN_LINK_SPEC",
+    "CITATION_TRUTH_FIT_SPEC",
     "FILE_SPEC",
     "build_builtin_registry",
     "collect_markdown",
 ]
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

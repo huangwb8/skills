@@ -1,6 +1,6 @@
 ---
 name: validate-md-ref
-description: 检查 Markdown 文档中外部 HTTP(S) URL、站内锚点和引用链接的可定位性与可达性，并输出结构化核验结果；当用户要求检查链接、排查失效引用、生成链接核验结果或进行交付前链接巡检时使用。
+description: 检查 Markdown 文档中外部 HTTP(S) URL、站内锚点和引用链接的可定位性与可达性，并输出结构化核验结果；当用户要求检查 Markdown 链接、排查失效引用、生成链接核验结果或进行交付前链接巡检时使用。若用户要判断引用是否真实支持正文论断或引用是否恰当，应转入格式无关的 citation.truth-and-fit 能力，而不是把链接可达性当作语义核验。
 metadata:
   author: Bensz Conan
   short-description: 检查 Markdown 引用是否可定位、可访问
@@ -10,8 +10,14 @@ metadata:
 
 - 输入：一个 Markdown 文件，可选一个 YAML 配置文件。
 - 检查：引用提取、当前文档内的 `#anchor`、外部 HTTP(S) 链接可达性，以及白名单/黑名单等安全策略。
-- 输出：结构化 JSON；验证缺口使用 `unchecked` 或 `manual_review` 表达。
+- 输出：结构化 JSON；确定性链接结果使用 `allow` 或 `reject`，无法完成的语义核验使用 `unchecked` 或 `manual_review` 表达。
 - 不做：不判断网页内容是否支持正文论断，不自动修改原 Markdown，也不替用户决定如何修复无效链接。
+
+## 能力分层
+
+- `markdown.link-integrity` 是格式适配器：提取 Markdown 链接，检查站内锚点和 HTTP(S) 可达性。
+- `citation.truth-and-fit` 是格式无关的语义能力契约：判断来源身份是否可信、来源证据是否支持目标论断，以及引用位置和强度是否恰当。它至少需要论断上下文、来源元数据和来源摘录，不能只凭 URL 可达性得出 `pass`。
+- 本 Skill 当前只提供前一层。用户要求后一层时，按 [`references/citation-truth-and-fit.md`](references/citation-truth-and-fit.md) 准备证据并调用实现该契约的领域 Pack；若环境没有该 Pack，明确返回 `unchecked` 或 `manual_review`。
 
 ## BenszAPI 任务工作区
 
@@ -29,7 +35,7 @@ metadata:
 ## 工具包
 
 - `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
-- `bsk verifier run markdown.references --version 1.0.0`：直接运行仓库提供的 Markdown 引用检查工具。
+- `bsk verifier run markdown.link-integrity --version 1.0.0`：直接运行仓库提供的 Markdown 链接完整性检查工具。
 - `config.yaml`：默认超时、域名白名单和黑名单配置。
 
 ## 命令映射
@@ -38,13 +44,14 @@ metadata:
 | --- | --- |
 | 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
 | 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
-| 直接调用运行时工具 | `bsk verifier run markdown.references --version 1.0.0 --input DOCUMENT.md` |
+| 直接调用运行时工具 | `bsk verifier run markdown.link-integrity --version 1.0.0 --input DOCUMENT.md` |
 | 记录审计事件 | 在脚本或 `bsk verifier run` 后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
 
 ## 参考资料
 
 - [`references/tools.md`](references/tools.md)：工具包、命令参数和配置字段的简要说明。
 - [`references/formats.md`](references/formats.md)：支持的引用形式和输出字段的简要说明。
+- [`references/citation-truth-and-fit.md`](references/citation-truth-and-fit.md)：格式无关的引用真实性与适切性证据契约。
 
 ## bensz-collect-bugs 约束
 

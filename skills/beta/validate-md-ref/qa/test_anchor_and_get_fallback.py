@@ -40,7 +40,7 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             events = Path(directory) / 'events.ndjson'
             result = MODULE.record_runtime_events(
                 str(events),
-                [{'verifier_id': 'markdown.references', 'verifier_version': '1.0.0', 'verdict': 'pass', 'execution_status': 'completed', 'evidence_refs': ['reference.results']}],
+                [{'verifier_id': 'markdown.link-integrity', 'verifier_version': '1.0.0', 'verdict': 'pass', 'execution_status': 'completed', 'evidence_refs': ['reference.results']}],
                 {'decision': 'allow', 'reason': 'all required verifiers passed'},
                 'run-test',
             )

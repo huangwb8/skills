@@ -3,6 +3,8 @@
 调查日期：2026-08-26  
 调查对象：`skills/beta/validate-md-ref` 当前工作树改造内容，以及 `packages/bensz-skill-kernel` 的状态机和 Verifier 原型
 
+> 后续定位更正：本报告记录的是 `markdown.references@1.0.0` 试点时期的历史快照。当前内置 Pack 已更名为 `markdown.link-integrity@1.0.0`，只负责 Markdown 链接提取、站内锚点和 URL 可达性；引用真实性与恰当性属于格式无关的 `citation.truth-and-fit` 契约，不再由 Markdown 格式 Pack 伪装承担。
+
 ## 结论摘要
 
 这次改造完成了 **Skill → Verifier Runner** 的单向接入，但还没有完成 **Verifier → 状态机事件账本** 的自动闭环。
