@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed
+- **Verifier 计划加入 NSFC 端到端 Pack 示例**：在 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 增设 `nsfc-justification-writer` 的详细 Verifier 章节，展示最小证据契约、规则/Prompt/Rubric 分工、统一结果、Gate 决策、受限写入与写后核验、降级和脱敏校准集，明确领域规则通过 Pack 注入而非写入核心。
+- **Verifier 计划补充架构总览**：在 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 增加面向零背景读者的组件流转说明和 Mermaid 架构图，直观展示验证请求、证据采集、规则/Prompt/人工判断、结果标准化与门禁之间的关系。
 - **通用 Verifiers 计划改为 Prompt/规则融合架构**：重新定义 Verifier 为可版本化、可审计的判断包，新增 Prompt Pack、Rubric、Evidence Contract、Rule Pack、混合执行模式、不确定性处理与语义/精确规则融合的实施路线；将引用核验、数学证明等仅作为通用插件示例，不把任何业务 Skill 写入核心。
 - **通用 Agent Verifiers 计划重构**：将 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 从开放式知识工作评价方案重构为 Agent 完成声明的通用证据与门禁层；冻结 `Subject`、`Requirement`、`Claim`、`Evidence`、`VerificationResult`、`GateDecision` 核心协议，区分检查执行状态与业务 verdict，覆盖静态产物、可执行行为、过程来源、外部状态、副作用、安全、语义质量和人工审批，并补充插件边界、信任/冲突规则、kernel 适配器及四类代表性任务验收矩阵。
 - **Verifier 参考文章定位修正**：保留文章启发的专门化能力、按需路由、成本分层、依赖 DAG、早停和校准原则；将 pairwise、Meta-Judge、`ProjectSpec` 与专家偏好数据降为开放式语义质量的可选扩展，不再主导通用核心模型。
