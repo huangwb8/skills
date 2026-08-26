@@ -26,8 +26,8 @@ def _load_verifier_runtime():
     kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
     if str(kernel_src) not in sys.path:
         sys.path.insert(0, str(kernel_src))
-    from bensz_skill_kernel import Evidence, VerificationRequest, VerifierRunner, build_builtin_registry
-    return Evidence, VerificationRequest, VerifierRunner, build_builtin_registry
+    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry
+    return Evidence, VerificationRequest, FilesystemVerifierRegistry
 
 
 def get_skill_root() -> Path:
@@ -620,7 +620,7 @@ def main(argv=None):
     # The Markdown parser is an adapter. The verifier itself is format-agnostic
     # and receives normalized claim/source evidence instead of a Markdown file.
     try:
-        Evidence, VerificationRequest, VerifierRunner, build_builtin_registry = _load_verifier_runtime()
+        Evidence, VerificationRequest, FilesystemVerifierRegistry = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         request = VerificationRequest(
@@ -633,11 +633,24 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'citation.truth-and-fit', version='1.0.0')
+        verifier_root = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'verifiers'
+        raw_result = FilesystemVerifierRegistry(verifier_root).run(
+            'citation.truth-and-fit',
+            {
+                'request_id': request.request_id,
+                'subject': dict(request.subject),
+                'requirements': list(request.requirements),
+                'evidence': [item.to_dict() for item in request.evidence],
+                'context': dict(request.context),
+            },
+            version='1.0.0',
+        )
+        verifier_results = [raw_result]
+        gate = {'decision': 'manual_review', 'reason': 'instruction-only verifier; follow VERIFIER.md manually', 'result_refs': ['citation.truth-and-fit@1.0.0'], 'unresolved': ['citation.truth-and-fit']}
         output['verification'] = {
             'request_id': request.request_id,
-            'results': [item.to_dict() for item in verifier_results],
-            'gate': gate.to_dict(),
+            'results': verifier_results,
+            'gate': gate,
         }
     except Exception as exc:
         output['verification'] = {

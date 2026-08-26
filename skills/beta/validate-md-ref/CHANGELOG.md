@@ -10,6 +10,7 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **接入目录化 verifier 协议**：Skill 升级至 `0.7.0`，新增 `markdown.link-integrity@1.0.0` 调用说明；kernel 负责发现、执行和标准化结果，Skill 继续负责 Markdown 配置适配。
 - **Verifier 定位修正**：将引用 Verifier 定义为不受文档类型限制的 `citation.truth-and-fit`；Markdown 仅负责输入适配和事实采集，Verifier 要求论断上下文、来源元数据和来源摘录。Skill 版本升级至 `0.6.0`。
 - **恢复 BenszAPI 任务工作区约定**：在 `SKILL.md` 中补回任务级 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/` 目录契约，明确共享材料、正式交付物分流、敏感信息边界与 legacy 路径规则。
 - **SKILL.md 执行契约增强**：补充适用范围、输入输出、最小执行流程和相对路径调用说明；明确脚本与直接 verifier 的配置加载差异，并将触发描述改为同时说明能力和使用场景。

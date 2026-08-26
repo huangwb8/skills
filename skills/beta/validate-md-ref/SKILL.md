@@ -1,6 +1,6 @@
 ---
 name: validate-md-ref
-description: 采集并规范化文档中的引用证据，交由不受文档格式限制的 citation.truth-and-fit Verifier 判断引用真实性与适切性；当前提供 Markdown 输入适配和 URL/锚点可达性事实采集。当用户要求核查引用是否为真、是否支持论断或是否恰当时使用。
+description: 采集并规范化文档中的引用证据，调用目录化 verifier 协议判断引用完整性与真实性；当前提供 Markdown 输入适配和 URL/锚点可达性事实采集。当用户要求核查引用是否为真、是否支持论断或是否恰当时使用。
 metadata:
   author: Bensz Conan
   short-description: 检查 Markdown 引用是否可定位、可访问
@@ -15,7 +15,8 @@ metadata:
 
 ## 能力分层
 
-- `citation.truth-and-fit` 是唯一的引用 Verifier：它与 Markdown、LaTeX、Word 等文档格式无关，判断来源身份、论断支持关系和引用恰当性。
+- `markdown.link-integrity` 是 Markdown 链接完整性 verifier；它由 kernel 的 `verifiers/` 目录发现并按统一 JSON stdio 协议执行。
+- `citation.truth-and-fit` 是格式无关的语义 verifier：它与 Markdown、LaTeX、Word 等文档格式无关，判断来源身份、论断支持关系和引用恰当性。
 - 本 Skill 的 Markdown 解析、URL 和锚点检查只是输入适配与事实采集；不能把这些事实直接当作语义结论。
 
 ## BenszAPI 任务工作区
@@ -26,7 +27,7 @@ metadata:
 
 1. 先确认目标 Markdown 文件存在且按只读方式处理；缺少输入时先报告缺口，不要猜测文件路径。
 2. 默认使用 `scripts/validate_links.py`，因为它会自动读取 Skill 根目录的 `config.yaml`；需要更细的参数或字段说明时，再按需读取 `references/tools.md` 和 `references/formats.md`。
-3. 只有在需要直接调用运行时 verifier，或需要显式覆盖超时、白名单、黑名单时，才使用 `bsk verifier run`。直接调用不会自动加载 YAML 配置。
+3. 需要直接调用目录化 verifier，或需要显式覆盖超时、白名单、黑名单时，使用 `bsk verifier run`。直接调用不会自动加载 YAML 配置。
 4. 汇总 `summary`、逐条 `references[*].validation` 和 `verification.gate`，区分有效、无效、跳过与验证缺口，并保留失败原因。
 
 命令中的 `scripts/validate_links.py` 指 Skill 根目录下的脚本；从其他工作目录调用时，请先切换到 Skill 根目录，或改用该脚本的绝对路径。
@@ -34,7 +35,8 @@ metadata:
 ## 工具包
 
 - `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
-- `citation.truth-and-fit@1.0.0`：格式无关的引用真实性与适切性 Verifier；Markdown 解析结果作为标准证据提交。
+- `markdown.link-integrity@1.0.0`：Markdown 链接和锚点完整性 verifier。
+- `citation.truth-and-fit@1.0.0`：格式无关的引用真实性与适切性 verifier；Markdown 解析结果作为标准证据提交。
 - `config.yaml`：默认超时、域名白名单和黑名单配置。
 
 ## 命令映射
@@ -43,6 +45,7 @@ metadata:
 | --- | --- |
 | 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
 | 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
+| 直接运行 Markdown verifier | `bsk verifier run markdown.link-integrity --input DOCUMENT.md` |
 | 查看通用 Verifier 契约 | `bsk verifier describe citation.truth-and-fit --version 1.0.0` |
 | 记录审计事件 | 在脚本或 `bsk verifier run` 后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
 
