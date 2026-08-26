@@ -9,6 +9,9 @@
 
 ## [Unreleased]
 
+### Added（新增）
+- 接入 `bensz-skill-kernel` Verifier Pack：以版本化 `hybrid` 契约输出证据快照、规则结果、语义检查缺口与保守 Gate 决策；保留原有 JSON 字段以兼容既有调用方。
+
 ### Fixed（修复）
 - 站内 `#anchor` 改为在当前 Markdown 的显式 HTML anchor 与标题 slug 中本地校验，不再作为非法外部 URL 计入失败。
 - 外部 URL 的 HEAD 请求返回 403/405 时执行一次有限 GET 回退，避免把“禁止 HEAD、允许 GET”的页面误判为不可访问；版本号 `0.2.0 → 0.2.1`。

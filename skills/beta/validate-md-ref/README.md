@@ -1,8 +1,8 @@
 # validate-md-ref
 
-当前版本：`0.2.1`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。
+当前版本：`0.3.0`。站内 `#anchor` 在当前文档本地校验；外部链接 HEAD 返回 403/405 时会做一次有限 GET 回退。
 
-这个 skill 用来验证 Markdown 文档中的 URL 引用是否可访问，并输出结构化结果供后续处理；如果你只是想人工点开几个链接看看，没必要专门动用它。
+这个 skill 用来验证 Markdown 文档中的 URL 引用是否可访问，并输出结构化结果供后续处理。它现在也会给出版本化的 Verifier 结果和 Gate；这能明确区分“链接不可达”与“链接虽然可达、但不能据此证明正文论断”。
 
 ## 用法
 
@@ -72,6 +72,7 @@
   - `summary.skipped`
   - `references[*].validation`
 - 当前脚本直接把 JSON 结果输出到标准输出，不会自动生成独立 Markdown 报告文件。
+- `verification.results` 保存原子规则结果与证据引用；`verification.gate` 用 `reject` 或 `manual_review` 表达确定性失败和验证缺口。
 
 ## 配置
 
@@ -84,6 +85,8 @@
   - `domain_whitelist`
   - `domain_blacklist`
 - `output` 相关字段目前更偏预留配置，不是当前 CLI 的核心生效入口。
+
+Pack 契约见 `verifier-pack.yaml`，脱敏边界样例见 `calibration.json`。
 
 ## 备选用法（脚本/硬编码）
 

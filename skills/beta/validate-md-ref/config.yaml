@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: validate-md-ref
-  version: 0.2.1
+  version: 0.3.0
   description: 验证 Markdown 文档中 URL 引用的可访问性
   author: "Bensz Conan"
   category: 文档质量
