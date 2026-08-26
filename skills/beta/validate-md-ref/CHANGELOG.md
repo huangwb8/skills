@@ -10,6 +10,8 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **恢复 BenszAPI 任务工作区约定**：在 `SKILL.md` 中补回任务级 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/` 目录契约，明确共享材料、正式交付物分流、敏感信息边界与 legacy 路径规则。
+- **SKILL.md 执行契约增强**：补充适用范围、输入输出、最小执行流程和相对路径调用说明；明确脚本与直接 verifier 的配置加载差异，并将触发描述改为同时说明能力和使用场景。
 - **Verifier ID 与版本解耦**：调用从 `markdown.references.v1` 改为稳定 ID `markdown.references`，显式固定 Pack 版本 `1.0.0`；Skill 版本升级至 `0.5.0`。
 - **Skill 使用说明简化**：将 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，references 改为简短的工具与输入输出定义。
 - **Skill 文档分层重构**：description 只保留面向用户的触发条件，正文改为说明检查目标、输入输出和解释边界；移除 `verifier` 关键词，避免把实现工具误当作 Skill 特性。

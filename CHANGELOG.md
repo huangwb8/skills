@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **恢复 validate-md-ref 的 `.bensz-api` 工作区说明**：补回 Skill 级任务根目录、`input`/`output`/`log` 分层、跨 Skill 共享材料、正式交付物分流、敏感信息保护与 legacy 路径约束。
+- **AGENTS.md 增补 `.bensz-api` 任务工作区协议**：对齐 `sub2api/docs/prompts/005-bensz-skill-workspace.md`，明确任务根目录锁定、Skill 调用前透明播报、`shared`/Skill 隔离、`input`/`output`/`log` 分层、正式交付物分流、失败兜底、敏感信息保护与质量门禁。
+- **validate-md-ref Skill 执行契约增强**：补充 `SKILL.md` 的适用范围、输入输出、最小执行流程和相对路径调用说明；明确脚本与直接 verifier 的配置加载差异，并增强触发描述的能力与场景信息。
 - **Verifier ID 与版本解耦**：将内置 `markdown.references.v1` 重命名为稳定 ID `markdown.references`，版本统一通过 `--version` / `VerifierSpec.version` 管理；`bsk verifier run` 新增版本参数。该兼容性变更使 kernel 升级至 `0.4.0`，`validate-md-ref` 升级至 `0.5.0`。
 - **validate-md-ref 使用说明简化**：将 beta Skill 的 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，保留简单的输入输出定义（该阶段版本为 `0.4.2`）。
 
