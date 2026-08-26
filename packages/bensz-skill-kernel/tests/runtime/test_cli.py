@@ -51,11 +51,14 @@ def test_builtin_verifier_catalog_and_run(tmp_path: Path, capsys):
 
     assert main(["verifier", "list", "--tag", "markdown"]) == 0
     catalog = json.loads(capsys.readouterr().out)
-    assert catalog["verifiers"][0]["verifier_id"] == "markdown.references.v1"
+    assert catalog["verifiers"][0]["verifier_id"] == "markdown.references"
+    assert catalog["verifiers"][0]["version"] == "1.0.0"
     assert "vertical" in catalog["verifiers"][0]["tags"]
 
-    assert main(["verifier", "run", "markdown.references.v1", "--input", str(markdown)]) == 0
+    assert main(["verifier", "run", "markdown.references", "--version", "1.0.0", "--input", str(markdown)]) == 0
     output = json.loads(capsys.readouterr().out)
+    assert output["verifier"]["verifier_id"] == "markdown.references"
+    assert output["verifier"]["version"] == "1.0.0"
     assert output["summary"]["invalid"] == 0
     assert output["gate"]["decision"] == "manual_review"
     assert output["verification"]["gate"]["decision"] == "manual_review"

@@ -8,7 +8,7 @@
 这次改造完成了 **Skill → Verifier Runner** 的单向接入，但还没有完成 **Verifier → 状态机事件账本** 的自动闭环。
 
 - `validate-md-ref` 仍由自己的脚本负责 Markdown 引用提取、站内锚点检查和 HTTP(S) 可达性探测。
-- 脚本随后构造 `VerificationRequest`，把 Markdown 快照和引用结果作为 `Evidence`，调用版本化的 `markdown.references.v1@1.0.0` Pack。
+- 脚本随后构造 `VerificationRequest`，把 Markdown 快照和引用结果作为 `Evidence`，调用版本化的 `markdown.references@1.0.0` Pack。
 - Pack 以 `hybrid` 模式运行：确定性规则判断链接是否可达；语义判断组件明确返回 `unchecked`，不把“URL 能打开”冒充为“来源支持正文论断”。
 - `VerifierRunner` 标准化结果并计算 Gate：确定性失败为 `reject`，没有确定性失败但存在语义缺口为 `manual_review`。
 - CLI 将这些结果放进新增的 `verification` JSON 字段，同时保留既有的 `summary` 和 `references` 字段，兼容旧调用方。
@@ -33,7 +33,7 @@
 | 输出 | `file`、`summary`、`references` | 保留上述字段，新增版本化 `verification.results`、`verification.gate` |
 | 验证逻辑 | 脚本直接产生布尔式链接结果 | 脚本产生事实，Pack 规则将事实转为统一 `VerificationResult` |
 | 语义边界 | 仅在文档中说明“内容对比需 AI 处理” | Pack 内显式输出 `unchecked` 和原因，禁止伪装成通过 |
-| 版本追踪 | 主要由 Skill `config.yaml` 管理版本 | Skill 为 `0.3.0`，Pack 单独固定为 `markdown.references.v1@1.0.0`，内核为 `0.2.0` |
+| 版本追踪 | 主要由 Skill `config.yaml` 管理版本 | Skill、Pack 和内核分别管理版本；Pack 固定为 `markdown.references@1.0.0` |
 | 状态机关系 | 无统一验证事件字段 | 内核可保存 `verification.result` 和 `verification.gate` 并纳入投影，但本 Skill 尚未写入事件 |
 
 ## 实际交互链路
@@ -42,7 +42,7 @@
 sequenceDiagram
     participant U as 调用方
     participant S as validate_links.py
-    participant V as markdown.references.v1 Pack
+    participant V as markdown.references Pack
     participant K as bensz-skill-kernel VerifierRunner
     participant O as CLI JSON
     participant E as EventLog（当前未调用）
@@ -85,7 +85,7 @@ sequenceDiagram
 
 ### Pack 如何分工
 
-kernel 内置 registry 声明并注册 `markdown.references.v1@1.0.0`，模式为 `hybrid`，能力包括引用提取、URL 可达性和本地 anchor；Skill 侧不再复制 Pack 声明或注册实现。
+kernel 内置 registry 声明并注册 `markdown.references@1.0.0`，模式为 `hybrid`，能力包括引用提取、URL 可达性和本地 anchor；Skill 侧不再复制 Pack 声明或注册实现。
 
 - `url-reachability` 规则读取 `reference.results`。只要存在未跳过且 `valid=false` 的引用，就产生 `fail` finding，并引用 `reference:<index>`；没有此类引用则产生 `pass`。
 - `content-entailment` 目前是确定性的占位组件，始终输出 `unchecked`，原因是链接可达性不能证明正文主张得到来源支持。
@@ -163,7 +163,7 @@ kernel 内置 registry 声明并注册 `markdown.references.v1@1.0.0`，模式�
 
 ## 最终判断
 
-本次改造的价值在于建立了一个清晰的分层边界：`validate-md-ref` 负责采集链接事实，`markdown.references.v1` 负责把事实包装成可版本化的验证结果，`bensz-skill-kernel` 负责统一结果格式和保守门禁，状态机负责（在被调用时）记录和重放这些事实。
+本次改造的价值在于建立了一个清晰的分层边界：`validate-md-ref` 负责采集链接事实，`markdown.references` 负责把事实包装成可版本化的验证结果，`bensz-skill-kernel` 负责统一结果格式和保守门禁，状态机负责（在被调用时）记录和重放这些事实。
 
 但截至调查时，最后一步仍是“基础设施已具备、试点尚未接线”：`validate-md-ref` 输出了 Verifier 结果，却没有把结果追加到状态机事件账本，也没有让 Gate 自动改变生命周期状态。因此它是一个已接入 Verifier 的试点 Skill，还不是完全接入 Skill Runtime 的闭环实现。
 
@@ -172,8 +172,8 @@ kernel 内置 registry 声明并注册 `markdown.references.v1@1.0.0`，模式�
 本次调查后的最小接入已完成，采用“内核提供命令、Skill 负责编排”的形态：
 
 - `bensz-skill-kernel` 的 `bsk verifier list/describe/run` 现在是稳定的公开 verifier 入口；`run` 会为结果列表追加 `verification.result`，并为最后一项追加 `verification.gate`，保留 `scope`、`actor`、`attempt_id` 与幂等键。
-- `validate_links.py` 接受 `--events`、`--run-id` 和 `--attempt-id`，作为薄封装调用 `bsk verifier run markdown.references.v1`；事件账本中只保存标准化结果、Gate 和证据引用，不保存 Markdown 全文。
+- `validate_links.py` 接受 `--events`、`--run-id` 和 `--attempt-id`，作为薄封装调用 `bsk verifier run markdown.references --version 1.0.0`；事件账本中只保存标准化结果、Gate 和证据引用，不保存 Markdown 全文。
 - Skill 文档新增 `bsk verifier list/describe/run` 的声明说明。Gate 仍是门禁事实，不会被脚本擅自解释为完成；`reject` / `manual_review` 到生命周期状态的后续动作由调用 AI 根据任务上下文执行。
-- kernel 目录现在同时提供通用 `artifact.file-exists`（`common`）和垂直 `markdown.references.v1`（`vertical`）两个示例 verifier；Skill 可用 `bsk verifier list --tag TAG` 发现能力，用 `bsk verifier describe ID` 读取契约，不需要复制规则实现。
+- kernel 目录现在同时提供通用 `artifact.file-exists`（`common`）和垂直 `markdown.references`（`vertical`）两个示例 verifier；Skill 可用 `bsk verifier list --tag TAG` 发现能力，用 `bsk verifier describe ID --version VERSION` 读取契约，不需要复制规则实现。
 
 因此，试点已从“只输出 JSON 的 Verifier 接入”升级为“可由 Agent 通过 shell 命令自然编排、且验证事实进入事件账本”的运行时接入；状态转移策略仍保持领域无关，不被硬编码进 Skill。

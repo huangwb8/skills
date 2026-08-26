@@ -145,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
     verifier_describe.add_argument("--version")
     verifier_run = verifier_commands.add_parser("run", help="run a built-in verifier")
     verifier_run.add_argument("verifier_id")
+    verifier_run.add_argument("--version")
     verifier_run.add_argument("--input", required=True, help="subject file path")
     verifier_run.add_argument("--timeout", type=int, default=10)
     verifier_run.add_argument("--blacklist", action="append", default=[])
@@ -198,7 +199,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         build_parser().parse_args(["verifier", "--help"])
         return 0
 
-    pack = registry.resolve(args.verifier_id)
+    pack = registry.resolve(args.verifier_id, args.version)
     target = Path(args.input).expanduser().resolve()
     if not target.is_file():
         raise ValueError(f"input file does not exist: {args.input}")
@@ -206,7 +207,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
     request_id = args.run_id or f"{pack.spec.verifier_id}:{content_hash[:16]}"
     evidence: tuple[Evidence, ...] = ()
     facts: dict[str, Any] = {}
-    if pack.spec.verifier_id == "markdown.references.v1":
+    if pack.spec.verifier_id == "markdown.references":
         collected = collect_markdown(target, timeout=args.timeout, blacklist=tuple(args.blacklist), whitelist=tuple(args.whitelist))
         facts = {"summary": collected["summary"], "references": collected["references"]}
         evidence = (
@@ -214,7 +215,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
             Evidence("reference.results", "validator", facts),
         )
     request = VerificationRequest(subject={"type": "file", "path": str(target), "content_hash": content_hash}, evidence=evidence, request_id=request_id)
-    results, gate = VerifierRunner(registry).run(request, args.verifier_id)
+    results, gate = VerifierRunner(registry).run(request, args.verifier_id, version=args.version)
     result_payloads = [{**result.to_dict(), "request_id": request_id} for result in results]
     output: dict[str, Any] = {
         "verifier": _spec_dict(pack.spec),

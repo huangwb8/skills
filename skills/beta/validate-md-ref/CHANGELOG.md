@@ -10,6 +10,7 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **Verifier ID 与版本解耦**：调用从 `markdown.references.v1` 改为稳定 ID `markdown.references`，显式固定 Pack 版本 `1.0.0`；Skill 版本升级至 `0.5.0`。
 - **Skill 使用说明简化**：将 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，references 改为简短的工具与输入输出定义。
 - **Skill 文档分层重构**：description 只保留面向用户的触发条件，正文改为说明检查目标、输入输出和解释边界；移除 `verifier` 关键词，避免把实现工具误当作 Skill 特性。
 - **参考资料按需加载**：新增 `references/` 下的引用范围、运行配置、结果字段和网络安全说明，减少 SKILL.md 对运行时细节的承载。

@@ -9,7 +9,7 @@ metadata:
 ## 工具包
 
 - `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
-- `bsk verifier run markdown.references.v1`：直接运行仓库提供的 Markdown 引用检查工具。
+- `bsk verifier run markdown.references --version 1.0.0`：直接运行仓库提供的 Markdown 引用检查工具。
 - `config.yaml`：默认超时、域名白名单和黑名单配置。
 
 ## 完成工作时使用的命令
@@ -18,7 +18,7 @@ metadata:
 | --- | --- |
 | 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
 | 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
-| 直接调用运行时工具 | `bsk verifier run markdown.references.v1 --input DOCUMENT.md` |
+| 直接调用运行时工具 | `bsk verifier run markdown.references --version 1.0.0 --input DOCUMENT.md` |
 | 记录审计事件 | 在上述脚本或命令后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
 
 ## 参考资料

@@ -1,6 +1,6 @@
 # validate-md-ref
 
-当前版本：`0.4.2`。这个 skill 对 Markdown 引用做只读检查：站内 `#anchor` 在当前文档本地校验，外部 HTTP(S) 链接检查可达性，并报告行号、状态和跳过原因。它不判断网页内容是否支持正文论断，也不自动修改文档。
+当前版本：`0.5.0`。这个 skill 对 Markdown 引用做只读检查：站内 `#anchor` 在当前文档本地校验，外部 HTTP(S) 链接检查可达性，并报告行号、状态和跳过原因。它不判断网页内容是否支持正文论断，也不自动修改文档。
 
 它适合文档质检、交付前巡检和失效引用定位。底层运行时是实现手段，不是触发条件；结果中的验证缺口会明确标为 `unchecked` 或 `manual_review`。
 
@@ -92,7 +92,7 @@
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 
-直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.references.v1`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
+直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.references --version 1.0.0`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
 
 ## 备选用法（脚本/硬编码）
 
@@ -118,14 +118,14 @@ python3 validate-md-ref/scripts/validate_links.py \
 
 ```bash
 bsk verifier list --tag markdown
-bsk verifier describe markdown.references.v1
-bsk verifier run markdown.references.v1 \
+bsk verifier describe markdown.references --version 1.0.0
+bsk verifier run markdown.references --version 1.0.0 \
   --input docs/review.md --timeout 10 \
   --blacklist localhost --blacklist '*.internal' \
   --events "$EVENTS" --run-id "review-20260826-01"
 ```
 
-所需 verifier：`markdown.references.v1`。它带有 `vertical`、`markdown`、`references`、`network-read` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
+所需 verifier：`markdown.references`，版本 `1.0.0`。它带有 `vertical`、`markdown`、`references`、`network-read` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
 
 ## 常见问题
 

@@ -11,7 +11,7 @@ python3 scripts/validate_links.py DOCUMENT.md [CONFIG.yaml]
 ## 直接命令
 
 ```bash
-bsk verifier run markdown.references.v1 --input DOCUMENT.md
+bsk verifier run markdown.references --version 1.0.0 --input DOCUMENT.md
 ```
 
 直接命令需要自行传入配置参数，例如 `--timeout 10`、重复的 `--blacklist DOMAIN` 或 `--whitelist DOMAIN`。需要审计时追加 `--events EVENTS.ndjson --run-id RUN_ID`。

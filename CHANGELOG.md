@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
-- **validate-md-ref 使用说明简化**：将 beta Skill 的 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，保留简单的输入输出定义，Skill 版本仍为 `0.4.2`。
+- **Verifier ID 与版本解耦**：将内置 `markdown.references.v1` 重命名为稳定 ID `markdown.references`，版本统一通过 `--version` / `VerifierSpec.version` 管理；`bsk verifier run` 新增版本参数。该兼容性变更使 kernel 升级至 `0.4.0`，`validate-md-ref` 升级至 `0.5.0`。
+- **validate-md-ref 使用说明简化**：将 beta Skill 的 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，保留简单的输入输出定义（该阶段版本为 `0.4.2`）。
 
 ### Fixed（修复）
 - **Markdown verifier 重定向安全**：`bensz-skill-kernel` 在每一跳 HTTP 重定向发起前重新校验协议、白名单、显式黑名单和私网地址，阻止公开 URL 经重定向访问内网；新增回归测试。

@@ -171,7 +171,7 @@ def collect_markdown(path: str | Path, *, timeout: int = 10, blacklist: tuple[st
 
 
 MARKDOWN_SPEC = VerifierSpec(
-    verifier_id='markdown.references.v1',
+    verifier_id='markdown.references',
     version='1.0.0',
     mode='hybrid',
     capabilities=('markdown.reference_extraction', 'url.reachability', 'anchor.local'),
