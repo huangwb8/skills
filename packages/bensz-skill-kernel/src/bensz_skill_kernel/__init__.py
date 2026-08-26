@@ -12,11 +12,14 @@ from .runtime import (
 )
 from .verifiers import (
     Evidence,
+    FilesystemVerifierRegistry,
     GateDecision,
     PackRegistry,
     VerifierPack,
     VerifierRunner,
     VerifierSpec,
+    VerifierDefinition,
+    VerifierRegistry,
     VerificationRequest,
     VerificationResult,
     apply_gate,
@@ -35,11 +38,14 @@ __all__ = [
     "VALID_STATES",
     "reduce_events",
     "Evidence",
+    "FilesystemVerifierRegistry",
+    "VerifierRegistry",
     "GateDecision",
     "PackRegistry",
     "VerifierPack",
     "VerifierRunner",
     "VerifierSpec",
+    "VerifierDefinition",
     "VerificationRequest",
     "VerificationResult",
     "apply_gate",
@@ -51,4 +57,4 @@ __all__ = [
     "collect_markdown",
 ]
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"

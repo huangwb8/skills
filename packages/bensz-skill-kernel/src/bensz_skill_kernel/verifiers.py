@@ -9,13 +9,43 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
 VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", "skipped"})
 MODES = frozenset({"rule", "prompt", "hybrid", "human"})
+
+
+def _version_key(version: str) -> tuple[tuple[int, Any], ...]:
+    """Sort semantic-ish versions numerically while tolerating labels."""
+    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in re.split(r"[.-]", version))
+
+
+def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Parse the deliberately small, dependency-free VERIFIER.md header."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}, text
+    try:
+        end = next(i for i, line in enumerate(lines[1:], 1) if line.strip() == "---")
+    except StopIteration:
+        return {}, text
+    metadata: dict[str, str] = {}
+    for line in lines[1:end]:
+        if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        value = value.strip().strip("\"'")
+        metadata[key.strip()] = value
+    body = "\n".join(lines[end + 1:]).lstrip("\n")
+    return metadata, body
 
 
 def _now() -> str:
@@ -69,6 +99,145 @@ class VerifierSpec:
     def __post_init__(self) -> None:
         if self.mode not in MODES:
             raise ValueError(f"unsupported verifier mode: {self.mode}")
+
+
+@dataclass(frozen=True)
+class VerifierDefinition:
+    """A verifier discovered from a directory containing ``VERIFIER.md``.
+
+    The kernel owns this shape and the stdio protocol only; the Markdown body
+    and optional entrypoint own the actual verification method.
+    """
+
+    verifier_id: str
+    version: str
+    path: Path
+    instructions: str
+    description: str = ""
+    entrypoint: str | None = None
+    tags: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_directory(cls, path: str | os.PathLike[str]) -> "VerifierDefinition":
+        root = Path(path).expanduser().resolve()
+        document = root / "VERIFIER.md"
+        if not document.is_file():
+            raise ValueError(f"verifier contract not found: {document}")
+        fields, instructions = _parse_frontmatter(document.read_text(encoding="utf-8"))
+        verifier_id = fields.get("id") or fields.get("verifier_id")
+        version = fields.get("version")
+        if not verifier_id or not version:
+            raise ValueError(f"VERIFIER.md requires id and version: {document}")
+        entrypoint = fields.get("entrypoint") or fields.get("script")
+        if entrypoint:
+            candidate = (root / entrypoint).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError(f"entrypoint must be a file inside verifier directory: {entrypoint}")
+            entrypoint = str(candidate.relative_to(root))
+        tags = tuple(item.strip() for item in fields.get("tags", "").split(",") if item.strip())
+        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags"}
+        metadata = {key: value for key, value in fields.items() if key not in reserved}
+        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata)
+
+    @property
+    def spec(self) -> VerifierSpec:
+        return VerifierSpec(
+            verifier_id=self.verifier_id,
+            version=self.version,
+            mode="rule" if self.entrypoint else "human",
+            tags=self.tags,
+            metadata={"description": self.description, "path": str(self.path), "entrypoint": self.entrypoint, **dict(self.metadata)},
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "verifier_id": self.verifier_id,
+            "version": self.version,
+            "description": self.description,
+            "tags": list(self.tags),
+            "entrypoint": self.entrypoint,
+            "instructions": self.instructions,
+            "metadata": dict(self.metadata),
+        }
+
+
+class FilesystemVerifierRegistry:
+    """Discover and execute directory-based verifier contracts."""
+
+    def __init__(self, root: str | os.PathLike[str]):
+        self.root = Path(root).expanduser().resolve()
+        self._definitions: dict[tuple[str, str], VerifierDefinition] = {}
+        self.reload()
+
+    def reload(self) -> None:
+        self._definitions.clear()
+        if not self.root.is_dir():
+            return
+        for child in sorted(self.root.iterdir(), key=lambda item: item.name):
+            if not child.is_dir() or not (child / "VERIFIER.md").is_file():
+                continue
+            definition = VerifierDefinition.from_directory(child)
+            key = (definition.verifier_id, definition.version)
+            if key in self._definitions:
+                raise ValueError(f"duplicate verifier: {definition.verifier_id}@{definition.version}")
+            self._definitions[key] = definition
+
+    def resolve(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
+        if version:
+            try:
+                return self._definitions[(verifier_id, version)]
+            except KeyError as exc:
+                raise KeyError(f"verifier not found: {verifier_id}@{version}") from exc
+        candidates = [item for (identifier, _), item in self._definitions.items() if identifier == verifier_id]
+        if not candidates:
+            raise KeyError(f"verifier not found: {verifier_id}")
+        return sorted(candidates, key=lambda item: _version_key(item.version))[-1]
+
+    def definitions(self, *, tag: str | None = None) -> tuple[VerifierDefinition, ...]:
+        items = tuple(self._definitions.values())
+        if tag:
+            items = tuple(item for item in items if tag in item.tags)
+        return tuple(sorted(items, key=lambda item: (item.verifier_id, item.version)))
+
+    def specs(self, *, tag: str | None = None) -> tuple[VerifierSpec, ...]:
+        return tuple(item.spec for item in self.definitions(tag=tag))
+
+    def describe(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
+        return self.resolve(verifier_id, version)
+
+    def run(self, verifier_id: str, request: Mapping[str, Any] | VerificationRequest, *, version: str | None = None, timeout: int = 30) -> dict[str, Any]:
+        if isinstance(request, VerificationRequest):
+            request = {
+                "request_id": request.request_id,
+                "subject": dict(request.subject),
+                "requirements": list(request.requirements),
+                "evidence": [item.to_dict() for item in request.evidence],
+                "context": dict(request.context),
+            }
+        definition = self.resolve(verifier_id, version)
+        base = {"verifier_id": definition.verifier_id, "verifier_version": definition.version, "evidence_refs": tuple(request.get("evidence_refs", ())), "request_id": request.get("request_id")}
+        if not definition.entrypoint:
+            return {**base, "execution_status": "unchecked", "verdict": "unchecked", "uncertainty_reason": "instruction-only verifier; follow VERIFIER.md manually"}
+        command = [sys.executable, str(definition.path / definition.entrypoint)]
+        try:
+            completed = subprocess.run(command, input=json.dumps(dict(request), ensure_ascii=False), text=True, capture_output=True, cwd=definition.path, timeout=timeout, check=False)
+        except subprocess.TimeoutExpired:
+            return {**base, "execution_status": "timed_out", "verdict": "timed_out", "uncertainty_reason": f"verifier timed out after {timeout}s"}
+        if completed.returncode != 0:
+            detail = completed.stderr.strip() or f"entrypoint exited with status {completed.returncode}"
+            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": detail[:1000]}
+        try:
+            raw = json.loads(completed.stdout)
+            if not isinstance(raw, Mapping):
+                raise ValueError("verifier output must be a JSON object")
+        except (json.JSONDecodeError, ValueError) as exc:
+            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": f"invalid verifier JSON: {exc}"}
+        return {**normalize_result(raw, definition.spec, evidence_refs=base["evidence_refs"]).to_dict(), "request_id": request.get("request_id")}
+
+
+# Short public name for callers that do not care about the storage backend.
+VerifierRegistry = FilesystemVerifierRegistry
 
 
 @dataclass(frozen=True)

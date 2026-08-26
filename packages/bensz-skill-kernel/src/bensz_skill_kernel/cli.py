@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 from .builtins import build_builtin_registry, collect_markdown
 from .runtime import EventLog, KernelError
-from .verifiers import Evidence, VerificationRequest, VerifierRunner
+from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate
 
 
 def _json_value(raw: str, *, label: str) -> Any:
@@ -187,41 +187,48 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
     }
 
 
+def _verifier_registry() -> FilesystemVerifierRegistry:
+    root = Path(__file__).resolve().parents[2] / "verifiers"
+    return FilesystemVerifierRegistry(root)
+
+
 def _run_verifier_command(args: argparse.Namespace) -> int:
-    registry = build_builtin_registry()
+    registry = _verifier_registry()
     if args.verifier_command == "list":
         _print({"verifiers": [_spec_dict(spec) for spec in registry.specs(tag=args.tag)]}, pretty=True)
         return 0
     if args.verifier_command == "describe":
-        _print(_spec_dict(registry.describe(args.verifier_id, args.version)), pretty=True)
+        definition = registry.describe(args.verifier_id, args.version)
+        _print(definition.to_dict(), pretty=True)
         return 0
     if args.verifier_command != "run":
         build_parser().parse_args(["verifier", "--help"])
         return 0
 
-    pack = registry.resolve(args.verifier_id, args.version)
+    definition = registry.resolve(args.verifier_id, args.version)
     target = Path(args.input).expanduser().resolve()
     if not target.is_file():
         raise ValueError(f"input file does not exist: {args.input}")
     content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
-    request_id = args.run_id or f"{pack.spec.verifier_id}:{content_hash[:16]}"
-    evidence: tuple[Evidence, ...] = ()
-    facts: dict[str, Any] = {}
-    if pack.spec.verifier_id == "citation.truth-and-fit":
-        raise ValueError("citation.truth-and-fit requires structured evidence; use a format adapter or VerifierRunner")
-    request = VerificationRequest(subject={"type": "file", "path": str(target), "content_hash": content_hash}, evidence=evidence, request_id=request_id)
-    results, gate = VerifierRunner(registry).run(request, args.verifier_id, version=args.version)
-    result_payloads = [{**result.to_dict(), "request_id": request_id} for result in results]
+    request_id = args.run_id or f"{definition.verifier_id}:{content_hash[:16]}"
+    request_payload = {"request_id": request_id, "subject": {"type": "file", "path": str(target), "content_hash": content_hash}, "context": {"timeout": args.timeout, "blacklist": args.blacklist, "whitelist": args.whitelist}}
+    raw_result = registry.run(args.verifier_id, request_payload, version=args.version, timeout=args.timeout)
+    result_payloads = [{**raw_result, "request_id": request_id}]
+    normalized = VerificationResult(
+        verifier_id=raw_result["verifier_id"], verifier_version=raw_result["verifier_version"], execution_status=raw_result["execution_status"], verdict=raw_result["verdict"], findings=tuple(raw_result.get("findings", ())), facts=dict(raw_result.get("facts", {})), evidence_refs=tuple(raw_result.get("evidence_refs", ())), confidence=raw_result.get("confidence"), uncertainty_reason=raw_result.get("uncertainty_reason"), model_or_engine=raw_result.get("model_or_engine"), duration_ms=raw_result.get("duration_ms"),
+    )
+    gate = apply_gate((normalized,))
     output: dict[str, Any] = {
-        "verifier": _spec_dict(pack.spec),
+        "verifier": _spec_dict(definition.spec),
         "request_id": request_id,
         "file": str(target),
         "results": result_payloads,
         "gate": gate.to_dict(),
         "verification": {"request_id": request_id, "results": result_payloads, "gate": gate.to_dict()},
     }
-    if facts:
-        output.update({"summary": facts["summary"], "references": facts["references"]})
+    facts = raw_result.get("facts", {})
+    if isinstance(facts, Mapping) and "summary" in facts:
+        output.update({"summary": facts["summary"], "references": facts.get("references", [])})
     if args.events:
         log = EventLog(args.events)
         persisted = []

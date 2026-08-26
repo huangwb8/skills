@@ -10,6 +10,8 @@ from bensz_skill_kernel import (
     VerifierSpec,
     VerificationRequest,
     apply_gate,
+    FilesystemVerifierRegistry,
+    VerifierDefinition,
 )
 from bensz_skill_kernel.builtins import _probe, build_builtin_registry
 
@@ -82,3 +84,59 @@ def test_generic_citation_pack_is_format_agnostic_and_conservative():
 
 def test_gate_empty_results_waits():
     assert apply_gate(()).decision == "wait"
+
+
+def test_filesystem_registry_discovers_markdown_contract(tmp_path):
+    verifier_dir = tmp_path / "demo"
+    verifier_dir.mkdir()
+    (verifier_dir / "VERIFIER.md").write_text(
+        "---\n"
+        "id: demo.check\n"
+        "version: 1.2.0\n"
+        "description: Demo verifier\n"
+        "tags: demo, deterministic\n"
+        "---\n\n# Instructions\n\nRun the check.\n",
+        encoding="utf-8",
+    )
+    registry = FilesystemVerifierRegistry(tmp_path)
+    definition = registry.resolve("demo.check")
+    assert isinstance(definition, VerifierDefinition)
+    assert definition.version == "1.2.0"
+    assert definition.instructions.startswith("# Instructions")
+    assert "demo" in definition.tags
+
+
+def test_instruction_only_verifier_returns_standard_unchecked_result(tmp_path):
+    verifier_dir = tmp_path / "manual"
+    verifier_dir.mkdir()
+    (verifier_dir / "VERIFIER.md").write_text(
+        "---\nid: manual.review\nversion: 1.0.0\n---\n\n# Review\n",
+        encoding="utf-8",
+    )
+    registry = FilesystemVerifierRegistry(tmp_path)
+    result = registry.run("manual.review", {"subject": {"value": 1}})
+    assert result["execution_status"] == "unchecked"
+    assert result["verdict"] == "unchecked"
+    assert result["verifier_id"] == "manual.review"
+
+
+def test_script_verifier_uses_json_stdio_protocol(tmp_path):
+    verifier_dir = tmp_path / "scripted"
+    scripts = verifier_dir / "scripts"
+    scripts.mkdir(parents=True)
+    (verifier_dir / "VERIFIER.md").write_text(
+        "---\nid: scripted.check\nversion: 1.0.0\nentrypoint: scripts/check.py\n---\n\n# Check\n",
+        encoding="utf-8",
+    )
+    (scripts / "check.py").write_text(
+        "import json, sys\n"
+        "request = json.load(sys.stdin)\n"
+        "json.dump({'verdict': 'pass', 'facts': {'echo': request['subject']}}, sys.stdout)\n",
+        encoding="utf-8",
+    )
+    result = FilesystemVerifierRegistry(tmp_path).run(
+        "scripted.check", {"subject": {"value": 2}, "request_id": "r1"}
+    )
+    assert result["execution_status"] == "completed"
+    assert result["verdict"] == "pass"
+    assert result["facts"]["echo"] == {"value": 2}
