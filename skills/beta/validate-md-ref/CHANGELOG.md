@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+- **Skill 使用说明简化**：将 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，references 改为简短的工具与输入输出定义。
+- **Skill 文档分层重构**：description 只保留面向用户的触发条件，正文改为说明检查目标、输入输出和解释边界；移除 `verifier` 关键词，避免把实现工具误当作 Skill 特性。
+- **参考资料按需加载**：新增 `references/` 下的引用范围、运行配置、结果字段和网络安全说明，减少 SKILL.md 对运行时细节的承载。
+- **版本**：Skill `0.4.1 → 0.4.2`。
+
 ### Fixed（修复）
 - **重定向安全边界**：kernel verifier 改为逐跳检查重定向目标的协议、白名单、显式黑名单与私网地址，拒绝目标不会被请求；`SKILL.md` 和 README 同步说明该约束。
 

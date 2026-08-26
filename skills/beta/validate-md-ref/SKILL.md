@@ -1,72 +1,36 @@
 ---
 name: validate-md-ref
-description: 当用户要求验证 Markdown 文档中的 URL、站内锚点或引用链接是否可访问、生成链接核验报告，或在文档交付前检查 Markdown 引用时使用。
+description: 当用户要求检查 Markdown 文档中的外部 URL、站内锚点或引用链接、生成链接核验结果、排查失效引用，或在文档交付前做链接巡检时使用。
 metadata:
   author: Bensz Conan
-  short-description: 基于证据与门禁协议的 Markdown 引用可达性核验
-  keywords: [Markdown, URL, 锚点, 引用验证, verifier]
+  short-description: 检查 Markdown 引用是否可定位、可访问
 ---
 
-## 适用范围
+## 工具包
 
-版本由 `config.yaml:skill_info.version` 管理。此 Skill 是只读检查器：它提取 Markdown 引用、验证站内 anchor 与可声明的 HTTP(S) 可达性，并报告验证边界；绝不改写文档、删除链接或替用户判断网页内容的学术/事实支持关系。
+- `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
+- `bsk verifier run markdown.references.v1`：直接运行仓库提供的 Markdown 引用检查工具。
+- `config.yaml`：默认超时、域名白名单和黑名单配置。
 
-## 调用方式
+## 完成工作时使用的命令
 
-本 Skill 只声明命令和所需 verifier，不实现状态机或 verifier 编排。运行前先执行 `bsk verifier describe markdown.references.v1`；若命令或 verifier 不可用，明确报告运行时依赖缺失，不尝试 hidden legacy 路径或自行拼接结果。调用方式如下：
+| 工作 | 命令 |
+| --- | --- |
+| 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
+| 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
+| 直接调用运行时工具 | `bsk verifier run markdown.references.v1 --input DOCUMENT.md` |
+| 记录审计事件 | 在上述脚本或命令后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
 
-- 命令：`bsk verifier run markdown.references.v1 --input MARKDOWN`；需要审计时追加 `--events EVENTS --run-id RUN_ID`。
-- 域名与超时策略：直接调用时显式传入 `--timeout SECONDS`、重复的 `--blacklist DOMAIN` 和重复的 `--whitelist DOMAIN`；如需复用 `config.yaml`，使用脚本封装 `python3 scripts/validate_links.py MARKDOWN [CONFIG]`。
-- 所需 verifier：`markdown.references.v1`。
-- 标签：`vertical`、`markdown`、`references`、`network-read`。
-- 可发现性：`bsk verifier list --tag markdown`；契约详情：`bsk verifier describe markdown.references.v1`。
+## 参考资料
 
-## 验证器边界
+- [`references/tools.md`](references/tools.md)：工具包、命令参数和配置字段的简要说明。
+- [`references/formats.md`](references/formats.md)：支持的引用形式和输出字段的简要说明。
 
-`markdown.references.v1` 是 kernel 内置的 hybrid verifier：规则组件检查引用提取、站内 anchor 和 HTTP(S) 可达性；语义组件明确返回 `unchecked`，不把链接可达性解释为正文论断成立。Skill 不手写 `verification.result`、Gate 或事件格式。
+Skill 只检查引用的提取、站内锚点和 HTTP(S) 可达性；不判断网页内容是否支持正文论断，不自动修改 Markdown。
 
-## BenszAPI 任务工作区
+## bensz-collect-bugs 约束
 
-新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；正式交付文件按用户指定的位置保存。复用同一逻辑任务既有工作区，不保存密钥、Cookie、私人正文或不必要的完整网页内容。仅在用户要求审计时传入 `--events`，因为它会追加事件账本；源 Markdown 始终只读。
-
-## 与 bensz-collect-bugs 的协作约定
-
-- 仅当发现本 Skill 的设计契约、环境假设或流程存在缺陷时，使用 `bensz-collect-bugs` 记录脱敏的最小复现；不把用户数据错误、第三方波动或模型偶发输出当作 Skill bug。
-- 先记录到 `~/.bensz-skills/bugs/`，不打断当前工作；只有用户明确要求时才用 `gh api` 公开上报。
-- 不直接修改用户本地已安装 Skill 来“顺手修复”。
-
-## 验证契约
-
-Pack：`markdown.references.v1@1.0.0`，模式：`hybrid`。
-
-- Subject：目标 Markdown 快照与内容哈希。
-- Evidence：`markdown.snapshot`、`reference.results`；每项带来源、采集时间、哈希和脱敏标记。
-- Rule：链接提取、站内 anchor、协议/域名策略和 HTTP(S) 可达性。
-- Prompt/Rubric：本 Pack 不尝试由 URL 可达性推断“引用是否支持论断”，因此明确输出 `unchecked` 的语义缺口。
-- Gate：有不可达引用时 `reject`；只有可达性规则通过但语义无法观察时为 `manual_review`。这是验证范围的诚实表达，不代表文档不可交付。
-
-## 执行步骤
-
-1. 读取目标 Markdown，确认只读范围和域名策略。
-2. 先确认 `bsk verifier describe markdown.references.v1` 成功，再按已确认的域名与超时策略运行 verifier；脚本入口只是对该命令的薄封装。需要保留事件账本时追加 `--events EVENTS --run-id RUN_ID`。
-3. 保存或呈现 JSON 中的原始 `summary`、`references` 和 `verification` 三部分；不要把 `manual_review` 解释成 `pass`。
-4. 如需处理失败链接，先给出定位与原因；只有用户另行授权才修改正文。
-
-## 输出与解释
-
-脚本兼容既有 `summary` 和 `references` 字段，并新增：
-
-```json
-{"verification":{"results":[{"verdict":"pass|fail|unchecked","evidence_refs":["..."]}],"gate":{"decision":"allow|reject|manual_review","reason":"..."}}}
-```
-
-- `pass`：该原子可达性规则有充分证据通过。
-- `fail`：可定位的确定性反例，例如 HTTP 404 或缺失 anchor。
-- `unchecked`：本 Pack 没有足够、或不具备合适能力来验证的事项，例如 URL 对正文主张的蕴含。
-- `manual_review`：存在未闭合验证缺口，需要人或另一专用 Pack 复核。
-
-## 安全与限制
-
-- 不访问 `localhost`、回环地址、私网解析地址、`.local` 或 `.internal`；每一跳重定向都会在发起请求前重复检查，配置白名单时只验证列出的域名。
-- 验证器只接受 HTTP(S) URL，以受限运行时 API 发起请求；超时与域名策略须通过公开 CLI 参数或脚本配置传入。
-- URL 可访问不等于来源真实、内容相关、引用准确或许可合规；这些事项必须由具备正文证据的独立 Pack 验证。
+- **适用范围**：仅记录 Skill 设计缺陷；用户数据错误、第三方波动和偶发模型输出不属于 Skill 缺陷。
+- **隐私保护**：不得记录密钥、密码、身份信息、邮箱、私密路径、用户名、主机名或工作目录；公开上报前必须脱敏。
+- **本地优先**：先写入 `~/.bensz-skills/bugs/`，不打断当前任务；只有用户明确要求时才用本机 `gh api` 公开上报。
+- **禁止就地修 bug**：不得直接修改用户本地已安装 Skill 的源代码来顺手修复。
