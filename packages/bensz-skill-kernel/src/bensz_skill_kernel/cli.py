@@ -207,13 +207,8 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
     request_id = args.run_id or f"{pack.spec.verifier_id}:{content_hash[:16]}"
     evidence: tuple[Evidence, ...] = ()
     facts: dict[str, Any] = {}
-    if pack.spec.verifier_id == "markdown.link-integrity":
-        collected = collect_markdown(target, timeout=args.timeout, blacklist=tuple(args.blacklist), whitelist=tuple(args.whitelist))
-        facts = {"summary": collected["summary"], "references": collected["references"]}
-        evidence = (
-            Evidence("markdown.snapshot", "markdown", {"path": str(target), "content_hash": collected["content_hash"]}),
-            Evidence("reference.results", "validator", facts),
-        )
+    if pack.spec.verifier_id == "citation.truth-and-fit":
+        raise ValueError("citation.truth-and-fit requires structured evidence; use a format adapter or VerifierRunner")
     request = VerificationRequest(subject={"type": "file", "path": str(target), "content_hash": content_hash}, evidence=evidence, request_id=request_id)
     results, gate = VerifierRunner(registry).run(request, args.verifier_id, version=args.version)
     result_payloads = [{**result.to_dict(), "request_id": request_id} for result in results]

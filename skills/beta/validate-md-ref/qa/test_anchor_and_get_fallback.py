@@ -40,14 +40,14 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             events = Path(directory) / 'events.ndjson'
             result = MODULE.record_runtime_events(
                 str(events),
-                [{'verifier_id': 'markdown.link-integrity', 'verifier_version': '1.0.0', 'verdict': 'pass', 'execution_status': 'completed', 'evidence_refs': ['reference.results']}],
-                {'decision': 'allow', 'reason': 'all required verifiers passed'},
+                [{'verifier_id': 'citation.truth-and-fit', 'verifier_version': '1.0.0', 'verdict': 'unchecked', 'execution_status': 'unchecked', 'evidence_refs': ['subject_context']}],
+                {'decision': 'manual_review', 'reason': 'verification gap or semantic uncertainty'},
                 'run-test',
             )
             self.assertTrue(result['recorded'])
             projection = EventLog(events).projection()
             self.assertEqual(projection['verifications'][0]['request_id'], 'run-test')
-            self.assertEqual(projection['gate_decisions'][0]['decision'], 'allow')
+            self.assertEqual(projection['gate_decisions'][0]['decision'], 'manual_review')
 
 
 if __name__ == '__main__':

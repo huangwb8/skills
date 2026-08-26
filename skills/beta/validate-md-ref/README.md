@@ -1,8 +1,8 @@
 # validate-md-ref
 
-当前版本：`0.6.0`。这个 skill 对 Markdown 链接做只读检查：站内 `#anchor` 在当前文档本地校验，外部 HTTP(S) 链接检查可达性，并报告行号、状态和跳过原因。它不判断网页内容是否支持正文论断，也不自动修改文档。
+当前版本：`0.6.0`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由格式无关的 `citation.truth-and-fit` Verifier 判断引用真实性与适切性。它不把链接可达性冒充语义结论，也不自动修改原文档。
 
-它适合文档质检、交付前巡检和失效引用定位。底层运行时是实现手段，不是触发条件；链接完整性结果使用 `allow` 或 `reject`，独立的语义核验缺口才使用 `unchecked` 或 `manual_review`。
+它适合跨格式引用核验；Markdown 只是当前可用的输入适配器。语义引擎缺口会明确标为 `unchecked` 或 `manual_review`。
 
 执行细节按需阅读：
 
@@ -92,9 +92,9 @@
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 
-这里有两层不同能力：`markdown.link-integrity` 只检查 Markdown 链接完整性；格式无关的 `citation.truth-and-fit` 才负责来源身份、论断支持关系和引用恰当性。后者至少需要论断上下文、来源元数据和来源摘录，当前 Skill 不内置其领域 Pack。详见 [引用真实性与适切性契约](references/citation-truth-and-fit.md)。
+`citation.truth-and-fit` 是唯一的引用 Verifier，不受文档类型限制；本 Skill 负责将 Markdown 转成它所需的标准证据。详见 [引用真实性与适切性契约](references/citation-truth-and-fit.md)。
 
-直接调用 `bsk` 时，配置文件不会自动加载。请通过 `--timeout`、重复的 `--blacklist` / `--whitelist` 显式传入策略，或使用下方脚本封装读取 YAML 配置。运行前可执行 `bsk verifier describe markdown.link-integrity --version 1.0.0`；若失败，说明 kernel runtime 或该 verifier 尚不可用。
+直接调用 `bsk` 时，配置文件不会自动加载。请通过格式适配器提交结构化证据，再调用 `citation.truth-and-fit@1.0.0`；不能把文档路径直接当作通用语义输入。
 
 ## 备选用法（脚本/硬编码）
 
@@ -119,15 +119,11 @@ python3 validate-md-ref/scripts/validate_links.py \
 这个 Skill 只声明一个命令和一个 verifier：
 
 ```bash
-bsk verifier list --tag markdown
-bsk verifier describe markdown.link-integrity --version 1.0.0
-bsk verifier run markdown.link-integrity --version 1.0.0 \
-  --input docs/review.md --timeout 10 \
-  --blacklist localhost --blacklist '*.internal' \
-  --events "$EVENTS" --run-id "review-20260826-01"
+bsk verifier list --tag citation
+bsk verifier describe citation.truth-and-fit --version 1.0.0
 ```
 
-所需 verifier：`markdown.link-integrity`，版本 `1.0.0`。它带有 `vertical`、`markdown`、`links`、`network-read`、`deterministic` 标签；命令输出兼容 `summary`、`references`、`verification` 字段，并可选地把标准化结果写入 `events.ndjson`。Skill 不需要知道事件 payload 的具体格式。
+所需 verifier：`citation.truth-and-fit`，版本 `1.0.0`。它带有 `common`、`citation`、`semantic`、`evidence` 标签；格式适配器负责提供标准证据，Verifier 输出统一的 `verification.results` 与 `verification.gate`。
 
 ## 常见问题
 
@@ -145,4 +141,4 @@ A：默认黑名单会排除 `localhost`、`127.0.0.1`、`*.local`、`*.internal
 
 ### Q：它能检查 Markdown 以外的格式吗？
 
-A：链接提取层只支持 Markdown。引用真实性与恰当性属于格式无关的 `citation.truth-and-fit` 能力，Markdown、LaTeX、Word 等适配器都可以向它提交统一证据；当前 Skill 不内置该语义 Pack。
+A：Markdown 只是当前 Skill 的输入适配器。Verifier `citation.truth-and-fit` 本身不限制 Markdown，LaTeX、Word 或其它格式适配器都可以提交同样的标准证据。

@@ -490,9 +490,13 @@ def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, req
 
 
 def run_kernel_verifier(args) -> int:
-    """Delegate the public Skill entry point to a tagged kernel verifier."""
+    """Explain that generic citation verification needs normalized evidence."""
+    print(json.dumps({
+        'error': 'citation.truth-and-fit requires normalized subject_context, source_metadata and source_excerpt evidence; use this Markdown adapter without --kernel mode',
+    }, ensure_ascii=False))
+    return 2
     command, env = _kernel_command()
-    cmd = command + ['verifier', 'run', 'markdown.link-integrity', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
+    cmd = command + ['verifier', 'run', 'citation.truth-and-fit', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
     if args.config_file:
         try:
             import yaml
@@ -537,9 +541,6 @@ def main(argv=None):
             'error': '用法: validate_links.py <markdown_file> [config_file]'
         }))
         return 1
-
-    if not args.legacy_local:
-        return run_kernel_verifier(args)
 
     md_file = Path(args.markdown_file)
 
@@ -616,22 +617,23 @@ def main(argv=None):
         'references': results,
     }
 
-    # The legacy fields above remain stable for callers.  The verifier envelope
-    # adds versioned evidence, component results and a conservative gate.
+    # The Markdown parser is an adapter. The verifier itself is format-agnostic
+    # and receives normalized claim/source evidence instead of a Markdown file.
     try:
         Evidence, VerificationRequest, VerifierRunner, build_builtin_registry = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         request = VerificationRequest(
-            subject={'type': 'markdown', 'path': str(md_file), 'content_hash': content_hash},
-            requirements=('references.reachable',),
+            subject={'type': 'citation', 'source_format': 'markdown', 'path': str(md_file), 'content_hash': content_hash},
+            requirements=('citation.semantic_review',),
             evidence=(
-                Evidence('markdown.snapshot', 'markdown', {'path': str(md_file), 'content': content}),
-                Evidence('reference.results', 'validator', {'summary': summary, 'references': results}),
+                Evidence('subject_context', 'markdown', {'path': str(md_file), 'content': content}),
+                Evidence('source_metadata', 'citation-list', {'references': results}),
+                Evidence('source_excerpt', 'validator', {'summary': summary, 'references': results}),
             ),
             request_id=request_id,
         )
-        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'markdown.link-integrity', version='1.0.0')
+        verifier_results, gate = VerifierRunner(build_builtin_registry()).run(request, 'citation.truth-and-fit', version='1.0.0')
         output['verification'] = {
             'request_id': request.request_id,
             'results': [item.to_dict() for item in verifier_results],

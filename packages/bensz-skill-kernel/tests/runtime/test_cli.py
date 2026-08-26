@@ -45,20 +45,12 @@ def test_legacy_flags_remain_supported(tmp_path: Path):
     assert main(["--status", str(events)]) == 0
 
 
-def test_builtin_verifier_catalog_and_run(tmp_path: Path, capsys):
+def test_builtin_verifier_catalog(tmp_path: Path, capsys):
     markdown = tmp_path / "readme.md"
     markdown.write_text("# Title\n\n[ok](#title)\n", encoding="utf-8")
 
-    assert main(["verifier", "list", "--tag", "markdown"]) == 0
+    assert main(["verifier", "list", "--tag", "citation"]) == 0
     catalog = json.loads(capsys.readouterr().out)
-    assert catalog["verifiers"][0]["verifier_id"] == "markdown.link-integrity"
+    assert catalog["verifiers"][0]["verifier_id"] == "citation.truth-and-fit"
     assert catalog["verifiers"][0]["version"] == "1.0.0"
-    assert "vertical" in catalog["verifiers"][0]["tags"]
-
-    assert main(["verifier", "run", "markdown.link-integrity", "--version", "1.0.0", "--input", str(markdown)]) == 0
-    output = json.loads(capsys.readouterr().out)
-    assert output["verifier"]["verifier_id"] == "markdown.link-integrity"
-    assert output["verifier"]["version"] == "1.0.0"
-    assert output["summary"]["invalid"] == 0
-    assert output["gate"]["decision"] == "allow"
-    assert output["verification"]["gate"]["decision"] == "allow"
+    assert "common" in catalog["verifiers"][0]["tags"]

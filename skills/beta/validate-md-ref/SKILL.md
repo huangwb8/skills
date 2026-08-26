@@ -1,6 +1,6 @@
 ---
 name: validate-md-ref
-description: 检查 Markdown 文档中外部 HTTP(S) URL、站内锚点和引用链接的可定位性与可达性，并输出结构化核验结果；当用户要求检查 Markdown 链接、排查失效引用、生成链接核验结果或进行交付前链接巡检时使用。若用户要判断引用是否真实支持正文论断或引用是否恰当，应转入格式无关的 citation.truth-and-fit 能力，而不是把链接可达性当作语义核验。
+description: 采集并规范化文档中的引用证据，交由不受文档格式限制的 citation.truth-and-fit Verifier 判断引用真实性与适切性；当前提供 Markdown 输入适配和 URL/锚点可达性事实采集。当用户要求核查引用是否为真、是否支持论断或是否恰当时使用。
 metadata:
   author: Bensz Conan
   short-description: 检查 Markdown 引用是否可定位、可访问
@@ -15,9 +15,8 @@ metadata:
 
 ## 能力分层
 
-- `markdown.link-integrity` 是格式适配器：提取 Markdown 链接，检查站内锚点和 HTTP(S) 可达性。
-- `citation.truth-and-fit` 是格式无关的语义能力契约：判断来源身份是否可信、来源证据是否支持目标论断，以及引用位置和强度是否恰当。它至少需要论断上下文、来源元数据和来源摘录，不能只凭 URL 可达性得出 `pass`。
-- 本 Skill 当前只提供前一层。用户要求后一层时，按 [`references/citation-truth-and-fit.md`](references/citation-truth-and-fit.md) 准备证据并调用实现该契约的领域 Pack；若环境没有该 Pack，明确返回 `unchecked` 或 `manual_review`。
+- `citation.truth-and-fit` 是唯一的引用 Verifier：它与 Markdown、LaTeX、Word 等文档格式无关，判断来源身份、论断支持关系和引用恰当性。
+- 本 Skill 的 Markdown 解析、URL 和锚点检查只是输入适配与事实采集；不能把这些事实直接当作语义结论。
 
 ## BenszAPI 任务工作区
 
@@ -35,7 +34,7 @@ metadata:
 ## 工具包
 
 - `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
-- `bsk verifier run markdown.link-integrity --version 1.0.0`：直接运行仓库提供的 Markdown 链接完整性检查工具。
+- `citation.truth-and-fit@1.0.0`：格式无关的引用真实性与适切性 Verifier；Markdown 解析结果作为标准证据提交。
 - `config.yaml`：默认超时、域名白名单和黑名单配置。
 
 ## 命令映射
@@ -44,7 +43,7 @@ metadata:
 | --- | --- |
 | 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
 | 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
-| 直接调用运行时工具 | `bsk verifier run markdown.link-integrity --version 1.0.0 --input DOCUMENT.md` |
+| 查看通用 Verifier 契约 | `bsk verifier describe citation.truth-and-fit --version 1.0.0` |
 | 记录审计事件 | 在脚本或 `bsk verifier run` 后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
 
 ## 参考资料

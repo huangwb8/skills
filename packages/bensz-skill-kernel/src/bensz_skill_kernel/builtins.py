@@ -170,17 +170,6 @@ def collect_markdown(path: str | Path, *, timeout: int = 10, blacklist: tuple[st
     return {'path': str(target), 'content_hash': hashlib.sha256(content.encode('utf-8')).hexdigest(), 'summary': summary, 'references': collected}
 
 
-MARKDOWN_LINK_SPEC = VerifierSpec(
-    verifier_id='markdown.link-integrity',
-    version='1.0.0',
-    mode='rule',
-    capabilities=('markdown.reference_extraction', 'url.reachability', 'anchor.local'),
-    evidence_requirements=('markdown.snapshot', 'reference.results'),
-    tags=('vertical', 'markdown', 'links', 'network-read', 'deterministic'),
-    metadata={'side_effects': 'none'},
-)
-
-
 CITATION_TRUTH_FIT_SPEC = VerifierSpec(
     verifier_id='citation.truth-and-fit',
     version='1.0.0',
@@ -234,5 +223,4 @@ def build_builtin_registry() -> PackRegistry:
     registry = PackRegistry()
     registry.register(VerifierPack(FILE_SPEC, rules=(('file-exists', _file_exists),)))
     registry.register(VerifierPack(CITATION_TRUTH_FIT_SPEC, prompts=(('citation-semantics', _citation_engine_gap),)))
-    registry.register(VerifierPack(MARKDOWN_LINK_SPEC, rules=(('link-integrity', _markdown_rule),)))
     return registry

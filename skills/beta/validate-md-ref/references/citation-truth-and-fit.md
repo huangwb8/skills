@@ -14,4 +14,4 @@
 
 缺少必需证据、来源无法获取、判断引擎不可用或证据存在冲突时，返回 `unchecked`、`uncertain` 或 `manual_review`，不得因为链接可访问就判定通过。
 
-当前 `validate-md-ref` 不内置该领域 Pack；它只提供 `markdown.link-integrity` 格式适配层。实现 `citation.truth-and-fit` 的 Pack 应由具体证据检索与语义判断工作流注入，kernel 只负责版本、证据引用、结果格式和 Gate 语义。
+当前 `validate-md-ref` 提供 Markdown 输入适配，并调用该通用 Pack。其它格式适配器也应提交同样的三类证据；kernel 只负责版本、证据引用、结果格式和 Gate 语义。

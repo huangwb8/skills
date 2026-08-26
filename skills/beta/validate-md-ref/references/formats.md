@@ -16,4 +16,4 @@
 
 可达性通过不代表网页内容支持正文论断；被安全策略跳过的地址也不等于链接失效。
 
-需要判断来源是否真实、是否支持论断或引用是否恰当时，使用格式无关的 `citation.truth-and-fit` 契约；不要从本工具的 `valid: true` 推导语义结论。
+本 Skill 将 Markdown 事实适配到格式无关的 `citation.truth-and-fit` 契约；不要从 URL `valid: true` 推导语义结论。
