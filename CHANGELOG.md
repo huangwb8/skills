@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **AGENTS.md 工作区协议改为自包含**：移除对 `/Volumes/2T01/Github/sub2api/docs/prompts/005-bensz-skill-workspace.md` 的绝对路径依赖，改为在 `AGENTS.md` 内直接声明 `.bensz-api` 任务工作区规则，确保其它用户和环境可独立使用。
+
 - **项目系统指令对齐 init-project 最新规范**：补齐 `AGENTS.md` 的贡献记录、代码优化与修改、BAC 状态和文档同步约束，并在 `README.md` 中说明当前未启用 BAC 的原因与重新启用方式；保持 `CLAUDE.md` 的 `@./AGENTS.md` 单一引用不变。
 
 - **validate-md-ref 强制运行时门禁**：要求每次执行先通过 `bsk` 状态机完成 `input-ready` → `checking` → `reported` 生命周期，并强制调用 `markdown.link-integrity@1.0.0` Verifier；kernel、状态转移或 Verifier 不可用时必须失败并保留诊断，不得静默降级。
