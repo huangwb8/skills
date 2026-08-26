@@ -10,6 +10,12 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **状态机与 Verifier 文档分层**：Skill 升级至 `0.8.1`；将状态机操作、状态不变量和 Verifier 调用边界迁移至 `references/state-machine.md` 与 `references/verifiers.md`，使 `SKILL.md` 聚焦 Markdown 输入适配、事实采集和结果汇总。
+
+### Changed（变更）
+- **状态机协议试点**：Skill 升级至 `0.8.0`，新增 `state-machine.json` 与目录化元状态包；以 `workspace.ready` 为强制初始状态，并通过 `bsk state` 的标准 JSON 操作结果管理输入准备、核验与报告阶段。
+
+### Changed（变更）
 - **接入目录化 verifier 协议**：Skill 升级至 `0.7.0`，新增 `markdown.link-integrity@1.0.0` 调用说明；kernel 负责发现、执行和标准化结果，Skill 继续负责 Markdown 配置适配。
 - **Verifier 定位修正**：将引用 Verifier 定义为不受文档类型限制的 `citation.truth-and-fit`；Markdown 仅负责输入适配和事实采集，Verifier 要求论断上下文、来源元数据和来源摘录。Skill 版本升级至 `0.6.0`。
 - **恢复 BenszAPI 任务工作区约定**：在 `SKILL.md` 中补回任务级 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/` 目录契约，明确共享材料、正式交付物分流、敏感信息边界与 legacy 路径规则。

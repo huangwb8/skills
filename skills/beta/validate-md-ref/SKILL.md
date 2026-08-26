@@ -13,12 +13,6 @@ metadata:
 - 输出：结构化 JSON；确定性链接结果使用 `allow` 或 `reject`，无法完成的语义核验使用 `unchecked` 或 `manual_review` 表达。
 - 不做：不判断网页内容是否支持正文论断，不自动修改原 Markdown，也不替用户决定如何修复无效链接。
 
-## 能力分层
-
-- `markdown.link-integrity` 是 Markdown 链接完整性 verifier；它由 kernel 的 `verifiers/` 目录发现并按统一 JSON stdio 协议执行。
-- `citation.truth-and-fit` 是格式无关的语义 verifier：它与 Markdown、LaTeX、Word 等文档格式无关，判断来源身份、论断支持关系和引用恰当性。
-- 本 Skill 的 Markdown 解析、URL 和锚点检查只是输入适配与事实采集；不能把这些事实直接当作语义结论。
-
 ## BenszAPI 任务工作区
 
 新任务的输入、报告和日志写入已声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/input|output|log/`；同一逻辑任务复用已锁定的任务根目录，多 Skill 协作时共享材料放在任务根目录的 `shared/`。正式交付物、用户指定文件和源 Markdown 不写入该目录；不得归档密钥、令牌、Cookie、私有指令、隐私或不必要的大体积原始数据。历史 `.bensz-api/skills/` 等目录仅按需显式兼容读取、迁移或清理，新任务不得创建这些目录。
@@ -27,16 +21,14 @@ metadata:
 
 1. 先确认目标 Markdown 文件存在且按只读方式处理；缺少输入时先报告缺口，不要猜测文件路径。
 2. 默认使用 `scripts/validate_links.py`，因为它会自动读取 Skill 根目录的 `config.yaml`；需要更细的参数或字段说明时，再按需读取 `references/tools.md` 和 `references/formats.md`。
-3. 需要直接调用目录化 verifier，或需要显式覆盖超时、白名单、黑名单时，使用 `bsk verifier run`。直接调用不会自动加载 YAML 配置。
-4. 汇总 `summary`、逐条 `references[*].validation` 和 `verification.gate`，区分有效、无效、跳过与验证缺口，并保留失败原因。
+3. 需要目录化 Verifier 或状态机时，先阅读对应的 `references/verifiers.md` 或 `references/state-machine.md`，再按其中的契约调用；不要在本 Skill 中自行重建这些协议。
+4. 汇总 `summary`、逐条 `references[*].validation` 和（若执行 Verifier）`verification.gate`，区分有效、无效、跳过与验证缺口，并保留失败原因。
 
 命令中的 `scripts/validate_links.py` 指 Skill 根目录下的脚本；从其他工作目录调用时，请先切换到 Skill 根目录，或改用该脚本的绝对路径。
 
 ## 工具包
 
 - `scripts/validate_links.py`：读取 Markdown 和可选 YAML 配置，输出结构化检查结果。
-- `markdown.link-integrity@1.0.0`：Markdown 链接和锚点完整性 verifier。
-- `citation.truth-and-fit@1.0.0`：格式无关的引用真实性与适切性 verifier；Markdown 解析结果作为标准证据提交。
 - `config.yaml`：默认超时、域名白名单和黑名单配置。
 
 ## 命令映射
@@ -45,14 +37,15 @@ metadata:
 | --- | --- |
 | 使用默认配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md` |
 | 使用自定义配置检查 Markdown | `python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml` |
-| 直接运行 Markdown verifier | `bsk verifier run markdown.link-integrity --input DOCUMENT.md` |
-| 查看通用 Verifier 契约 | `bsk verifier describe citation.truth-and-fit --version 1.0.0` |
-| 记录审计事件 | 在脚本或 `bsk verifier run` 后追加 `--events EVENTS.ndjson --run-id RUN_ID` |
+| 查看 Verifier 调用方式 | 参见 [`references/verifiers.md`](references/verifiers.md) |
+| 查看状态机调用方式 | 参见 [`references/state-machine.md`](references/state-machine.md) |
 
 ## 参考资料
 
 - [`references/tools.md`](references/tools.md)：工具包、命令参数和配置字段的简要说明。
 - [`references/formats.md`](references/formats.md)：支持的引用形式和输出字段的简要说明。
+- [`references/verifiers.md`](references/verifiers.md)：Verifier 的职责边界、版本和调用契约。
+- [`references/state-machine.md`](references/state-machine.md)：状态包、状态转移和元状态快照说明。
 - [`references/citation-truth-and-fit.md`](references/citation-truth-and-fit.md)：格式无关的引用真实性与适切性证据契约。
 
 ## bensz-collect-bugs 约束

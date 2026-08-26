@@ -26,8 +26,8 @@ def _load_verifier_runtime():
     kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
     if str(kernel_src) not in sys.path:
         sys.path.insert(0, str(kernel_src))
-    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry
-    return Evidence, VerificationRequest, FilesystemVerifierRegistry
+    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root
+    return Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root
 
 
 def get_skill_root() -> Path:
@@ -620,7 +620,7 @@ def main(argv=None):
     # The Markdown parser is an adapter. The verifier itself is format-agnostic
     # and receives normalized claim/source evidence instead of a Markdown file.
     try:
-        Evidence, VerificationRequest, FilesystemVerifierRegistry = _load_verifier_runtime()
+        Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         request = VerificationRequest(
@@ -633,8 +633,7 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        verifier_root = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'verifiers'
-        raw_result = FilesystemVerifierRegistry(verifier_root).run(
+        raw_result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
             'citation.truth-and-fit',
             {
                 'request_id': request.request_id,

@@ -10,11 +10,7 @@ python3 scripts/validate_links.py DOCUMENT.md [CONFIG.yaml]
 
 ## 直接命令
 
-```bash
-bsk verifier describe citation.truth-and-fit --version 1.0.0
-```
-
-直接命令需要自行传入配置参数，例如 `--timeout 10`、重复的 `--blacklist DOMAIN` 或 `--whitelist DOMAIN`。需要审计时追加 `--events EVENTS.ndjson --run-id RUN_ID`。
+Verifier 的命令、版本和结果边界集中记录在 [`verifiers.md`](verifiers.md)。直接调用时需要自行传入配置参数，例如 `--timeout 10`、重复的 `--blacklist DOMAIN` 或 `--whitelist DOMAIN`；需要审计时追加 `--events EVENTS.ndjson --run-id RUN_ID`。
 
 ## 配置
 
