@@ -92,3 +92,11 @@ skills/*/tests/
 skills/*/plans/
 .git-pr-review/
 .bensz-api
+
+# macOS metadata must remain ignored even inside explicitly reviewable test trees
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon
+Icon?
