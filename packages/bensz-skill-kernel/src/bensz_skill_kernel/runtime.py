@@ -152,6 +152,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "wait_reason": None,
         "artifacts": {},
         "validations": [],
+        "verifications": [],
+        "gate_decisions": [],
         "delivery_report": None,
         "evidence_refs": [],
         "last_seq": 0,
@@ -189,6 +191,10 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                 projection["artifacts"][artifact_id] = {**payload, "artifact_id": artifact_id}
         elif event.event_type in {"validation.completed", "validation.recorded"}:
             projection["validations"].append(payload)
+        elif event.event_type == "verification.result":
+            projection["verifications"].append(payload)
+        elif event.event_type == "verification.gate":
+            projection["gate_decisions"].append(payload)
         elif event.event_type in {"delivery.reported", "delivery.completed"}:
             projection["delivery_report"] = payload.get("report") or payload.get("path") or event.path or payload
         projection["evidence_refs"] = list(dict.fromkeys([*projection["evidence_refs"], *event.evidence_refs, *payload.get("evidence_refs", [])]))
@@ -310,6 +316,15 @@ class EventLog:
 
     def record_validation(self, verdict: str, *, evidence_refs: Iterable[str] = (), **metadata: Any) -> EventEnvelope:
         return self.append("validation.completed", payload={"verdict": verdict, "evidence_refs": list(evidence_refs), **metadata}, evidence_refs=evidence_refs)
+
+    def record_verification(self, result: Mapping[str, Any], gate: Mapping[str, Any] | None = None) -> tuple[EventEnvelope, EventEnvelope | None]:
+        """Append a replayable verifier result and optional gate decision."""
+        refs = tuple(result.get("evidence_refs", ()))
+        verification = self.append("verification.result", payload=dict(result), evidence_refs=refs)
+        gate_event = None
+        if gate is not None:
+            gate_event = self.append("verification.gate", payload=dict(gate), evidence_refs=refs)
+        return verification, gate_event
 
     def record_delivery(self, report: str, **metadata: Any) -> EventEnvelope:
         return self.append("delivery.reported", payload={"report": report, **metadata}, path=report)

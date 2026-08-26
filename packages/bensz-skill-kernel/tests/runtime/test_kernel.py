@@ -71,3 +71,15 @@ def test_completion_guard_requires_artifacts_validation_and_report(tmp_path: Pat
     log.append("state.transition", payload={"to": "completed", "outcome": "success"})
     assert log.projection()["current_state"] == "completed"
 
+
+def test_verifier_events_are_replayable(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    result, gate = log.record_verification(
+        {"verdict": "fail", "execution_status": "completed", "evidence_refs": ["snapshot:1"]},
+        {"decision": "reject", "reason": "required verifier failure"},
+    )
+    projection = log.projection()
+    assert result.event_type == "verification.result"
+    assert gate and gate.event_type == "verification.gate"
+    assert projection["verifications"][0]["verdict"] == "fail"
+    assert projection["gate_decisions"][0]["decision"] == "reject"

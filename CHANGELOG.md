@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- **Verifier 原型基础设施与 `validate-md-ref` 试点**：在 `packages/bensz-skill-kernel` 增加版本化 Verifier Pack、证据快照、统一结果、保守 Gate 与可重放 kernel 事件；`skills/beta/validate-md-ref` 接入 `markdown.references.v1` hybrid Pack，在保留兼容字段的同时输出结构化验证结果和 verification gap。
+
+### Added（新增）
+- **Skill Runtime 规模化优化计划**：新增 `docs/plans/2026-08-26-skill-runtime规模化优化计划.md`，将状态机、Verifier、运行事件、用户反馈和版本治理整合为可观测、可验证、可演进的 Skill Runtime 路线，明确渐进试点、非目标、验收标准与规模化前置条件。
+
 ### Changed
 - **Verifier 计划加入 NSFC 端到端 Pack 示例**：在 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 增设 `nsfc-justification-writer` 的详细 Verifier 章节，展示最小证据契约、规则/Prompt/Rubric 分工、统一结果、Gate 决策、受限写入与写后核验、降级和脱敏校准集，明确领域规则通过 Pack 注入而非写入核心。
 - **Verifier 计划补充架构总览**：在 `docs/plans/2026-08-25-verifiers基础设施评估与落地计划.md` 增加面向零背景读者的组件流转说明和 Mermaid 架构图，直观展示验证请求、证据采集、规则/Prompt/人工判断、结果标准化与门禁之间的关系。
