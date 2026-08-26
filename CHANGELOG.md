@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **状态机运行时目录化重构**：`bensz-skill-kernel` 升级至 `0.7.0`，新增可发现的元状态注册表与 BenszAPI 任务工作区解析器；通过 `bsk state` 查询状态定义、通过 `bsk workspace` 初始化和解析 Skill 的 `input`/`output`/`log` 路径，保留原有生命周期事件账本与 CLI 兼容入口。
 - **Verifier 系统目录化重构**：`bensz-skill-kernel` 升级至 `0.6.0`，新增基于 `verifiers/<name>/VERIFIER.md` 的发现与执行协议，支持可选脚本、JSON stdio、超时/错误归一化和 instruction-only verifier；`validate-md-ref` 升级至 `0.7.0` 并接入 `markdown.link-integrity` 目录 verifier。
 - **引用 Verifier 定位修正**：内置引用 Verifier 统一为不受文档类型限制的 `citation.truth-and-fit`；Markdown、LaTeX、Word 等仅作为输入适配器，提交论断上下文、来源元数据和来源摘录。缺少语义引擎时保守返回 `unchecked`。kernel 升级至 `0.5.0`，`validate-md-ref` 升级至 `0.6.0`。
 - **恢复 validate-md-ref 的 `.bensz-api` 工作区说明**：补回 Skill 级任务根目录、`input`/`output`/`log` 分层、跨 Skill 共享材料、正式交付物分流、敏感信息保护与 legacy 路径约束。

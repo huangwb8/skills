@@ -16,6 +16,8 @@ from typing import Any, Mapping
 
 from .builtins import build_builtin_registry, collect_markdown
 from .runtime import EventLog, KernelError
+from .states import FilesystemStateRegistry, build_builtin_state_registry
+from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
 from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate
 
 
@@ -156,6 +158,28 @@ def build_parser() -> argparse.ArgumentParser:
     verifier_run.add_argument("--actor", default="bsk:verifier")
     verifier_run.add_argument("--scope", default="skill")
     verifier_run.add_argument("--idempotency-key")
+
+    state = commands.add_parser("state", help="inspect declarative meta-state definitions")
+    state_commands = state.add_subparsers(dest="state_command", metavar="ACTION")
+    state_list = state_commands.add_parser("list", help="list available states")
+    state_list.add_argument("--root", help="additional state definition root")
+    state_list.add_argument("--kind")
+    state_describe = state_commands.add_parser("describe", help="show one state definition")
+    state_describe.add_argument("state_id")
+    state_describe.add_argument("--root", help="additional state definition root")
+
+    workspace = commands.add_parser("workspace", help="initialize and resolve BenszAPI task workspaces")
+    workspace_commands = workspace.add_subparsers(dest="workspace_command", metavar="ACTION")
+    workspace_init = workspace_commands.add_parser("init", help="create or reopen a task workspace")
+    workspace_init.add_argument("project_root", nargs="?", default=".")
+    workspace_init.add_argument("--task-root")
+    workspace_init.add_argument("--description", default="task")
+    workspace_path = workspace_commands.add_parser("path", help="resolve a Skill-scoped workspace directory")
+    workspace_path.add_argument("task_root")
+    workspace_path.add_argument("skill")
+    workspace_path.add_argument("kind", choices=tuple(sorted(WORKSPACE_KINDS)))
+    workspace_status = workspace_commands.add_parser("status", help="show workspace manifest and boundaries")
+    workspace_status.add_argument("task_root")
     return parser
 
 
@@ -190,6 +214,36 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
 def _verifier_registry() -> FilesystemVerifierRegistry:
     root = Path(__file__).resolve().parents[2] / "verifiers"
     return FilesystemVerifierRegistry(root)
+
+
+def _state_registry(root: str | None = None):
+    return build_builtin_state_registry() if root is None else FilesystemStateRegistry(root)
+
+
+def _run_state_command(args: argparse.Namespace) -> int:
+    registry = _state_registry(getattr(args, "root", None))
+    if args.state_command == "list":
+        _print({"states": [item.to_dict() for item in registry.definitions(kind=args.kind)]}, pretty=True)
+    elif args.state_command == "describe":
+        _print(registry.resolve(args.state_id).to_dict(), pretty=True)
+    else:
+        build_parser().parse_args(["state", "--help"])
+    return 0
+
+
+def _run_workspace_command(args: argparse.Namespace) -> int:
+    if args.workspace_command == "init":
+        workspace = TaskWorkspace.open(args.project_root, task_root=args.task_root, description=args.description)
+        _print({"status": "ready", **workspace.status()}, pretty=True)
+    elif args.workspace_command == "path":
+        workspace = TaskWorkspace.open_existing(args.task_root)
+        paths = workspace.paths(args.skill)
+        _print({"status": "ready", "task_root": str(paths.task_root), "skill": paths.skill, "kind": args.kind, "path": str(paths.path(args.kind))}, pretty=True)
+    elif args.workspace_command == "status":
+        _print(TaskWorkspace.open_existing(args.task_root).status(), pretty=True)
+    else:
+        build_parser().parse_args(["workspace", "--help"])
+    return 0
 
 
 def _run_verifier_command(args: argparse.Namespace) -> int:
@@ -250,6 +304,10 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
 def _run_command(args: argparse.Namespace) -> int:
     if args.command == "verifier":
         return _run_verifier_command(args)
+    if args.command == "state":
+        return _run_state_command(args)
+    if args.command == "workspace":
+        return _run_workspace_command(args)
     if args.command == "status":
         _print(_log(args).projection(), pretty=True)
     elif args.command == "rebuild":
