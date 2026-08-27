@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- **全生态 Verifier/State 设计报告**：新增 `docs/events/2026-08-27-全生态-verifier与state设计报告.md`，基于本项目及六个外部只读 Skill 生态的业务盘点，划分通用/专用 Verifier 与 State，补充逐 Skill 对接矩阵，并给出可插拔接入、门禁、证据和渐进迁移路线。
 - **State ID 命名规范与兼容解析**：新增 `owner.machine.state` canonical 规则、状态 alias 和迁移约束，并同步 kernel、内置 workspace 状态、`validate-md-ref` 与项目指令。
 - **Verifier ID 命名规范与兼容解析**：新增官方命名空间、领域/能力格式、版本解耦和 legacy alias 约束，并同步 kernel、`validate-md-ref` 与项目指令。
 - **validate-md-ref 状态机与 Verifier 调查日记**：新增 `docs/events/2026-08-27-validate-md-ref状态机与验证器协作调查日记.md`，记录本次任务的逐步协作过程、Mermaid 流程图、结果口径差异及后续优化建议。

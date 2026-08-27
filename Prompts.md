@@ -20,6 +20,28 @@ version = 4.3.8
 
 ---
 
+我已经开发了许多skill，包括：
+
+- 本项目里的 ./skills 
+- /Volumes/2T01/Github/ChineseResearchLaTeX/skills
+- /Volumes/2T01/winE/Starup/dudu/skills
+- /Volumes/2T01/winE/Starup/bensz-devtools/skills
+- /Volumes/2T01/winE/PythonCloud/Agents/pipelines/case_analysis/skills
+- /Volumes/2T01/winE/PythonCloud/AI/sub2api运营/skills
+- /Volumes/2T01/Github/sub2api/skills
+
+这是一个巨大的生态系统。 因此，我需要你：
+
+- 彻底理解已有skill的业务逻辑、复杂程度
+- 想一下，需要哪些verifiers和states。这里很重要的是：有一些是通用型的； 有一些是专用型的，要做好区分
+- 要时刻记得：状态机和验证器更像是一个agent skill的“外挂”，可以随时拿掉、随时放进去；它们更多的是补充、约束，而不是重构一个skill。 它们更多是让skill的流程更加标准、发挥作用的过程更加稳定、工作过程更加透明。 放进去skill会变得更好； 但基本上，可以认为它们并不是skill功能的承托者。有一个很形象的说法：状态机和验证器是agent skill的“铬合物、亚基、非共价结合、即插即用”的部件。
+
+最后，综合这所有，你要在 docs/events 里写个报告，详细地论述你要怎么（以及为什么）设计verifiers和states以满足我的skill开发需要。 
+
+注意：除了本项目的文件外； 其它的文件夹里的内容全部都是只读。 
+
+---
+
 skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述，还是适合在 references 文件夹里用额外md托管； 让该文件更加专注于它自己的任务。请修改。
 
 ---
