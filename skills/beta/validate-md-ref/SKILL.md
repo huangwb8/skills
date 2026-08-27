@@ -14,10 +14,13 @@ metadata:
 - 检查：Markdown 行内链接、HTML `<a href>` 链接、当前文档内的 `#anchor`，以及外部 HTTP(S) 链接的可达性。
 - 输出：结构化 JSON，逐条保留引用位置、验证状态和失败或跳过原因。
 - 不做：不修改原文；URL 可达性不等于来源支持论断；不代替用户决定修复方式。
+- 运行时能力：使用 `bensz.document.markdown-link-integrity` 检查链接事实，并保留 `bensz.evidence.citation-truth-fit` 的语义复核状态；两者版本独立记录，旧 ID 仅作兼容 alias。
 
 ## 强制运行门禁
 
 每次执行必须经过 Bensz Skill Kernel 状态机并调用指定版本的链接完整性 Verifier。任一环节不可用或失败，任务即未完成并须说明原因；不得降级为普通脚本或手工检查。
+
+状态机使用 `bensz.workspace.ready` 作为系统入口，并依次进入 `bensz.validate-md-ref.input-ready`、`bensz.validate-md-ref.checking` 和 `bensz.validate-md-ref.reported`；旧 State ID 仅作兼容 alias。
 
 AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转移、拼接事件账本或复制 Verifier 规则。命令、上下文和事件契约见：
 

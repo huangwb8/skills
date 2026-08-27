@@ -10,6 +10,8 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- **State ID 对齐**：Skill 升级至 `0.10.0`，状态声明、入口条件与迁移边统一使用 `bensz.workspace.*` 和 `bensz.validate-md-ref.*` canonical ID；旧 ID 作为兼容 alias。
+- **Verifier ID 对齐**：Skill 升级至 `0.9.0`，统一使用 `bensz.document.markdown-link-integrity` 与 `bensz.evidence.citation-truth-fit` canonical ID；旧 ID 仅作为兼容 alias。
 - **SKILL.md 精简**：合并重复说明并压缩执行契约，保留引用检查范围、Kernel 状态机与 Verifier 门禁、输入输出、安全边界及工具命令。
 
 ### Changed（变更）

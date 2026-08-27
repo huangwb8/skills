@@ -1,6 +1,6 @@
 # validate-md-ref
 
-当前版本：`0.8.2`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。每次运行都会强制经过 kernel 状态机并执行链接完整性 Verifier；它不把链接可达性冒充语义结论，也不自动修改原文档。
+当前版本：`0.10.0`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。每次运行都会强制经过使用 canonical State ID 的 kernel 状态机并执行 canonical Verifier；它不把链接可达性冒充语义结论，也不自动修改原文档。
 
 它适合跨格式引用核验；Markdown 只是当前可用的输入适配器。语义引擎缺口会明确标为 `unchecked` 或 `manual_review`。调用脚本时请使用能够导入 `bensz_skill_kernel`、且与 `bsk` 同一环境的 Python 解释器。
 
@@ -95,9 +95,9 @@
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 
-`citation.truth-and-fit` 是唯一的引用 Verifier，不受文档类型限制；本 Skill 负责将 Markdown 转成它所需的标准证据。详见 [引用真实性与适切性契约](references/citation-truth-and-fit.md)。
+`bensz.evidence.citation-truth-fit` 是唯一的引用 Verifier，不受文档类型限制；本 Skill 负责将 Markdown 转成它所需的标准证据。旧 ID `citation.truth-and-fit` 仅作为兼容 alias。详见 [引用真实性与适切性契约](references/citation-truth-and-fit.md)。
 
-直接调用 `bsk` 时，配置文件不会自动加载。请通过格式适配器提交结构化证据，再调用 `citation.truth-and-fit@1.0.0`；不能把文档路径直接当作通用语义输入。
+直接调用 `bsk` 时，配置文件不会自动加载。请通过格式适配器提交结构化证据，再调用 `bensz.evidence.citation-truth-fit@1.0.0`；不能把文档路径直接当作通用语义输入。
 
 ## 备选用法（脚本/硬编码）
 
@@ -123,10 +123,10 @@ python3 validate-md-ref/scripts/validate_links.py \
 
 ```bash
 bsk verifier list --tag citation
-bsk verifier describe citation.truth-and-fit --version 1.0.0
+bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
 ```
 
-所需 verifier：`citation.truth-and-fit`，版本 `1.0.0`。它带有 `common`、`citation`、`semantic`、`evidence` 标签；格式适配器负责提供标准证据，Verifier 输出统一的 `verification.results` 与 `verification.gate`。
+所需 verifier：`bensz.evidence.citation-truth-fit`，版本 `1.0.0`。它带有 `common`、`citation`、`semantic`、`evidence` 标签；格式适配器负责提供标准证据，Verifier 输出统一的 `verification.results` 与 `verification.gate`。
 
 ## 常见问题
 
@@ -144,4 +144,4 @@ A：默认黑名单会排除 `localhost`、`127.0.0.1`、`*.local`、`*.internal
 
 ### Q：它能检查 Markdown 以外的格式吗？
 
-A：Markdown 只是当前 Skill 的输入适配器。Verifier `citation.truth-and-fit` 本身不限制 Markdown，LaTeX、Word 或其它格式适配器都可以提交同样的标准证据。
+A：Markdown 只是当前 Skill 的输入适配器。Verifier `bensz.evidence.citation-truth-fit` 本身不限制 Markdown，LaTeX、Word 或其它格式适配器都可以提交同样的标准证据。

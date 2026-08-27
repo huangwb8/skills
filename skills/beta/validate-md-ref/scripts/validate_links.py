@@ -492,11 +492,11 @@ def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, req
 def run_kernel_verifier(args) -> int:
     """Explain that generic citation verification needs normalized evidence."""
     print(json.dumps({
-        'error': 'citation.truth-and-fit requires normalized subject_context, source_metadata and source_excerpt evidence; use this Markdown adapter without --kernel mode',
+        'error': 'bensz.evidence.citation-truth-fit requires normalized subject_context, source_metadata and source_excerpt evidence; use this Markdown adapter without --kernel mode',
     }, ensure_ascii=False))
     return 2
     command, env = _kernel_command()
-    cmd = command + ['verifier', 'run', 'citation.truth-and-fit', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
+    cmd = command + ['verifier', 'run', 'bensz.evidence.citation-truth-fit', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
     if args.config_file:
         try:
             import yaml
@@ -634,7 +634,7 @@ def main(argv=None):
             request_id=request_id,
         )
         raw_result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
-            'citation.truth-and-fit',
+            'bensz.evidence.citation-truth-fit',
             {
                 'request_id': request.request_id,
                 'subject': dict(request.subject),
@@ -645,7 +645,7 @@ def main(argv=None):
             version='1.0.0',
         )
         verifier_results = [raw_result]
-        gate = {'decision': 'manual_review', 'reason': 'instruction-only verifier; follow VERIFIER.md manually', 'result_refs': ['citation.truth-and-fit@1.0.0'], 'unresolved': ['citation.truth-and-fit']}
+        gate = {'decision': 'manual_review', 'reason': 'instruction-only verifier; follow VERIFIER.md manually', 'result_refs': ['bensz.evidence.citation-truth-fit@1.0.0'], 'unresolved': ['bensz.evidence.citation-truth-fit']}
         output['verification'] = {
             'request_id': request.request_id,
             'results': verifier_results,

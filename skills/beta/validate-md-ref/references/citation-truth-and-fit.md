@@ -1,6 +1,6 @@
 # 引用真实性与适切性契约
 
-`citation.truth-and-fit` 是格式无关的语义验证能力，不负责解析 Markdown、LaTeX、Word 或其它载体。各格式适配器先把引用归一化，再提交以下证据：
+`bensz.evidence.citation-truth-fit` 是格式无关的语义验证能力，不负责解析 Markdown、LaTeX、Word 或其它载体。各格式适配器先把引用归一化，再提交以下证据：
 
 - `subject_context`：被引用支持的目标论断、必要上下文和引用位置。
 - `source_metadata`：来源标题、作者、发布日期、标识符及可追溯位置。

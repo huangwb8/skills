@@ -1,11 +1,12 @@
 ---
-id: validate-md-ref.input-ready
+id: bensz.validate-md-ref.input-ready
 version: 1.0.0
 kind: skill
 description: A readable Markdown input was selected for this validation run.
-entry_conditions: workspace.ready
+aliases: validate-md-ref.input-ready
+entry_conditions: bensz.workspace.ready
 invariants: input.read-only, no-secrets-in-workspace
-transitions: validate-md-ref.checking
+transitions: bensz.validate-md-ref.checking
 entrypoint: scripts/check_input.py
 ---
 

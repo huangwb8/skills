@@ -40,7 +40,7 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             events = Path(directory) / 'events.ndjson'
             result = MODULE.record_runtime_events(
                 str(events),
-                [{'verifier_id': 'citation.truth-and-fit', 'verifier_version': '1.0.0', 'verdict': 'unchecked', 'execution_status': 'unchecked', 'evidence_refs': ['subject_context']}],
+                [{'verifier_id': 'bensz.evidence.citation-truth-fit', 'verifier_version': '1.0.0', 'verdict': 'unchecked', 'execution_status': 'unchecked', 'evidence_refs': ['subject_context']}],
                 {'decision': 'manual_review', 'reason': 'verification gap or semantic uncertainty'},
                 'run-test',
             )
