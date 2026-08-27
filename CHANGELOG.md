@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- **validate-md-ref 状态机与 Verifier 调查日记**：新增 `docs/events/2026-08-27-validate-md-ref状态机与验证器协作调查日记.md`，记录本次任务的逐步协作过程、Mermaid 流程图、结果口径差异及后续优化建议。
+
 ### Changed（变更）
+- **拆分 Markdown Verifier 实现边界**：将 Markdown 链接、锚点和 URL 采集逻辑从 `bensz_skill_kernel.builtins` 迁移到 `markdown-link-integrity` 自有 `collector.py`，Kernel 保留通用验证基础设施与内置通用 Pack，减少领域耦合。
+
+- **启用项目 BAC 贡献记录**：将 `AGENTS.md` 与 `README.md` 从 `init-project --disable-bac` 关闭态切换为默认强制启用态，并以 `docs/contribution.bac` 作为项目内账本路径。
+
 - **pytest 缓存目录集中管理**：将 pytest 默认缓存目录配置为 `.bensz-api/.pytest_cache`，减少仓库根目录的运行产物噪声。
 
 - **AGENTS.md 工作区协议改为自包含**：移除对 `/Volumes/2T01/Github/sub2api/docs/prompts/005-bensz-skill-workspace.md` 的绝对路径依赖，改为在 `AGENTS.md` 内直接声明 `.bensz-api` 任务工作区规则，确保其它用户和环境可独立使用。
@@ -29,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **validate-md-ref 使用说明简化**：将 beta Skill 的 SKILL.md 收敛为工具包、任务到命令的映射和 references 索引；移除状态机、Gate 和复杂验证流程说明，保留简单的输入输出定义（该阶段版本为 `0.4.2`）。
 
 ### Fixed（修复）
+- **bensz-rmd-rules 动态 TOC 悬停抖动**：移除桌面动态 TOC 的 `border-radius` 过渡，避免圆角命中边界在展开期间变化造成 `mouseenter`/`mouseleave` 振荡；Skill 版本 `0.22.0 → 0.22.1`，并新增静态回归断言。
 - **Markdown verifier 重定向安全**：`bensz-skill-kernel` 在每一跳 HTTP 重定向发起前重新校验协议、白名单、显式黑名单和私网地址，阻止公开 URL 经重定向访问内网；新增回归测试。
 
 ### Changed（变更）

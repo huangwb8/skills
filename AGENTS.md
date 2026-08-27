@@ -125,9 +125,10 @@ Skill 目录不得新建历史计划、测试夹具或运行缓存目录；包�
 
 ## 贡献记录
 
-本项目当前未启用 [bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) 的 `bac` 账本；默认托管文件为 `docs/contribution.bac`，当前按 `init-project --disable-bac` 处理。后续可在项目目录内运行初始化脚本并移除该开关重新启用。
+本项目默认且强制启用 [bensz-auto-contribution](https://github.com/huangwb8/bensz-auto-contribution) 的 `bac` 贡献记录，默认托管文件为 `docs/contribution.bac`。项目协作应使用 `bac` 客观记录需求来源、AI 生成内容、工具执行结果、人工确认、文件改动与验证证据。
 
-- 贡献记录启用后，应客观记录需求来源、AI 生成内容、工具执行结果、人工确认、文件改动与验证证据
+- 初始化或维护项目时，必须检查 Python 环境、确认 `bac` 可用，并初始化或验证账本；环境未配置好时按 `init-project` 流程补齐依赖
+- 除非项目负责人明确要求暂时关闭，否则不得跳过 BAC 依赖检查、安装、账本初始化或贡献记录
 - BAC 仅用于过程记录和辅助审计，不替代最终署名、责任或合规判断
 - 严禁记录 API Key、访问令牌、密码、Cookie、完整私有 Prompt 或无关个人隐私
 

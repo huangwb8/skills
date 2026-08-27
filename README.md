@@ -102,13 +102,13 @@ tmp/               # 测试运行过程产物
 
 ## 🧾 贡献记录
 
-本仓库当前未初始化 `bensz-auto-contribution` 的 BAC 账本；默认文件位置为 `docs/contribution.bac`。本次系统文件维护按 `init-project --disable-bac` 处理，未安装外部 `bac` 依赖或创建空账本。后续如需启用，可在仓库根目录运行：
+本仓库已启用 `bensz-auto-contribution` 的 BAC 账本，默认文件位置为 `docs/contribution.bac`。项目协作应使用 `bac` 客观记录需求来源、AI 生成内容、工具执行结果、人工确认、文件改动与验证证据。
 
 ```bash
-python3 skills/alpha/init-project/scripts/generate.py --auto
+bac --root . --bac-file docs/contribution.bac inspect
 ```
 
-贡献记录启用后只保存协作过程与验证证据，不记录密钥、完整私有 Prompt 或无关个人隐私，也不替代最终署名、责任或合规判断。
+如需重新生成或同步项目指令，应使用 `init-project` 的默认启用模式，不要传入 `--disable-bac`。贡献记录只保存协作过程与验证证据，不记录密钥、完整私有 Prompt 或无关个人隐私，也不替代最终署名、责任或合规判断。
 
 ## 🌐 平台兼容性
 
