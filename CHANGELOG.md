@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
-- **全生态 Verifier/State 设计报告**：新增 `docs/events/2026-08-27-全生态-verifier与state设计报告.md`，基于本项目及六个外部只读 Skill 生态的业务盘点，划分通用/专用 Verifier 与 State，补充逐 Skill 对接矩阵，并给出可插拔接入、门禁、证据和渐进迁移路线。
+- **全生态 Verifier/State 设计报告**：新增 `docs/events/2026-08-27-全生态-verifier与state设计报告.md`，基于本项目及六个外部只读 Skill 生态的业务盘点，划分通用/专用 Verifier 与 State，补充 Skill 官方目录内托管约定、共享 Pack 进入 kernel 的判定门槛、逐 Skill 对接矩阵，并给出可插拔接入、门禁、证据和渐进迁移路线。
 - **State ID 命名规范与兼容解析**：新增 `owner.machine.state` canonical 规则、状态 alias 和迁移约束，并同步 kernel、内置 workspace 状态、`validate-md-ref` 与项目指令。
 - **Verifier ID 命名规范与兼容解析**：新增官方命名空间、领域/能力格式、版本解耦和 legacy alias 约束，并同步 kernel、`validate-md-ref` 与项目指令。
 - **validate-md-ref 状态机与 Verifier 调查日记**：新增 `docs/events/2026-08-27-validate-md-ref状态机与验证器协作调查日记.md`，记录本次任务的逐步协作过程、Mermaid 流程图、结果口径差异及后续优化建议。
 
 ### Changed（变更）
+- **补全 Runtime State 配置示例**：在全生态 Verifier/State 设计报告中补充 `initial_state` 与 `states`，并明确它们与 `state_roots` 的职责及从 `state-machine.json` 迁移到 `config.yaml.runtime` 的兼容关系。
 - **AGENTS.md 结构重构与去重**：按"项目目标 → 目录边界 → `.bensz-api` 协议 → 通用协作规范 → 核心工作流 → 工程原则 → Skill 开发 → 变更记录与版本号 → Codex 适配 → 有机更新"主线重组章节；将 CHANGELOG 提醒（3 处）、`tests/`/`tmp/` 目录职责（3 处）、标题无序号规范（3 处）、隐私敏感信息禁令（4 处）各收敛为单一声明处，其余场景改为引用；合并"代码优化与修改"与"变更边界"为"修改规范与边界"，合并项目级与技能级版本号规范为"变更记录与版本号"一节，全部行为规则内涵保持不变。
 - **恢复"高质量技能开发原则"完整正文**：该节自 `a2200bc` 起仅存标题（"八项原则"正文在 git 全历史中从未存在，属悬空引用），从 `8410184` 找回六项原则原始正文（硬编码/AI 功能规划、脚本路径感知、多轮自检循环、冗余残留检查、安全性检查、过度设计与通用性检查），以紧凑形式恢复并适配当前 `tests/`/`tmp/` 目录约定；同步将"技能开发流程"中的"八项质量原则"引用修正为"六项质量原则"。
 - **修复"技能版本号管理规范"残缺章节**：该节在所有历史版本中仅存核心原则一句与孤立代码块残片；重建为完整的技能初始化模板（`config.yaml:skill_info.version` + CHANGELOG 条目）与语义化版本、同步顺序说明，版本号检查命令改为面向技能 `config.yaml` 的可用形式。

@@ -4,10 +4,11 @@
 
 这套生态不需要把每个 Skill 改造成一个“大状态机”，也不需要把业务规则搬进 kernel。最稳妥的方案是把 Verifier 与 State 设计成可选的外挂层：Skill 继续拥有自己的领域逻辑、脚本、提示词和正式产物；运行时只在输入、关键阶段、写入前后和交付前挂接少量标准检查。
 
-建议采用两层目录：
+建议采用“官方 Skill 目录内托管 + kernel 共享复用”的分层方式：
 
-- `bensz-skill-kernel` 提供稳定的协议、注册表、证据快照、结果归一化、Gate、事件和系统工作区状态。
-- 各生态以独立 Pack 提供领域 Verifier 与 State 声明；Skill 通过轻量适配器选择它们，移除适配器后原 Skill 仍可按原有方式工作。
+- `bensz-skill-kernel` 提供稳定的协议、注册表、证据快照、结果归一化、Gate、事件和系统工作区状态，并只托管跨多个 Skill/生态复用的通用 Pack。
+- 单个 Skill 专用的 Verifier 与 State Pack 按 Agent Skills 目录习惯托管在自身 `references/` 与 `scripts/` 子目录中，不新增顶层 `verifiers/`、`states/` 或独立 JSON 清单。
+- 多个 Skill 共享且规则稳定的 Pack 可酌情提升到 kernel 的共享目录；Skill 仍通过 manifest/Adapter 选择它们，移除适配器后原 Skill 仍可按原有方式工作。
 
 核心判断如下：
 
@@ -66,6 +67,45 @@
 - 领域输入解析、检索策略、写作风格、医学推理、计费公式、远程 API 路径和正式产物格式。
 - 何时调用哪个 Pack、哪些结果是 required、哪些只是 warning 的选择。
 - 对用户的解释、修复建议和人工决策；Verifier 不能替用户做处方、发布或商业判断。
+
+### Skill 内部目录与 Pack 托管约定
+
+Skill 的顶层目录应尽量遵守 Agent Skills 官方形态，只保留 `SKILL.md`、`references/` 和 `scripts/` 等标准入口；本项目已经接受的 `README.md` 与 `config.yaml` 作为兼容扩展继续保留。专用 Verifier/State 不再新增为顶层目录，建议采用以下布局：
+
+```text
+<skill>/
+├── SKILL.md
+├── README.md
+├── config.yaml
+├── references/
+│   ├── verifiers/
+│   │   └── <verifier-slug>/VERIFIER.md
+│   └── states/
+│       └── <state-slug>/STATE.md
+└── scripts/
+    ├── verifiers/<verifier-slug>/verify.py
+    └── states/<state-slug>/check.py
+```
+
+- `references/verifiers/<slug>/VERIFIER.md` 是领域 Verifier 契约；`references/states/<slug>/STATE.md` 是领域 State 契约。
+- 可执行入口统一放在 `scripts/` 下，并按 `verifiers/`、`states/` 镜像分组；不把运行缓存、测试夹具或历史计划放入 Pack 目录。
+- `config.yaml` 的 `runtime` 节声明 Pack 根目录、精确版本、调用阶段、required/advisory 策略，以及 State 的 `initial_state` 和 `states` 声明集合。不要再为同一 Skill 新增 `runtime.json`、`verifier-manifest.json` 或 `state-machine.json` 等重复清单。
+- `SKILL.md` 只说明触发条件、Adapter、调用时机和结果解释；详细契约按需从 `references/` 读取。
+- `VERIFIER.md`/`STATE.md` 中的入口路径相对于 Skill 根目录解析，Kernel 必须校验入口仍位于 Skill 根目录内，禁止路径遍历或执行 Skill 外部文件。
+
+这一约定不改变 Verifier/State 的 canonical ID、版本和 alias 规则；物理位置是托管实现，不是公开身份。
+
+### 共享 Pack 进入 kernel 的判定
+
+多个 Skill 共享并不自动意味着 Pack 必须进入 kernel。只有同时满足以下条件时，才建议提升为 kernel 共享 Pack：
+
+1. 至少两个已发布 Skill 或生态已经重复使用；
+2. 判断命题跨 Skill 稳定，输入可通过通用 `subject/evidence/requirements` 表达；
+3. 不依赖某个 Skill 的业务术语、目录结构、模型或私有 API；
+4. 具备独立的版本、测试、变更记录和兼容策略；
+5. 纳入 kernel 不会引入领域依赖、敏感数据或远程副作用。
+
+未同时满足时，即使存在复用，也先由领域 Skill 或独立领域 Pack 托管。进入 kernel 后仍需由调用 Skill 提供 Adapter，Kernel 只负责发现、执行、归一化和 Gate，不承载领域流程。
 
 ### 拆卸性验收
 
@@ -390,23 +430,35 @@ uncertainty_policy:
 
 ## 接入方式：不重构 Skill
 
-建议在 Skill 根目录增加可选的 `runtime.json`（名称可在实现时统一），仅声明引用关系：
+建议使用 Skill 已有的 `config.yaml`，在其中增加可选的 `runtime` 节，仅声明引用关系：
 
-```json
-{
-  "protocol": "bensz-skill-runtime-v1",
-  "state_declaration": "state-machine.json",
-  "verifiers": [
-    {"id": "bensz.artifact.schema-conformance", "version": "1.0.0", "required": true},
-    {"id": "bensz.security.secret-redaction", "version": "1.0.0", "required": true}
-  ],
-  "hooks": {
-    "before_input": ["bensz.artifact.path-scope"],
-    "before_write": ["bensz.source.diff-scope"],
-    "before_delivery": ["bensz.runtime.task-completeness"]
-  }
-}
+```yaml
+runtime:
+  protocol: bensz-skill-runtime-v1
+  verifier_roots: [references/verifiers]
+  state_roots: [references/states]
+  initial_state: bensz.workspace.ready
+  states:
+    - bensz.workspace.ready
+    - bensz.task.input-ready
+    - bensz.task.verifying
+    - bensz.task.reported
+    - bensz.workspace.closed
+  verifiers:
+    - id: bensz.artifact.schema-conformance
+      version: 1.0.0
+      required: true
+      phases: [before_input]
+    - id: bensz.security.secret-redaction
+      version: 1.0.0
+      required: true
+      phases: [before_delivery]
+  hooks:
+    before_write: [bensz.source.diff-scope]
+    before_delivery: [bensz.runtime.task-completeness]
 ```
+
+这里的字段职责与 Verifier 对称：`state_roots` 只规定从哪些目录发现 State 定义，`states` 规定当前 Skill 允许使用的 State 集合，`initial_state` 规定状态机的起点。不能只扫描并自动启用目录中的全部 State，否则无法表达初始状态，也会把未声明的状态错误暴露给当前 Skill。该结构与现有 `state-machine.json` 的 `initial_state`、`state_roots`、`states` 三个字段保持兼容；迁移时只是把声明位置收敛到 `config.yaml.runtime`。
 
 适配器只做四件事：把 Skill 已有输入转换为 Evidence、在既有脚本前后调用 Verifier、把原有阶段映射为 State、把结果写入统一事件。禁止把原 Prompt 搬进 kernel，禁止让 Verifier 直接修改正式产物，禁止为接入而复制一套业务流程。
 
@@ -476,7 +528,7 @@ uncertainty_policy:
 - State 是声明式发现和内存转移，尚未为所有长流程提供统一 checkpoint/恢复适配器。
 - Gate 已能保守处理结果，但还需要 required/advisory、父子阶段传播和 effect unknown 的显式策略文件。
 - 语义 Verifier 仍缺少真实来源摘录、校准集和模型执行记录，不能把 instruction-only 结果升级为自动通过。
-- 外部生态尚未统一 `runtime.json`/`state-machine.json` 入口，不能一次性批量迁移；应先做旁路适配器。
+- 现有试点仍使用 `state-machine.json`，而新的 Skill 约定将 Verifier/State 选择统一收敛到 `config.yaml.runtime`；不能一次性批量迁移，应先做兼容读取和旁路适配器。
 
 必须避免：
 
