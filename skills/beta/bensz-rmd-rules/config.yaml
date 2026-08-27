@@ -9,7 +9,7 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.22.0"
+  version: "0.22.1"
   description: "规范 AI 开发 R Markdown 分析脚本的行为准则。核心原则：遵循主业与副业分离架构（.R 保留完整数据，.Rmd 应用业务阈值），优先使用用户已有 R 包资源。图表默认按 Nature 级别可读性与出版质量生成（PDF 矢量优先、色盲友好配色、字体/线宽自适应）。专家级解读默认假定读者相关背景较弱：提供四层解读框架、指标导读和不常用指标首次解释协议，在保持数字可追溯与论文级准确性的同时增强学习友好度。路径验证：提供自动化验证脚本确保跨平台兼容性。前提：luckyBase 为硬依赖"
   author: "Bensz Conan"
   category: "开发规范"

@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed
 
+- `templates/liquid_glass_theme.css`：修复桌面端动态 TOC 悬停展开时偶发抖动的问题。移除圆角半径过渡，避免展开动画改变鼠标命中边界并触发 `mouseenter`/`mouseleave` 振荡；版本号 `0.22.0 → 0.22.1`。
 - `scripts/*.py`、`scripts/*.R` 与可执行 R 模板统一使用 `[PASS]` / `[FAIL]` / `[WARN]` ASCII 状态前缀，修复 Windows GBK 控制台因 emoji/符号不可编码而在成功或失败分支崩溃的问题；版本号 `0.21.2 → 0.21.3`。
 - `figure_interpretation_check.check_patterns.table_generation` 补齐推荐 helper `render_dt_output()` / `render_dt()`，使图表解读覆盖检查与 htmlwidget 可见性检查采用一致的 DT helper 边界。
 - `templates/liquid_glass_theme.css`：修复 Liquid Glass 主题对 Plotly 使用过宽的 `.plotly` 选择器会误伤 Plotly.js 内部节点，导致“双层背景/额外阴影与内边距/图像像浮在背景上”的观感问题；改为仅作用于 `.plotly.html-widget` 外层容器并采用更保守的默认样式。
