@@ -8,12 +8,13 @@ state is a directory containing ``STATE.md`` and optional helper scripts.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+
+from .state_ids import parse_state_aliases, validate_state_id
 
 
 META_STATE_PROTOCOL_VERSION = "bensz-meta-state-v1"
@@ -84,12 +85,26 @@ class StateDefinition:
     instructions: str = ""
     source: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    aliases: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", self.id):
-            raise StateDefinitionError(f"invalid state id: {self.id!r}")
+        try:
+            validate_state_id(self.id)
+        except ValueError as exc:
+            raise StateDefinitionError(f"canonical state ID required: {self.id!r}") from exc
         if not self.version:
             raise StateDefinitionError("state version cannot be empty")
+        if self.id in self.aliases or len(set(self.aliases)) != len(self.aliases):
+            raise StateDefinitionError("state aliases must be unique and differ from the canonical ID")
+        for reference in (*self.entry_conditions, *self.transitions):
+            if reference == "*":
+                continue
+            try:
+                validate_state_id(reference)
+            except ValueError as exc:
+                raise StateDefinitionError(
+                    f"canonical state graph reference required: {reference!r}"
+                ) from exc
 
     @classmethod
     def from_markdown(cls, path: str | Path) -> "StateDefinition":
@@ -100,7 +115,7 @@ class StateDefinition:
         state_id = metadata.get("id")
         if not state_id:
             raise StateDefinitionError(f"state definition missing id: {target}")
-        known = {"id", "version", "description", "kind", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint"}
+        known = {"id", "version", "description", "kind", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint", "aliases"}
         extra = {key: value for key, value in metadata.items() if key not in known}
         return cls(
             id=str(state_id),
@@ -114,6 +129,7 @@ class StateDefinition:
             instructions=instructions,
             source=str(target),
             metadata=extra,
+            aliases=parse_state_aliases(metadata.get("aliases")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -129,6 +145,7 @@ class StateDefinition:
             "instructions": self.instructions,
             "source": self.source,
             "metadata": dict(self.metadata),
+            "aliases": list(self.aliases),
         }
 
 
@@ -138,10 +155,12 @@ class FilesystemStateRegistry:
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve()
         self._states: dict[str, StateDefinition] = {}
+        self._aliases: dict[str, str] = {}
         self.refresh()
 
     def refresh(self) -> None:
         self._states.clear()
+        self._aliases.clear()
         if not self.root.is_dir():
             return
         for path in sorted(self.root.rglob("STATE.md")):
@@ -149,6 +168,13 @@ class FilesystemStateRegistry:
             if definition.id in self._states:
                 raise StateDefinitionError(f"duplicate state id: {definition.id}")
             self._states[definition.id] = definition
+            for alias in definition.aliases:
+                if alias in self._states or alias in self._aliases:
+                    raise StateDefinitionError(f"duplicate state alias: {alias}")
+                self._aliases[alias] = definition.id
+        collisions = set(self._aliases) & set(self._states)
+        if collisions:
+            raise StateDefinitionError(f"state aliases collide with canonical IDs: {', '.join(sorted(collisions))}")
 
     def definitions(self, *, kind: str | None = None) -> tuple[StateDefinition, ...]:
         values = self._states.values()
@@ -157,6 +183,7 @@ class FilesystemStateRegistry:
         return tuple(sorted(values, key=lambda item: item.id))
 
     def resolve(self, state_id: str) -> StateDefinition:
+        state_id = self._aliases.get(state_id, state_id)
         try:
             return self._states[state_id]
         except KeyError as exc:
@@ -169,11 +196,19 @@ class CombinedStateRegistry:
     def __init__(self, *registries: FilesystemStateRegistry):
         self.registries = registries
         self._states: dict[str, StateDefinition] = {}
+        self._aliases: dict[str, str] = {}
         for registry in registries:
             for definition in registry.definitions():
                 if definition.id in self._states:
                     raise StateDefinitionError(f"duplicate state id: {definition.id}")
                 self._states[definition.id] = definition
+                for alias in definition.aliases:
+                    if alias in self._states or alias in self._aliases:
+                        raise StateDefinitionError(f"duplicate state alias: {alias}")
+                    self._aliases[alias] = definition.id
+        collisions = set(self._aliases) & set(self._states)
+        if collisions:
+            raise StateDefinitionError(f"state aliases collide with canonical IDs: {', '.join(sorted(collisions))}")
 
     def definitions(self, *, kind: str | None = None) -> tuple[StateDefinition, ...]:
         values = self._states.values()
@@ -182,6 +217,7 @@ class CombinedStateRegistry:
         return tuple(sorted(values, key=lambda item: item.id))
 
     def resolve(self, state_id: str) -> StateDefinition:
+        state_id = self._aliases.get(state_id, state_id)
         try:
             return self._states[state_id]
         except KeyError as exc:
@@ -210,7 +246,7 @@ class SkillStateDeclaration:
             raise StateDefinitionError(f"invalid Skill state declaration: {exc.msg}") from exc
         if not isinstance(raw, Mapping) or raw.get("protocol") != SKILL_STATE_DECLARATION_VERSION:
             raise StateDefinitionError(f"Skill state declaration must use {SKILL_STATE_DECLARATION_VERSION}")
-        initial = raw.get("initial_state", "workspace.ready")
+        initial = raw.get("initial_state", "bensz.workspace.ready")
         names = _as_tuple(raw.get("states"))
         roots = _as_tuple(raw.get("state_roots", ("states",)))
         if not names:
@@ -223,13 +259,25 @@ class SkillStateDeclaration:
             except ValueError as exc:
                 raise StateDefinitionError("state_roots must stay inside the Skill directory") from exc
             resolved_roots.append(candidate)
-        return cls(root, str(initial), tuple(resolved_roots), names, source)
+        registry = build_state_registry(*resolved_roots)
+        try:
+            canonical_initial = registry.resolve(str(initial)).id
+            canonical_names = tuple(registry.resolve(item).id for item in names)
+        except StateDefinitionError as exc:
+            raise StateDefinitionError(
+                f"Skill state declaration references an unknown state: {exc}"
+            ) from exc
+        return cls(root, canonical_initial, tuple(resolved_roots), canonical_names, source)
 
     def registry(self) -> "CombinedStateRegistry":
         registry = build_state_registry(*self.state_roots)
         declared = set(self.states) | {self.initial_state}
-        available = {definition.id for definition in registry.definitions()}
-        unknown = declared - available
+        unknown = set()
+        for state_id in declared:
+            try:
+                registry.resolve(state_id)
+            except StateDefinitionError:
+                unknown.add(state_id)
         if unknown:
             raise StateDefinitionError(f"Skill state declaration references unknown states: {', '.join(sorted(unknown))}")
         return registry
@@ -299,7 +347,7 @@ def execute_state(definition: StateDefinition, request: Mapping[str, Any], *, ti
     if execution_status != "completed":
         raise StateExecutionError("state helper execution_status must be completed")
     facts = raw.get("facts", {})
-    refs = raw.get("evidence_refs", ())
+    refs = raw.get("evidence_refs", [])
     if not isinstance(facts, Mapping) or not isinstance(refs, list) or not all(isinstance(item, str) for item in refs):
         raise StateExecutionError("state helper facts must be an object and evidence_refs a string list")
     return StateExecutionResult(definition.id, execution_status, str(raw["verdict"]), str(raw.get("summary", "")), dict(facts), tuple(refs))
@@ -312,14 +360,24 @@ class StateMachine:
     only validates a requested transition against the ``STATE.md`` contract.
     """
 
-    def __init__(self, registry: FilesystemStateRegistry | CombinedStateRegistry, initial: str = "workspace.ready"):
+    def __init__(self, registry: FilesystemStateRegistry | CombinedStateRegistry, initial: str = "bensz.workspace.ready"):
         self.registry = registry
         self.current = registry.resolve(initial).id
 
     def can_transition(self, target: str) -> bool:
         source = self.registry.resolve(self.current)
         destination = self.registry.resolve(target)
-        return target in source.transitions or ("*" in source.transitions and self.current in destination.entry_conditions)
+        explicit = {
+            self.registry.resolve(item).id
+            for item in source.transitions
+            if item != "*"
+        }
+        entry_conditions = {
+            self.registry.resolve(item).id
+            for item in destination.entry_conditions
+            if item != "*"
+        }
+        return destination.id in explicit or ("*" in source.transitions and self.current in entry_conditions)
 
     def transition(self, target: str) -> StateDefinition:
         if not self.can_transition(target):

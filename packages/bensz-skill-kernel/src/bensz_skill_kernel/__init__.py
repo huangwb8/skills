@@ -28,6 +28,8 @@ from .verifiers import (
     snapshot_evidence,
 )
 from .builtins import CITATION_TRUTH_FIT_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
+from .verifier_ids import validate_verifier_id
+from .state_ids import validate_state_id
 from .states import CombinedStateRegistry, FilesystemStateRegistry, META_STATE_PROTOCOL_VERSION, SKILL_STATE_DECLARATION_VERSION, SkillStateDeclaration, StateDefinition, StateDefinitionError, StateExecutionError, StateExecutionResult, StateTransitionError, StateMachine, build_builtin_state_registry, build_state_registry, execute_state
 from .workspace import META_STATE_SNAPSHOT_VERSION, TaskWorkspace, WorkspaceError, WorkspacePaths, WORKSPACE_KINDS, WORKSPACE_PROTOCOL_VERSION, workspace_path
 
@@ -59,6 +61,8 @@ __all__ = [
     "FILE_SPEC",
     "build_builtin_registry",
     "collect_markdown",
+    "validate_verifier_id",
+    "validate_state_id",
     "FilesystemStateRegistry",
     "CombinedStateRegistry",
     "META_STATE_PROTOCOL_VERSION",
@@ -82,4 +86,4 @@ __all__ = [
     "workspace_path",
 ]
 
-__version__ = "0.8.0"
+__version__ = "0.10.0"

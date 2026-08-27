@@ -1,8 +1,9 @@
 ---
-id: workspace.closed
+id: bensz.workspace.closed
 version: 1.0.0
 kind: system
 description: This Skill's use of the task workspace is closed and may only be read for audit or resume.
+aliases: workspace.closed
 transitions: []
 ---
 

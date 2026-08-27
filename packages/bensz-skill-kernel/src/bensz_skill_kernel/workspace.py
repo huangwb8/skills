@@ -116,7 +116,7 @@ class TaskWorkspace:
         else:
             manifest = {
                 "protocol": WORKSPACE_PROTOCOL_VERSION,
-                "state": "workspace.ready",
+                "state": "bensz.workspace.ready",
                 "created_at": (now or datetime.now()).isoformat(timespec="seconds"),
             }
             try:
@@ -162,7 +162,7 @@ class TaskWorkspace:
             return {
                 "protocol": META_STATE_SNAPSHOT_VERSION,
                 "skill": paths.skill,
-                "current_state": "workspace.ready",
+                "current_state": "bensz.workspace.ready",
                 "state_version": "1.0.0",
                 "workspace_state": self.manifest().get("state"),
             }

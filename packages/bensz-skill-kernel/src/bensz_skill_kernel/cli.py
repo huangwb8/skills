@@ -224,6 +224,7 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
         "capabilities": list(spec.capabilities),
         "evidence_requirements": list(spec.evidence_requirements),
         "uncertainty_policy": dict(spec.uncertainty_policy),
+        "aliases": list(getattr(spec, "aliases", ())),
         "metadata": dict(spec.metadata),
     }
 
@@ -268,7 +269,14 @@ def _state_response(operation: str, status: str, *, current_state: str | None = 
 
 
 def _require_declared_state(registry: Any, declaration: SkillStateDeclaration | None, state_id: str) -> None:
-    if declaration and state_id not in {*declaration.states, declaration.initial_state} and registry.resolve(state_id).kind != "system":
+    if not declaration:
+        return
+    definition = registry.resolve(state_id)
+    declared = {
+        registry.resolve(item).id
+        for item in (*declaration.states, declaration.initial_state)
+    }
+    if definition.id not in declared and definition.kind != "system":
         raise ValueError(f"state {state_id!r} is not declared by {declaration.source}")
 
 
@@ -277,7 +285,10 @@ def _run_state_command(args: argparse.Namespace) -> int:
     if args.state_command == "list":
         states = registry.definitions(kind=args.kind)
         if declaration:
-            allowed = set(declaration.states) | {declaration.initial_state}
+            allowed = {
+                registry.resolve(item).id
+                for item in (*declaration.states, declaration.initial_state)
+            }
             states = tuple(item for item in states if item.id in allowed or item.kind == "system")
         _print({"states": [item.to_dict() for item in states], "declaration": declaration.to_dict() if declaration else None}, pretty=True)
     elif args.state_command == "describe":
@@ -287,32 +298,34 @@ def _run_state_command(args: argparse.Namespace) -> int:
         _require_declared_state(registry, declaration, args.current_state)
         _require_declared_state(registry, declaration, args.target_state)
         machine = StateMachine(registry, args.current_state)
+        current = registry.resolve(args.current_state).id
         target = registry.resolve(args.target_state)
         if machine.can_transition(args.target_state):
-            _print(_state_response("check", "allowed", current_state=args.current_state, target_state=args.target_state, definition=target), pretty=True)
+            _print(_state_response("check", "allowed", current_state=current, target_state=target.id, definition=target), pretty=True)
         else:
-            _print(_state_response("check", "rejected", current_state=args.current_state, target_state=args.target_state, definition=target, reason="The target is not an allowed transition from the current state."), pretty=True)
+            _print(_state_response("check", "rejected", current_state=current, target_state=target.id, definition=target, reason="The target is not an allowed transition from the current state."), pretty=True)
     elif args.state_command == "execute":
         _require_declared_state(registry, declaration, args.state_id)
         definition = registry.resolve(args.state_id)
         context = _json_object(args.context_json, label="--context-json")
         execution = execute_state(definition, {"operation": "execute", "context": context}, timeout=args.timeout)
-        _print(_state_response("execute", "completed", target_state=args.state_id, definition=definition, execution=execution), pretty=True)
+        _print(_state_response("execute", "completed", target_state=definition.id, definition=definition, execution=execution), pretty=True)
     elif args.state_command == "transition":
         _require_declared_state(registry, declaration, args.target_state)
         workspace = TaskWorkspace.open_existing(args.task_root)
         previous = workspace.read_meta_state(args.skill)
-        current = str(previous.get("current_state", "workspace.ready"))
-        _require_declared_state(registry, declaration, current)
+        persisted_current = str(previous.get("current_state", "bensz.workspace.ready"))
+        _require_declared_state(registry, declaration, persisted_current)
+        current = registry.resolve(persisted_current).id
         machine = StateMachine(registry, current)
         target = registry.resolve(args.target_state)
         if not machine.can_transition(args.target_state):
-            _print(_state_response("transition", "rejected", current_state=current, target_state=args.target_state, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
+            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
             return 0
         context = _json_object(args.context_json, label="--context-json")
         execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": context}, timeout=args.timeout)
         if execution.execution_status != "not_applicable" and execution.verdict != "pass":
-            _print(_state_response("transition", "rejected", current_state=current, target_state=args.target_state, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
+            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
             return 0
         machine.transition(args.target_state)
         snapshot = {

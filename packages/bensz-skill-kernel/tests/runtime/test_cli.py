@@ -51,7 +51,7 @@ def test_builtin_verifier_catalog(tmp_path: Path, capsys):
 
     assert main(["verifier", "list", "--tag", "citation"]) == 0
     catalog = json.loads(capsys.readouterr().out)
-    assert catalog["verifiers"][0]["verifier_id"] == "citation.truth-and-fit"
+    assert catalog["verifiers"][0]["verifier_id"] == "bensz.evidence.citation-truth-fit"
     assert catalog["verifiers"][0]["version"] == "1.0.0"
     assert "common" in catalog["verifiers"][0]["tags"]
 
@@ -59,7 +59,7 @@ def test_builtin_verifier_catalog(tmp_path: Path, capsys):
 def test_directory_verifier_runs_markdown_link_integrity(tmp_path: Path, capsys):
     markdown = tmp_path / "readme.md"
     markdown.write_text("# Title\n\n[ok](#title)\n", encoding="utf-8")
-    assert main(["verifier", "run", "markdown.link-integrity", "--input", str(markdown)]) == 0
+    assert main(["verifier", "run", "bensz.document.markdown-link-integrity", "--input", str(markdown)]) == 0
     output = json.loads(capsys.readouterr().out)
     assert output["results"][0]["verdict"] == "pass"
     assert output["gate"]["decision"] == "allow"

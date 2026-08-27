@@ -2,13 +2,15 @@
 
 无第三方运行时依赖的 Agent Skill 状态、工作区与 verifier 生命周期内核。
 
+Verifier ID 的 canonical 命名、版本和 alias 迁移规则见仓库级 [`docs/verifier-id-naming.md`](../../docs/verifier-id-naming.md)；State ID 对应规则见 [`docs/state-id-naming.md`](../../docs/state-id-naming.md)。
+
 状态定义采用目录化协议：每个元状态目录包含一个 `STATE.md`，可选附带 JSON-stdio
 检查或演示脚本。内置状态可以通过统一命令发现；`--root` 会在内置状态之外叠加 Skill
 状态包，而非替换它：
 
 ```bash
 bsk state list
-bsk state describe workspace.ready
+bsk state describe bensz.workspace.ready
 bsk state list --root path/to/skill/states
 ```
 
@@ -18,9 +20,9 @@ kernel 只校验该格式，不理解领域动作。Agent 先读取状态契约�
 
 ```bash
 bsk state list --skill-root path/to/skill
-bsk state describe workspace.ready --skill-root path/to/skill
-bsk state check workspace.ready skill.collect --skill-root path/to/skill
-bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name skill.collect \
+bsk state describe bensz.workspace.ready --skill-root path/to/skill
+bsk state check bensz.workspace.ready org.example.skill.collecting --skill-root path/to/skill
+bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name org.example.skill.collecting \
   --skill-root path/to/skill --context-json '{"input":"report.md"}'
 ```
 
@@ -28,7 +30,7 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name skill.collect
 持久化快照。每个 Skill 的当前元状态写入自身 `log/meta-state.json`；它与任务级
 `events.ndjson` / `state.json` 分层，后者仍只记录生命周期、验证与交付事实。
 
-`STATE.md` 的 frontmatter 至少应有稳定的 `id`；推荐同时声明 `version`、`kind`、
+`STATE.md` 的 frontmatter 至少应有符合 `owner.machine.state` 的 canonical `id`；推荐同时声明 `version`、`kind`、`aliases`、
 `description`、`entry_conditions`、`invariants` 和 `transitions`。正文是 Agent 必须遵守的
 阶段说明。可选 `entrypoint` 是相对于该 `STATE.md` 目录的脚本：stdin 接收
 `{"protocol":"bensz-meta-state-v1","state":...,"request":...}`，stdout 只能输出一个
@@ -46,7 +48,7 @@ bsk workspace path .bensz-api/task-YYYYMMDD-HHMM-citation-review validate-md-ref
 bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
-初始化结果中的 `workspace.ready` 是所有 Skill 状态的系统级前置状态。工作区还会创建
+初始化结果中的 `bensz.workspace.ready` 是所有 Skill 状态的系统级前置状态，旧 ID `workspace.ready` 作为 alias 保留。工作区还会创建
 共享 `shared/input|output|log` 边界；工作区清单保存协议版本和初始状态，事件账本仍由
 下方的生命周期命令追加和重放；两者保持分层，避免把 Skill 领域状态硬编码进核心 reducer。
 
@@ -56,8 +58,8 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 
 ```bash
 bsk verifier list --tag citation
-bsk verifier describe citation.truth-and-fit --version 1.0.0
-bsk verifier run markdown.link-integrity --input README.md
+bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
+bsk verifier run bensz.document.markdown-link-integrity --input README.md
 ```
 
 `VERIFIER.md` 使用 YAML 风格的轻量 frontmatter，至少包含 `id` 和 `version`；可选
@@ -68,8 +70,9 @@ instruction-only，由 Agent 读取正文执行。脚本入口遵循：stdin 一
 
 当前内置示例：
 
-- `markdown.link-integrity`：Markdown 链接和锚点完整性检查，标签 `common`、`markdown`、`links`、`deterministic`。
-- `citation.truth-and-fit`：格式无关的引用真实性与适切性契约；这是 instruction-only verifier，由 Agent 或领域引擎按 `VERIFIER.md` 执行并返回 `unchecked`/语义结果。
+- `bensz.artifact.file-existence`：确认本地产物是现有普通文件；旧 ID `artifact.file-exists` 作为 alias 保留。
+- `bensz.document.markdown-link-integrity`：Markdown 链接和锚点完整性检查，标签 `common`、`markdown`、`links`、`deterministic`；旧 ID `markdown.link-integrity`、`markdown.references` 作为 alias 保留。
+- `bensz.evidence.citation-truth-fit`：格式无关的引用真实性与适切性契约；这是 instruction-only verifier，由 Agent 或领域引擎按 `VERIFIER.md` 执行并返回 `unchecked`/语义结果；旧 ID `citation.truth-and-fit` 作为 alias 保留。
 
 代码只定义发现、调用、超时、结果归一化和事件记录协议，不内置领域判断流程。Markdown、LaTeX、Word 等格式适配器可各自选择适用 verifier。
 

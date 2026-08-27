@@ -1,9 +1,10 @@
 ---
-id: markdown.link-integrity
+id: bensz.document.markdown-link-integrity
 version: 1.0.0
 description: Validate Markdown links and local anchors for reachability and safety.
 entrypoint: scripts/verify.py
 tags: common, markdown, links, deterministic
+aliases: markdown.link-integrity, markdown.references
 ---
 
 # Markdown link integrity

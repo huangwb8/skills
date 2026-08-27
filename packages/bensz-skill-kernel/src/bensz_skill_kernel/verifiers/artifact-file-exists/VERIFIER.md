@@ -1,9 +1,10 @@
 ---
-id: artifact.file-exists
+id: bensz.artifact.file-existence
 version: 1.0.0
 description: Confirm that a requested local artifact exists as a regular file.
 entrypoint: scripts/verify.py
 tags: common, filesystem, deterministic
+aliases: artifact.file-exists
 ---
 
 # Artifact file exists

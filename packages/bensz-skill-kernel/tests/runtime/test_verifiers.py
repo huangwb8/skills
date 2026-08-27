@@ -16,6 +16,7 @@ from bensz_skill_kernel import (
     FilesystemVerifierRegistry,
     VerifierDefinition,
     collect_markdown,
+    validate_verifier_id,
 )
 from bensz_skill_kernel.builtins import build_builtin_registry
 
@@ -73,7 +74,7 @@ def test_legacy_collect_markdown_export_delegates_to_verifier_collector(tmp_path
 
 
 def test_hybrid_pack_preserves_rule_failure_and_prompt_gap():
-    spec = VerifierSpec("demo.v1", "1.0.0", "hybrid", evidence_requirements=("subject",))
+    spec = VerifierSpec("test.demo.hybrid", "1.0.0", "hybrid", evidence_requirements=("subject",))
     pack = VerifierPack(
         spec,
         rules=(("schema", lambda request, evidence: {"verdict": "fail", "findings": [{"id": "bad"}]}),),
@@ -83,17 +84,17 @@ def test_hybrid_pack_preserves_rule_failure_and_prompt_gap():
     registry.register(pack)
     results, gate = VerifierRunner(registry).run(
         VerificationRequest(subject={"id": "x"}, evidence=(Evidence("subject", "snapshot", {"id": "x"}),)),
-        "demo.v1",
+        "test.demo.hybrid",
     )
     assert [result.verdict for result in results] == ["fail", "pass"]
     assert gate.decision == "reject"
 
 
 def test_missing_evidence_cannot_pass():
-    spec = VerifierSpec("needs.v1", "1.0.0", "rule", evidence_requirements=("required",))
+    spec = VerifierSpec("test.needs.evidence", "1.0.0", "rule", evidence_requirements=("required",))
     registry = PackRegistry()
     registry.register(VerifierPack(spec, rules=(("rule", lambda *_: {"verdict": "pass"}),)))
-    results, gate = VerifierRunner(registry).run(VerificationRequest(subject={}), "needs.v1")
+    results, gate = VerifierRunner(registry).run(VerificationRequest(subject={}), "test.needs.evidence")
     assert results[0].verdict == "unchecked"
     assert gate.decision == "manual_review"
 
@@ -108,9 +109,22 @@ def test_generic_citation_pack_is_format_agnostic_and_conservative():
             Evidence("source_excerpt", "excerpt", {"text": "evidence"}),
         ),
     )
-    results, gate = VerifierRunner(registry).run(request, "citation.truth-and-fit", version="1.0.0")
+    results, gate = VerifierRunner(registry).run(request, "bensz.evidence.citation-truth-fit", version="1.0.0")
     assert results[0].verdict == "unchecked"
     assert gate.decision == "manual_review"
+
+
+def test_builtin_pack_alias_resolves_to_canonical_result() -> None:
+    request = VerificationRequest(
+        subject={"type": "citation"},
+        evidence=(
+            Evidence("subject_context", "context", {"claim": "x"}),
+            Evidence("source_metadata", "metadata", {"title": "source"}),
+            Evidence("source_excerpt", "excerpt", {"text": "evidence"}),
+        ),
+    )
+    results, _ = VerifierRunner(build_builtin_registry()).run(request, "citation.truth-and-fit")
+    assert results[0].verifier_id == "bensz.evidence.citation-truth-fit"
 
 
 def test_gate_empty_results_waits():
@@ -122,7 +136,7 @@ def test_filesystem_registry_discovers_markdown_contract(tmp_path):
     verifier_dir.mkdir()
     (verifier_dir / "VERIFIER.md").write_text(
         "---\n"
-        "id: demo.check\n"
+        "id: test.demo.check\n"
         "version: 1.2.0\n"
         "description: Demo verifier\n"
         "tags: demo, deterministic\n"
@@ -130,7 +144,7 @@ def test_filesystem_registry_discovers_markdown_contract(tmp_path):
         encoding="utf-8",
     )
     registry = FilesystemVerifierRegistry(tmp_path)
-    definition = registry.resolve("demo.check")
+    definition = registry.resolve("test.demo.check")
     assert isinstance(definition, VerifierDefinition)
     assert definition.version == "1.2.0"
     assert definition.instructions.startswith("# Instructions")
@@ -141,21 +155,27 @@ def test_builtin_verifiers_are_package_assets():
     root = builtin_verifier_root()
     assert root.parent.name == "bensz_skill_kernel"
     assert (root / "markdown-link-integrity" / "VERIFIER.md").is_file()
-    assert FilesystemVerifierRegistry(root).resolve("citation.truth-and-fit").version == "1.0.0"
+    registry = FilesystemVerifierRegistry(root)
+    assert registry.resolve("bensz.evidence.citation-truth-fit").version == "1.0.0"
+    assert {spec.verifier_id for spec in registry.specs()} == {
+        "bensz.artifact.file-existence",
+        "bensz.document.markdown-link-integrity",
+        "bensz.evidence.citation-truth-fit",
+    }
 
 
 def test_instruction_only_verifier_returns_standard_unchecked_result(tmp_path):
     verifier_dir = tmp_path / "manual"
     verifier_dir.mkdir()
     (verifier_dir / "VERIFIER.md").write_text(
-        "---\nid: manual.review\nversion: 1.0.0\n---\n\n# Review\n",
+        "---\nid: test.manual.review\nversion: 1.0.0\n---\n\n# Review\n",
         encoding="utf-8",
     )
     registry = FilesystemVerifierRegistry(tmp_path)
-    result = registry.run("manual.review", {"subject": {"value": 1}})
+    result = registry.run("test.manual.review", {"subject": {"value": 1}})
     assert result["execution_status"] == "unchecked"
     assert result["verdict"] == "unchecked"
-    assert result["verifier_id"] == "manual.review"
+    assert result["verifier_id"] == "test.manual.review"
 
 
 def test_script_verifier_uses_json_stdio_protocol(tmp_path):
@@ -163,7 +183,7 @@ def test_script_verifier_uses_json_stdio_protocol(tmp_path):
     scripts = verifier_dir / "scripts"
     scripts.mkdir(parents=True)
     (verifier_dir / "VERIFIER.md").write_text(
-        "---\nid: scripted.check\nversion: 1.0.0\nentrypoint: scripts/check.py\n---\n\n# Check\n",
+        "---\nid: test.scripted.check\nversion: 1.0.0\nentrypoint: scripts/check.py\n---\n\n# Check\n",
         encoding="utf-8",
     )
     (scripts / "check.py").write_text(
@@ -173,8 +193,59 @@ def test_script_verifier_uses_json_stdio_protocol(tmp_path):
         encoding="utf-8",
     )
     result = FilesystemVerifierRegistry(tmp_path).run(
-        "scripted.check", {"subject": {"value": 2}, "request_id": "r1"}
+        "test.scripted.check", {"subject": {"value": 2}, "request_id": "r1"}
     )
     assert result["execution_status"] == "completed"
     assert result["verdict"] == "pass"
     assert result["facts"]["echo"] == {"value": 2}
+
+
+def test_verifier_id_requires_owner_domain_and_capability() -> None:
+    assert validate_verifier_id("bensz.document.link-integrity") == "bensz.document.link-integrity"
+    assert validate_verifier_id("org.example.evidence.citation-fit") == "org.example.evidence.citation-fit"
+
+    for invalid in ("markdown.link-integrity", "bensz.document", "bensz.Document.link-integrity", "bensz.document.link_integrity", "bensz.document.link-integrity.v1"):
+        try:
+            validate_verifier_id(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"expected invalid verifier ID: {invalid}")
+
+
+def test_filesystem_registry_resolves_legacy_alias_to_canonical_id(tmp_path: Path):
+    verifier_dir = tmp_path / "link-integrity"
+    verifier_dir.mkdir()
+    (verifier_dir / "VERIFIER.md").write_text(
+        "---\n"
+        "id: bensz.document.link-integrity\n"
+        "version: 1.0.0\n"
+        "aliases: markdown.link-integrity, markdown.references\n"
+        "---\n\n# Link integrity\n",
+        encoding="utf-8",
+    )
+    registry = FilesystemVerifierRegistry(tmp_path)
+    assert registry.resolve("markdown.link-integrity").verifier_id == "bensz.document.link-integrity"
+    assert registry.resolve("markdown.references").verifier_id == "bensz.document.link-integrity"
+    result = registry.run("markdown.link-integrity", {"subject": {}})
+    assert result["verifier_id"] == "bensz.document.link-integrity"
+
+
+def test_noncanonical_filesystem_verifier_id_is_rejected(tmp_path: Path):
+    verifier_dir = tmp_path / "legacy"
+    verifier_dir.mkdir()
+    (verifier_dir / "VERIFIER.md").write_text("---\nid: legacy.check\nversion: 1.0.0\n---\n", encoding="utf-8")
+    try:
+        FilesystemVerifierRegistry(tmp_path)
+    except ValueError as exc:
+        assert "canonical verifier ID" in str(exc)
+    else:
+        raise AssertionError("non-canonical verifier ID must be rejected")
+
+
+def test_pack_registry_resolves_highest_semantic_version() -> None:
+    registry = PackRegistry()
+    for version in ("1.9.0", "1.10.0"):
+        registry.register(VerifierPack(VerifierSpec("test.demo.versioned", version, "rule")))
+
+    assert registry.resolve("test.demo.versioned").spec.version == "1.10.0"

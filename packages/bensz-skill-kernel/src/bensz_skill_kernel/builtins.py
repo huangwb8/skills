@@ -43,13 +43,14 @@ def collect_markdown(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 
 CITATION_TRUTH_FIT_SPEC = VerifierSpec(
-    verifier_id='citation.truth-and-fit',
+    verifier_id='bensz.evidence.citation-truth-fit',
     version='1.0.0',
     mode='hybrid',
     capabilities=('evidence.identity', 'semantic.entailment', 'semantic.appropriateness'),
     evidence_requirements=('subject_context', 'source_metadata', 'source_excerpt'),
     uncertainty_policy={'missing_evidence': 'manual_review', 'engine_unavailable': 'unchecked'},
     tags=('common', 'citation', 'semantic', 'evidence'),
+    aliases=('citation.truth-and-fit',),
     metadata={'side_effects': 'none', 'requires_external_engine': True},
 )
 
@@ -71,11 +72,12 @@ def _file_exists(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[str,
 
 
 FILE_SPEC = VerifierSpec(
-    verifier_id='artifact.file-exists',
+    verifier_id='bensz.artifact.file-existence',
     version='1.0.0',
     mode='rule',
     capabilities=('filesystem.read',),
     tags=('common', 'filesystem', 'deterministic'),
+    aliases=('artifact.file-exists',),
     metadata={'side_effects': 'none'},
 )
 

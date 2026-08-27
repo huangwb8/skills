@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
+from .verifier_ids import parse_aliases, validate_verifier_id
+
 VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", "skipped"})
 MODES = frozenset({"rule", "prompt", "hybrid", "human"})
@@ -100,10 +102,14 @@ class VerifierSpec:
     uncertainty_policy: Mapping[str, str] = field(default_factory=dict)
     metadata: Mapping[str, Any] = field(default_factory=dict)
     tags: tuple[str, ...] = ()
+    aliases: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
             raise ValueError(f"unsupported verifier mode: {self.mode}")
+        validate_verifier_id(self.verifier_id)
+        if self.verifier_id in self.aliases or len(set(self.aliases)) != len(self.aliases):
+            raise ValueError("verifier aliases must be unique and differ from the canonical ID")
 
 
 @dataclass(frozen=True)
@@ -122,6 +128,7 @@ class VerifierDefinition:
     entrypoint: str | None = None
     tags: tuple[str, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    aliases: tuple[str, ...] = ()
 
     @classmethod
     def from_directory(cls, path: str | os.PathLike[str]) -> "VerifierDefinition":
@@ -134,6 +141,10 @@ class VerifierDefinition:
         version = fields.get("version")
         if not verifier_id or not version:
             raise ValueError(f"VERIFIER.md requires id and version: {document}")
+        try:
+            validate_verifier_id(verifier_id)
+        except ValueError as exc:
+            raise ValueError(f"canonical verifier ID required: {verifier_id}") from exc
         entrypoint = fields.get("entrypoint") or fields.get("script")
         if entrypoint:
             candidate = (root / entrypoint).resolve()
@@ -141,9 +152,12 @@ class VerifierDefinition:
                 raise ValueError(f"entrypoint must be a file inside verifier directory: {entrypoint}")
             entrypoint = str(candidate.relative_to(root))
         tags = tuple(item.strip() for item in fields.get("tags", "").split(",") if item.strip())
-        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags"}
+        aliases = parse_aliases(fields.get("aliases"))
+        if verifier_id in aliases:
+            raise ValueError("verifier aliases must differ from the canonical ID")
+        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags", "aliases"}
         metadata = {key: value for key, value in fields.items() if key not in reserved}
-        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata)
+        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases)
 
     @property
     def spec(self) -> VerifierSpec:
@@ -152,6 +166,7 @@ class VerifierDefinition:
             version=self.version,
             mode="rule" if self.entrypoint else "human",
             tags=self.tags,
+            aliases=self.aliases,
             metadata={"description": self.description, "path": str(self.path), "entrypoint": self.entrypoint, **dict(self.metadata)},
         )
 
@@ -162,6 +177,7 @@ class VerifierDefinition:
             "description": self.description,
             "tags": list(self.tags),
             "entrypoint": self.entrypoint,
+            "aliases": list(self.aliases),
             "instructions": self.instructions,
             "metadata": dict(self.metadata),
         }
@@ -173,10 +189,12 @@ class FilesystemVerifierRegistry:
     def __init__(self, root: str | os.PathLike[str]):
         self.root = Path(root).expanduser().resolve()
         self._definitions: dict[tuple[str, str], VerifierDefinition] = {}
+        self._aliases: dict[tuple[str, str], tuple[str, str]] = {}
         self.reload()
 
     def reload(self) -> None:
         self._definitions.clear()
+        self._aliases.clear()
         if not self.root.is_dir():
             return
         for child in sorted(self.root.iterdir(), key=lambda item: item.name):
@@ -187,8 +205,23 @@ class FilesystemVerifierRegistry:
             if key in self._definitions:
                 raise ValueError(f"duplicate verifier: {definition.verifier_id}@{definition.version}")
             self._definitions[key] = definition
+            for alias in definition.aliases:
+                alias_key = (alias, definition.version)
+                if alias_key in self._aliases or alias_key in self._definitions:
+                    raise ValueError(f"duplicate verifier alias: {alias}@{definition.version}")
+                self._aliases[alias_key] = key
+        for alias_key in self._aliases:
+            if alias_key in self._definitions:
+                raise ValueError(f"verifier alias collides with canonical ID: {alias_key[0]}@{alias_key[1]}")
 
     def resolve(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
+        if version and (verifier_id, version) in self._aliases:
+            verifier_id, version = self._aliases[(verifier_id, version)]
+        elif not version:
+            alias_versions = [key for key in self._aliases if key[0] == verifier_id]
+            if alias_versions:
+                alias_version = sorted((key[1] for key in alias_versions), key=_version_key)[-1]
+                verifier_id, version = self._aliases[(verifier_id, alias_version)]
         if version:
             try:
                 return self._definitions[(verifier_id, version)]
@@ -303,14 +336,30 @@ class PackRegistry:
 
     def __init__(self) -> None:
         self._packs: dict[tuple[str, str], VerifierPack] = {}
+        self._aliases: dict[tuple[str, str], tuple[str, str]] = {}
 
     def register(self, pack: VerifierPack) -> None:
         key = (pack.spec.verifier_id, pack.spec.version)
-        if key in self._packs:
+        if key in self._packs or key in self._aliases:
             raise ValueError(f"pack already registered: {key[0]}@{key[1]}")
         self._packs[key] = pack
+        for alias in pack.spec.aliases:
+            alias_key = (alias, pack.spec.version)
+            if alias_key in self._aliases or alias_key in self._packs:
+                raise ValueError(f"duplicate verifier alias: {alias}@{pack.spec.version}")
+            self._aliases[alias_key] = key
+        for alias_key in self._aliases:
+            if alias_key in self._packs:
+                raise ValueError(f"verifier alias collides with canonical ID: {alias_key[0]}@{alias_key[1]}")
 
     def resolve(self, verifier_id: str, version: str | None = None) -> VerifierPack:
+        if version and (verifier_id, version) in self._aliases:
+            verifier_id, version = self._aliases[(verifier_id, version)]
+        elif not version:
+            alias_versions = [key for key in self._aliases if key[0] == verifier_id]
+            if alias_versions:
+                alias_version = sorted((key[1] for key in alias_versions), key=_version_key)[-1]
+                verifier_id, version = self._aliases[(verifier_id, alias_version)]
         if version:
             try:
                 return self._packs[(verifier_id, version)]
@@ -319,7 +368,7 @@ class PackRegistry:
         candidates = [p for (identifier, _), p in self._packs.items() if identifier == verifier_id]
         if not candidates:
             raise KeyError(f"pack not found: {verifier_id}")
-        return sorted(candidates, key=lambda p: p.spec.version)[-1]
+        return sorted(candidates, key=lambda p: _version_key(p.spec.version))[-1]
 
     def specs(self, *, tag: str | None = None) -> tuple[VerifierSpec, ...]:
         """Return a deterministic catalog view, optionally filtered by tag."""

@@ -1,8 +1,9 @@
 ---
-id: citation.truth-and-fit
+id: bensz.evidence.citation-truth-fit
 version: 1.0.0
 description: Format-independent contract for semantic citation truth and fit review.
 tags: common, citation, semantic, evidence
+aliases: citation.truth-and-fit
 ---
 
 # Citation truth and fit
