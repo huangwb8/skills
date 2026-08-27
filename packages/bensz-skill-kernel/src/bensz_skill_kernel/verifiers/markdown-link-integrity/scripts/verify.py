@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import json
 import sys
-from pathlib import Path
 
 try:
-    from bensz_skill_kernel.builtins import collect_markdown
-except ModuleNotFoundError:
-    src = Path(__file__).resolve().parents[4] / "src"
-    sys.path.insert(0, str(src))
-    from bensz_skill_kernel.builtins import collect_markdown
+    from .collector import collect_markdown
+except ImportError:
+    # The entrypoint is executed as a file by the filesystem registry, so the
+    # scripts directory is on sys.path but is not a Python package.
+    from collector import collect_markdown
 
 
 def main() -> int:

@@ -1,4 +1,6 @@
+import importlib.util
 from email.message import Message
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
@@ -13,8 +15,25 @@ from bensz_skill_kernel import (
     builtin_verifier_root,
     FilesystemVerifierRegistry,
     VerifierDefinition,
+    collect_markdown,
 )
-from bensz_skill_kernel.builtins import _probe, build_builtin_registry
+from bensz_skill_kernel.builtins import build_builtin_registry
+
+
+_COLLECTOR_PATH = (
+    Path(__file__).parents[2]
+    / "src"
+    / "bensz_skill_kernel"
+    / "verifiers"
+    / "markdown-link-integrity"
+    / "scripts"
+    / "collector.py"
+)
+_COLLECTOR_SPEC = importlib.util.spec_from_file_location("markdown_link_integrity_collector", _COLLECTOR_PATH)
+assert _COLLECTOR_SPEC and _COLLECTOR_SPEC.loader
+_COLLECTOR = importlib.util.module_from_spec(_COLLECTOR_SPEC)
+_COLLECTOR_SPEC.loader.exec_module(_COLLECTOR)
+_probe = _COLLECTOR._probe
 
 
 class _RedirectingOpener:
@@ -31,7 +50,8 @@ class _RedirectingOpener:
 def test_redirect_to_private_address_is_skipped_before_request(monkeypatch) -> None:
     opener = _RedirectingOpener()
     monkeypatch.setattr(
-        'bensz_skill_kernel.builtins._blocked',
+        _COLLECTOR,
+        '_blocked',
         lambda value, _blacklist: urlparse(value).hostname == '127.0.0.1',
     )
 
@@ -40,6 +60,16 @@ def test_redirect_to_private_address_is_skipped_before_request(monkeypatch) -> N
     assert result['skipped'] is True
     assert result['reason'] == '重定向目标不在允许范围内'
     assert opener.requested_urls == ['https://public.invalid/start']
+
+
+def test_legacy_collect_markdown_export_delegates_to_verifier_collector(tmp_path: Path) -> None:
+    markdown = tmp_path / 'readme.md'
+    markdown.write_text('# Title\n\n[ok](#title)\n', encoding='utf-8')
+
+    report = collect_markdown(markdown)
+
+    assert report['summary']['valid'] == 1
+    assert report['references'][0]['validation']['local_anchor'] is True
 
 
 def test_hybrid_pack_preserves_rule_failure_and_prompt_gap():

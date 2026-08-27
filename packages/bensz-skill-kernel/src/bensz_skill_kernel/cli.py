@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from .builtins import build_builtin_registry, collect_markdown
+from .builtins import build_builtin_registry
 from .runtime import EventLog, KernelError
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, execute_state
 from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
