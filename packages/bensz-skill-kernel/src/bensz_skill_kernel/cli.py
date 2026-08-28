@@ -225,6 +225,11 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
         "evidence_requirements": list(spec.evidence_requirements),
         "uncertainty_policy": dict(spec.uncertainty_policy),
         "aliases": list(getattr(spec, "aliases", ())),
+        "subject_kinds": list(getattr(spec, "subject_kinds", ())),
+        "prompt_pack_ref": getattr(spec, "prompt_pack_ref", None),
+        "rule_pack_ref": getattr(spec, "rule_pack_ref", None),
+        "calibration_set_ref": getattr(spec, "calibration_set_ref", None),
+        "classification": getattr(spec, "classification", "domain"),
         "metadata": dict(spec.metadata),
     }
 
@@ -235,7 +240,7 @@ def _verifier_registry() -> FilesystemVerifierRegistry:
 
 def _add_state_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--root", action="append", default=[], help="additional directory containing STATE.md packages; repeatable")
-    parser.add_argument("--skill-root", help="Skill root containing state-machine.json; selects only its declared state packages")
+    parser.add_argument("--skill-root", help="Skill root containing config.yaml runtime declaration (state-machine.json is legacy-compatible)")
 
 
 def _state_registry(args: argparse.Namespace):

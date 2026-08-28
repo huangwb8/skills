@@ -210,6 +210,25 @@ def collect_markdown(
                 'local_anchor': True,
                 'error': None if anchor in anchors else f'站内 anchor 不存在: {anchor}',
             }
+        elif not urlparse(url).scheme and not urlparse(url).netloc:
+            # Relative document links are local artifacts, not malformed URLs.
+            # Resolve them against the Markdown file and validate an optional
+            # fragment against the linked document's headings/ids.
+            relative, _, fragment = url.partition('#')
+            linked_path = (target.parent / unquote(relative)).resolve()
+            try:
+                linked_path.relative_to(target.parent.resolve())
+                in_scope = True
+            except ValueError:
+                in_scope = False
+            if not in_scope or not linked_path.is_file():
+                validation = {'url': url, 'valid': False, 'error': f'相对文件不存在或越界: {relative}'}
+            elif fragment:
+                linked_anchors = _anchor_ids(linked_path.read_text(encoding='utf-8'))
+                valid = unquote(fragment) in linked_anchors
+                validation = {'url': url, 'valid': valid, 'local_anchor': True, 'error': None if valid else f'目标文档 anchor 不存在: {fragment}'}
+            else:
+                validation = {'url': url, 'valid': True, 'local_file': True, 'error': None}
         else:
             validation = _probe(url, timeout, blacklist, whitelist)
         collected.append({**reference, 'validation': validation})

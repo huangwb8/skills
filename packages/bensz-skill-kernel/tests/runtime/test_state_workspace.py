@@ -25,12 +25,45 @@ def test_builtin_state_catalog_is_discoverable():
     assert registry.resolve("workspace.ready").id == "bensz.workspace.ready"
     assert ready.kind == "system"
     assert "input" in ready.instructions
-    assert {item.id for item in registry.definitions()} == {"bensz.workspace.closed", "bensz.workspace.ready"}
+    assert {item.id for item in registry.definitions()} == {
+        "bensz.workspace.closed", "bensz.workspace.ready",
+        "bensz.runtime.planned", "bensz.runtime.active", "bensz.runtime.waiting",
+        "bensz.runtime.checking", "bensz.runtime.delivering", "bensz.runtime.completed",
+        "bensz.runtime.failed", "bensz.runtime.cancelled",
+    }
+    assert registry.resolve("bensz.runtime.active").kind == "system"
+    assert registry.resolve("runtime.active").id == "bensz.runtime.active"
     machine = StateMachine(registry)
     assert machine.snapshot()["state"] == "bensz.workspace.ready"
     machine.transition("bensz.workspace.closed")
     with pytest.raises(StateTransitionError):
         machine.transition("bensz.workspace.ready")
+
+
+def test_lifecycle_state_directories_match_runtime_transition_table() -> None:
+    from bensz_skill_kernel.runtime import ALLOWED_TRANSITIONS
+
+    registry = build_builtin_state_registry()
+    for short_id, targets in ALLOWED_TRANSITIONS.items():
+        definition = registry.resolve(f"bensz.runtime.{short_id}")
+        assert set(definition.transitions) == {f"bensz.runtime.{target}" for target in targets}
+
+
+def test_builtin_state_index_is_flat_and_exposes_attributes() -> None:
+    root = Path(__file__).parents[2] / "src" / "bensz_skill_kernel" / "states"
+    index = json.loads((root / "index.json").read_text(encoding="utf-8"))
+    assert index["protocol"] == "bensz-pack-index-v1"
+    assert index["package_kind"] == "state"
+    assert all("/" not in item["directory"] for item in index["entries"])
+    assert all(item["classification"] == "atomic" for item in index["entries"])
+    registry = build_builtin_state_registry()
+    active = registry.resolve("bensz.runtime.active")
+    assert active.classification == "atomic"
+    assert "lifecycle" in active.tags
+    assert Path(active.source).parent.parent == root
+    contract = Path(active.source).read_text(encoding="utf-8")
+    assert "kind:" not in contract
+    assert "aliases:" not in contract
 
 
 def test_custom_state_definition_supports_metadata_and_scripts(tmp_path: Path):
@@ -115,6 +148,40 @@ def test_skill_declaration_combines_system_and_skill_state_packages(tmp_path: Pa
     machine = StateMachine(declaration.registry(), declaration.initial_state)
     assert machine.can_transition("test.demo.collect")
     assert declaration.registry().resolve("bensz.workspace.ready").kind == "system"
+
+
+def test_skill_declaration_reads_runtime_config_yaml_and_rejects_undeclared_state(tmp_path: Path):
+    skill = tmp_path / "demo-skill"
+    state = skill / "references" / "states" / "collect" / "STATE.md"
+    state.parent.mkdir(parents=True)
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  state_roots: [references/states]\n"
+        "  initial_state: bensz.workspace.ready\n"
+        "  states: [test.demo.collect]\n",
+        encoding="utf-8",
+    )
+    state.write_text(
+        "---\n"
+        "id: test.demo.collect\n"
+        "version: 1.0.0\n"
+        "kind: skill\n"
+        "entry_conditions: bensz.workspace.ready\n"
+        "---\n",
+        encoding="utf-8",
+    )
+    declaration = SkillStateDeclaration.from_skill_root(skill)
+    assert declaration.source.name == "config.yaml"
+    assert declaration.state_roots == (state.parents[1],)
+    assert declaration.registry().resolve("test.demo.collect").id == "test.demo.collect"
+
+
+def test_projection_keeps_effect_status_as_an_orthogonal_field(tmp_path: Path):
+    from bensz_skill_kernel import EventLog
+
+    log = EventLog(tmp_path / "events.ndjson")
+    log.append("effect.updated", payload={"effect_status": "unknown"})
+    assert log.projection()["effect_status"] == "unknown"
 
 
 def test_state_transition_cli_executes_helper_and_persists_snapshot(tmp_path: Path, capsys):

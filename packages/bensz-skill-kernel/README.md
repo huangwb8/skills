@@ -4,7 +4,7 @@
 
 Verifier ID 的 canonical 命名、版本和 alias 迁移规则见仓库级 [`docs/verifier-id-naming.md`](../../docs/verifier-id-naming.md)；State ID 对应规则见 [`docs/state-id-naming.md`](../../docs/state-id-naming.md)。
 
-状态定义采用目录化协议：每个元状态目录包含一个 `STATE.md`，可选附带 JSON-stdio
+状态定义采用目录化协议：`states/index.json` 是 State 包目录清单和属性索引，每个元状态目录包含一个 `STATE.md`，可选附带 JSON-stdio
 检查或演示脚本。内置状态可以通过统一命令发现；`--root` 会在内置状态之外叠加 Skill
 状态包，而非替换它：
 
@@ -14,8 +14,15 @@ bsk state describe bensz.workspace.ready
 bsk state list --root path/to/skill/states
 ```
 
-一个 Skill 用根目录中的 `state-machine.json` 声明它采用哪些状态包、初始状态及可用状态。
-kernel 只校验该格式，不理解领域动作。Agent 先读取状态契约，再用同一命令检查或持久化
+Kernel 自己的八个生命周期状态均直接位于 `states/<state>/STATE.md`：`planned`、
+`active`、`waiting`、`checking`、`delivering`、`completed`、`failed`、`cancelled`。
+目录契约用于发现与人工审核，`runtime.py` 的事件 reducer 是可执行转移语义；测试会阻止两者漂移。
+`states/workspace-ready/` 与 `states/workspace-closed/` 保存工作区系统状态。领域 Skill 的业务阶段仍在自身 `references/states/`，
+不进入 kernel 生命周期目录。
+
+一个 Skill 现在在根目录 `config.yaml` 的 `runtime` 节声明它采用哪些状态包、初始状态、可用状态
+和 Verifier 子集；旧版 `state-machine.json` 仍可只读兼容。kernel 只校验该格式，不理解领域动作。
+Agent 先读取状态契约，再用同一命令检查或持久化
 转移；转移会在目标状态有 `entrypoint` 时执行其 JSON-stdio 检查，只有返回 `pass` 才落盘：
 
 ```bash
@@ -30,9 +37,9 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name org.example.s
 持久化快照。每个 Skill 的当前元状态写入自身 `log/meta-state.json`；它与任务级
 `events.ndjson` / `state.json` 分层，后者仍只记录生命周期、验证与交付事实。
 
-`STATE.md` 的 frontmatter 至少应有符合 `owner.machine.state` 的 canonical `id`；推荐同时声明 `version`、`kind`、`aliases`、
-`description`、`entry_conditions`、`invariants` 和 `transitions`。正文是 Agent 必须遵守的
-阶段说明。可选 `entrypoint` 是相对于该 `STATE.md` 目录的脚本：stdin 接收
+内置 State 的 ID、版本、kind、aliases、classification 和 tags 由 `states/index.json` 单独管理；
+`STATE.md` 只保留 `description`、`entry_conditions`、`invariants`、`transitions` 等状态工作契约及正文说明。
+没有 `index.json` 的外部兼容目录仍可在 `STATE.md` frontmatter 声明完整属性。可选 `entrypoint` 是相对于该 `STATE.md` 目录的脚本：stdin 接收
 `{"protocol":"bensz-meta-state-v1","state":...,"request":...}`，stdout 只能输出一个
 JSON 对象，其中 `verdict` 是 `pass`、`fail`、`uncertain`、`unchecked`、`error`、
 `timed_out` 或 `skipped`，并可带 `summary`、`facts`、`evidence_refs`。只有成功执行且
@@ -52,7 +59,7 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 共享 `shared/input|output|log` 边界；工作区清单保存协议版本和初始状态，事件账本仍由
 下方的生命周期命令追加和重放；两者保持分层，避免把 Skill 领域状态硬编码进核心 reducer。
 
-安装后，Skill 通过 `bsk` 发现和调用包内 `bensz_skill_kernel/verifiers/` 目录中的 verifier。每个 verifier
+安装后，Skill 通过 `bsk` 发现和调用包内 `bensz_skill_kernel/verifiers/` 目录中的 verifier。`verifiers/index.json` 是 Verifier 包目录清单和属性索引；每个 verifier
 由一个 `VERIFIER.md` 契约和可选 `scripts/` 入口组成；入口通过 stdin 接收 JSON、
 通过 stdout 返回一个标准化 JSON 结果：
 
@@ -62,8 +69,9 @@ bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
 bsk verifier run bensz.document.markdown-link-integrity --input README.md
 ```
 
-`VERIFIER.md` 使用 YAML 风格的轻量 frontmatter，至少包含 `id` 和 `version`；可选
-`description`、`tags`、`entrypoint`。没有 `entrypoint` 的 verifier 是
+内置 Verifier 的 ID、版本、aliases、classification、tags、契约路径和入口由
+`verifiers/index.json` 单独管理；`VERIFIER.md` 专注判断目标、证据边界与执行说明。
+没有 `index.json` 的外部兼容目录仍可使用原 YAML frontmatter。没有入口的 verifier 是
 instruction-only，由 Agent 读取正文执行。脚本入口遵循：stdin 一个请求 JSON，stdout
 一个结果 JSON（`verdict` 为 `pass`、`fail`、`uncertain`、`unchecked`、`error`、
 `timed_out` 或 `skipped`）。kernel 负责超时、异常、非法 JSON 和结果字段归一化。
@@ -73,6 +81,8 @@ instruction-only，由 Agent 读取正文执行。脚本入口遵循：stdin 一
 - `bensz.artifact.file-existence`：确认本地产物是现有普通文件；旧 ID `artifact.file-exists` 作为 alias 保留。
 - `bensz.document.markdown-link-integrity`：Markdown 链接和锚点完整性检查，标签 `common`、`markdown`、`links`、`deterministic`；旧 ID `markdown.link-integrity`、`markdown.references` 作为 alias 保留。
 - `bensz.evidence.citation-truth-fit`：格式无关的引用真实性与适切性契约；这是 instruction-only verifier，由 Agent 或领域引擎按 `VERIFIER.md` 执行并返回 `unchecked`/语义结果；旧 ID `citation.truth-and-fit` 作为 alias 保留。
+
+首批通用原子 Pack 还包括合同一致性、路径范围、Schema、diff 范围、敏感信息脱敏、证据来源、事件完整性、状态转移和任务完整性。每个 Pack 都位于 `verifiers/<slug>/`，包含可审查的 `VERIFIER.md` 与可选 `scripts/verify.py`；共享实现位于 kernel 模块层的 `atomic_verifiers.py`，不占用 Verifier 清单目录，也不再把规则主体塞进 `builtins.py`。它们只接受通用事实，不包含领域规则。`index.json` 是属性的单一来源；注册表会校验其目录、契约和入口真实存在，且没有漏列或陈旧条目。
 
 代码只定义发现、调用、超时、结果归一化和事件记录协议，不内置领域判断流程。Markdown、LaTeX、Word 等格式适配器可各自选择适用 verifier。
 

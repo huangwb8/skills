@@ -10,6 +10,7 @@ from .runtime import (
     VALID_STATES,
     reduce_events,
 )
+from .contracts import Artifact, Contract, Effect, Requirement, Subject, RUNTIME_PROTOCOL_VERSION
 from .verifiers import (
     Evidence,
     FilesystemVerifierRegistry,
@@ -42,6 +43,12 @@ __all__ = [
     "KernelError",
     "VALID_STATES",
     "reduce_events",
+    "Artifact",
+    "Contract",
+    "Effect",
+    "Requirement",
+    "Subject",
+    "RUNTIME_PROTOCOL_VERSION",
     "Evidence",
     "FilesystemVerifierRegistry",
     "VerifierRegistry",
@@ -86,4 +93,4 @@ __all__ = [
     "workspace_path",
 ]
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"

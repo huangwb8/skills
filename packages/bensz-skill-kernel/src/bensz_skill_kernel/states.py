@@ -72,6 +72,36 @@ def _as_tuple(value: Any) -> tuple[str, ...]:
     raise StateDefinitionError("state list metadata must be a string or list")
 
 
+def _minimal_yaml(text: str) -> dict[str, Any]:
+    """Parse the tiny runtime subset when PyYAML is not installed.
+
+    This fallback intentionally accepts only ``runtime`` scalar/list keys; a
+    malformed or richer document fails closed instead of silently guessing.
+    """
+    runtime: dict[str, Any] = {}
+    in_runtime = False
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if line.strip() == "runtime:":
+            in_runtime = True
+            continue
+        if not in_runtime:
+            continue
+        if len(line) - len(line.lstrip()) < 2:
+            in_runtime = False
+            continue
+        if ":" not in line:
+            raise ValueError(f"invalid runtime config line: {raw_line}")
+        key, value = (part.strip() for part in line.split(":", 1))
+        if value.startswith("[") and value.endswith("]"):
+            runtime[key] = [item.strip().strip("'\"") for item in value[1:-1].split(",") if item.strip()]
+        else:
+            runtime[key] = value.strip("'\"")
+    return {"runtime": runtime}
+
+
 @dataclass(frozen=True)
 class StateDefinition:
     id: str
@@ -86,6 +116,8 @@ class StateDefinition:
     source: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
     aliases: tuple[str, ...] = ()
+    classification: str = "domain"
+    tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         try:
@@ -132,6 +164,31 @@ class StateDefinition:
             aliases=parse_state_aliases(metadata.get("aliases")),
         )
 
+    @classmethod
+    def from_indexed_markdown(cls, path: str | Path, entry: Mapping[str, Any]) -> "StateDefinition":
+        target = Path(path)
+        if target.name != "STATE.md" or not target.is_file():
+            raise StateDefinitionError(f"state definition does not exist: {target}")
+        metadata, instructions = _frontmatter(target.read_text(encoding="utf-8"))
+        known = {"description", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint"}
+        extra = {key: value for key, value in metadata.items() if key not in known}
+        return cls(
+            id=str(entry.get("id", "")),
+            version=str(entry.get("version", "")),
+            description=str(metadata.get("description", entry.get("description", ""))),
+            kind=str(entry.get("kind", "system")),
+            entry_conditions=_as_tuple(metadata.get("entry_conditions", metadata.get("entry"))),
+            invariants=_as_tuple(metadata.get("invariants")),
+            transitions=_as_tuple(metadata.get("transitions", metadata.get("next_states"))),
+            entrypoint=str(entry.get("entrypoint") or metadata.get("entrypoint")) if entry.get("entrypoint") or metadata.get("entrypoint") else None,
+            instructions=instructions,
+            source=str(target),
+            metadata={**extra, "index": dict(entry)},
+            aliases=parse_state_aliases(entry.get("aliases")),
+            classification=str(entry.get("classification", "domain")),
+            tags=_as_tuple(entry.get("tags")),
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -146,6 +203,8 @@ class StateDefinition:
             "source": self.source,
             "metadata": dict(self.metadata),
             "aliases": list(self.aliases),
+            "classification": self.classification,
+            "tags": list(self.tags),
         }
 
 
@@ -163,8 +222,31 @@ class FilesystemStateRegistry:
         self._aliases.clear()
         if not self.root.is_dir():
             return
-        for path in sorted(self.root.rglob("STATE.md")):
-            definition = StateDefinition.from_markdown(path)
+        index_path = self.root / "index.json"
+        indexed: list[tuple[Path, Mapping[str, Any]]] = []
+        if index_path.is_file():
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise StateDefinitionError(f"invalid state index: {exc.msg}") from exc
+            if index.get("protocol") != "bensz-pack-index-v1" or index.get("package_kind") != "state" or not isinstance(index.get("entries"), list):
+                raise StateDefinitionError("state index must use bensz-pack-index-v1 and contain entries")
+            for entry in index["entries"]:
+                if not isinstance(entry, Mapping) or not isinstance(entry.get("directory"), str) or entry["directory"] in {"", ".", ".."} or "/" in entry["directory"] or "\\" in entry["directory"]:
+                    raise StateDefinitionError("state index directories must be direct child names")
+                package_root = (self.root / entry["directory"]).resolve()
+                contract = (package_root / str(entry.get("contract", "STATE.md"))).resolve()
+                if package_root not in contract.parents:
+                    raise StateDefinitionError("state index contract must stay inside its package directory")
+                indexed.append((contract, entry))
+            declared = {entry["directory"] for _, entry in indexed}
+            actual = {child.name for child in self.root.iterdir() if child.is_dir() and (child / "STATE.md").is_file()}
+            if declared != actual:
+                raise StateDefinitionError(f"state index/directory mismatch: missing={sorted(actual - declared)}, stale={sorted(declared - actual)}")
+        else:
+            indexed = [(path, {}) for path in sorted(self.root.rglob("STATE.md"))]
+        for path, entry in indexed:
+            definition = StateDefinition.from_indexed_markdown(path, entry) if entry else StateDefinition.from_markdown(path)
             if definition.id in self._states:
                 raise StateDefinitionError(f"duplicate state id: {definition.id}")
             self._states[definition.id] = definition
@@ -237,15 +319,31 @@ class SkillStateDeclaration:
     @classmethod
     def from_skill_root(cls, skill_root: str | Path) -> "SkillStateDeclaration":
         root = Path(skill_root).expanduser().resolve()
-        source = root / "state-machine.json"
-        try:
-            raw = json.loads(source.read_text(encoding="utf-8"))
-        except FileNotFoundError as exc:
-            raise StateDefinitionError(f"Skill state declaration does not exist: {source}") from exc
-        except json.JSONDecodeError as exc:
-            raise StateDefinitionError(f"invalid Skill state declaration: {exc.msg}") from exc
-        if not isinstance(raw, Mapping) or raw.get("protocol") != SKILL_STATE_DECLARATION_VERSION:
-            raise StateDefinitionError(f"Skill state declaration must use {SKILL_STATE_DECLARATION_VERSION}")
+        # New Skills keep runtime declarations beside their other configuration.
+        # The JSON file remains a read-only compatibility format for older Skills.
+        source = root / "config.yaml"
+        raw: Mapping[str, Any] | None = None
+        if source.is_file():
+            try:
+                try:
+                    import yaml  # type: ignore
+                    loaded = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+                except ImportError:
+                    loaded = _minimal_yaml(source.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise StateDefinitionError(f"invalid Skill config: {exc}") from exc
+            if isinstance(loaded, Mapping) and isinstance(loaded.get("runtime"), Mapping):
+                raw = loaded["runtime"]
+        if raw is None:
+            source = root / "state-machine.json"
+            try:
+                raw = json.loads(source.read_text(encoding="utf-8"))
+            except FileNotFoundError as exc:
+                raise StateDefinitionError(f"Skill state declaration does not exist: {source}") from exc
+            except json.JSONDecodeError as exc:
+                raise StateDefinitionError(f"invalid Skill state declaration: {exc.msg}") from exc
+            if not isinstance(raw, Mapping) or raw.get("protocol") != SKILL_STATE_DECLARATION_VERSION:
+                raise StateDefinitionError(f"Skill state declaration must use {SKILL_STATE_DECLARATION_VERSION}")
         initial = raw.get("initial_state", "bensz.workspace.ready")
         names = _as_tuple(raw.get("states"))
         roots = _as_tuple(raw.get("state_roots", ("states",)))

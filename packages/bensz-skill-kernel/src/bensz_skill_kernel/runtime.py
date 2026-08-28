@@ -32,6 +32,9 @@ ALLOWED_TRANSITIONS = {
 WAIT_REASONS = frozenset(
     {"input", "authorization", "approval", "choice", "dependency", "quota", "children", "schedule", "operator_pause"}
 )
+EFFECT_STATUSES = frozenset(
+    {"none", "prepared", "authorized", "applied", "reconciled", "unknown", "conflicted", "compensated"}
+)
 
 
 class KernelError(Exception):
@@ -148,6 +151,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "phase": None,
         "outcome": None,
         "wait_reason": None,
+        "effect_status": "none",
         "artifacts": {},
         "validations": [],
         "verifications": [],
@@ -183,6 +187,11 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             if reason is not None and reason not in WAIT_REASONS:
                 raise InvalidTransition(f"unknown wait_reason: {reason}")
             projection["wait_reason"] = reason
+        if "effect_status" in payload:
+            effect_status = payload["effect_status"]
+            if effect_status not in EFFECT_STATUSES:
+                raise InvalidTransition(f"unknown effect_status: {effect_status}")
+            projection["effect_status"] = effect_status
         if event.event_type == "artifact.registered":
             artifact_id = payload.get("artifact_id") or event.path
             if artifact_id:

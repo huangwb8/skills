@@ -103,6 +103,11 @@ class VerifierSpec:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     tags: tuple[str, ...] = ()
     aliases: tuple[str, ...] = ()
+    subject_kinds: tuple[str, ...] = ()
+    prompt_pack_ref: str | None = None
+    rule_pack_ref: str | None = None
+    calibration_set_ref: str | None = None
+    classification: str = "domain"
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
@@ -129,6 +134,7 @@ class VerifierDefinition:
     tags: tuple[str, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
     aliases: tuple[str, ...] = ()
+    classification: str = "domain"
 
     @classmethod
     def from_directory(cls, path: str | os.PathLike[str]) -> "VerifierDefinition":
@@ -159,6 +165,36 @@ class VerifierDefinition:
         metadata = {key: value for key, value in fields.items() if key not in reserved}
         return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases)
 
+    @classmethod
+    def from_indexed_directory(cls, path: str | os.PathLike[str], entry: Mapping[str, Any]) -> "VerifierDefinition":
+        root = Path(path).expanduser().resolve()
+        document = (root / str(entry.get("contract", "VERIFIER.md"))).resolve()
+        if root not in document.parents or not document.is_file():
+            raise ValueError(f"indexed verifier contract must stay inside its directory: {document}")
+        verifier_id, version = str(entry.get("id", "")), str(entry.get("version", ""))
+        validate_verifier_id(verifier_id)
+        if not version:
+            raise ValueError(f"indexed verifier requires version: {root}")
+        entrypoint = entry.get("entrypoint")
+        if entrypoint:
+            candidate = (root / str(entrypoint)).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError(f"entrypoint must be a file inside verifier directory: {entrypoint}")
+            entrypoint = str(candidate.relative_to(root))
+        aliases = parse_aliases(",".join(str(item) for item in entry.get("aliases", ())))
+        return cls(
+            verifier_id=verifier_id,
+            version=version,
+            path=root,
+            instructions=document.read_text(encoding="utf-8").strip(),
+            description=str(entry.get("description", "")),
+            entrypoint=str(entrypoint) if entrypoint else None,
+            tags=tuple(str(item) for item in entry.get("tags", ())),
+            metadata={"index": dict(entry), **{key: entry[key] for key in ("subject_kinds", "prompt_pack_ref", "rule_pack_ref", "calibration_set_ref") if key in entry}},
+            aliases=aliases,
+            classification=str(entry.get("classification", "domain")),
+        )
+
     @property
     def spec(self) -> VerifierSpec:
         return VerifierSpec(
@@ -167,6 +203,11 @@ class VerifierDefinition:
             mode="rule" if self.entrypoint else "human",
             tags=self.tags,
             aliases=self.aliases,
+            subject_kinds=tuple(item.strip() for item in str(self.metadata.get("subject_kinds", "")).split(",") if item.strip()),
+            prompt_pack_ref=self.metadata.get("prompt_pack_ref"),
+            rule_pack_ref=self.metadata.get("rule_pack_ref"),
+            calibration_set_ref=self.metadata.get("calibration_set_ref"),
+            classification=self.classification,
             metadata={"description": self.description, "path": str(self.path), "entrypoint": self.entrypoint, **dict(self.metadata)},
         )
 
@@ -178,8 +219,13 @@ class VerifierDefinition:
             "tags": list(self.tags),
             "entrypoint": self.entrypoint,
             "aliases": list(self.aliases),
+            "subject_kinds": list(self.spec.subject_kinds),
+            "prompt_pack_ref": self.spec.prompt_pack_ref,
+            "rule_pack_ref": self.spec.rule_pack_ref,
+            "calibration_set_ref": self.spec.calibration_set_ref,
             "instructions": self.instructions,
             "metadata": dict(self.metadata),
+            "classification": self.classification,
         }
 
 
@@ -197,10 +243,27 @@ class FilesystemVerifierRegistry:
         self._aliases.clear()
         if not self.root.is_dir():
             return
-        for child in sorted(self.root.iterdir(), key=lambda item: item.name):
-            if not child.is_dir() or not (child / "VERIFIER.md").is_file():
-                continue
-            definition = VerifierDefinition.from_directory(child)
+        index_path = self.root / "index.json"
+        indexed: list[tuple[Path, Mapping[str, Any]]] = []
+        if index_path.is_file():
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"invalid verifier index: {exc.msg}") from exc
+            if index.get("protocol") != "bensz-pack-index-v1" or index.get("package_kind") != "verifier" or not isinstance(index.get("entries"), list):
+                raise ValueError("verifier index must use bensz-pack-index-v1 and contain entries")
+            for entry in index["entries"]:
+                if not isinstance(entry, Mapping) or not isinstance(entry.get("directory"), str) or entry["directory"] in {"", ".", ".."} or "/" in entry["directory"] or "\\" in entry["directory"]:
+                    raise ValueError("verifier index directories must be direct child names")
+                indexed.append((self.root / entry["directory"], entry))
+            declared = {entry["directory"] for _, entry in indexed}
+            actual = {child.name for child in self.root.iterdir() if child.is_dir() and (child / "VERIFIER.md").is_file()}
+            if declared != actual:
+                raise ValueError(f"verifier index/directory mismatch: missing={sorted(actual - declared)}, stale={sorted(declared - actual)}")
+        else:
+            indexed = [(child, {}) for child in sorted(self.root.iterdir(), key=lambda item: item.name) if child.is_dir() and (child / "VERIFIER.md").is_file()]
+        for child, entry in indexed:
+            definition = VerifierDefinition.from_indexed_directory(child, entry) if entry else VerifierDefinition.from_directory(child)
             key = (definition.verifier_id, definition.version)
             if key in self._definitions:
                 raise ValueError(f"duplicate verifier: {definition.verifier_id}@{definition.version}")

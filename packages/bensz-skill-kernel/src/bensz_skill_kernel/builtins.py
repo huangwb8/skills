@@ -42,6 +42,17 @@ def collect_markdown(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return _markdown_collector_module().collect_markdown(*args, **kwargs)
 
 
+@lru_cache(maxsize=1)
+def _atomic_module():
+    atomic_path = Path(__file__).resolve().parent / 'atomic_verifiers.py'
+    spec = spec_from_file_location('bensz_skill_kernel._atomic_verifiers', atomic_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f'cannot load atomic verifier rules: {atomic_path}')
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 CITATION_TRUTH_FIT_SPEC = VerifierSpec(
     verifier_id='bensz.evidence.citation-truth-fit',
     version='1.0.0',
@@ -86,4 +97,18 @@ def build_builtin_registry() -> PackRegistry:
     registry = PackRegistry()
     registry.register(VerifierPack(FILE_SPEC, rules=(('file-exists', _file_exists),)))
     registry.register(VerifierPack(CITATION_TRUTH_FIT_SPEC, prompts=(('citation-semantics', _citation_engine_gap),)))
+    atomic = (
+        ("bensz.contract.conformance", "contract-conformance", "contract"),
+        ("bensz.artifact.path-scope", "path-scope", "artifact"),
+        ("bensz.artifact.schema-conformance", "schema-conformance", "artifact"),
+        ("bensz.source.diff-scope", "diff-scope", "source"),
+        ("bensz.security.secret-redaction", "secret-redaction", "security"),
+        ("bensz.evidence.provenance", "evidence-provenance", "evidence"),
+        ("bensz.runtime.event-integrity", "event-integrity", "runtime"),
+        ("bensz.runtime.state-transition", "state-transition", "runtime"),
+        ("bensz.runtime.task-completeness", "task-completeness", "runtime"),
+    )
+    for verifier_id, rule_name, tag in atomic:
+        rule = lambda request, evidence, name=rule_name: _atomic_module().run_atomic(name, request, evidence)
+        registry.register(VerifierPack(VerifierSpec(verifier_id, "1.0.0", "rule", tags=("common", tag, "deterministic")), rules=((rule_name, rule),)))
     return registry

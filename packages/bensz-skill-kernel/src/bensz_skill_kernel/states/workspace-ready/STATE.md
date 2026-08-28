@@ -1,9 +1,5 @@
 ---
-id: bensz.workspace.ready
-version: 1.0.0
-kind: system
 description: The logical task root is locked and Skill-scoped directories are available.
-aliases: workspace.ready
 transitions: [bensz.workspace.closed, "*"]
 ---
 

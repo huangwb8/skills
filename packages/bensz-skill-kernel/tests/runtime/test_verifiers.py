@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from email.message import Message
 from pathlib import Path
 from urllib.error import HTTPError
@@ -161,7 +162,70 @@ def test_builtin_verifiers_are_package_assets():
         "bensz.artifact.file-existence",
         "bensz.document.markdown-link-integrity",
         "bensz.evidence.citation-truth-fit",
+        "bensz.contract.conformance",
+        "bensz.artifact.path-scope",
+        "bensz.artifact.schema-conformance",
+        "bensz.source.diff-scope",
+        "bensz.security.secret-redaction",
+        "bensz.evidence.provenance",
+        "bensz.runtime.event-integrity",
+        "bensz.runtime.state-transition",
+        "bensz.runtime.task-completeness",
     }
+
+
+def test_filesystem_atomic_verifier_executes_from_its_own_directory() -> None:
+    result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
+        "bensz.security.secret-redaction",
+        {"subject": {"token": "secret-value"}},
+        version="1.0.0",
+    )
+    assert result["verdict"] == "fail"
+
+
+def test_filesystem_provenance_verifier_rejects_incomplete_evidence() -> None:
+    result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
+        "bensz.evidence.provenance",
+        {
+            "subject": {},
+            "evidence": [{"ref": "source", "source_type": "web", "content_hash": "", "collected_at": ""}],
+        },
+        version="1.0.0",
+    )
+    assert result["verdict"] == "fail"
+
+
+def test_builtin_verifier_index_drives_tags_and_classification() -> None:
+    root = builtin_verifier_root()
+    index = json.loads((root / "index.json").read_text(encoding="utf-8"))
+    assert index["protocol"] == "bensz-pack-index-v1"
+    assert index["package_kind"] == "verifier"
+    assert all("/" not in item["directory"] for item in index["entries"])
+    registry = FilesystemVerifierRegistry(root)
+    secret = registry.resolve("bensz.security.secret-redaction")
+    citation = registry.resolve("bensz.evidence.citation-truth-fit")
+    assert secret.classification == "atomic"
+    assert citation.classification == "semantic"
+    assert {item.verifier_id for item in registry.definitions(tag="security")} == {
+        "bensz.artifact.path-scope",
+        "bensz.security.secret-redaction",
+    }
+    assert not (secret.path / "VERIFIER.md").read_text(encoding="utf-8").startswith("---")
+
+
+def test_markdown_verifier_resolves_relative_files_and_fragments(tmp_path: Path):
+    target = tmp_path / "README.md"
+    linked = tmp_path / "docs" / "guide.md"
+    linked.parent.mkdir()
+    linked.write_text("# Install\n", encoding="utf-8")
+    target.write_text("[guide](docs/guide.md#install)\n", encoding="utf-8")
+    result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
+        "bensz.document.markdown-link-integrity",
+        {"subject": {"path": str(target)}, "context": {}},
+        version="1.0.0",
+    )
+    assert result["verdict"] == "pass"
+    assert result["facts"]["summary"]["valid"] == 1
 
 
 def test_instruction_only_verifier_returns_standard_unchecked_result(tmp_path):
@@ -249,3 +313,43 @@ def test_pack_registry_resolves_highest_semantic_version() -> None:
         registry.register(VerifierPack(VerifierSpec("test.demo.versioned", version, "rule")))
 
     assert registry.resolve("test.demo.versioned").spec.version == "1.10.0"
+
+
+def test_verifier_spec_exposes_pack_refs_and_subject_kinds() -> None:
+    spec = VerifierSpec(
+        "test.demo.contract",
+        "1.0.0",
+        "hybrid",
+        subject_kinds=("json",),
+        prompt_pack_ref="prompts/demo@1.0.0",
+        rule_pack_ref="rules/demo@1.0.0",
+        calibration_set_ref="calibration/demo@1.0.0",
+    )
+    assert spec.subject_kinds == ("json",)
+    assert spec.prompt_pack_ref == "prompts/demo@1.0.0"
+    assert spec.rule_pack_ref == "rules/demo@1.0.0"
+    assert spec.calibration_set_ref == "calibration/demo@1.0.0"
+
+
+def test_builtin_registry_contains_kernel_atomic_whitelist() -> None:
+    ids = {spec.verifier_id for spec in build_builtin_registry().specs()}
+    assert {
+        "bensz.contract.conformance",
+        "bensz.artifact.path-scope",
+        "bensz.artifact.schema-conformance",
+        "bensz.source.diff-scope",
+        "bensz.security.secret-redaction",
+        "bensz.evidence.provenance",
+        "bensz.runtime.event-integrity",
+        "bensz.runtime.state-transition",
+        "bensz.runtime.task-completeness",
+    } <= ids
+
+
+def test_secret_redaction_verifier_rejects_token_like_values() -> None:
+    result, gate = VerifierRunner(build_builtin_registry()).run(
+        VerificationRequest(subject={"token": "secret-value"}),
+        "bensz.security.secret-redaction",
+    )
+    assert result[0].verdict == "fail"
+    assert gate.decision == "reject"
