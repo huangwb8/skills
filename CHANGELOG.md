@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- **State/Verifier 索引清单**：在 `states/index.json` 与 `verifiers/index.json` 增加统一的 `bensz-pack-index-v1` 目录清单，集中定义包的 canonical ID、版本、classification、kind、tags、契约和入口；注册表校验清单与实际目录一致后再加载。
+- **Kernel 生命周期 State 目录化**：在 `bensz_skill_kernel/states/lifecycle/` 为八个通用生命周期状态补齐独立 `STATE.md`、canonical ID、alias 与转移契约，并增加与 Runtime reducer 转移表的一致性测试；领域 Skill 阶段仍由各 Skill 托管。
+- **原子 Verifier 目录化**：将首批通用原子 Verifier 从 `builtins.py` 的内存规则注册迁移到 `bensz_skill_kernel/verifiers/<slug>/`，为每项补充独立 `VERIFIER.md` 与 JSON-stdio 入口；保留 `build_builtin_registry()` 作为兼容 API。
+- **Kernel 公共运行协议收敛**：`bensz-skill-kernel` 增加 Subject、Requirement、Artifact、Contract、Effect 等领域无关交接对象，投影补充正交 `effect_status`，并支持从 `config.yaml.runtime` 读取 Skill 状态声明；首批通用原子 Verifier 进入共享 Pack 注册表。
+- **validate-md-ref 适配 Kernel 新协议**：状态包迁移至 `references/states/`，配置声明 required/advisory Verifier，脚本执行链接完整性与引用语义两个独立检查；旧状态声明入口继续兼容。
+
 ### Added（新增）
 - **状态机与验证器理论基础讨论及 Premium 系统综述**：新增 `docs/状态机和验证器的理论基础的相关讨论.md`，并在 `docs/reviews/state-verifier-theory/` 保存关于过程监督、运行时验证、因果归因、序列优化与人机协同的系统综述及 PDF/Word/BibTeX 产物；提出 State–Verifier–Causal Optimization 研究框架、可证伪问题和最小实验路线。
 - **全生态 Verifier/State 设计报告**：新增 `docs/events/2026-08-27-全生态-verifier与state设计报告.md`，基于本项目及六个外部只读 Skill 生态的业务盘点，划分通用/专用 Verifier 与 State，补充 Skill 官方目录内托管约定、共享 Pack 进入 kernel 的判定门槛、逐 Skill 对接矩阵，并给出可插拔接入、门禁、证据和渐进迁移路线。
