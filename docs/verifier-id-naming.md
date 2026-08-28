@@ -20,14 +20,19 @@ Verifier ID 是验证契约的稳定公开标识，不是脚本文件名、Skill
 - 不得把版本、模型、语言、实现方式、Gate 严格程度写入 ID。
 - canonical ID 不得以 `v1`、`v2` 等版本后缀结尾。
 
-官方内置 verifier 使用 `bensz` owner，例如：
+Kernel 官方内置 verifier 使用 `bensz` owner，例如：
 
 ```text
 bensz.artifact.file-existence
 bensz.document.markdown-link-integrity
 bensz.evidence.citation-truth-fit
-bensz.nsfc.justification-contract
+bensz.runtime.event-integrity
+bensz.runtime.state-transition
+bensz.runtime.task-completeness
 ```
+
+领域 Skill 可以在自身 Pack 中定义专用 verifier，例如
+`bensz.nsfc.justification-contract`；该 ID 不是 kernel 当前内置注册表的一部分。
 
 第三方可使用组织前缀，例如 `org.example.document.link-integrity`。
 
@@ -47,7 +52,9 @@ Verifier Pack 的公开 ID、Pack 内 Rule/Prompt 的组件 ID、输入 Adapter 
 - minor：增加向后兼容的能力或可选证据；
 - major：改变输入契约、判断含义、结果语义或 Gate 行为。
 
-发布后的 ID 不重命名。重命名应把新 ID 设为 canonical，并在 `VERIFIER.md` 的 `aliases` 中保留旧 ID。旧事件记录不迁移、不覆盖；调用旧 alias 时，结果返回 canonical ID，目录/CLI 清单通过 `aliases` 字段暴露兼容旧名。
+发布后的 ID 不重命名。重命名应把新 ID 设为 canonical，并通过 alias 保留旧 ID：带 `index.json` 的 Verifier Pack 在索引条目的 `aliases` 中声明；没有索引的外部兼容目录才在 `VERIFIER.md` frontmatter 中声明。旧事件记录不迁移、不覆盖；调用旧 alias 时，结果返回 canonical ID，目录/CLI 清单通过 `aliases` 字段暴露兼容旧名。
+
+Kernel 内置 Verifier Pack 使用 `bensz-pack-index-v1` 的 `verifiers/index.json` 作为属性单一来源；索引条目记录 `directory`、canonical `id`、`version`、`classification`、`tags`、契约文件和可选入口。`VERIFIER.md` 保留判断目标、证据边界与执行说明。
 
 ## 禁止模式
 

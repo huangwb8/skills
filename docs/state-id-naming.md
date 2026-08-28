@@ -20,15 +20,21 @@ State ID 是状态机中一个稳定状态节点的公开标识，不是动作�
 - 版本、实现脚本、执行引擎、状态 kind 和运行实例不得写入 ID。
 - canonical ID 不得以 `v1`、`v2` 等版本后缀结尾。
 
-官方内置状态使用 `bensz` owner，例如：
+Kernel 官方内置状态使用 `bensz` owner，例如：
 
 ```text
 bensz.workspace.ready
 bensz.workspace.closed
-bensz.validate-md-ref.input-ready
-bensz.validate-md-ref.checking
-bensz.validate-md-ref.reported
+bensz.runtime.planned
+bensz.runtime.active
+bensz.runtime.checking
+bensz.runtime.delivering
+bensz.runtime.completed
 ```
+
+Skill 自有状态也应使用 `bensz` 或组织命名空间，例如
+`bensz.validate-md-ref.input-ready`、`bensz.validate-md-ref.checking` 和
+`bensz.validate-md-ref.reported`；它们不属于 kernel 内置状态目录。
 
 第三方可使用组织前缀，例如 `org.example.deploy.awaiting-approval`。
 
@@ -42,7 +48,7 @@ bensz.validate-md-ref.reported
 
 ## 状态图引用
 
-`initial_state`、`states`、`entry_conditions` 和 `transitions` 应写 canonical ID。通配符 `*` 只允许作为迁移策略，不是 State ID。
+`initial_state`、`states`、`entry_conditions` 和 `transitions` 应写 canonical ID。Skill 的 `config.yaml.runtime.state_roots` 只负责声明 State 定义的发现根，不能代替 `states` 的允许集合。通配符 `*` 只允许作为迁移策略，不是 State ID。
 
 Registry 可以接受 legacy alias，但完成解析后：
 
@@ -59,7 +65,9 @@ Registry 可以接受 legacy alias，但完成解析后：
 - minor：增加向后兼容的元数据、可选入口条件或迁移能力；
 - major：改变状态语义、必需入口条件、不变量或迁移边。
 
-发布后的 ID 不直接重命名。迁移时把新 ID 设为 canonical，并在 `STATE.md` 中通过 `aliases` 保留旧 ID。Alias 必须唯一，不得与任何 canonical ID 冲突。
+发布后的 ID 不直接重命名。迁移时把新 ID 设为 canonical，并通过 alias 保留旧 ID：带 `index.json` 的 State Pack 在索引条目的 `aliases` 中声明；没有索引的外部兼容目录才在 `STATE.md` frontmatter 中声明。Alias 必须唯一，不得与任何 canonical ID 冲突。
+
+Kernel 内置 State Pack 使用 `bensz-pack-index-v1` 的 `states/index.json` 作为属性单一来源；索引条目同时记录 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、契约文件和可选入口。`STATE.md` 保留 `description`、入口条件、不变量、迁移边和正文说明。
 
 ## 禁止模式
 

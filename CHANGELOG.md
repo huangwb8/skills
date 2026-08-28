@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **Kernel 说明文档与代码同步**：更新 `docs/` 中非 `plans/`、`events/` 的工作区、State/Verifier ID 与理论协议说明，对齐 `bensz-pack-index-v1` 索引、`config.yaml.runtime`、workspace manifest、verdict/execution status 和 Gate 语义；同时在 `AGENTS.md` 固化重要源代码变更后的按需文档同步规则。
 - **State/Verifier 索引清单**：在 `states/index.json` 与 `verifiers/index.json` 增加统一的 `bensz-pack-index-v1` 目录清单，集中定义包的 canonical ID、版本、classification、kind、tags、契约和入口；注册表校验清单与实际目录一致后再加载。
-- **Kernel 生命周期 State 目录化**：在 `bensz_skill_kernel/states/lifecycle/` 为八个通用生命周期状态补齐独立 `STATE.md`、canonical ID、alias 与转移契约，并增加与 Runtime reducer 转移表的一致性测试；领域 Skill 阶段仍由各 Skill 托管。
+- **Kernel 生命周期 State 目录化**：在 `bensz_skill_kernel/states/<state>/` 为八个通用生命周期状态补齐独立 `STATE.md`、canonical ID、alias 与转移契约，并增加与 Runtime reducer 转移表的一致性测试；领域 Skill 阶段仍由各 Skill 托管。
 - **原子 Verifier 目录化**：将首批通用原子 Verifier 从 `builtins.py` 的内存规则注册迁移到 `bensz_skill_kernel/verifiers/<slug>/`，为每项补充独立 `VERIFIER.md` 与 JSON-stdio 入口；保留 `build_builtin_registry()` 作为兼容 API。
 - **Kernel 公共运行协议收敛**：`bensz-skill-kernel` 增加 Subject、Requirement、Artifact、Contract、Effect 等领域无关交接对象，投影补充正交 `effect_status`，并支持从 `config.yaml.runtime` 读取 Skill 状态声明；首批通用原子 Verifier 进入共享 Pack 注册表。
 - **validate-md-ref 适配 Kernel 新协议**：状态包迁移至 `references/states/`，配置声明 required/advisory Verifier，脚本执行链接完整性与引用语义两个独立检查；旧状态声明入口继续兼容。
