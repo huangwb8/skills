@@ -18,6 +18,23 @@
 4. 确定性规则优先，语义判断后置；规则失败不能被模型平均分覆盖，证据不足必须返回 `unchecked`/`uncertain` 并进入 `wait` 或 `manual_review`。
 5. 只读任务与远程写任务使用不同 Gate。远程写入必须有授权、幂等键、执行前快照、后置回查和“未知状态”分支，绝不把重试当成确认。
 
+本报告的工程定位也需要明确：这里的“建议目录”不是一次性全部实现清单，而是候选能力地图；真正进入 `bensz-skill-kernel` 的内容必须先通过分层、复用、可重放和安全门槛。实施时应以“先冻结协议、再实现核心、最后迁移 Skill”为顺序，禁止根据单个 Skill 的临时需求直接扩张 kernel。
+
+### 给 Kernel 优化的执行摘要
+
+将整个系统收敛为以下责任链：
+
+```text
+Runtime 原语 → 原子 Verifier → 组合 Pack → 领域 Pack
+       ↓              ↓             ↓          ↓
+  事实/投影/证据   局部可证命题   多检查编排   Skill 专业契约
+                         └────── Gate 独立决策层 ──────┘
+```
+
+第一阶段只实现 Runtime 原语和小型核心白名单；第二阶段通过兼容 Adapter 接入现有 Skill；第三阶段才把经两个以上 Skill 验证过的组合能力提升为共享 Pack。State 采用同样的分层：Kernel 只维护有限生命周期，Skill 业务阶段进入 `phase` DAG，等待原因、远程副作用和结果口径作为正交字段保存。
+
+本报告后续出现的“已实现”“候选”“规划”分别表示：当前仓库已有可运行代码、设计上允许但尚未进入核心、需要按本路线实施；三者不得在迁移计划中混写。
+
 ## 盘点范围与证据
 
 本报告于 2026-08-27 对以下 Skill 根目录进行只读扫描：本项目 `skills/`、ChineseResearchLaTeX、dudu、bensz-devtools、case_analysis、sub2api 运营和 sub2api。外部目录没有写入、上传、删除或修改。
@@ -67,6 +84,42 @@
 - 领域输入解析、检索策略、写作风格、医学推理、计费公式、远程 API 路径和正式产物格式。
 - 何时调用哪个 Pack、哪些结果是 required、哪些只是 warning 的选择。
 - 对用户的解释、修复建议和人工决策；Verifier 不能替用户做处方、发布或商业判断。
+
+### 四层架构与进入 Kernel 的门槛
+
+为了避免“通用”逐渐变成无边界的大目录，所有新增能力先归入四层：
+
+| 层级 | 稳定职责 | 示例 | 默认托管位置 |
+|---|---|---|---|
+| Runtime 原语 | 保存事实、投影、证据、产物、执行上下文和 Gate 输入 | `Run`、`Event`、`Projection`、`Contract`、`Evidence`、`Artifact`、`VerificationResult`、`Effect` | `packages/bensz-skill-kernel` |
+| 原子 Verifier | 证明单个局部、可重放、与领域无关的命题 | 合同/Schema、路径范围、文件存在、diff、脱敏、事件完整性 | Kernel 核心白名单 |
+| 组合 Pack | 编排原子规则、只读探针、Prompt 或人工结果 | 渲染成功、链接完整性、引用可追溯、跨格式一致、远程回查 | Kernel 可选共享目录 |
+| 领域 Pack | 判断领域契约、术语和语义质量 | NSFC 章节、病例红旗、Sub2API 账单、论文论证 | 对应 Skill 的 `references/` 与 `scripts/` |
+
+只有同时满足以下条件，组合 Pack 才能从 Skill 专用实现提升为 Kernel 共享能力：
+
+1. 至少两个已发布 Skill 已经重复使用，并且不是一次性复制；
+2. 判断命题稳定，能通过 `subject/evidence/requirements` 表达；
+3. 不依赖某个 Skill 的目录、模型、业务术语或私有 API；
+4. 有独立版本、校准/回归测试、兼容策略和拆卸性验证；
+5. 不引入敏感数据、远程写入或领域依赖到 Kernel。
+
+未达到门槛的能力保留在 Skill 内部，即使它看起来“很通用”也不提前注册为官方 Verifier。Kernel 的首版原子白名单固定为：
+
+```text
+bensz.contract.conformance
+bensz.artifact.path-scope
+bensz.artifact.schema-conformance
+bensz.artifact.file-existence
+bensz.source.diff-scope
+bensz.security.secret-redaction
+bensz.evidence.provenance
+bensz.runtime.event-integrity
+bensz.runtime.state-transition
+bensz.runtime.task-completeness
+```
+
+`Gate` 不属于某个 Verifier：Verifier 只返回局部事实、finding、证据引用和不确定性；Gate 根据 Skill Contract、严重度和不确定性计算 `allow`、`allow_with_warnings`、`reject`、`wait` 或 `manual_review`。这样可以阻止一个“语义通过”覆盖另一个 required 规则的确定性失败。
 
 ### Skill 内部目录与 Pack 托管约定
 
@@ -203,9 +256,13 @@ uncertainty_policy:
 
 现有 `bensz.workspace.ready` / `bensz.workspace.closed` 和 `validate-md-ref` 的三阶段状态是正确起点。不要把现有 runtime 的 `planned/active/checking/delivering/completed` 粗暴替换成 Skill State；前者是生命周期投影，后者是可插拔元状态，两者通过事件和 Adapter 对齐。
 
-### 通用 State Pack
+从工程实现角度，Kernel 只冻结八个生命周期状态：`planned`、`active`、`waiting`、`checking`、`delivering`、`completed`、`failed`、`cancelled`。`waiting` 的具体原因写入 `wait_reason`（如 `input`、`authorization`、`approval`、`dependency`、`children`、`quota`），不为每种原因新增 State。Skill 的 `raw-indexed`、`facts-structured`、`deduplicated`、`rendered` 等阶段属于 `phase` DAG；远程副作用属于 `effect_status`；`success`、`partial`、`degraded` 等属于闭合后的 `outcome`。
 
-建议增加以下可选系统包（按需启用，不要求所有 Skill 都声明）：
+因此，本节后续的“可选元状态 Pack”是可组合的设计候选，不等于全部进入 Kernel 的 canonical 状态集合。新增 State 必须证明生命周期语义无法由上述字段表达，并通过兼容、重放和迁移评审。
+
+### 可选元状态 Pack（不是 Kernel 核心生命周期）
+
+以下状态可作为面向 CLI、适配器或旧协议的细粒度投影（按需启用，不要求所有 Skill 都声明）。它们应映射到上面的八个生命周期状态，而不是再增加一套彼此独立的事实来源：
 
 | State ID | 成立条件/不变量 | 典型下一状态 |
 |---|---|---|
@@ -228,6 +285,19 @@ uncertainty_policy:
 
 `awaiting-*` 是稳定等待状态；具体原因仍放 `wait_reason`（input、authorization、approval、dependency、children、quota 等），避免为每个 Skill 无限增加状态。
 
+现有细粒度状态迁移到核心生命周期时，采用以下确定性映射，旧状态只作为兼容读取或 UI 投影：
+
+| 旧/细粒度状态 | 核心生命周期 | 保留到哪个正交字段 |
+|---|---|---|
+| `input-ready`、`plan-ready`、`evidence-ready` | `planned` | `phase`、证据集合和契约快照 |
+| `execution-ready`、`executing` | `active` | `phase`、`attempt_id`、工具执行事实 |
+| `verifying` | `checking` | `verifications`、`gate_decisions` |
+| `delivery-ready` | `delivering` | required 产物和交付前 Gate |
+| `awaiting-*` | `waiting` | `wait_reason` 与恢复条件 |
+| `reported` | `completed`（仅在完成守卫通过后） | `outcome`、交付报告 |
+
+映射不得覆盖历史事件；新快照输出核心 canonical 状态，旧名称通过 alias 或投影层解释。若旧状态无法证明满足核心状态的入口条件，应进入 `waiting`、`failed` 或 `degraded`，不得直接映射为 `completed`。
+
 ### 通用副作用 State
 
 远程桥梁和上传类 Skill 需要一个独立 effect 状态机，不应把“发布成功”混成任务 completed：
@@ -236,23 +306,74 @@ uncertainty_policy:
 
 异常分支为 `bensz.effect.unknown`（请求结果未知，先只读回查）、`bensz.effect.conflicted`（revision/hash 冲突）和 `bensz.effect.compensated`（已执行可控补偿）。`unknown` 绝不能自动回到 `prepared` 并重发。
 
-### 领域 State Pack
+### Kernel 的目标模块边界
 
-| 领域 | 建议状态序列（示例） | 关键不变量 |
+为了让本报告可以直接指导 `packages/bensz-skill-kernel` 优化，建议把实现拆成以下模块；模块名是职责边界，不要求一次性按目录重写：
+
+| 模块 | 必须提供的能力 | 不应承载的内容 |
 |---|---|---|
-| 研究综述 | `bensz.research.intake-ready → retrieval-complete → deduplicated → scored → selected → drafted → rendered → reported` | 后续阶段只能读去重集；PDF/Word 缺失不能 reported |
-| LaTeX/论文 | `bensz.latex.scope-locked → editing → compiled → compared → delivery-ready` | 公共包改动必须有受影响项目回归；协作模式不得 editing 写回 |
-| 病例 | `bensz.case.raw-indexed → facts-structured → timeline-ready → triaged → reasoning-ready → evidence-ready → report-ready → reported` | raw 只读；红旗和缺失信息未处理不能进入深推理/报告 |
-| 远程配置 | `bensz.remote.connected → snapshot-ready → dry-run-ready → awaiting-approval → effect-applied → reconciled → disconnected` | 每次写前快照；terminate/冲突进入停止或 unknown |
-| Sub2API 只读运营 | `bensz.sub2api.auth-ready → snapshot-collected → analysis-ready → report-ready` | 核心端点失败停止；原始响应递归脱敏 |
-| Prompt 模板 | `bensz.prompt.draft → schema-valid → reviewed → published` | published 必须显式审批；版本与路由描述一致 |
-| 并行协作 | `bensz.coordination.plan-ready → workers-active → results-collected → synthesized → reviewed` | thread 隔离、结果完整、汇聚引用全部输入 |
+| `contracts` | `Run`、`Event`、`Projection`、`Subject`、`Requirement`、`Evidence`、`Artifact`、`VerificationResult`、`GateDecision`、`Effect` 的最小 Schema | 任何 NSFC、临床或 Sub2API 字段特判 |
+| `events` / `runtime` | 追加式账本、序号/哈希校验、幂等、确定性 reducer、快照重建 | Skill 自定义业务阶段的执行逻辑 |
+| `states` | 系统状态发现、Skill 状态声明、canonical/alias 解析、合法转移和生命周期投影 | 检索、写作、推理、渲染等领域动作 |
+| `evidence` | 摘要/哈希、来源、摘录、新鲜度、脱敏、最小化和引用解析 | 自动替用户补事实或保存完整 raw/凭据 |
+| `verifiers` | Pack 注册、版本解析、JSON-stdio 执行、超时/错误归一化和结果校验 | 直接写正式产物或自行改变 Gate |
+| `policy` / `gate` | required/advisory、冲突优先级、不确定性、等待和人工复核决策 | 重新解释领域语义或用总分覆盖硬失败 |
+| `adapters` | 将 Skill 既有输入、阶段和产物转换为公共对象，并追加事件 | 复制一套业务流程或绕过权限边界 |
 
-这些状态只是声明式“路标”。例如 `bensz.case.triaged` 不执行医学分流，`triage-problem-gatekeeper` 仍执行分流；State helper 如需存在，也只读取已冻结证据并返回标准结果。
+推荐的依赖方向是：
+
+```text
+contracts → events/runtime → states
+contracts → evidence → verifiers → policy/gate
+contracts → adapters → events/runtime
+```
+
+`verifiers` 可以调用 `evidence` 的只读接口，`policy/gate` 可以消费 Verifier 结果，但领域 Pack 不得反向修改 `contracts`、核心 State 或 reducer。这样新增领域能力时只增加 Pack 和 Adapter，不会把 kernel 变成领域流程引擎。
+
+### 公共对象的最小交接契约
+
+每次 Skill 运行至少要能交接以下信息；字段允许按风险裁剪，但不能用猜测填补缺失事实：
+
+```yaml
+run:
+  run_id: stable-id
+  skill_id: example.skill
+  skill_version: 1.0.0
+  runtime_protocol: bensz-skill-runtime-v1
+  lifecycle: planned|active|waiting|checking|delivering|completed|failed|cancelled
+phase:
+  machine: skill-owned-machine
+  current: skill-owned-phase
+  required_before_delivery: [phase-id]
+evidence_refs: [evidence-id]
+artifacts: [artifact-id]
+verifications: [verification-id]
+gate:
+  decision: allow|allow_with_warnings|reject|wait|manual_review
+  unresolved: []
+effect:
+  status: none|prepared|authorized|applied|reconciled|unknown|conflicted|compensated
+```
+
+历史事件是事实来源；`state.json`、阶段文件和报告只是可重建投影或产物。缺少 required 字段或证据时应得到 `unchecked`、`wait` 或 `manual_review`，不能由 Runtime 自动推断为通过。
+
+### 领域 Phase Pack（由 Skill 声明，不进入 Kernel 核心 State）
+
+| 领域 | 建议 phase 序列（示例） | 关键不变量 |
+|---|---|---|
+| 研究综述 | `intake-ready → retrieval-complete → deduplicated → scored → selected → drafted → rendered → reported` | 后续阶段只能读去重集；PDF/Word 缺失不能 reported |
+| LaTeX/论文 | `scope-locked → editing → compiled → compared → delivery-ready` | 公共包改动必须有受影响项目回归；协作模式不得 editing 写回 |
+| 病例 | `raw-indexed → facts-structured → timeline-ready → triaged → reasoning-ready → evidence-ready → report-ready → reported` | raw 只读；红旗和缺失信息未处理不能进入深推理/报告 |
+| 远程配置 | `connected → snapshot-ready → dry-run-ready → awaiting-approval → effect-applied → reconciled → disconnected` | 每次写前快照；terminate/冲突进入停止或 unknown |
+| Sub2API 只读运营 | `auth-ready → snapshot-collected → analysis-ready → report-ready` | 核心端点失败停止；原始响应递归脱敏 |
+| Prompt 模板 | `draft → schema-valid → reviewed → published` | published 必须显式审批；版本与路由描述一致 |
+| 并行协作 | `plan-ready → workers-active → results-collected → synthesized → reviewed` | thread 隔离、结果完整、汇聚引用全部输入 |
+
+这些 phase 只是 Skill 内部的声明式“路标”，不是 Kernel 的公共 State ID。例如 `case.triaged` 不执行医学分流，`triage-problem-gatekeeper` 仍执行分流；如果需要 State helper，也只读取已冻结证据并返回标准结果。适配器将 phase 映射到核心 `lifecycle`，而不是把每个 phase 注册成全局状态。
 
 ## 逐 Skill 对接矩阵：Verifier、State 与挂接点
 
-本节回答“哪个 Skill 对接哪些 Verifier/State”。表中的 ID 是建议的 canonical ID；除前文列出的 3 个内置 Verifier、2 个系统 State 和 `validate-md-ref` 试点外，其余属于待按优先级实现的 Pack。`V-*` 只是表格分组记号，不是新的公开 ID。
+本节回答“哪个 Skill 对接哪些 Verifier、领域 Pack 和 phase”。表中的 Verifier ID 是建议的 canonical ID；除前文列出的 3 个内置 Verifier、2 个系统 State 和 `validate-md-ref` 试点外，其余属于待按优先级实现的 Pack。`S-*` 表示领域 phase/State 投影集合，不是要求一次性注册到 Kernel 的公共状态；`V-*` 只是表格分组记号，不是新的公开 ID。
 
 ### 矩阵记号
 
@@ -266,15 +387,15 @@ uncertainty_policy:
 | `V-runtime` | `bensz.runtime.event-integrity`、`bensz.runtime.state-transition`、`bensz.runtime.task-completeness` |
 | `V-coord` | `bensz.coordination.thread-completeness` |
 | `V-remote` | `bensz.remote.read-only-scope`、`bensz.remote.idempotency`、`bensz.remote.postcondition` |
-| `S-task` | `bensz.workspace.ready → bensz.task.input-ready → bensz.task.plan-ready → bensz.task.executing → bensz.task.verifying → bensz.task.reported → bensz.workspace.closed` |
-| `S-build` | `bensz.latex.scope-locked → bensz.latex.editing → bensz.latex.compiled → bensz.latex.compared → bensz.task.delivery-ready` |
-| `S-review` | `bensz.research.intake-ready → retrieval-complete → deduplicated → scored → selected → drafted → rendered → reported` |
-| `S-case` | `bensz.case.raw-indexed → facts-structured → timeline-ready → triaged → reasoning-ready → evidence-ready → report-ready → reported` |
-| `S-remote` | `bensz.remote.connected → snapshot-ready → dry-run-ready → awaiting-approval → effect-applied → reconciled → disconnected` |
-| `S-prompt` | `bensz.prompt.draft → schema-valid → reviewed → published` |
-| `S-coord` | `bensz.coordination.plan-ready → workers-active → results-collected → synthesized → reviewed` |
+| `S-task` | `bensz.workspace.ready → planned → active → waiting/checking/delivering → completed|failed|cancelled → bensz.workspace.closed` |
+| `S-build` | `phase: scope-locked → editing → compiled → compared → delivery-ready`，生命周期映射到 `active → checking → delivering` |
+| `S-review` | `phase: intake-ready → retrieval-complete → deduplicated → scored → selected → drafted → rendered → reported` |
+| `S-case` | `phase: raw-indexed → facts-structured → timeline-ready → triaged → reasoning-ready → evidence-ready → report-ready → reported` |
+| `S-remote` | `effect: connected → snapshot-ready → dry-run-ready → awaiting-approval → applied → reconciled → disconnected` |
+| `S-prompt` | `phase: draft → schema-valid → reviewed → published` |
+| `S-coord` | `phase: plan-ready → workers-active → results-collected → synthesized → reviewed` |
 
-状态序列中的缩写状态最终必须展开为完整 `owner.machine.state`；Skill 可以只声明其中的子集。
+这些 `S-*` 是矩阵中的便捷记号，不是新的公开 State ID。Skill 可以只声明其中的子集；若某个阶段需要公开身份，必须作为 Skill-owned phase/State 按 `owner.machine.state` 规则单独声明，并映射回核心生命周期，而不是把缩写直接注册到 Kernel。
 
 ### 本项目核心与治理 Skill
 
@@ -290,12 +411,12 @@ uncertainty_policy:
 | `code-reviewer` | `V-safe`、`V-coord`、`V-runtime` | `S-coord`、`S-task` | 只读审查 diff；Critical/Important findings 未处理不得 delivery-ready。 |
 | `systematic-debugging` | `V-evidence`、`V-build`、`V-runtime` | `S-task` | 根因、假设测试、修复验证分开记录；无根因证据不能通过。 |
 | `tdd-workflow` | `V-build`、`V-runtime` | `S-task` | RED/GREEN/回归证据分别登记；缺 RED 进入 warning/manual_review。 |
-| `writing-plans` | `V-artifact`、`V-safe` | `bensz.task.input-ready → bensz.task.plan-ready → bensz.task.reported` | 只验证计划 Schema、范围和风险，不把计划当实现完成。 |
+| `writing-plans` | `V-artifact`、`V-safe` | `S-task`（`planned → checking → completed`） | 只验证计划 Schema、范围和风险，不把计划当实现完成。 |
 | `documentation-specialist` | `V-doc`、`V-safe`、`V-runtime` | `S-task` | 文档结构、引用和敏感扫描在交付前执行。 |
 | `frontend-specialist` | `V-build`、`V-artifact`、`V-safe` | `S-task` | 构建、截图/视觉证据和改动范围作为交付证据。 |
 | `backend-specialist` | `V-build`、`V-artifact`、`V-safe` | `S-task` | API Schema、测试、迁移/配置边界检查；高风险变更等待授权。 |
 | `devops-specialist` | `V-build`、`V-safe`、`V-remote` | `S-task`、`S-remote` | 部署动作使用 effect 状态；远程状态未知时禁止重试。 |
-| `security-specialist` | `V-safe`、`V-evidence`、`V-runtime` | `S-task`、`bensz.task.awaiting-approval` | 高危 finding 未消除不得 allow。 |
+| `security-specialist` | `V-safe`、`V-evidence`、`V-runtime` | `S-task`（`waiting + wait_reason=approval`） | 高危 finding 未消除不得 allow。 |
 | `context-optimizer` | `bensz.context.evidence-budget`、`V-safe`、`V-runtime` | `S-task` | 压缩只作用于上下文副本；来源、关键约束和敏感边界不可丢失。 |
 | `git-workflow` | `bensz.source.diff-scope`、`bensz.runtime.event-integrity` | `S-task` | 只验证分支/diff/提交契约，不触发发布。 |
 | `git-commit` | `bensz.source.diff-scope`、`bensz.prompt.contract-conformance` | `S-task` | 提交前检查范围和 Conventional Commit；未授权不进入 effect。 |
@@ -321,7 +442,7 @@ uncertainty_policy:
 | `bensz-rmd-rules` | `V-build`、`V-artifact`、`V-evidence`、`bensz.analysis.rmd-interpretation` | `S-build` 的 Rmd 子集 | 图表/表格解读、矢量 PDF/JPG 和 HTML widget 检查为 required。 |
 | `prompt-programming` | `bensz.prompt.contract-conformance`、`V-artifact` | `S-prompt` | 六原子结构和压缩后语义保持通过才 reviewed。 |
 | `better-prompt` | `bensz.prompt.contract-conformance`、`V-evidence` | `S-prompt` | 输入意图、模型适配和输出约束结构化。 |
-| `validate-md-ref` | `bensz.document.markdown-link-integrity`、`bensz.evidence.citation-truth-fit`、`V-runtime` | `bensz.workspace.ready → bensz.validate-md-ref.input-ready → checking → reported → workspace.closed` | 当前试点：链接规则自动判定；语义引用无引擎时保持 unchecked/manual_review。 |
+| `validate-md-ref` | `bensz.document.markdown-link-integrity`、`bensz.evidence.citation-truth-fit`、`V-runtime` | `bensz.workspace.ready → planned → active → checking → completed → workspace.closed`；领域 phase 另记 | 当前试点：链接规则自动判定；语义引用无引擎时保持 unchecked/manual_review。 |
 
 ### ChineseResearchLaTeX Skill
 
@@ -340,7 +461,7 @@ uncertainty_policy:
 | `nsfc-ref-alignment` | `bensz.nsfc.reference-alignment`、`V-doc`、`V-evidence` | `S-task` | Bib key/字段/DOI 规则先跑，正文语义支持交给 Prompt/人工。 |
 | `nsfc-research-content-writer` | `bensz.nsfc.research-content-contract`、`V-doc`、`V-build` | `S-build` | 研究内容、创新和年度计划结构及术语对齐；只改声明的 extraTex。 |
 | `nsfc-research-foundation-writer` | `bensz.nsfc.foundation-contract`、`V-doc`、`V-evidence` | `S-build` | 基础证据→工作条件→风险应对链齐全；不可核验成果 uncertain。 |
-| `nsfc-reviewers` | `bensz.nsfc.review-findings`、`V-coord`、`V-evidence` | `S-coord`、`bensz.task.awaiting-approval` | 专家意见按维度聚合；模拟分数不当作官方决定。 |
+| `nsfc-reviewers` | `bensz.nsfc.review-findings`、`V-coord`、`V-evidence` | `S-coord`、`S-task`（`waiting + wait_reason=approval`） | 专家意见按维度聚合；模拟分数不当作官方决定。 |
 | `paper-explain-figures` | `bensz.paper.figure-evidence`、`V-artifact`、`V-evidence` | `S-task`、`S-coord` | 每张图独立结果、来源/源码证据和汇总报告齐全后交付。 |
 | `paper-know-journal` | `bensz.paper.journal-source-fit`、`V-evidence`、`V-doc` | `S-review` 子集 | 官网/社区来源和访问时间记录；费用/速度不可核验则 uncertain。 |
 | `paper-select-journal` | `bensz.paper.journal-selection`、`V-evidence`、`V-artifact` | `S-review` | Set1/Set2/Set3 证据链和候选 JSON 完整后报告。 |
@@ -368,7 +489,7 @@ uncertainty_policy:
 | `case-intake-manager` | `bensz.clinical.raw-intake-completeness`、`V-artifact`、`V-safe` | `bensz.case.raw-indexed` | raw 全读、索引完整、raw 只读；目录为空进入 awaiting-input。 |
 | `case-structuring-extractor` | `bensz.clinical.fact-provenance`、`V-evidence`、`V-artifact` | `bensz.case.facts-structured` | 每个事实带来源锚点并区分缺失/冲突/推断。 |
 | `timeline-medication-builder` | `bensz.clinical.timeline-medication-consistency`、`V-evidence` | `bensz.case.timeline-ready` | 日期、治疗顺序、疗效/不良反应挂接；冲突未解释 manual_review。 |
-| `triage-problem-gatekeeper` | `bensz.clinical.red-flag-triage`、`bensz.clinical.missing-information` | `bensz.case.triaged`、`bensz.task.awaiting-input` | 红旗置顶、分流和最小检查集合是硬 Gate；不做最终诊断。 |
+| `triage-problem-gatekeeper` | `bensz.clinical.red-flag-triage`、`bensz.clinical.missing-information` | `bensz.case.triaged`、`S-task`（`waiting + wait_reason=input`） | 红旗置顶、分流和最小检查集合是硬 Gate；不做最终诊断。 |
 | `clinical-reasoning-engine` | `bensz.clinical.reasoning-uncertainty`、`V-evidence` | `bensz.case.reasoning-ready` | 支持/反对/待证据点和不确定性齐全；不直接检索或开处方。 |
 | `evidence-question-planner` | `bensz.clinical.evidence-question-contract`、`V-evidence` | `bensz.case.evidence-ready` | 只把真正需循证的问题送下游；优先级和理由可追溯。 |
 | `evidence-orchestrator` | `bensz.clinical.evidence-freshness`、`bensz.document.link-integrity`、`V-evidence` | `bensz.case.evidence-ready` | 优先复用证据仓库；简单检索不能标成系统综述。 |
@@ -384,7 +505,7 @@ uncertainty_policy:
 | `sub2api-add-users` | `bensz.sub2api.account-data-safety`、`bensz.sub2api.capacity-cost-model`、`bensz.remote.read-only-scope` | 同上 Sub2API 只读序列 | 任一容量池缺口不可由其它池抵消；核心数据缺失 reject。 |
 | `sub2api-codex-available` | `bensz.sub2api.codex-route-proof`、`bensz.sub2api.account-data-safety`、`V-remote` | `auth-ready → snapshot-collected → e2e-tested → reconciled → report-ready` | 必须结合 Codex CLI 或明确标注未证明，并以 usage 的目标 `account_id` 命中作为 Gate。 |
 | `sub2api-reimbursement` | `bensz.sub2api.invoice-reconciliation`、`bensz.sub2api.account-data-safety`、`V-build`、`V-safe` | `auth-ready → snapshot-collected → invoice-drafted → invoice-rendered → report-ready` | 充值/服务消费分离，净额/税额/含税合计一致；上传是单独 effect。 |
-| `sub2api-batch-accounts` | `bensz.sub2api.import-schema`、`bensz.sub2api.proxy-account-binding`、`V-artifact`、`V-safe`、`V-remote`（上传时） | `bensz.sub2api.input-ready → dry-run-ready → awaiting-approval → effect-applied → reconciled` | 默认 round-robin、schema/`proxy_key`/分布校验；集中分配、上传和覆盖需确认。 |
+| `sub2api-batch-accounts` | `bensz.sub2api.import-schema`、`bensz.sub2api.proxy-account-binding`、`V-artifact`、`V-safe`、`V-remote`（上传时） | `phase: input-ready → dry-run-ready`；`effect: prepared → waiting + approval → applied → reconciled` | 默认 round-robin、schema/`proxy_key`/分布校验；集中分配、上传和覆盖需确认。 |
 | `sub2api-ip-proxy` | `bensz.sub2api.import-schema`、`V-artifact`、`V-safe` | `S-task` | 强制 socks5h、输出不覆盖输入、accounts 为空；dry-run 后才生成 JSON。 |
 | `ycy-get-acounts` | `bensz.sub2api.credential-format`、`V-artifact`、`V-safe` | `S-task` | 解析失败行可报告但不泄露凭据；源文件保持不变。 |
 | `auto-draw-plot`（sub2api 仓库版） | `bensz.image.request-contract`、`V-artifact`、`V-safe` | `S-task`、`bensz.effect.prepared → applied → reconciled`（调用外部图像 API 时） | 配置来源/Base URL/Key 冲突先 reject；图片和提示词脱敏保存。 |
@@ -394,7 +515,7 @@ uncertainty_policy:
 
 - 同一 Skill 只声明真正需要的子集；`md-to-word` 不需要临床或远程 State，`case-structuring-extractor` 不需要发布 effect。
 - 同一 Verifier 可以被多个 Skill 复用，但输入 Adapter 必须隔离。`bensz.document.citation-traceability` 可以接 Markdown、LaTeX 和病例报告，却不把三种格式规则写进一个脚本。
-- 同一 State 可以跨 Skill 复用，领域 State 只描述交接点。`bensz.task.awaiting-authorization` 不关心用户批准的是发票上传还是文章发布。
+- 同一核心生命周期 State 可以跨 Skill 复用，领域 phase 只描述交接点。`waiting + wait_reason=authorization` 不关心用户批准的是发票上传还是文章发布。
 - 只有“稳定且重复出现的领域命题”才提升为专用 Pack；一次性文案偏好、项目路径和模型名称留在 Skill 配置或 Adapter。
 - 表中 required Gate 是建议默认值，Skill 若要降为 advisory，必须在 runtime 声明中显式写出，不能由模型临时改变。
 
@@ -404,7 +525,7 @@ uncertainty_policy:
 
 适用于链接检查、格式转换预检、离线 Schema 和文件存在性：
 
-`workspace.ready → input-ready → executing → verifying → reported → workspace.closed`。
+`workspace.ready → planned → active → checking → completed → workspace.closed`（等待、交付和异常通过核心生命周期及正交字段表达）。
 
 只挂接 `path-scope`、`schema`、`secret-redaction`、`artifact-existence` 等低成本规则，不创建多余领域 State。
 
@@ -440,10 +561,18 @@ runtime:
   initial_state: bensz.workspace.ready
   states:
     - bensz.workspace.ready
-    - bensz.task.input-ready
-    - bensz.task.verifying
-    - bensz.task.reported
+    - bensz.task.planned
+    - bensz.task.active
+    - bensz.task.waiting
+    - bensz.task.checking
+    - bensz.task.delivering
+    - bensz.task.completed
+    - bensz.task.failed
+    - bensz.task.cancelled
     - bensz.workspace.closed
+  phase:
+    machine: skill-owned-machine
+    roots: [references/phases]
   verifiers:
     - id: bensz.artifact.schema-conformance
       version: 1.0.0
@@ -470,19 +599,66 @@ runtime:
 - 写入后：产物存在、构建/回查、跨格式一致性。
 - 交付前：Gate、报告结构、未解决不确定性、BAC/事件完整性。
 
+## Kernel 优化与 Skill 迁移工程蓝图
+
+本节将前面的设计转成可执行的工程边界。目标不是一次性重写所有 Skill，而是让 Kernel 先具备稳定的公共协议，再让已有 Skill 通过 Adapter 渐进接入。
+
+### Kernel 交付包与依赖顺序
+
+| 阶段 | Kernel 交付物 | 依赖与停止条件 |
+|---|---|---|
+| P0 协议冻结 | `Run/Event/Projection/Contract/Evidence/Artifact/VerificationResult/GateDecision/Effect` Schema；核心 State 白名单；Verifier/State ID 与版本规则 | 两份以上计划和现有实现对齐；发现领域特判时停在契约层，不先写代码 |
+| P1 事实与投影 | 事件追加、序号/哈希链、幂等、确定性 reducer、快照重建、并发保护、`waiting + wait_reason` | 删除 `state.json` 可由事件重建；事件损坏、重复序号和非法转移有明确错误 |
+| P2 原子 Verifier | 核心白名单注册/发现、JSON-stdio、超时/错误归一化、Evidence 引用、required/advisory Gate | 每个原子能力具备正例、反例、缺证据、越界和敏感输入测试 |
+| P3 声明与兼容 | `config.yaml.runtime` 的 roots、允许状态/Verifier 子集、initial state、hooks；兼容旧 `state-machine.json` | 新快照只输出 canonical ID；旧目录只读，不覆盖历史报告 |
+| P4 组合与副作用 | Prompt/Rule/Human 混合编排、phase DAG、子任务 join、Effect 的授权/幂等/回查/unknown | 规则硬失败不可被语义通过抵消；未知远程结果不得自动重发 |
+| P5 迁移与治理 | 试点 Adapter、旁路观察、required Gate 灰度、反馈关联、校准集、版本比较和回滚 | 每个 Skill 通过“拔掉外挂”测试后才扩大迁移范围 |
+
+推荐的代码依赖方向是：
+
+```text
+contracts → events/runtime → states
+contracts → evidence → verifiers → policy/gate
+contracts → adapters → events/runtime
+```
+
+`packages/bensz-skill-kernel` 的现有 `runtime.py`、`states.py`、`verifiers.py` 和 `workspace.py` 可作为增量演进入口：先抽取/冻结公共数据结构和测试，再拆分模块职责；不在同一批次中改写所有 Skill 的业务脚本。
+
+### Skill Adapter 的统一职责
+
+每个 Skill 只需实现一层薄 Adapter，完成以下映射：
+
+1. 将既有输入和配置转换为最小 `Subject`、`Requirement` 和 Evidence 引用；
+2. 声明 Skill 自有 `phase` DAG、required 产物、Verifier 子集和 hooks；
+3. 在原脚本前后追加事件、验证结果、Gate 和产物哈希；
+4. 将旧阶段导入为兼容投影，无法证实时返回 `unchecked`/`degraded`；
+5. 在写回或远程调用时交给受限 Effect Adapter，保留授权、快照、幂等键、回查和恢复信息。
+
+Adapter 不得复制领域流程、直接覆盖 `state.json`、把完整 raw/凭据交给 Verifier，或让 Verifier 取得正式产物写权限。拔掉 Adapter 后，原 Skill 的用户入口和正式产物语义必须保持可用。
+
+### 迁移波次与验收证据
+
+- **Wave 0：内核离线夹具。** 不接真实网络和模型，覆盖事件重放、核心 State、原子 Verifier、Gate 冲突和敏感扫描。
+- **Wave 1：`validate-md-ref`。** 作为短任务样例，保留现有链接采集和状态声明，增加核心生命周期投影、Evidence 引用和 `unchecked/manual_review` 结果。
+- **Wave 2：研究/LaTeX 长流程。** 选择一个有 checkpoint、编译和本地写回的 Skill，验证 phase DAG、恢复、diff scope 和渲染产物。
+- **Wave 3：Sub2API 只读运营。** 验证认证边界、端点 allowlist、递归脱敏、核心数据缺失停止和报告证据；不接上传或账号补货。
+- **Wave 4：高风险领域。** 逐步加入临床、远程发布、NSFC/SCI/Rmd 和 Sub2API effect Pack；先旁路，后确定性 Gate，最后才加入语义人工复核。
+
+每一波都必须留下四类证据：事件可重放、Verifier 结果与证据引用、状态/phase 映射、拔掉外挂后的原入口回归。任一波出现核心特判、无法回放或敏感数据越界，就暂停下一波并回到协议修订。
+
 ## 分批落地路线
 
 ### 第一批：通用低风险外挂
 
-先补齐 `artifact.path-scope`、`schema-conformance`、`secret-redaction`、`render-success`、`source.diff-scope`、`runtime.task-completeness` 和 `prompt.contract-conformance`。它们能覆盖多数 Skill，规则确定性强，适合写入 kernel 的最小接口测试。
+先冻结并实现 Kernel 原子白名单：`contract.conformance`、`artifact.path-scope`、`artifact.schema-conformance`、`artifact.file-existence`、`source.diff-scope`、`security.secret-redaction`、`evidence.provenance`、`runtime.event-integrity`、`runtime.state-transition` 和 `runtime.task-completeness`。这一批只包含确定性、可重放、无领域依赖的能力；`render-success`、`prompt.contract-conformance` 等先作为组合或领域 Pack，不提前塞入核心。
 
-### 第二批：三个代表性试点
+### 第二批：Kernel 三类代表性试点
 
 - `validate-md-ref`：保留现有状态图，补通用任务状态、证据/链接 Gate 和事件投影一致性。
 - `research-literature-review` 或 `make-latex-model`：验证长流水线 checkpoint、渲染和恢复，不改业务脚本。
 - `sub2api-summary`：只读端点 allowlist、递归脱敏、核心接口失败停止和覆盖率结果。
 
-这三个试点分别覆盖短任务、长本地产物和真实远程只读数据，能检验外挂可拆卸性。
+这三个试点分别覆盖短任务、长本地产物和真实远程只读数据，能检验外挂可拆卸性。试点顺序固定为“只读映射 → 统一事实写入 → 故障恢复 → 交付验证”，发现协议缺口时优先修改公共契约，不为试点添加核心特判。
 
 ### 第三批：高价值专用 Pack
 
@@ -496,6 +672,20 @@ runtime:
 ### 第四批：渐进迁移与版本治理
 
 每个 Skill 先以“旁路观察”运行，只记录 verifier 结果不阻断；稳定后把确定性 required 规则接入 Gate，再逐步加入语义/人工复核。每次契约变化同步 `config.yaml`、`VERIFIER.md`/`STATE.md`、Skill 文档、测试和 `CHANGELOG.md`。ID 不重命名，使用 alias 兼容历史事件。
+
+### 面向 Kernel 优化的工程依赖顺序
+
+以上批次落地时，`packages/bensz-skill-kernel` 应按以下依赖顺序推进，而不是按 Skill 数量平铺开发：
+
+1. **协议冻结：** 固定 `Run/Event/Projection/Contract/Evidence/Artifact/VerificationResult/GateDecision/Effect` 的最小 Schema，固定八个生命周期状态、canonical ID、版本和 alias 解析；输出迁移说明和兼容矩阵。
+2. **事实与投影：** 先实现事件追加、序号/哈希校验、确定性 reducer、快照重建、并发保护和 `waiting + wait_reason`；删除 `state.json` 后仍能由事件恢复相同投影。
+3. **原子验证：** 实现核心白名单的注册、JSON-stdio 执行、超时/错误归一化、证据引用和 required/advisory Gate；规则失败不能被语义结果覆盖。
+4. **声明与 Adapter：** 支持 `config.yaml.runtime` 的 roots、允许状态/Verifier 子集和 hooks；兼容读取旧 `state-machine.json`，但新快照统一输出 canonical ID。
+5. **组合与副作用：** 在原子规则稳定后加入 Prompt/规则/人工混合编排、phase DAG、子任务汇聚及 effect 的 `prepared → authorized → applied → reconciled/unknown`；未知结果只允许回查或人工恢复。
+6. **Skill 迁移：** 先旁路接入 `validate-md-ref`、研究/LaTeX 长流程和 Sub2API 只读 Skill，再逐步启用 required Gate；每个 Skill 完成“拔掉外挂”测试后才能扩大范围。
+7. **治理闭环：** 最后接入反馈关联、校准集、版本灰度、回滚和运行指标；没有回放与回归证据，不提升新的共享 Pack。
+
+每一步都有停止条件：若协议无法由两个以上试点复用，或引入领域分支、敏感数据和不可控远程副作用，应停在当前层级，回退为 Skill 专用 Adapter，而不是继续扩大 Kernel。
 
 ## 验收与质量门禁
 
@@ -544,7 +734,7 @@ runtime:
 
 把这套生态的运行时想象成“可插拔的质量与交接层”：Skill 是主体，State 是路标和不变量，Verifier 是验收工位，Gate 是放行规则，事件账本是可重放凭证。先以通用低风险 Pack 建立覆盖面，再用临床、Sub2API、远程桥梁和 LaTeX/研究 Pack 处理真正的领域风险；所有接入均通过旁路观察、确定性门禁、语义人工复核三步推进。
 
-这样既能让流程更标准、结果更透明、失败更可诊断，又不会把一个可以独立演化的 Skill 变成 kernel 的承托者，符合“铬合物、亚基、非共价结合、即插即用”的设计目标。
+这样既能让流程更标准、结果更透明、失败更可诊断，又不会把一个可以独立演化的 Skill 变成 Kernel 的领域承托者，符合“薄核心、可组合、即插即用”的设计目标。
 
 ## 生态索引与发行边界
 

@@ -1,11 +1,11 @@
-# 通用 Agent Verifiers 基础设施实施计划
+# 通用 Agent Verifiers 与 Runtime 分层实施计划
 
 ## 通俗解释：究竟发生了什么
 
 - **一句话说明：** Agent 经常需要判断“这件事是否真的做对了”，但目前的检查方式散落在提示词、脚本和人工经验中，既难复用，也难说明结论依据。
 - **生活类比或具体场景：** 这像一套专业验货服务。验货员可能按尺寸卡尺检查，也可能按照质量标准观察外观；贵重物品还要查看发票并请专家签字。不同物品的检查方法不同，但都需要明确验什么、依据什么、证据在哪里，以及什么情况只能判定为“待复核”。
 - **对应到本问题：** 精确规则对应卡尺、秤和检测仪；Prompt/Rubric 对应验货员的判断手册；Evidence Contract 规定验货员必须看到哪些材料；Gate Policy 决定“合格”“不合格”“暂不放行”分别意味着什么。
-- **改变前后：** 现在一个 Agent 可能只凭“看起来合理”就声称完成；改进后，它必须调用一个有版本、有输入要求、有判断步骤、有结构化结果和测试样例的 Verifier。能精确证明的由规则完成，只能语义判断的由 Prompt 完成，证据不足时必须保留不确定性。
+- **改变前后：** 现在一个 Agent 可能只凭“看起来合理”就声称完成，或者让不同组件重复判断同一件事；改进后，Runtime 记录事实和阶段，原子 Verifier 检查局部命题，组合 Pack 编排多个检查，领域 Skill 保留专业判断，Gate 再根据契约决定是否放行。
 
 ## 架构总览：一次验证是怎样跑完的
 
@@ -53,7 +53,8 @@ flowchart LR
 - **当前现象：** 现有计划已经覆盖了 Requirement、Claim、Evidence、VerificationResult 和 Gate，但主要描述“如何收集结果并做门禁”，没有把 Prompt 型语义判断单元定义为一等公民。
 - **核心缺口：** “引用是否真实且适当”“论证是否存在跳跃”“证明是否遗漏前提”等任务不能靠一个布尔函数完成；它们需要标准化的判断步骤、证据边界、Rubric、反例处理和不确定性规则。
 - **另一类缺口：** 数学证明、schema、权限范围等任务又不能只交给 Prompt。它们需要公式、解析器、定理证明器、AST 或策略引擎等精确验证器。
-- **设计结论：** Verifier 不能被定义成“脚本检查器”或“评审 Prompt”中的任一种，而应定义成可组合的判断包。判断包可以是 Prompt 型、规则型、混合型或人工型；统一运行时只负责装载、执行、取证、标准化和门禁。
+- **分层缺口：** 当前候选目录把事件、状态转移、任务完整性、原子规则、组合检查和领域契约平铺在一起，容易把 Runtime 原语误做成 Verifier，或把单个 Skill 的规则升级为核心能力。
+- **设计结论：** 需要先冻结“Runtime 原语 → 原子 Verifier → 组合 Pack → 领域 Pack”的边界。判断包可以是 Prompt 型、规则型、混合型或人工型；统一 Runtime 只负责身份、事实、证据、执行边界、结果标准化和 Gate，不理解领域流程。
 
 ## 要达到什么目标
 
@@ -65,22 +66,39 @@ flowchart LR
 - 混合型 Verifier 可以先用精确规则收集或筛除事实，再让 Prompt 按固定 Rubric 解释证据；规则结论和语义结论不会被无原则地平均。
 - 每个结论都能追溯到输入对象摘要、证据、Verifier/Prompt/规则版本、模型参数、执行环境和门禁策略。
 - 证据缺失、工具不可用、模型不确定、外部状态无法确认时，系统不会伪装成 `pass`，而会输出 `unchecked`、`uncertain`、`wait` 或 `manual_review`。
+- Runtime 原语、Verifier、Pack、State 和 Gate 的职责不会重复；新增领域能力无需修改 kernel reducer、核心生命周期或既有原子规则。
 
 ### 不在本次处理范围
 
 - 不建设一个包办所有领域的“超级评审 Prompt”。
 - 不把任何单一领域的 Prompt、术语、评分表或专家偏好写死在核心包中。
 - 不以模型投票或平均分掩盖高严重度的精确失败。
+- 不把 `phase`、`wait_reason`、`effect_status` 或 `outcome` 无限扩张为新的核心 State；它们作为契约或投影字段保持正交。
 - 不在首版建设分布式调度、模型训练、reward model 或通用模型网关。
 - 不允许 Verifier 借检查名义修改正式产物、发布内容或重放未知副作用。
+
+## 分层边界：先固定基础，再扩展能力
+
+这份计划把“通用”拆成四层。层级越靠下，语义越稳定、越适合进入 kernel；层级越靠上，越依赖 Skill 的输入适配和领域知识。
+
+| 层级 | 负责什么 | 典型内容 | 是否进入 Runtime 核心 |
+|---|---|---|---|
+| Runtime 原语 | 保存事实、投影状态、证据和执行上下文 | `Run`、`Event`、`Projection`、`Contract`、`Evidence`、`Artifact`、`VerificationResult`、`GateDecision`、`Effect` | 是 |
+| 原子 Verifier | 证明一个可局部复核、可重放的命题 | 合同/Schema、路径范围、文件存在、diff、脱敏、证据引用完整性 | 是，保持最小白名单 |
+| 组合 Pack | 编排多个原子检查或接入外部只读探针 | 渲染成功、链接完整性、引用可追溯、跨格式一致、远程回查、线程汇聚 | 可选，按复用证据进入共享目录 |
+| 领域 Pack | 判断领域契约和语义质量 | NSFC 章节、病例红旗、Sub2API 账单、论文论证、Prompt 质量 | 否，由 Skill/领域插件托管 |
+
+Gate 是独立的决策层，不属于某个 Verifier。Verifier 返回局部结果和证据，Gate 按任务契约、严重度和不确定性决定 `allow`、`allow_with_warnings`、`reject`、`wait` 或 `manual_review`。
+
+State 也不与 Verifier 混用：Runtime 只保留有限的生命周期状态；Skill 的业务阶段放入 `phase` DAG，等待原因放入 `wait_reason`，远程副作用放入 `effect_status`，结果口径放入 `outcome`。这样既能统一控制面，又不会为每个 Skill 制造一张巨型状态机。
 
 ## 改进方向
 
 ### 建立 Verifier Pack 作为核心抽象
 
-一个 Verifier Pack 是可独立注册、加载和测试的判断包，而不是一段孤立 Prompt。它至少包含：
+一个 Verifier Pack 是可独立注册、加载和测试的判断包，而不是一段孤立 Prompt。Pack 可以是原子规则，也可以是组合能力；但组合 Pack 不得重新定义 Runtime 原语或绕过 Gate。它至少包含：
 
-- **目标与能力：** 例如 `citation.entailment`、`proof.obligation_analysis`、`artifact.schema`；
+- **目标与能力：** 例如 `artifact.schema-conformance`、`document.link-integrity` 或领域 Pack 声明的稳定契约；
 - **输入契约：** 接受哪些 `SubjectRef`，需要哪些上下文和证据；
 - **证据契约：** 哪些证据是必需的、允许多新、如何固定摘要、哪些敏感字段必须删除；
 - **执行组件：** `PromptPack`、`RulePack`、外部只读探针或人工审核接口；
@@ -88,7 +106,17 @@ flowchart LR
 - **信任与成本：** 确定性、独立性、模型提供方、成本等级、超时和重试语义；
 - **校准资产：** 已知通过、失败、部分支持、证据不足和对抗输入样例。
 
-这意味着新增一个领域能力时，只需新增一个 Pack 和适配器，不需要修改 runner、Gate 或 kernel reducer。
+这意味着新增一个领域能力时，只需新增一个 Pack 和适配器，不需要修改 runner、Gate、核心 State 或 kernel reducer。新增 Pack 前先判断它应属于原子、组合还是领域层，避免把一次性业务规则包装成通用能力。
+
+### 收缩 Runtime State，保持正交字段
+
+Runtime 核心只需要一组有限的生命周期状态：`planned`、`active`、`waiting`、`checking`、`delivering`、`completed`、`failed`、`cancelled`。其中 `waiting` 通过 `wait_reason` 区分等待输入、授权、审批、依赖、子任务或配额；不再为每种等待原因新增顶层 State。
+
+Skill 的 `raw-indexed`、`facts-structured`、`deduplicated`、`rendered` 等阶段属于自己的 `phase` DAG，由契约声明前置条件、required 产物和结果传播规则。Runtime 只验证是否允许交接，不执行检索、写作、推理或排版。
+
+远程写入另设正交的 Effect 状态：`prepared`、`authorized`、`applied`、`reconciled`，以及 `unknown`、`conflicted`、`compensated` 等异常状态。`unknown` 必须先回查或人工确认，不能自动重发。`outcome`（如 `success`、`partial`、`degraded`）只在生命周期闭合时记录，不与 State 名称混合。
+
+这项收缩保留了领域差异，同时让任何 Skill 都能用同一套控制面回答“能否继续、为什么等待、是否可以交付”。
 
 ### 标准化 Prompt/Rubric 判断方法
 
@@ -146,19 +174,43 @@ Prompt 必须要求模型区分“证据中明确出现的内容”和“根据�
 
 ### 建立可插拔的运行时边界
 
-建议的核心包职责为：
+建议的 Runtime 核心职责为：
 
-- `contracts`：Subject、Requirement、Claim、Evidence、Spec、Result、Gate；
-- `packs`：Verifier Pack、Prompt Pack、Rule Pack 的加载和版本解析；
-- `evidence`：对象摘要、证据采集、脱敏、新鲜度、失效和缓存；
-- `planner`：依赖 DAG、前置规则、按需 Prompt、预算和早停；
-- `executors`：pure、command、probe、model、human 适配器；
-- `normalizer`：把不同 Prompt、规则和引擎输出转换为统一 Result；
-- `policy`：信任、冲突、不确定性、重试和门禁；
+- `contracts`：Subject、Requirement、Evidence、Artifact、VerificationResult、GateDecision 等稳定对象；
+- `packs`：按层级加载、校验和解析 Verifier Pack，不把领域术语写进 reducer；
+- `evidence`：对象摘要、证据采集、脱敏、新鲜度、失效和最小化缓存；
+- `executors`：pure、command、probe、model、human 适配器及超时/错误边界；
+- `normalizer`：把不同规则、Prompt 和引擎输出转换为统一 Result；
+- `policy`：信任、冲突、不确定性、重试和 Gate 语义；
 - `reporting`：结构化报告、人类摘要和可重放记录；
-- `adapters/kernel`：可选地追加生命周期事件，不让核心依赖 kernel。
+- `adapters/kernel`：将验证、等待、交付和副作用事实追加到 Runtime 事件账本。
+
+Planner 可以编排验证依赖和预算，但不拥有领域流程；Skill Contract 负责声明 phase DAG、required/optional 项、子任务汇聚和交付条件。这样 Runtime 保持“薄腰部”，不会因为某个 Skill 的特殊需求增加核心分支。
 
 Prompt Pack 只能读取声明的输入和证据，不能修改全局 Policy、改变 Verification Plan 或自行写入正式产物。
+
+### 冻结核心 Verifier 白名单与升级门槛
+
+首版 Runtime 只承诺以下原子能力：
+
+```text
+bensz.contract.conformance
+bensz.artifact.path-scope
+bensz.artifact.schema-conformance
+bensz.artifact.file-existence
+bensz.source.diff-scope
+bensz.security.secret-redaction
+bensz.evidence.provenance
+bensz.runtime.event-integrity
+bensz.runtime.state-transition
+bensz.runtime.task-completeness
+```
+
+其中 `bensz.runtime.event-integrity`、`bensz.runtime.state-transition` 和 `bensz.runtime.task-completeness` 由 Kernel 作为生命周期控制检查实现；它们沿用统一 Result/Gate 接口，但不允许领域 Pack 替换其核心语义。
+
+`render-success`、`link-integrity`、`citation-traceability`、`cross-format-consistency`、`thread-completeness`、`remote.idempotency` 和 `remote.postcondition` 属于可选组合 Pack；只有在至少两个已发布 Skill 重复使用、输入可由通用证据表达、具备独立测试/版本/兼容策略且不引入领域依赖时，才提升到 kernel 共享目录。
+
+NSFC、临床、Sub2API、论文和 Prompt 语义判断留在领域 Pack。物理位置可以随 Skill 发布，公开 ID 仍遵守 `owner.domain.capability`，版本独立记录，旧名称用 alias 兼容。新增能力若无法通过这条门槛，先作为 Skill 内部规则，不扩展核心白名单。
 
 ### 用两个通用示例验证抽象没有偏科
 
@@ -177,7 +229,7 @@ Prompt Pack 只能读取声明的输入和证据，不能修改全局 Policy、�
 
 ### 这个 Pack 的边界与请求
 
-建议把该领域 Pack 注册为 `nsfc.justification.v1`，其能力声明为 `nsfc.justification.contract`、`nsfc.justification.logic`、`nsfc.justification.citation` 和 `nsfc.justification.consistency`。它是 `hybrid` Pack：确定性规则先保护文件、引用和可观测格式；Prompt/Rubric 只在已冻结的文本和资料范围内判断论证关系；必要时将无法由机器判断的内容升级给人工。
+建议把该领域 Pack 注册为 `bensz.nsfc.justification-contract`，版本独立记录在 `version` 字段；Pack 内的 `logic`、`citation`、`consistency` 只是组件能力，不单独占用顶层 ID。它是 `hybrid` Pack：确定性规则先保护文件、引用和可观测格式；Prompt/Rubric 只在已冻结的文本和资料范围内判断论证关系；必要时将无法由机器判断的内容升级给人工。
 
 一次典型请求不把整个标书目录和用户环境直接交给模型，而是形成以下脱敏、可寻址的对象快照：
 
@@ -216,7 +268,7 @@ Planner 把“安全写好立项依据”拆为原子 Requirement。下表同时
 下面的伪配置刻意展示运行时接口，而不是建议把 NSFC 术语写进核心包。实际 Prompt 文本、Rubric 和校准集都随 Pack 版本发布，核心只读取声明并执行它。
 
 ```yaml
-verifier_id: nsfc.justification.v1
+id: bensz.nsfc.justification-contract
 version: 1.0.0
 mode: hybrid
 subject_selector:
@@ -344,21 +396,24 @@ findings:
 
 ## 实施范围与顺序
 
-1. **冻结 Verifier Pack 契约。** 明确 `prompt`、`rule`、`hybrid`、`human` 四种模式，固定输入、证据、输出、版本、不确定性和副作用字段，并提供最小 JSON Schema。
-2. **实现离线运行时。** 完成 contracts、Pack registry、evidence snapshot、planner、runner、normalizer 和 policy；不接真实模型、不接网络时也能用 fake Prompt provider 和 fake Rule engine 端到端运行。
-3. **实现 Prompt Pack 执行协议。** 支持多步 Prompt DAG、固定 Rubric、结构化输出、证据片段引用、模型参数记录、超时和降级；模型不可用时输出明确的 `unchecked`，不能默认为通过。
-4. **实现 Rule Pack 与混合编排。** 支持纯函数、隔离命令、schema/AST/公式引擎和只读探针；定义硬失败、软警告、证据缺失和语义不确定之间的合并规则。
-5. **加入通用参考 Pack 与首个领域试点。** 先用证据型语义判断和数学证明型混合判断验证核心接口，再以 `nsfc.justification.v1` 验证写入白名单、信息表、引用、四段逻辑、术语衔接、写后核验和人工升级如何作为独立领域 Pack 组合；每个 Pack 都提供正例、负例、边界例、对抗输入和预期 GateDecision。
-6. **接入 kernel 适配器。** 将验证开始、单项结果、门禁、等待、外部核对和人工审核映射为追加式事件，并验证从事件和证据可以重建验证事实。
-7. **开放领域插件接口。** 在核心协议稳定、重放和安全测试通过后，再允许科研、代码、文档、部署等领域提供自己的 Prompt/Rubric/Rule Pack。
+1. **先冻结分层协议。** 明确 Runtime 原语、八个生命周期 State、正交的 `phase`/`wait_reason`/`effect_status`/`outcome`，以及原子、组合、领域 Pack 的边界；同时固定 canonical ID、版本和 alias 规则。
+2. **实现离线 Runtime 核心。** 完成 `Run`、事件账本、证据快照、状态投影、合法转移、结果归一化和独立 Gate；不接真实模型、不接网络时也能用 fake 执行器端到端重放。
+3. **实现原子 Verifier 白名单。** 优先完成合同/Schema、路径范围、文件存在、diff、脱敏、证据来源、事件完整性和任务完整性；这些规则必须有确定性正例、反例、缺证据和越界测试。
+4. **实现组合 Pack 与混合执行。** 在不复制原子协议的前提下支持 Prompt、规则、只读探针和人工结果的编排，明确硬失败、警告、`unchecked`、`uncertain` 和未知外部状态的合并语义。
+5. **接入 Kernel 适配器与状态映射。** 将验证、等待、交付和副作用事实追加到事件账本；Skill 的 phase DAG 只通过契约接入，不修改核心 State 或 reducer。
+6. **用通用样例和一个领域试点验收。** 先用证据型语义判断和数学证明型混合判断验证接口，再以 `bensz.nsfc.justification-contract@1.0.0` 验证领域规则如何独立组合；每个 Pack 提供正例、负例、边界例、对抗输入和预期 GateDecision。
+7. **开放领域插件接口。** 只有在核心协议、重放、安全和拆卸性测试通过后，才允许科研、代码、文档、部署等领域提供自己的 Pack；新增能力不得通过核心特判落地。
 
 ## 如何确认完成
 
 ### 协议与组合
 
+- Runtime 核心只暴露固定的原语和八个生命周期状态；新增 Skill 不需要增加核心 State。
+- `phase`、`wait_reason`、`effect_status` 和 `outcome` 可以独立变化，并能从事件投影中重建。
 - 新增一个 Prompt Pack 或 Rule Pack 不需要修改 runner、Gate 或 kernel reducer。
 - 同一个 `VerificationRequest` 可以混合运行 Prompt、规则和人工组件。
 - 所有组件都能报告证据引用、版本、执行状态和不确定原因。
+- 原子 Verifier、组合 Pack 和领域 Pack 的职责与托管边界可被机器检查，领域 Pack 不会把术语或私有 API 带入 Runtime。
 
 ### Prompt 型能力
 
@@ -376,20 +431,22 @@ findings:
 
 - `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out` 和 `skipped` 语义互不混淆。
 - required 失败能阻断，optional 失败只能按策略告警，无法观察的要求进入 `manual_review` 或显式 verification gap。
+- Gate 独立于 Verifier；确定性 required 失败不能被语义通过、模型投票或平均分抵消。
 - 输入文档、网页、日志和模型返回内容不能改变 Verifier 的规则、权限或路由。
 - 外部副作用结果未知时只能 reconciliation 或等待，不能自动重放写操作。
 
 ### 可维护性与质量
 
 - 每个 Pack 都有版本变更记录和脱敏校准集。
+- 核心白名单与组合 Pack 有明确的升级门槛；未满足复用、稳定性和隔离条件的能力留在 Skill 内部。
 - 报告能够回答：验证了什么、使用了什么证据、哪些部分没有验证、为什么放行、还剩什么风险。
 - 至少覆盖：完全通过、确定性失败、Prompt 不确定、证据不足、规则与 Prompt 冲突、工具超时、模型不可用和人工复核八类测试。
-- `nsfc.justification.v1` 的脱敏校准集还覆盖越权文件修改、缺失 bibkey、信息表缺项、科学问题/假说口径错误、与 `2.1` 术语冲突及写后保护文件哈希异常；这些场景均可在不访问真实标书的条件下重放。
+- `bensz.nsfc.justification-contract@1.0.0` 的脱敏校准集还覆盖越权文件修改、缺失 bibkey、信息表缺项、科学问题/假说口径错误、与 `2.1` 术语冲突及写后保护文件哈希异常；这些场景均可在不访问真实标书的条件下重放。
 
 ## 技术补充：建议的数据结构
 
 ```yaml
-verifier_id: citation-truth-and-fit
+id: bensz.evidence.citation-truth-fit
 version: 1.0.0
 mode: hybrid
 capabilities:
@@ -418,3 +475,5 @@ uncertainty_policy:
 - **校准数据质量：** Prompt Verifier 的质量取决于边界案例和人工标注；应先建立少量高质量样例，再扩充规模。
 - **安全边界：** Prompt、外部网页和插件输出都视为不可信输入，不能改变 Policy、权限或副作用范围。
 - **核心范围控制：** 领域 Pack 可以快速增加，但核心协议和运行时不得因为某个领域出现特殊分支；否则最终会重新退化为一组互不兼容的专用检查脚本。
+- **分层漂移：** 组合 Pack 可能逐渐吸收领域语义，或 State 重新膨胀为每个 Skill 的阶段清单；通过核心 ID 白名单、Pack 升级门槛和拆卸性测试持续拦截。
+- **语义重复：** Contract、Verifier、Gate 和 State 可能同时判断“是否完成”；通过责任矩阵约束为“契约声明条件、Verifier 提供局部证据、Gate 决定放行、State 记录阶段”。
