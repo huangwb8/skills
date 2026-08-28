@@ -26,8 +26,8 @@ def _load_verifier_runtime():
     kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
     if str(kernel_src) not in sys.path:
         sys.path.insert(0, str(kernel_src))
-    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root
-    return Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root
+    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate
+    return Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate
 
 
 def get_skill_root() -> Path:
@@ -385,7 +385,7 @@ def should_skip_domain(url: str, whitelist: List[str], blacklist: List[str]) -> 
         return False
 
 
-def validate_references(references: List[Dict], config: Dict, content: str = '') -> List[Dict]:
+def validate_references(references: List[Dict], config: Dict, content: str = '', base_dir: Path = None) -> List[Dict]:
     """
     批量验证引用
 
@@ -401,12 +401,32 @@ def validate_references(references: List[Dict], config: Dict, content: str = '')
     whitelist = config.get('domain_whitelist', [])
     blacklist = config.get('domain_blacklist', [])
     timeout = config.get('validation', {}).get('timeout', 10)
+    base_dir = Path(base_dir or Path.cwd()).expanduser().resolve()
 
     for ref in references:
         url = ref['url']
 
         if url.startswith('#'):
             results.append({**ref, 'validation': validate_anchor(url, content)})
+            continue
+
+        parsed = urlparse(url)
+        if not parsed.scheme and not parsed.netloc:
+            relative_path = (base_dir / unquote(parsed.path)).resolve()
+            try:
+                relative_path.relative_to(base_dir)
+                in_scope = True
+            except ValueError:
+                in_scope = False
+            if not in_scope or not relative_path.is_file():
+                validation = {'url': url, 'valid': False, 'error': f'相对文件不存在或越界: {parsed.path}'}
+            elif parsed.fragment:
+                linked_content = relative_path.read_text(encoding='utf-8')
+                anchor_result = validate_anchor(f'#{parsed.fragment}', linked_content)
+                validation = {**anchor_result, 'url': url}
+            else:
+                validation = {'url': url, 'valid': True, 'local_file': True, 'error': None}
+            results.append({**ref, 'validation': validation})
             continue
 
         # 检查是否应该跳过
@@ -605,7 +625,7 @@ def main(argv=None):
             return 1
 
     # 验证引用
-    results = validate_references(references, config, content)
+    results = validate_references(references, config, content, md_file.parent)
 
     # 生成摘要
     summary = generate_summary(results)
@@ -620,11 +640,12 @@ def main(argv=None):
     # The Markdown parser is an adapter. The verifier itself is format-agnostic
     # and receives normalized claim/source evidence instead of a Markdown file.
     try:
-        Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root = _load_verifier_runtime()
+        Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
+        resolved_md_file = md_file.resolve()
         request = VerificationRequest(
-            subject={'type': 'citation', 'source_format': 'markdown', 'path': str(md_file), 'content_hash': content_hash},
+            subject={'type': 'citation', 'source_format': 'markdown', 'path': str(resolved_md_file), 'content_hash': content_hash},
             requirements=('citation.semantic_review',),
             evidence=(
                 Evidence('subject_context', 'markdown', {'path': str(md_file), 'content': content}),
@@ -633,7 +654,21 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        raw_result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
+        registry = FilesystemVerifierRegistry(builtin_verifier_root())
+        link_result = registry.run(
+            'bensz.document.markdown-link-integrity',
+            {
+                'request_id': request.request_id,
+                'subject': {'type': 'file', 'path': str(resolved_md_file), 'content_hash': content_hash},
+                'context': {
+                    'timeout': int(config.get('validation', {}).get('timeout', 10)),
+                    'blacklist': list(config.get('domain_blacklist', []) or []),
+                    'whitelist': list(config.get('domain_whitelist', []) or []),
+                },
+            },
+            version='1.0.0',
+        )
+        citation_result = registry.run(
             'bensz.evidence.citation-truth-fit',
             {
                 'request_id': request.request_id,
@@ -644,18 +679,18 @@ def main(argv=None):
             },
             version='1.0.0',
         )
-        verifier_results = [raw_result]
-        gate = {'decision': 'manual_review', 'reason': 'instruction-only verifier; follow VERIFIER.md manually', 'result_refs': ['bensz.evidence.citation-truth-fit@1.0.0'], 'unresolved': ['bensz.evidence.citation-truth-fit']}
+        verifier_results = [link_result, citation_result]
+        specs = [registry.resolve('bensz.document.markdown-link-integrity', '1.0.0').spec, registry.resolve('bensz.evidence.citation-truth-fit', '1.0.0').spec]
+        normalized = tuple(normalize_result(item, spec) for item, spec in zip(verifier_results, specs))
+        gate = apply_gate(normalized).to_dict()
         output['verification'] = {
             'request_id': request.request_id,
             'results': verifier_results,
             'gate': gate,
         }
     except Exception as exc:
-        output['verification'] = {
-            'results': [],
-            'gate': {'decision': 'unchecked', 'reason': f'kernel unavailable: {exc}'},
-        }
+        print(json.dumps({'error': f'kernel verifier unavailable: {exc}'}, ensure_ascii=False))
+        return 2
 
     if args.events and output.get('verification', {}).get('results'):
         try:

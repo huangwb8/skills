@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +17,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class AnchorAndGetFallbackTests(unittest.TestCase):
+    def test_relative_document_link_is_checked_as_local_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "guide.md").write_text("# Install\n", encoding="utf-8")
+            refs = MODULE.extract_references("[guide](docs/guide.md#install)")
+            results = MODULE.validate_references(refs, {}, "", root)
+            self.assertTrue(results[0]["validation"]["valid"])
     def test_local_anchor_is_validated_against_heading_and_html_id(self) -> None:
         content = '# 使用方法\n\n<a id="custom-anchor"></a>\n[标题](#使用方法) [显式](#custom-anchor) [缺失](#missing)'
         refs = MODULE.extract_references(content)
@@ -33,7 +42,6 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
         self.assertIn('--range', call.call_args_list[1].args[0])
 
     def test_runtime_events_use_kernel_command(self) -> None:
-        import tempfile
         from bensz_skill_kernel import EventLog
 
         with tempfile.TemporaryDirectory() as directory:

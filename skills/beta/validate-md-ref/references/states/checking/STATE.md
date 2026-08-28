@@ -11,5 +11,6 @@ transitions: bensz.validate-md-ref.reported
 
 # Checking
 
-Run the configured input adapter or `bensz.document.markdown-link-integrity` verifier. Preserve
-the normalized result and any Gate decision in the Skill log before proceeding.
+Run the configured input adapter or `bensz.document.markdown-link-integrity`
+verifier. Preserve the normalized result and any Gate decision in the Skill log
+before proceeding.

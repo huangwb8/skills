@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: validate-md-ref
-  version: 0.10.0
+  version: 0.11.0
   description: 验证 Markdown 文档中链接的完整性与 URL 可访问性
   author: "Bensz Conan"
   category: 文档质量
@@ -26,3 +26,20 @@ domain_blacklist:
   - 0.0.0.0
   - "*.local"
   - "*.internal"
+
+# Kernel runtime declaration.  The legacy state-machine.json remains readable
+# for older installations, while new callers discover this single declaration.
+runtime:
+  state_roots: [references/states]
+  initial_state: bensz.workspace.ready
+  states:
+    - bensz.validate-md-ref.input-ready
+    - bensz.validate-md-ref.checking
+    - bensz.validate-md-ref.reported
+  verifiers:
+    - id: bensz.document.markdown-link-integrity
+      version: 1.0.0
+      required: true
+    - id: bensz.evidence.citation-truth-fit
+      version: 1.0.0
+      required: false

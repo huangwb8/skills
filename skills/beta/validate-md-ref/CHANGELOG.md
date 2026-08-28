@@ -10,6 +10,10 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 将状态声明迁移到 `config.yaml.runtime`，状态包托管在 `references/states/`；旧 `state-machine.json` 保留兼容读取。
+- 脚本通过 kernel 同时执行 required 的 `bensz.document.markdown-link-integrity@1.0.0` 与 advisory 的引用语义 Verifier，并保留统一 Gate 结果。
+
+### Changed（变更）
 - **State ID 对齐**：Skill 升级至 `0.10.0`，状态声明、入口条件与迁移边统一使用 `bensz.workspace.*` 和 `bensz.validate-md-ref.*` canonical ID；旧 ID 作为兼容 alias。
 - **Verifier ID 对齐**：Skill 升级至 `0.9.0`，统一使用 `bensz.document.markdown-link-integrity` 与 `bensz.evidence.citation-truth-fit` canonical ID；旧 ID 仅作为兼容 alias。
 - **SKILL.md 精简**：合并重复说明并压缩执行契约，保留引用检查范围、Kernel 状态机与 Verifier 门禁、输入输出、安全边界及工具命令。

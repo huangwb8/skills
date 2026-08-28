@@ -41,7 +41,7 @@ AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转�
 ## 工具
 
 - `scripts/validate_links.py`：读取 Markdown 及可选 YAML，输出结构化结果。
-- `config.yaml`：提供默认超时、域名白名单和黑名单。
+- `config.yaml`：提供默认超时、域名白名单和黑名单，并在 `runtime` 节声明状态包与 Verifier 选择。
 
 从 Skill 目录调用脚本；工作目录不同则使用绝对路径或先切换目录。运行入口负责状态机和 Verifier 门禁，不得绕过门禁解释脚本结果。
 

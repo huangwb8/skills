@@ -18,14 +18,17 @@ bsk verifier describe bensz.document.markdown-link-integrity --version 1.0.0
 bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
 ```
 
-每次运行均须执行链接完整性 Verifier，并向任务事件账本写入标准化结果：
+每次运行均须执行链接完整性 Verifier，并向任务事件账本写入标准化结果。推荐由脚本一次完成链接事实与语义状态：
 
 ```bash
-bsk verifier run bensz.document.markdown-link-integrity --version 1.0.0 --input DOCUMENT.md \
+python3 scripts/validate_links.py DOCUMENT.md config.yaml \
   --events TASK_ROOT/log/events.ndjson --run-id RUN_ID
 ```
 
-再运行 `scripts/validate_links.py`，传入同一个 `--events` 与 `--run-id`，以保留 `bensz.evidence.citation-truth-fit@1.0.0` 的结果。直接调用链接完整性 Verifier时不会自动读取 Skill 的 `config.yaml`；超时、白名单和黑名单必须通过 CLI 参数显式传入。任何 Verifier、Gate 或事件写入失败都必须终止本次检查，不得降级为仅脚本或手工检查。
+脚本会用同一请求执行 `bensz.document.markdown-link-integrity@1.0.0` 与
+`bensz.evidence.citation-truth-fit@1.0.0`，并按 Kernel Gate 合并结果。直接调用
+`bsk verifier run` 时不会自动读取 Skill 的 `config.yaml`；超时、白名单和黑名单必须
+通过 CLI 参数显式传入。任何 Verifier、Gate 或事件写入失败都必须终止本次检查，不得降级为仅脚本或手工检查。
 
 ## 结果解释
 
