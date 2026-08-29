@@ -21,6 +21,8 @@
 
 Kernel 同时在任务根目录写入 `.workspace.json`，协议为 `bensz-api-task-v1`，初始状态为 `bensz.workspace.ready`。任务级运行事件使用 `log/events.ndjson`，可重建投影使用 `log/state.json`；每个 Skill 的元状态快照使用 `<skill>/log/meta-state.json`。这些运行时记录与 Skill 的领域阶段保持分层。
 
+工作区可通过 Kernel API 写入可选 `run_snapshot`（Skill/State/Verifier/模型/工具/证据/授权摘要及契约哈希）。事件账本兼容读取旧事件，并对新事件记录协议版本、运行 ID、授权链与请求摘要；`reduce_events()` 生成状态投影和旁路执行审计轨迹，不会重新执行模型或工具。
+
 显式传入的工作目录参数可用于读取或续跑历史任务，但不会成为新任务的默认值。历史 `.bensz-api/skills/`、`.nsfc-*`、`.parallel-*` 等目录仅按需兼容读取、迁移或清理；新写入不得再创建这些目录。
 
 工作区创建前，先向用户说明将调用的 Skill 与具体工作；不得归档密钥、令牌、Cookie、环境文件、私有指令、隐私或不必要的大体积原始数据。
