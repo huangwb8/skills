@@ -421,7 +421,7 @@ def execute_state(definition: StateDefinition, request: Mapping[str, Any], *, ti
     execution = run_stdio(state_root, entrypoint, payload, timeout=timeout)
     if execution.status == "timed_out":
         return StateExecutionResult(definition.id, "timed_out", "timed_out", execution.detail)
-    if execution.status == "error":
+    if execution.status in {"error", "denied", "input_too_large", "output_too_large", "invalid_input"}:
         return StateExecutionResult(definition.id, "error", "error", execution.detail)
     if execution.status == "invalid_json":
         raise StateExecutionError(execution.detail)

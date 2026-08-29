@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable, Mapping
 
 
 WORKSPACE_KINDS = frozenset({"input", "output", "log"})
 WORKSPACE_PROTOCOL_VERSION = "bensz-api-task-v1"
 META_STATE_SNAPSHOT_VERSION = "bensz-meta-state-v1"
+
+
+def _redact(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(k): ("[REDACTED]" if any(token in str(k).lower() for token in ("token", "secret", "password", "cookie", "api_key", "credential")) else _redact(v)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_redact(item) for item in value]
+    return value
 
 
 class WorkspaceError(ValueError):
@@ -142,6 +151,31 @@ class TaskWorkspace:
         if not self.manifest_path.is_file():
             raise WorkspaceError(f"workspace manifest does not exist: {self.manifest_path}")
         return json.loads(self.manifest_path.read_text(encoding="utf-8"))
+
+    def update_manifest(self, **fields: Any) -> dict[str, Any]:
+        """Atomically extend the workspace manifest with a run contract snapshot."""
+        current = self.manifest()
+        current.update(fields)
+        temporary = self.manifest_path.with_name(self.manifest_path.name + ".tmp")
+        temporary.write_text(json.dumps(current, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(self.manifest_path)
+        return current
+
+    def record_run_snapshot(self, *, skill_id: str, skill_version: str | None = None, runtime_config: Mapping[str, Any] | None = None, state_versions: Mapping[str, str] | None = None, verifier_versions: Mapping[str, str] | None = None, model: str | None = None, prompt: str | None = None, tools: Iterable[str] = (), evidence: Mapping[str, str] | None = None, authorization: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        snapshot = {
+            "skill_id": skill_id,
+            "skill_version": skill_version,
+            "runtime_config": _redact(dict(runtime_config or {})),
+            "state_versions": dict(state_versions or {}),
+            "verifier_versions": dict(verifier_versions or {}),
+            "model": model,
+            "prompt_hash": hashlib.sha256(prompt.encode("utf-8")).hexdigest() if prompt is not None else None,
+            "tools": sorted(set(str(item) for item in tools)),
+            "evidence": _redact(dict(evidence or {})),
+            "authorization": _redact(dict(authorization or {})),
+        }
+        snapshot["contract_hash"] = hashlib.sha256(json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        return self.update_manifest(run_snapshot=snapshot)
 
     @property
     def events(self) -> Path:

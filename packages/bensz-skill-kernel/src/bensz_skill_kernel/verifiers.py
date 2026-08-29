@@ -21,6 +21,7 @@ from .verifier_ids import parse_aliases, validate_verifier_id
 VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", "skipped"})
 MODES = frozenset({"rule", "prompt", "hybrid", "human"})
+ASSURANCE_TIERS = frozenset({"deterministic", "mixed", "llm_judge", "human"})
 
 
 def builtin_verifier_root() -> Path:
@@ -83,6 +84,16 @@ class VerificationRequest:
     evidence: tuple[Evidence, ...] = ()
     request_id: str = "request"
     context: Mapping[str, Any] = field(default_factory=dict)
+    protocol: str = "bensz-verification-v1"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.subject, Mapping) or not isinstance(self.context, Mapping):
+            raise TypeError("subject and context must be objects")
+        if self.protocol != "bensz-verification-v1":
+            raise ValueError("unsupported verification protocol")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"protocol": self.protocol, "request_id": self.request_id, "subject": dict(self.subject), "requirements": list(self.requirements), "evidence": [item.to_dict() for item in self.evidence], "context": dict(self.context)}
 
 
 @dataclass(frozen=True)
@@ -101,11 +112,14 @@ class VerifierSpec:
     rule_pack_ref: str | None = None
     calibration_set_ref: str | None = None
     classification: str = "domain"
+    assurance_tier: str = "deterministic"
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
             raise ValueError(f"unsupported verifier mode: {self.mode}")
         validate_verifier_id(self.verifier_id)
+        if self.assurance_tier not in ASSURANCE_TIERS:
+            raise ValueError(f"unsupported assurance tier: {self.assurance_tier}")
         if self.verifier_id in self.aliases or len(set(self.aliases)) != len(self.aliases):
             raise ValueError("verifier aliases must be unique and differ from the canonical ID")
 
@@ -128,6 +142,7 @@ class VerifierDefinition:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     aliases: tuple[str, ...] = ()
     classification: str = "domain"
+    assurance_tier: str = "deterministic"
 
     @classmethod
     def from_directory(cls, path: str | os.PathLike[str]) -> "VerifierDefinition":
@@ -151,9 +166,10 @@ class VerifierDefinition:
         aliases = parse_aliases(fields.get("aliases"))
         if verifier_id in aliases:
             raise ValueError("verifier aliases must differ from the canonical ID")
-        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags", "aliases"}
+        assurance_tier = fields.get("assurance_tier", "deterministic")
+        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags", "aliases", "assurance_tier"}
         metadata = {key: value for key, value in fields.items() if key not in reserved}
-        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases)
+        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases, fields.get("classification", "domain"), assurance_tier)
 
     @classmethod
     def from_indexed_directory(cls, path: str | os.PathLike[str], entry: Mapping[str, Any]) -> "VerifierDefinition":
@@ -178,6 +194,7 @@ class VerifierDefinition:
             metadata={"index": dict(entry), **{key: entry[key] for key in ("subject_kinds", "prompt_pack_ref", "rule_pack_ref", "calibration_set_ref") if key in entry}},
             aliases=aliases,
             classification=str(entry.get("classification", "domain")),
+            assurance_tier=str(entry.get("assurance_tier", "deterministic")),
         )
 
     @property
@@ -193,6 +210,7 @@ class VerifierDefinition:
             rule_pack_ref=self.metadata.get("rule_pack_ref"),
             calibration_set_ref=self.metadata.get("calibration_set_ref"),
             classification=self.classification,
+            assurance_tier=self.assurance_tier,
             metadata={"description": self.description, "path": str(self.path), "entrypoint": self.entrypoint, **dict(self.metadata)},
         )
 
@@ -211,6 +229,7 @@ class VerifierDefinition:
             "instructions": self.instructions,
             "metadata": dict(self.metadata),
             "classification": self.classification,
+            "assurance_tier": self.assurance_tier,
         }
 
 
@@ -298,7 +317,7 @@ class FilesystemVerifierRegistry:
         execution = run_stdio(definition.path, definition.entrypoint, request, timeout=timeout)
         if execution.status == "timed_out":
             return {**base, "execution_status": "timed_out", "verdict": "timed_out", "uncertainty_reason": f"verifier timed out after {timeout}s"}
-        if execution.status == "error":
+        if execution.status in {"error", "denied", "input_too_large", "output_too_large", "invalid_input"}:
             return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": execution.detail}
         if execution.status == "invalid_json":
             return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": f"invalid verifier JSON: {execution.detail}"}
@@ -325,14 +344,22 @@ class VerificationResult:
     uncertainty_reason: str | None = None
     model_or_engine: str | None = None
     duration_ms: int | None = None
+    assurance_tier: str = "deterministic"
+    protocol: str = "bensz-verification-v1"
 
     def __post_init__(self) -> None:
         if self.execution_status not in EXECUTION_STATUSES:
             raise ValueError(f"invalid execution_status: {self.execution_status}")
         if self.verdict not in VERDICTS:
             raise ValueError(f"invalid verdict: {self.verdict}")
+        if self.execution_status != "completed" and self.verdict == "pass":
+            raise ValueError("non-completed execution cannot pass")
+        if self.verdict == "timed_out" and self.execution_status != "timed_out":
+            raise ValueError("timed_out verdict requires timed_out execution")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("confidence must be between 0 and 1")
+        if self.assurance_tier not in ASSURANCE_TIERS:
+            raise ValueError(f"unsupported assurance tier: {self.assurance_tier}")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -434,8 +461,12 @@ def normalize_result(raw: Mapping[str, Any], spec: VerifierSpec, *, evidence_ref
         verdict = str(raw["verdict"])
         if execution not in EXECUTION_STATUSES or verdict not in VERDICTS:
             raise ValueError("invalid status or verdict")
+        if execution != "completed" and verdict == "pass":
+            raise ValueError("non-completed execution cannot pass")
+        if verdict == "timed_out" and execution != "timed_out":
+            raise ValueError("timed_out verdict requires timed_out execution")
         refs = tuple(raw.get("evidence_refs", evidence_refs))
-        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"))
+        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"), assurance_tier=str(raw.get("assurance_tier", spec.assurance_tier)))
     except (KeyError, TypeError, ValueError):
         return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status="unchecked", verdict="unchecked", uncertainty_reason="invalid verifier output", evidence_refs=tuple(evidence_refs))
 
@@ -480,3 +511,23 @@ class VerifierRunner:
                 raw = {"execution_status": "error", "verdict": "error", "uncertainty_reason": str(exc)}
             results.append(normalize_result(raw, pack.spec, evidence_refs=tuple(evidence)))
         return tuple(results), apply_gate(results)
+
+
+def summarize_metrics(results: Iterable[VerificationResult], gates: Iterable[GateDecision] = (), *, required_ids: Iterable[str] | None = None) -> dict[str, Any]:
+    """Return deterministic P2 assurance and coverage metrics."""
+    items = tuple(results)
+    gate_items = tuple(gates)
+    required_set = set(str(item) for item in required_ids) if required_ids is not None else {item.verifier_id for item in items}
+    covered = {item.verifier_id for item in items}
+    required = len(required_set)
+    passed = sum(item.verdict == "pass" and item.execution_status == "completed" for item in items)
+    return {
+        "verifier_count": required,
+        "required_coverage": len(required_set & covered) / required if required else 0.0,
+        "pass_rate": passed / len(items) if items else 0.0,
+        "unchecked_ratio": sum(item.verdict == "unchecked" for item in items) / len(items) if items else 0.0,
+        "uncertain_ratio": sum(item.verdict == "uncertain" for item in items) / len(items) if items else 0.0,
+        "gate_allow_rate": sum(g.decision in {"allow", "allow_with_warnings"} for g in gate_items) / len(gate_items) if gate_items else 0.0,
+        "assurance_tiers": {tier: sum(item.assurance_tier == tier for item in items) for tier in sorted(ASSURANCE_TIERS)},
+        "duration_ms": sum(item.duration_ms or 0 for item in items),
+    }

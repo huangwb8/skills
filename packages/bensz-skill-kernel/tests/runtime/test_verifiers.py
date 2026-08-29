@@ -5,6 +5,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+import pytest
+
 from bensz_skill_kernel import (
     Evidence,
     PackRegistry,
@@ -18,7 +20,9 @@ from bensz_skill_kernel import (
     VerifierDefinition,
     collect_markdown,
     validate_verifier_id,
+    normalize_result,
 )
+from bensz_skill_kernel.atomic_verifiers import run_atomic
 from bensz_skill_kernel.builtins import build_builtin_registry
 
 
@@ -353,3 +357,78 @@ def test_secret_redaction_verifier_rejects_token_like_values() -> None:
     )
     assert result[0].verdict == "fail"
     assert gate.decision == "reject"
+
+
+@pytest.mark.parametrize(
+    ("name", "subject", "context"),
+    [
+        ("contract-conformance", {"id": "x"}, {"required_fields": ["id"]}),
+        ("path-scope", {"path": "docs/readme.md"}, {"allowed_paths": ["docs"]}),
+        ("schema-conformance", {"data": {"id": 1}}, {"schema": {"required": ["id"]}}),
+        ("diff-scope", {"changed_paths": ["src/app.py"]}, {"allowed_paths": ["src/app.py"]}),
+        ("state-transition", {"current_state": "active", "target_state": "checking"}, {}),
+        ("task-completeness", {"artifacts": ["report"], "verifications": ["v1"], "delivery_report": "report.md"}, {}),
+    ],
+)
+def test_atomic_verifiers_pass_for_satisfied_contracts(name, subject, context):
+    result = run_atomic(name, {"subject": subject, "context": context})
+    assert result["verdict"] == "pass"
+    assert result["findings"] == []
+
+
+@pytest.mark.parametrize(
+    ("name", "subject", "context"),
+    [
+        ("contract-conformance", {}, {"required_fields": ["id"]}),
+        ("schema-conformance", {"data": {}}, {"schema": {"required": ["id"]}}),
+        ("diff-scope", {"changed_paths": ["secret.txt"]}, {"allowed_paths": ["src/app.py"]}),
+        ("state-transition", {"current_state": "active", "target_state": "completed"}, {}),
+        ("task-completeness", {"artifacts": [], "verifications": [], "delivery_report": None}, {}),
+    ],
+)
+def test_atomic_verifiers_fail_for_unsatisfied_contracts(name, subject, context):
+    result = run_atomic(name, {"subject": subject, "context": context})
+    assert result["verdict"] == "fail"
+    assert result["findings"]
+
+
+def test_atomic_path_scope_rejects_outside_path_and_provenance_requires_all_fields(tmp_path: Path):
+    result = run_atomic(
+        "path-scope",
+        {"subject": {"paths": [str(tmp_path / "outside.txt")]}, "context": {"allowed_paths": [str(tmp_path / "allowed")]}},
+    )
+    assert result["verdict"] == "fail"
+    result = run_atomic(
+        "evidence-provenance",
+        {"evidence": [{"ref": "source", "source_type": "web", "content_hash": ""}]},
+    )
+    assert result["verdict"] == "fail"
+
+
+def test_builtin_atomic_script_verifiers_cover_file_and_event_integrity(tmp_path: Path):
+    existing = tmp_path / "report.md"
+    existing.write_text("report\n", encoding="utf-8")
+    registry = FilesystemVerifierRegistry(builtin_verifier_root())
+
+    present = registry.run("bensz.artifact.file-existence", {"subject": {"path": str(existing)}})
+    missing = registry.run("bensz.artifact.file-existence", {"subject": {"path": str(tmp_path / "missing")}})
+    assert present["verdict"] == "pass"
+    assert missing["verdict"] == "fail"
+
+    empty = registry.run("bensz.runtime.event-integrity", {"subject": {"path": str(tmp_path / "missing.ndjson")}})
+    assert empty["verdict"] == "pass"
+    assert empty["facts"]["event_count"] == 0
+
+
+def test_normalize_result_rejects_malformed_provider_output():
+    spec = VerifierSpec("test.demo.normalize", "1.0.0", "rule")
+    result = normalize_result({"verdict": "pass", "execution_status": "timed_out"}, spec, evidence_refs=("snapshot:1",))
+    assert result.verdict == "unchecked"
+    assert result.execution_status == "unchecked"
+    assert result.evidence_refs == ("snapshot:1",)
+
+
+def test_optional_failure_gate_allows_with_warnings():
+    spec = VerifierSpec("test.demo.optional", "1.0.0", "rule")
+    result = normalize_result({"verdict": "fail"}, spec)
+    assert apply_gate((result,), required=False).decision == "allow_with_warnings"

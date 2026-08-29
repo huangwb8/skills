@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,12 +54,39 @@ class CompletionError(InvalidTransition):
     """Completion was requested without the required evidence."""
 
 
+class IdempotencyConflict(KernelError):
+    """An idempotency key was reused for a different request intent."""
+
+
+class AuthorizationError(KernelError):
+    """A side-effect event lacks an explicit authorization record."""
+
+
 def _canonical(value: Mapping[str, Any]) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _request_hash(event_type: str, payload: Mapping[str, Any], summary: str, scope: str, actor: str, attempt_id: str, path: str | None, evidence_refs: Iterable[str], run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None) -> str:
+    intent = {"type": event_type, "payload": dict(payload), "summary": summary, "scope": scope, "actor": actor, "attempt_id": attempt_id, "path": path, "evidence_refs": list(evidence_refs), "run_id": run_id, "authorization": dict(authorization or {}), "snapshot": dict(snapshot or {})}
+    return hashlib.sha256(_canonical(intent)).hexdigest()
+
+
+def _redact_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, item in value.items():
+        if any(token in str(key).lower() for token in ("token", "secret", "password", "cookie", "api_key", "credential")):
+            result[str(key)] = "[REDACTED]"
+        elif isinstance(item, Mapping):
+            result[str(key)] = _redact_mapping(item)
+        elif isinstance(item, (list, tuple)):
+            result[str(key)] = [_redact_mapping(part) if isinstance(part, Mapping) else part for part in item]
+        else:
+            result[str(key)] = item
+    return result
 
 
 @dataclass(frozen=True)
@@ -77,13 +105,18 @@ class EventEnvelope:
     prev_hash: str = ""
     event_hash: str = ""
     occurred_at: str = ""
+    request_hash: str | None = None
+    protocol: str = "bensz-event-v1"
+    run_id: str | None = None
+    authorization: dict[str, Any] = field(default_factory=dict)
+    snapshot: dict[str, Any] = field(default_factory=dict)
 
     @property
     def type(self) -> str:
         return self.event_type
 
     def unsigned(self) -> dict[str, Any]:
-        return {
+        result = {
             "seq": self.seq,
             "event_id": self.event_id,
             "scope": self.scope,
@@ -98,6 +131,17 @@ class EventEnvelope:
             "prev_hash": self.prev_hash,
             "occurred_at": self.occurred_at,
         }
+        if self.protocol:
+            result["protocol"] = self.protocol
+            if self.request_hash is not None:
+                result["request_hash"] = self.request_hash
+            if self.run_id is not None:
+                result["run_id"] = self.run_id
+            if self.authorization:
+                result["authorization"] = self.authorization
+            if self.snapshot:
+                result["snapshot"] = self.snapshot
+        return result
 
     def with_hash(self) -> "EventEnvelope":
         digest = hashlib.sha256(_canonical(self.unsigned())).hexdigest()
@@ -111,6 +155,16 @@ class EventEnvelope:
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> "EventEnvelope":
         try:
+            if not isinstance(raw, Mapping):
+                raise TypeError("event envelope must be an object")
+            if raw.get("protocol", "bensz-event-v1") != "bensz-event-v1":
+                raise ValueError("unsupported event protocol")
+            refs = raw.get("evidence_refs", ())
+            if not isinstance(refs, (list, tuple)) or not all(isinstance(item, str) for item in refs):
+                raise TypeError("evidence_refs must be a string list")
+            payload = raw.get("payload", {})
+            if not isinstance(payload, Mapping):
+                raise TypeError("payload must be an object")
             return cls(
                 seq=int(raw["seq"]),
                 event_id=str(raw["event_id"]),
@@ -120,12 +174,17 @@ class EventEnvelope:
                 event_type=str(raw.get("type", raw.get("event_type", ""))),
                 summary=str(raw.get("summary", "")),
                 path=raw.get("path"),
-                evidence_refs=tuple(raw.get("evidence_refs", ())),
+                evidence_refs=tuple(refs),
                 idempotency_key=raw.get("idempotency_key"),
-                payload=dict(raw.get("payload", {})),
+                payload=dict(payload),
                 prev_hash=str(raw.get("prev_hash", "")),
                 event_hash=str(raw.get("event_hash", "")),
                 occurred_at=str(raw.get("occurred_at", "")),
+                request_hash=(str(raw["request_hash"]) if raw.get("request_hash") is not None else None),
+                protocol=(str(raw["protocol"]) if "protocol" in raw else ""),
+                run_id=(str(raw["run_id"]) if raw.get("run_id") is not None else None),
+                authorization=dict(raw.get("authorization", {})),
+                snapshot=dict(raw.get("snapshot", {})),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise IntegrityError(f"invalid event envelope: {exc}") from exc
@@ -149,6 +208,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
     projection: dict[str, Any] = {
         "current_state": None,
         "phase": None,
+        "phases": [],
         "outcome": None,
         "wait_reason": None,
         "effect_status": "none",
@@ -161,6 +221,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "last_seq": 0,
         "last_event_id": None,
         "event_count": 0,
+        "audit_trail": [],
+        "run_snapshot": {},
     }
     if initial:
         projection.update(dict(initial))
@@ -182,6 +244,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                 )
         if "phase" in payload:
             projection["phase"] = payload["phase"]
+            if payload["phase"] is not None and payload["phase"] not in projection["phases"]:
+                projection["phases"].append(payload["phase"])
         if target == "waiting":
             reason = payload.get("wait_reason")
             if reason is not None and reason not in WAIT_REASONS:
@@ -204,6 +268,25 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             projection["gate_decisions"].append(payload)
         elif event.event_type in {"delivery.reported", "delivery.completed"}:
             projection["delivery_report"] = payload.get("report") or payload.get("path") or event.path or payload
+        if event.snapshot:
+            projection["run_snapshot"] = dict(event.snapshot)
+        if event.event_type in {
+            "run.started", "model.called", "tool.called", "verification.result", "verification.gate",
+            "approval.granted", "effect.prepared", "effect.applied", "effect.reconciled",
+            "delivery.reported", "recovery.recorded",
+        }:
+            projection["audit_trail"].append({
+                "seq": event.seq,
+                "event_id": event.event_id,
+                "type": event.event_type,
+                "actor": event.actor,
+                "run_id": event.run_id,
+                "request_hash": event.request_hash,
+                "authorization": dict(event.authorization),
+                "payload": payload,
+                "evidence_refs": list(event.evidence_refs),
+                "occurred_at": event.occurred_at,
+            })
         projection["evidence_refs"] = list(dict.fromkeys([*projection["evidence_refs"], *event.evidence_refs, *payload.get("evidence_refs", [])]))
         projection["last_seq"] = event.seq
         projection["last_event_id"] = event.event_id
@@ -220,11 +303,66 @@ def _guard_completion(projection: Mapping[str, Any], contract: Mapping[str, Any]
     missing = [item for item in required if item not in artifacts]
     if missing:
         raise CompletionError(f"required artifacts missing: {', '.join(map(str, missing))}")
+    required_phases = tuple(contract.get("required_phases", ()))
+    phases = {str(item.get("phase")) for item in artifacts.values() if item.get("phase") is not None}
+    phases.update(str(item.get("phase")) for item in projection.get("validations", []) if item.get("phase") is not None)
+    phases.update(str(item) for item in projection.get("phases", ()))
+    if required_phases and not set(required_phases).issubset(phases):
+        raise CompletionError("required phases missing: " + ", ".join(sorted(set(required_phases) - phases)))
+    for artifact_id in required:
+        item = artifacts.get(artifact_id, {})
+        path = item.get("path")
+        if contract and not path:
+            raise CompletionError(f"required artifact path is missing: {artifact_id}")
+        if path:
+            target = Path(path).expanduser()
+            if not target.is_file():
+                raise CompletionError(f"required artifact is not a file: {artifact_id}")
+            root = contract.get("artifact_root") or contract.get("project_root")
+            if root:
+                try:
+                    target.resolve().relative_to(Path(root).expanduser().resolve())
+                except ValueError as exc:
+                    raise CompletionError(f"artifact path outside allowed root: {artifact_id}") from exc
+            expected = item.get("content_hash") or item.get("hash")
+            if expected and str(expected).removeprefix("sha256:") != hashlib.sha256(target.read_bytes()).hexdigest():
+                raise CompletionError(f"artifact hash mismatch: {artifact_id}")
     validations = projection.get("validations", [])
     if not validations or any(v.get("verdict") not in {"pass", "passed", "success"} for v in validations[-1:]):
         raise CompletionError("a passing validation evidence is required")
     if not projection.get("delivery_report"):
         raise CompletionError("a delivery report is required")
+    requirements = tuple(contract.get("requirements", ()))
+    required_requirements = [item for item in requirements if isinstance(item, Mapping) and item.get("required", True)]
+    verifications = projection.get("verifications", [])
+    passed_ids = {
+        str(item.get("requirement_id") or item.get("id") or item.get("verifier_id"))
+        for item in verifications
+        if item.get("verdict") == "pass" and item.get("execution_status", "completed") == "completed"
+    }
+    if required_requirements and not all(
+        any(str(item.get(key)) in passed_ids for key in ("verifier_id", "id") if item.get(key))
+        for item in required_requirements
+    ):
+        raise CompletionError("required verifiers missing or not passing")
+    gates = projection.get("gate_decisions", [])
+    if required_requirements or gates:
+        if not gates:
+            raise CompletionError("a verifier gate decision is required")
+        if not verifications:
+            raise CompletionError("a verifier result is required before a gate decision")
+        if gates[-1].get("decision") not in {"allow", "allow_with_warnings"}:
+            raise CompletionError("verifier gate did not allow completion")
+        refs = set(str(item.get("verifier_id")) for item in verifications if item.get("verifier_id"))
+        declared_refs = gates[-1].get("result_refs", ())
+        if not declared_refs:
+            raise CompletionError("verifier gate must bind result_refs")
+        if gates[-1].get("computed_by") != "kernel":
+            raise CompletionError("verifier gate must be kernel-computed")
+        if not all(str(ref).split("@", 1)[0] in refs for ref in declared_refs) or len(declared_refs) != len(verifications):
+            raise CompletionError("verifier gate is not bound to recorded results")
+        if any(item.get("verdict") in {"unchecked", "uncertain", "timed_out", "manual_review"} for item in verifications):
+            raise CompletionError("uncertain or unchecked verifier result cannot complete")
 
 
 class EventLog:
@@ -232,11 +370,50 @@ class EventLog:
 
     def __init__(self, path: str | os.PathLike[str], *, contract: Mapping[str, Any] | None = None):
         self.path = Path(path)
-        self.contract = dict(contract or {})
+        self.contract = dict(contract.to_dict() if hasattr(contract, "to_dict") else (contract or {}))
+
+    @contextmanager
+    def _locked(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        handle = self.path.with_name(self.path.name + ".lock").open("a+", encoding="utf-8")
+        if os.name == "nt" and handle.tell() == 0:
+            handle.write("0")
+            handle.flush()
+        try:
+            try:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            except ImportError:
+                import msvcrt
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            yield
+        finally:
+            try:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except ImportError:
+                pass
+            handle.close()
+
+    def _recover_partial_tail(self) -> None:
+        """Drop only an unterminated final JSON fragment left by a crash."""
+        if not self.path.is_file():
+            return
+        raw = self.path.read_bytes()
+        if not raw or raw.endswith(b"\n"):
+            return
+        last_newline = raw.rfind(b"\n")
+        fragment = raw[last_newline + 1 :]
+        try:
+            json.loads(fragment.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.path.write_bytes(raw[: last_newline + 1])
 
     def read(self) -> list[EventEnvelope]:
         if not self.path.exists():
             return []
+        self._recover_partial_tail()
         events: list[EventEnvelope] = []
         previous = ""
         expected_seq = 1
@@ -256,30 +433,38 @@ class EventLog:
             previous = event.event_hash
         return events
 
-    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None) -> EventEnvelope:
-        events = self.read()
-        if idempotency_key:
-            for event in events:
-                if event.idempotency_key == idempotency_key:
-                    return event
+    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:
         data = dict(payload or {})
-        event = EventEnvelope(seq=len(events) + 1, event_id=str(uuid.uuid4()), scope=scope, actor=actor, attempt_id=attempt_id, event_type=event_type, summary=summary, path=path, evidence_refs=tuple(evidence_refs), idempotency_key=idempotency_key, payload=data, prev_hash=events[-1].event_hash if events else "", occurred_at=_utc_now()).with_hash()
-        target, _ = _event_state(event)
-        current = reduce_events(events)["current_state"]
-        if target == "completed":
-            # Report missing evidence explicitly even when the caller attempted
-            # to skip the delivering phase; this is safer and easier to act on.
-            _guard_completion(reduce_events(events), self.contract)
-            if current != "delivering":
-                raise InvalidTransition(f"illegal transition {current!r} -> 'completed'")
-        elif target is not None and current is not None and target not in ALLOWED_TRANSITIONS[current]:
-            raise InvalidTransition(f"illegal transition {current!r} -> {target!r}")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        return event
+        refs = tuple(evidence_refs)
+        auth = _redact_mapping(dict(authorization or {}))
+        snap = _redact_mapping(dict(snapshot or {}))
+        request_hash = _request_hash(event_type, data, summary, scope, actor, attempt_id, path, refs, run_id, auth, snap)
+        with self._locked():
+            self._recover_partial_tail()
+            events = self.read()
+            if event_type in {"effect.applied", "effect.reconciled"} and not (auth.get("scope") or auth.get("approval_ref") or auth.get("policy_version")):
+                raise AuthorizationError(f"{event_type} requires explicit authorization")
+            if idempotency_key:
+                for existing in events:
+                    if existing.idempotency_key == idempotency_key:
+                        existing_hash = existing.request_hash or _request_hash(existing.event_type, existing.payload, existing.summary, existing.scope, existing.actor, existing.attempt_id, existing.path, existing.evidence_refs, existing.run_id, existing.authorization, existing.snapshot)
+                        if existing_hash != request_hash:
+                            raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
+                        return existing
+            event = EventEnvelope(seq=len(events) + 1, event_id=str(uuid.uuid4()), scope=scope, actor=actor, attempt_id=attempt_id, event_type=event_type, summary=summary, path=path, evidence_refs=refs, idempotency_key=idempotency_key, payload=data, prev_hash=events[-1].event_hash if events else "", occurred_at=_utc_now(), request_hash=request_hash, run_id=run_id, authorization=auth, snapshot=snap).with_hash()
+            target, _ = _event_state(event)
+            current = reduce_events(events)["current_state"]
+            if target == "completed":
+                _guard_completion(reduce_events(events), self.contract)
+                if current != "delivering":
+                    raise InvalidTransition(f"illegal transition {current!r} -> 'completed'")
+            elif target is not None and current is not None and target not in ALLOWED_TRANSITIONS[current]:
+                raise InvalidTransition(f"illegal transition {current!r} -> {target!r}")
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            return event
 
     def append_event(self, event: EventEnvelope | Mapping[str, Any] | str, **kwargs: Any) -> EventEnvelope:
         """Compatibility façade accepting an envelope, mapping, or event type."""
@@ -293,6 +478,9 @@ class EventLog:
                 "path": event.path,
                 "evidence_refs": event.evidence_refs,
                 "idempotency_key": event.idempotency_key,
+                "run_id": event.run_id,
+                "authorization": event.authorization,
+                "snapshot": event.snapshot,
                 **kwargs,
             }
             return self.append(event.event_type, **kwargs)
@@ -321,6 +509,9 @@ class EventLog:
         actor: str = "runtime",
         attempt_id: str = "default",
         idempotency_key: str | None = None,
+        run_id: str | None = None,
+        authorization: Mapping[str, Any] | None = None,
+        snapshot: Mapping[str, Any] | None = None,
         **payload: Any,
     ) -> EventEnvelope:
         """Append a state transition using the canonical event type."""
@@ -332,6 +523,9 @@ class EventLog:
             actor=actor,
             attempt_id=attempt_id,
             idempotency_key=idempotency_key,
+            run_id=run_id,
+            authorization=authorization,
+            snapshot=snapshot,
         )
 
     def record_artifact(self, artifact_id: str, *, required: bool = False, **metadata: Any) -> EventEnvelope:
@@ -349,6 +543,9 @@ class EventLog:
         actor: str = "runtime",
         attempt_id: str = "default",
         idempotency_key: str | None = None,
+        run_id: str | None = None,
+        authorization: Mapping[str, Any] | None = None,
+        snapshot: Mapping[str, Any] | None = None,
     ) -> tuple[EventEnvelope, EventEnvelope | None]:
         """Append a replayable verifier result and optional gate decision."""
         refs = tuple(result.get("evidence_refs", ()))
@@ -360,19 +557,47 @@ class EventLog:
             actor=actor,
             attempt_id=attempt_id,
             idempotency_key=idempotency_key,
+            run_id=run_id,
+            authorization=authorization,
+            snapshot=snapshot,
         )
         gate_event = None
         if gate is not None:
+            gate_payload = dict(gate)
+            if gate_payload.get("result_refs"):
+                gate_payload.update({"computed_by": "kernel", "result_event_id": verification.event_id})
             gate_event = self.append(
                 "verification.gate",
-                payload=dict(gate),
+                payload=gate_payload,
                 evidence_refs=refs,
                 scope=scope,
                 actor=actor,
                 attempt_id=attempt_id,
                 idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None,
+                run_id=run_id,
+                authorization=authorization,
+                snapshot=snapshot,
             )
         return verification, gate_event
+
+    def record_audit(self, event_type: str, *, payload: Mapping[str, Any] | None = None, run_id: str | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:
+        """Record a redacted execution-audit event without changing lifecycle state."""
+        safe: dict[str, Any] = {}
+        for key, value in dict(payload or {}).items():
+            if key.lower() in {"input", "output", "prompt", "content", "response", "stderr", "stdout"}:
+                safe[f"{key}_hash"] = hashlib.sha256(_canonical({"value": value})).hexdigest()
+            else:
+                safe[key] = value
+        return self.append(event_type, payload=safe, run_id=run_id, actor=actor, authorization=authorization, evidence_refs=evidence_refs, idempotency_key=idempotency_key, snapshot=snapshot)
+
+    def record_run_started(self, *, run_id: str, snapshot: Mapping[str, Any] | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None) -> EventEnvelope:
+        return self.record_audit("run.started", run_id=run_id, snapshot=snapshot, actor=actor, authorization=authorization)
+
+    def record_model_call(self, *, run_id: str, model: str, prompt: Any = None, output: Any = None, actor: str = "runtime") -> EventEnvelope:
+        return self.record_audit("model.called", run_id=run_id, actor=actor, payload={"model": model, "prompt": prompt, "output": output})
+
+    def record_tool_call(self, *, run_id: str, tool: str, input: Any = None, output: Any = None, actor: str = "runtime") -> EventEnvelope:
+        return self.record_audit("tool.called", run_id=run_id, actor=actor, payload={"tool": tool, "input": input, "output": output})
 
     def record_delivery(self, report: str, **metadata: Any) -> EventEnvelope:
         return self.append("delivery.reported", payload={"report": report, **metadata}, path=report)

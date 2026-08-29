@@ -19,7 +19,7 @@ from .builtins import build_builtin_registry
 from .runtime import EventLog, KernelError
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, execute_state
 from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
-from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root
+from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
 
 
 def _json_value(raw: str, *, label: str) -> Any:
@@ -131,6 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     verification.add_argument("--gate-json", help="JSON gate object")
     _add_event_context(verification)
     verification.add_argument("--idempotency-key")
+    verification.add_argument("--run-id")
     _add_contract(verification)
 
     delivery = commands.add_parser("delivery", help="record a delivery report")
@@ -230,6 +231,7 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
         "rule_pack_ref": getattr(spec, "rule_pack_ref", None),
         "calibration_set_ref": getattr(spec, "calibration_set_ref", None),
         "classification": getattr(spec, "classification", "domain"),
+        "assurance_tier": getattr(spec, "assurance_tier", "deterministic"),
         "metadata": dict(spec.metadata),
     }
 
@@ -397,6 +399,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         "file": str(target),
         "results": result_payloads,
         "gate": gate.to_dict(),
+        "metrics": summarize_metrics((normalized,), (gate,)),
         "verification": {"request_id": request_id, "results": result_payloads, "gate": gate.to_dict()},
     }
     facts = raw_result.get("facts", {})
@@ -413,6 +416,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
                 actor=args.actor,
                 attempt_id=args.attempt_id,
                 idempotency_key=f"{args.idempotency_key or request_id}:{index}",
+                run_id=request_id,
             )
             persisted.append({"result_event": verification.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
         output["runtime"] = {"recorded": True, "events": persisted}
@@ -473,6 +477,7 @@ def _run_command(args: argparse.Namespace) -> int:
                 actor=args.actor,
                 attempt_id=args.attempt_id,
                 idempotency_key=f"{args.idempotency_key}:{index}" if args.idempotency_key else None,
+                run_id=args.run_id,
             )
             events.append({"result_event": result_event.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
         _print({"events": events})

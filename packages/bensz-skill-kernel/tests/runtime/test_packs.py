@@ -57,3 +57,46 @@ def test_shared_stdio_executor_runs_from_pack_root(tmp_path: Path) -> None:
 def test_shared_entrypoint_validation_rejects_path_escape(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="inside its directory"):
         resolve_entrypoint(tmp_path, "../outside.py")
+
+
+def test_stdio_denies_untrusted_execution_and_rejects_missing_entrypoint(tmp_path: Path) -> None:
+    denied = run_stdio(tmp_path, "missing.py", {"request": {}}, timeout=1, trusted=False)
+    assert denied.status == "denied"
+
+    missing = run_stdio(tmp_path, "missing.py", {"request": {}}, timeout=1)
+    assert missing.status == "error"
+
+
+def test_stdio_normalizes_invalid_input_and_input_limit(tmp_path: Path) -> None:
+    script = tmp_path / "check.py"
+    script.write_text("import json, sys\njson.dump({'verdict': 'pass'}, sys.stdout)\n", encoding="utf-8")
+
+    unserialisable = run_stdio(tmp_path, "check.py", {"value": object()}, timeout=1)
+    assert unserialisable.status == "invalid_input"
+    oversized = run_stdio(tmp_path, "check.py", {"value": "x" * 100}, timeout=1, max_input_bytes=10)
+    assert oversized.status == "input_too_large"
+
+
+def test_stdio_reports_invalid_json_and_nonzero_exit(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.py"
+    invalid.write_text("print('not-json')\n", encoding="utf-8")
+    result = run_stdio(tmp_path, "invalid.py", {}, timeout=1)
+    assert result.status == "invalid_json"
+
+    failing = tmp_path / "failing.py"
+    failing.write_text("raise SystemExit(3)\n", encoding="utf-8")
+    result = run_stdio(tmp_path, "failing.py", {}, timeout=1)
+    assert result.status == "error"
+    assert "code 3" in result.detail
+
+
+def test_stdio_times_out_and_limits_stdout(tmp_path: Path) -> None:
+    slow = tmp_path / "slow.py"
+    slow.write_text("import time\ntime.sleep(2)\n", encoding="utf-8")
+    result = run_stdio(tmp_path, "slow.py", {}, timeout=1)
+    assert result.status == "timed_out"
+
+    noisy = tmp_path / "noisy.py"
+    noisy.write_text("print('x' * 100)\n", encoding="utf-8")
+    result = run_stdio(tmp_path, "noisy.py", {}, timeout=1, max_output_bytes=10)
+    assert result.status == "output_too_large"

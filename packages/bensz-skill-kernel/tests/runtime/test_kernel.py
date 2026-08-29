@@ -8,6 +8,8 @@ from bensz_skill_kernel import (
     InvalidTransition,
     IntegrityError,
     CompletionError,
+    AuthorizationError,
+    IdempotencyConflict,
     reduce_events,
 )
 
@@ -83,3 +85,93 @@ def test_verifier_events_are_replayable(tmp_path: Path):
     assert gate and gate.event_type == "verification.gate"
     assert projection["verifications"][0]["verdict"] == "fail"
     assert projection["gate_decisions"][0]["decision"] == "reject"
+
+
+def test_idempotency_replays_same_intent_and_rejects_conflict(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+
+    first = log.append("task.created", payload={"state": "planned"}, idempotency_key="create-1")
+    replay = log.append("task.created", payload={"state": "planned"}, idempotency_key="create-1")
+
+    assert replay == first
+    assert len(log.read()) == 1
+    with pytest.raises(IdempotencyConflict):
+        log.append("task.created", payload={"state": "active"}, idempotency_key="create-1")
+
+
+def test_side_effect_events_require_authorization(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+
+    with pytest.raises(AuthorizationError):
+        log.append("effect.applied", payload={"effect_id": "publish"})
+
+    event = log.append(
+        "effect.applied",
+        payload={"effect_id": "publish"},
+        authorization={"scope": ["publish"]},
+    )
+    assert event.authorization == {"scope": ["publish"]}
+
+
+def test_audit_payloads_are_hashed_and_sensitive_fields_redacted(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    log.record_tool_call(run_id="run-1", tool="publish", input={"token": "secret"}, output={"ok": True})
+
+    event = log.read()[0]
+    assert "input" not in event.payload
+    assert "output" not in event.payload
+    assert len(event.payload["input_hash"]) == 64
+    assert len(event.payload["output_hash"]) == 64
+
+
+def test_partial_tail_is_recovered_but_complete_tail_is_not_discarded(tmp_path: Path):
+    path = tmp_path / "events.ndjson"
+    log = EventLog(path)
+    log.append("task.created", payload={"state": "planned"})
+    path.write_bytes(path.read_bytes() + b'{"seq":2')
+
+    assert len(log.read()) == 1
+    assert path.read_bytes().endswith(b"\n")
+
+
+def test_invalid_event_json_and_protocol_are_integrity_errors(tmp_path: Path):
+    path = tmp_path / "events.ndjson"
+    path.write_text("not-json\n", encoding="utf-8")
+    with pytest.raises(IntegrityError):
+        EventLog(path).read()
+
+    path.write_text('{"protocol":"other","seq":1,"event_id":"x"}\n', encoding="utf-8")
+    with pytest.raises(IntegrityError):
+        EventLog(path).read()
+
+
+def test_completion_guard_rejects_artifact_path_and_hash_violations(tmp_path: Path):
+    report = tmp_path / "report.md"
+    report.write_text("ok\n", encoding="utf-8")
+    log = EventLog(tmp_path / "events.ndjson", contract={"artifact_root": str(tmp_path), "required_artifacts": ["report"]})
+    log.append("task.created", payload={"state": "planned"})
+    log.transition("active")
+    log.record_artifact("report", required=True, path=str(report), content_hash="sha256:" + "0" * 64)
+    log.record_validation("pass")
+    log.record_delivery(str(report))
+    log.transition("checking")
+    log.transition("delivering")
+
+    with pytest.raises(CompletionError, match="hash mismatch"):
+        log.transition("completed", outcome="success")
+
+    outside = tmp_path.parent / "outside-report.md"
+    outside.write_text("outside\n", encoding="utf-8")
+    outside_log = EventLog(
+        tmp_path / "outside-events.ndjson",
+        contract={"artifact_root": str(tmp_path), "required_artifacts": ["report"]},
+    )
+    outside_log.append("task.created", payload={"state": "planned"})
+    outside_log.transition("active")
+    outside_log.record_artifact("report", required=True, path=str(outside))
+    outside_log.record_validation("pass")
+    outside_log.record_delivery(str(outside))
+    outside_log.transition("checking")
+    outside_log.transition("delivering")
+    with pytest.raises(CompletionError, match="not a file|outside allowed root"):
+        outside_log.transition("completed", outcome="success")

@@ -89,3 +89,9 @@ instruction-only，由 Agent 读取正文执行。脚本入口遵循：stdin 一
 代码只定义发现、调用、超时、结果归一化和事件记录协议，不内置领域判断流程。Markdown、LaTeX、Word 等格式适配器可各自选择适用 verifier。
 
 需要审计时，为 `run` 增加 `--events EVENTS --run-id RUN_ID`；命令会输出统一 `results`、`gate` 和兼容的 `verification` 字段，并把标准化事实追加到事件账本。生命周期底层命令仍可通过 `bsk status/rebuild/append/transition/artifact/validation/delivery` 使用。
+
+# 运行边界与审计
+
+Pack helper 默认以受信本地进程运行，但内核会限制输入、stdout/stderr 体积、环境变量和执行时长，并在超时后终止整个进程组；调用不可信 Pack 时应显式传入 `trusted=False`，此时会 fail-closed。该边界是进程级资源与路径约束，不等同于容器或操作系统沙箱。
+
+事件账本除状态投影外还保留可选的运行契约快照、授权链和执行审计轨迹；`reduce_events()` 仅用于离线状态投影重放，不会重新调用模型或工具。Verifier 结果可通过 `summarize_metrics()` 汇总 required 覆盖、未知/不确定比例、Gate 放行率、assurance tier 与耗时。

@@ -14,6 +14,8 @@ import os
 import re
 import subprocess
 import sys
+import signal
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Type
@@ -138,12 +140,23 @@ class StdioExecution:
     detail: str = ""
 
 
+MAX_STDIO_INPUT = 2 * 1024 * 1024
+MAX_STDIO_OUTPUT = 4 * 1024 * 1024
+MAX_STDIO_ERROR = 64 * 1024
+
+
 def run_stdio(
     root: str | os.PathLike[str],
     entrypoint: str,
     payload: Mapping[str, Any],
     *,
     timeout: int,
+    max_input_bytes: int = MAX_STDIO_INPUT,
+    max_output_bytes: int = MAX_STDIO_OUTPUT,
+    max_stderr_bytes: int = MAX_STDIO_ERROR,
+    env_allowlist: tuple[str, ...] = ("PATH", "PYTHONPATH", "SYSTEMROOT", "WINDIR"),
+    trusted: bool = True,
+    allow_side_effects: bool = False,
 ) -> StdioExecution:
     """Run a Pack helper from its own directory and decode stdout JSON.
 
@@ -152,30 +165,51 @@ def run_stdio(
     outcome in a small, shared shape.
     """
 
+    if not trusted:
+        return StdioExecution("denied", detail="untrusted Pack execution is disabled")
     base = Path(root).expanduser().resolve()
     target = (base / entrypoint).resolve()
     if base not in target.parents or not target.is_file():
         return StdioExecution("error", detail=f"Pack entrypoint must be a file inside its directory: {entrypoint}")
+    try:
+        request = json.dumps(dict(payload), ensure_ascii=False)
+    except (TypeError, ValueError) as exc:
+        return StdioExecution("invalid_input", detail=f"invalid helper input: {type(exc).__name__}")
+    if len(request.encode("utf-8")) > max_input_bytes:
+        return StdioExecution("input_too_large", detail="Pack helper input exceeds configured limit")
     command = [sys.executable, str(target)] if target.suffix == ".py" else [str(target)]
+    env = {key: os.environ[key] for key in env_allowlist if key in os.environ}
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env["BENSZ_ALLOW_SIDE_EFFECTS"] = "1" if allow_side_effects else "0"
     try:
-        completed = subprocess.run(
-            command,
-            input=json.dumps(dict(payload), ensure_ascii=False),
-            text=True,
-            capture_output=True,
-            cwd=base,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return StdioExecution("timed_out", detail=f"Pack helper exceeded {timeout} seconds.")
+        with tempfile.TemporaryFile(mode="w+b") as stdout_file, tempfile.TemporaryFile(mode="w+b") as stderr_file:
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=stdout_file, stderr=stderr_file, text=True, cwd=base, env=env, start_new_session=(os.name != "nt"))
+            try:
+                process.communicate(request, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                if os.name != "nt":
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
+                process.wait(timeout=1)
+                return StdioExecution("timed_out", detail=f"Pack helper exceeded {timeout} seconds.")
+            stdout_file.seek(0)
+            stderr_file.seek(0)
+            stdout = stdout_file.read(max_output_bytes + 1).decode("utf-8", errors="replace")
+            stderr = stderr_file.read(max_stderr_bytes + 1).decode("utf-8", errors="replace")
+            stdout_file.seek(0, 2)
+            stderr_file.seek(0, 2)
+            stdout_size, stderr_size = stdout_file.tell(), stderr_file.tell()
     except OSError as exc:
-        return StdioExecution("error", detail=str(exc)[:1000])
-    if completed.returncode:
-        detail = completed.stderr.strip() or f"Pack helper exited with {completed.returncode}."
-        return StdioExecution("error", detail=detail[:1000])
+        return StdioExecution("error", detail=f"Pack helper could not start ({type(exc).__name__})")
+    if process.returncode:
+        return StdioExecution("error", detail=f"Pack helper exited with code {process.returncode}")
+    if stdout_size > max_output_bytes:
+        return StdioExecution("output_too_large", detail="Pack helper stdout exceeds configured limit")
+    if stderr_size > max_stderr_bytes:
+        return StdioExecution("error", detail="Pack helper stderr exceeds configured limit")
     try:
-        value = json.loads(completed.stdout)
+        value = json.loads(stdout)
     except json.JSONDecodeError as exc:
         return StdioExecution("invalid_json", detail=f"Pack helper must emit one JSON object: {exc.msg}")
     return StdioExecution("completed", value=value)

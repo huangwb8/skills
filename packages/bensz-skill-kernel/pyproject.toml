@@ -21,3 +21,4 @@ bensz_skill_kernel = ["states/*", "states/**/*", "verifiers/*", "verifiers/**/*"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

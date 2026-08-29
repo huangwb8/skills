@@ -5,12 +5,14 @@ from .runtime import (
     EventEnvelope,
     EventLog,
     IntegrityError,
+    IdempotencyConflict,
+    AuthorizationError,
     InvalidTransition,
     KernelError,
     VALID_STATES,
     reduce_events,
 )
-from .contracts import Artifact, Contract, Effect, Requirement, Subject, RUNTIME_PROTOCOL_VERSION
+from .contracts import Artifact, Authorization, Contract, Effect, Requirement, Subject, RUNTIME_PROTOCOL_VERSION
 from .verifiers import (
     Evidence,
     FilesystemVerifierRegistry,
@@ -27,6 +29,7 @@ from .verifiers import (
     builtin_verifier_root,
     normalize_result,
     snapshot_evidence,
+    summarize_metrics,
 )
 from .builtins import CITATION_TRUTH_FIT_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
 from .verifier_ids import validate_verifier_id
@@ -39,11 +42,14 @@ __all__ = [
     "EventEnvelope",
     "EventLog",
     "IntegrityError",
+    "IdempotencyConflict",
+    "AuthorizationError",
     "InvalidTransition",
     "KernelError",
     "VALID_STATES",
     "reduce_events",
     "Artifact",
+    "Authorization",
     "Contract",
     "Effect",
     "Requirement",
@@ -64,6 +70,7 @@ __all__ = [
     "builtin_verifier_root",
     "normalize_result",
     "snapshot_evidence",
+    "summarize_metrics",
     "CITATION_TRUTH_FIT_SPEC",
     "FILE_SPEC",
     "build_builtin_registry",

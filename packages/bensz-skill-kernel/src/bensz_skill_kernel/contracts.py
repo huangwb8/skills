@@ -68,11 +68,32 @@ class Effect:
     status: str = "none"
     idempotency_key: str | None = None
     authorized: bool = False
+    actor: str | None = None
+    delegator: str | None = None
+    authorization_scope: tuple[str, ...] = ()
+    approval_ref: str | None = None
+    policy_version: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.status not in EFFECT_STATUSES:
             raise ValueError(f"unsupported effect status: {self.status}")
+        if self.status in {"applied", "reconciled"} and not self.authorized:
+            raise ValueError("applied effects require explicit authorization")
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class Authorization:
+    """Optional responsibility and approval chain attached to an execution."""
+
+    actor: str
+    delegator: str | None = None
+    scope: tuple[str, ...] = ()
+    approval_ref: str | None = None
+    policy_version: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -98,4 +119,3 @@ class Contract:
             "requirements": [item.to_dict() for item in self.requirements],
             "metadata": dict(self.metadata),
         }
-
