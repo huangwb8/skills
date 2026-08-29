@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **运行契约与执行审计扩展**：事件支持协议、运行快照、授权/委托和 request hash 字段，工作区可记录契约快照；Verifier 增加 assurance tier、严格请求协议和确定性指标汇总，保留旧事件/CLI 兼容读取。
 
 ### Changed（变更）
+- **Kernel Python 支持基线调整**：将 `bensz-skill-kernel` 的最低支持版本从 Python 3.10 提升到 3.11，补充 3.11–3.13 classifiers 与包级支持矩阵说明，推荐使用 Python 3.12。
 - **新增 Agent 执行证据链静态加固计划**：根据《LLM约定执行与Agent可审计性》报告，规划完成门禁、事件并发与幂等、Pack helper 边界、契约快照、身份授权、执行审计回放和运行指标的分阶段加固；本计划仅定义范围与验收，不改变当前运行时行为。
 - **AGENTS.md 开发规范补全**：补充 Skill、Verifier、State 与 `bensz-skill-kernel` 的可执行契约、Pack 索引一致性门禁、版本兼容矩阵、测试矩阵和文档分层入口；修正 frontmatter、Skill 路径及修改范围示例，并将“工程原则”调整到“有机更新原则”之前。
 - **validate-md-ref 对齐最新 Kernel Pack 契约**：同步目录化 State Pack 索引与 kernel Verifier 事实输出，避免 Skill 继续依赖旧的本地网络验证路径，并补充对应回归验证。
