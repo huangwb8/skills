@@ -27,6 +27,7 @@ version = 4.3.8
 
 ```
 WORKSPACE = ./.bensz-api/task-20260829-1531-检查博客参考文献/
+请调查{WORKSPACE}里状态机和验证器是否生效； 如果生效，如何协作；对于整个过程你有什么看法（比如，这个实例有没有暴露出 packages/bensz-skill-kernel 存在的源代码缺陷 ）？
 ```
 
 # 日常
