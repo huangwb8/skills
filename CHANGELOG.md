@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **新增 Agent 执行证据链静态加固计划**：根据《LLM约定执行与Agent可审计性》报告，规划完成门禁、事件并发与幂等、Pack helper 边界、契约快照、身份授权、执行审计回放和运行指标的分阶段加固；本计划仅定义范围与验收，不改变当前运行时行为。
 - **AGENTS.md 开发规范补全**：补充 Skill、Verifier、State 与 `bensz-skill-kernel` 的可执行契约、Pack 索引一致性门禁、版本兼容矩阵、测试矩阵和文档分层入口；修正 frontmatter、Skill 路径及修改范围示例，并将“工程原则”调整到“有机更新原则”之前。
 - **validate-md-ref 对齐最新 Kernel Pack 契约**：同步目录化 State Pack 索引与 kernel Verifier 事实输出，避免 Skill 继续依赖旧的本地网络验证路径，并补充对应回归验证。
 - **抽取 State/Verifier 公共 Pack 基础设施**：新增 `bensz_skill_kernel.packs`，统一两类 Pack 的 `bensz-pack-index-v1` 索引发现、目录/契约一致性校验、入口路径约束、版本排序和 JSON-stdio 执行边界；State 与 Verifier 保留各自的状态图、结果归一化和 Gate 语义，公开 API 与 CLI 保持兼容。
