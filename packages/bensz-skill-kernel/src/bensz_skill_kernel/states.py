@@ -8,12 +8,11 @@ state is a directory containing ``STATE.md`` and optional helper scripts.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .packs import load_pack_entries, resolve_entrypoint, run_stdio
 from .state_ids import parse_state_aliases, validate_state_id
 
 
@@ -172,6 +171,12 @@ class StateDefinition:
         metadata, instructions = _frontmatter(target.read_text(encoding="utf-8"))
         known = {"description", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint"}
         extra = {key: value for key, value in metadata.items() if key not in known}
+        entrypoint = resolve_entrypoint(
+            target.parent,
+            entry.get("entrypoint") or metadata.get("entrypoint"),
+            error_type=StateDefinitionError,
+            label="state",
+        )
         return cls(
             id=str(entry.get("id", "")),
             version=str(entry.get("version", "")),
@@ -180,7 +185,7 @@ class StateDefinition:
             entry_conditions=_as_tuple(metadata.get("entry_conditions", metadata.get("entry"))),
             invariants=_as_tuple(metadata.get("invariants")),
             transitions=_as_tuple(metadata.get("transitions", metadata.get("next_states"))),
-            entrypoint=str(entry.get("entrypoint") or metadata.get("entrypoint")) if entry.get("entrypoint") or metadata.get("entrypoint") else None,
+            entrypoint=entrypoint,
             instructions=instructions,
             source=str(target),
             metadata={**extra, "index": dict(entry)},
@@ -222,29 +227,13 @@ class FilesystemStateRegistry:
         self._aliases.clear()
         if not self.root.is_dir():
             return
-        index_path = self.root / "index.json"
-        indexed: list[tuple[Path, Mapping[str, Any]]] = []
-        if index_path.is_file():
-            try:
-                index = json.loads(index_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as exc:
-                raise StateDefinitionError(f"invalid state index: {exc.msg}") from exc
-            if index.get("protocol") != "bensz-pack-index-v1" or index.get("package_kind") != "state" or not isinstance(index.get("entries"), list):
-                raise StateDefinitionError("state index must use bensz-pack-index-v1 and contain entries")
-            for entry in index["entries"]:
-                if not isinstance(entry, Mapping) or not isinstance(entry.get("directory"), str) or entry["directory"] in {"", ".", ".."} or "/" in entry["directory"] or "\\" in entry["directory"]:
-                    raise StateDefinitionError("state index directories must be direct child names")
-                package_root = (self.root / entry["directory"]).resolve()
-                contract = (package_root / str(entry.get("contract", "STATE.md"))).resolve()
-                if package_root not in contract.parents:
-                    raise StateDefinitionError("state index contract must stay inside its package directory")
-                indexed.append((contract, entry))
-            declared = {entry["directory"] for _, entry in indexed}
-            actual = {child.name for child in self.root.iterdir() if child.is_dir() and (child / "STATE.md").is_file()}
-            if declared != actual:
-                raise StateDefinitionError(f"state index/directory mismatch: missing={sorted(actual - declared)}, stale={sorted(declared - actual)}")
-        else:
-            indexed = [(path, {}) for path in sorted(self.root.rglob("STATE.md"))]
+        indexed = load_pack_entries(
+            self.root,
+            package_kind="state",
+            contract_name="STATE.md",
+            error_type=StateDefinitionError,
+            recursive_without_index=True,
+        )
         for path, entry in indexed:
             definition = StateDefinition.from_indexed_markdown(path, entry) if entry else StateDefinition.from_markdown(path)
             if definition.id in self._states:
@@ -420,25 +409,23 @@ def execute_state(definition: StateDefinition, request: Mapping[str, Any], *, ti
     if not definition.source:
         raise StateExecutionError(f"state {definition.id} has no source path")
     state_root = Path(definition.source).parent.resolve()
-    entrypoint = (state_root / definition.entrypoint).resolve()
-    try:
-        entrypoint.relative_to(state_root)
-    except ValueError as exc:
-        raise StateExecutionError("state entrypoint must stay inside its state directory") from exc
-    if not entrypoint.is_file():
-        raise StateExecutionError(f"state entrypoint does not exist: {entrypoint}")
-    command = [sys.executable, str(entrypoint)] if entrypoint.suffix == ".py" else [str(entrypoint)]
+    entrypoint = resolve_entrypoint(
+        state_root,
+        definition.entrypoint,
+        error_type=StateExecutionError,
+        label="state",
+    )
+    if entrypoint is None:  # guarded above, keeps the executor contract explicit
+        return StateExecutionResult(definition.id, "not_applicable", "unchecked", "This state has no helper script.")
     payload = {"protocol": META_STATE_PROTOCOL_VERSION, "state": definition.to_dict(), "request": dict(request)}
-    try:
-        completed = subprocess.run(command, input=json.dumps(payload, ensure_ascii=False), text=True, capture_output=True, timeout=timeout, check=False)
-    except subprocess.TimeoutExpired:
-        return StateExecutionResult(definition.id, "timed_out", "timed_out", f"State helper exceeded {timeout} seconds.")
-    if completed.returncode:
-        return StateExecutionResult(definition.id, "error", "error", completed.stderr.strip() or f"State helper exited with {completed.returncode}.")
-    try:
-        raw = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise StateExecutionError(f"state helper must emit one JSON object: {exc.msg}") from exc
+    execution = run_stdio(state_root, entrypoint, payload, timeout=timeout)
+    if execution.status == "timed_out":
+        return StateExecutionResult(definition.id, "timed_out", "timed_out", execution.detail)
+    if execution.status == "error":
+        return StateExecutionResult(definition.id, "error", "error", execution.detail)
+    if execution.status == "invalid_json":
+        raise StateExecutionError(execution.detail)
+    raw = execution.value
     if not isinstance(raw, Mapping) or raw.get("verdict") not in _SCRIPT_VERDICTS:
         raise StateExecutionError("state helper result requires a supported verdict")
     execution_status = str(raw.get("execution_status", "completed"))

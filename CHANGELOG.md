@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **抽取 State/Verifier 公共 Pack 基础设施**：新增 `bensz_skill_kernel.packs`，统一两类 Pack 的 `bensz-pack-index-v1` 索引发现、目录/契约一致性校验、入口路径约束、版本排序和 JSON-stdio 执行边界；State 与 Verifier 保留各自的状态图、结果归一化和 Gate 语义，公开 API 与 CLI 保持兼容。
 - **Kernel 说明文档与代码同步**：更新 `docs/` 中非 `plans/`、`events/` 的工作区、State/Verifier ID 与理论协议说明，对齐 `bensz-pack-index-v1` 索引、`config.yaml.runtime`、workspace manifest、verdict/execution status 和 Gate 语义；同时在 `AGENTS.md` 固化重要源代码变更后的按需文档同步规则。
 - **State/Verifier 索引清单**：在 `states/index.json` 与 `verifiers/index.json` 增加统一的 `bensz-pack-index-v1` 目录清单，集中定义包的 canonical ID、版本、classification、kind、tags、契约和入口；注册表校验清单与实际目录一致后再加载。
 - **Kernel 生命周期 State 目录化**：在 `bensz_skill_kernel/states/<state>/` 为八个通用生命周期状态补齐独立 `STATE.md`、canonical ID、alias 与转移契约，并增加与 Runtime reducer 转移表的一致性测试；领域 Skill 阶段仍由各 Skill 托管。

@@ -10,14 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
-import sys
-import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
+from .packs import load_pack_entries, resolve_entrypoint, run_stdio, version_key as _version_key
 from .verifier_ids import parse_aliases, validate_verifier_id
 
 VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
@@ -28,11 +26,6 @@ MODES = frozenset({"rule", "prompt", "hybrid", "human"})
 def builtin_verifier_root() -> Path:
     """Return the verifier assets bundled with this installed Python package."""
     return Path(__file__).with_name("verifiers")
-
-
-def _version_key(version: str) -> tuple[tuple[int, Any], ...]:
-    """Sort semantic-ish versions numerically while tolerating labels."""
-    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in re.split(r"[.-]", version))
 
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -153,10 +146,7 @@ class VerifierDefinition:
             raise ValueError(f"canonical verifier ID required: {verifier_id}") from exc
         entrypoint = fields.get("entrypoint") or fields.get("script")
         if entrypoint:
-            candidate = (root / entrypoint).resolve()
-            if root not in candidate.parents or not candidate.is_file():
-                raise ValueError(f"entrypoint must be a file inside verifier directory: {entrypoint}")
-            entrypoint = str(candidate.relative_to(root))
+            entrypoint = resolve_entrypoint(root, entrypoint, label="verifier")
         tags = tuple(item.strip() for item in fields.get("tags", "").split(",") if item.strip())
         aliases = parse_aliases(fields.get("aliases"))
         if verifier_id in aliases:
@@ -175,12 +165,7 @@ class VerifierDefinition:
         validate_verifier_id(verifier_id)
         if not version:
             raise ValueError(f"indexed verifier requires version: {root}")
-        entrypoint = entry.get("entrypoint")
-        if entrypoint:
-            candidate = (root / str(entrypoint)).resolve()
-            if root not in candidate.parents or not candidate.is_file():
-                raise ValueError(f"entrypoint must be a file inside verifier directory: {entrypoint}")
-            entrypoint = str(candidate.relative_to(root))
+        entrypoint = resolve_entrypoint(root, entry.get("entrypoint"), label="verifier")
         aliases = parse_aliases(",".join(str(item) for item in entry.get("aliases", ())))
         return cls(
             verifier_id=verifier_id,
@@ -243,26 +228,16 @@ class FilesystemVerifierRegistry:
         self._aliases.clear()
         if not self.root.is_dir():
             return
-        index_path = self.root / "index.json"
-        indexed: list[tuple[Path, Mapping[str, Any]]] = []
-        if index_path.is_file():
-            try:
-                index = json.loads(index_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"invalid verifier index: {exc.msg}") from exc
-            if index.get("protocol") != "bensz-pack-index-v1" or index.get("package_kind") != "verifier" or not isinstance(index.get("entries"), list):
-                raise ValueError("verifier index must use bensz-pack-index-v1 and contain entries")
-            for entry in index["entries"]:
-                if not isinstance(entry, Mapping) or not isinstance(entry.get("directory"), str) or entry["directory"] in {"", ".", ".."} or "/" in entry["directory"] or "\\" in entry["directory"]:
-                    raise ValueError("verifier index directories must be direct child names")
-                indexed.append((self.root / entry["directory"], entry))
-            declared = {entry["directory"] for _, entry in indexed}
-            actual = {child.name for child in self.root.iterdir() if child.is_dir() and (child / "VERIFIER.md").is_file()}
-            if declared != actual:
-                raise ValueError(f"verifier index/directory mismatch: missing={sorted(actual - declared)}, stale={sorted(declared - actual)}")
-        else:
-            indexed = [(child, {}) for child in sorted(self.root.iterdir(), key=lambda item: item.name) if child.is_dir() and (child / "VERIFIER.md").is_file()]
-        for child, entry in indexed:
+        indexed = load_pack_entries(
+            self.root,
+            package_kind="verifier",
+            contract_name="VERIFIER.md",
+        )
+        for contract_or_child, entry in indexed:
+            # The shared loader returns the validated contract path for both
+            # indexed and legacy roots; the Verifier factory consumes its
+            # containing package directory.
+            child = contract_or_child.parent
             definition = VerifierDefinition.from_indexed_directory(child, entry) if entry else VerifierDefinition.from_directory(child)
             key = (definition.verifier_id, definition.version)
             if key in self._definitions:
@@ -320,20 +295,16 @@ class FilesystemVerifierRegistry:
         base = {"verifier_id": definition.verifier_id, "verifier_version": definition.version, "evidence_refs": tuple(request.get("evidence_refs", ())), "request_id": request.get("request_id")}
         if not definition.entrypoint:
             return {**base, "execution_status": "unchecked", "verdict": "unchecked", "uncertainty_reason": "instruction-only verifier; follow VERIFIER.md manually"}
-        command = [sys.executable, str(definition.path / definition.entrypoint)]
-        try:
-            completed = subprocess.run(command, input=json.dumps(dict(request), ensure_ascii=False), text=True, capture_output=True, cwd=definition.path, timeout=timeout, check=False)
-        except subprocess.TimeoutExpired:
+        execution = run_stdio(definition.path, definition.entrypoint, request, timeout=timeout)
+        if execution.status == "timed_out":
             return {**base, "execution_status": "timed_out", "verdict": "timed_out", "uncertainty_reason": f"verifier timed out after {timeout}s"}
-        if completed.returncode != 0:
-            detail = completed.stderr.strip() or f"entrypoint exited with status {completed.returncode}"
-            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": detail[:1000]}
-        try:
-            raw = json.loads(completed.stdout)
-            if not isinstance(raw, Mapping):
-                raise ValueError("verifier output must be a JSON object")
-        except (json.JSONDecodeError, ValueError) as exc:
-            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": f"invalid verifier JSON: {exc}"}
+        if execution.status == "error":
+            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": execution.detail}
+        if execution.status == "invalid_json":
+            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": f"invalid verifier JSON: {execution.detail}"}
+        raw = execution.value
+        if not isinstance(raw, Mapping):
+            return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": "invalid verifier JSON: verifier output must be a JSON object"}
         return {**normalize_result(raw, definition.spec, evidence_refs=base["evidence_refs"]).to_dict(), "request_id": request.get("request_id")}
 
 

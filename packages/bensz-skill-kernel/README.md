@@ -2,6 +2,8 @@
 
 无第三方运行时依赖的 Agent Skill 状态、工作区与 verifier 生命周期内核。
 
+State 与 Verifier 都采用目录化 Contract Pack：一个 Markdown 契约、可选入口脚本和索引元数据。内核通过公共 Pack 基础设施统一发现、索引一致性校验、alias/version 解析、入口路径约束与 JSON-stdio 执行边界；State 仍由自身状态图/迁移适配器驱动，Verifier 仍由自身证据、结果归一化和 Gate 适配器驱动，二者不会因共享基础设施而混淆语义。
+
 Verifier ID 的 canonical 命名、版本和 alias 迁移规则见仓库级 [`docs/verifier-id-naming.md`](../../docs/verifier-id-naming.md)；State ID 对应规则见 [`docs/state-id-naming.md`](../../docs/state-id-naming.md)。
 
 状态定义采用目录化协议：`states/index.json` 是 State 包目录清单和属性索引，每个元状态目录包含一个 `STATE.md`，可选附带 JSON-stdio
