@@ -23,6 +23,12 @@ version = 4.3.8
 使用 validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。如果该skill有要提交给用户审查的内容，可以放在 ./tmp/validate-md-ref/{yyyy-mm-dd-mm-ss；这里就是时间戳；每次测试都开一个新的； 但如果用户的多轮对话在同一个会话里，不能重复地建} 这个文件夹里。
 ```
 
+- 观察状态机和验证器的协作
+
+```
+WORKSPACE = ./.bensz-api/task-20260829-1531-检查博客参考文献/
+```
+
 # 日常
 
 ---
