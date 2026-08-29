@@ -34,6 +34,10 @@ AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转�
 3. 保留链接 Verifier 标准结果；真实性或适切性仅保留语义 Verifier 的 `unchecked`/`manual_review`，无证据不得判通过。
 4. 汇总总数、有效、无效、跳过项，逐条披露位置、状态、失败原因和语义边界。
 
+命令行入口以 kernel `bensz.document.markdown-link-integrity` Pack 返回的
+`facts.summary` 与 `facts.references` 为唯一链接事实来源；不要将旧兼容函数的本地
+探测结果与 Verifier 结果合并或互相覆盖。
+
 ## 文件边界
 
 需落盘时，将本 Skill 的输入、临时结果和日志写入当前会话声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/{input,output,log}/`；多 Skill 共享材料放任务根目录 `shared/`。正式交付物、用户指定文件和源 Markdown 留在项目约定位置。不得写入密钥、令牌、Cookie、私有指令、隐私或不必要的大体积原始数据；纯文本答复无需建目录。

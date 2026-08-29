@@ -1,7 +1,7 @@
 {
   "protocol": "bensz-skill-state-v1",
   "initial_state": "bensz.workspace.ready",
-  "state_roots": ["states"],
+  "state_roots": ["references/states"],
   "states": [
     "bensz.validate-md-ref.input-ready",
     "bensz.validate-md-ref.checking",

@@ -10,6 +10,9 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 对齐 kernel 最新 `bensz-pack-index-v1`：新增状态包索引，并让 CLI 以 Markdown Verifier 的规范化 facts 作为唯一摘要与引用来源，避免旧本地网络验证与 kernel 安全策略分叉。
+- 补充执行契约：CLI 不再将兼容 API 的本地探测结果与 kernel Verifier 结果混合。
+- 版本升级至 `0.12.0`。
 - 将状态声明迁移到 `config.yaml.runtime`，状态包托管在 `references/states/`；旧 `state-machine.json` 保留兼容读取。
 - 脚本通过 kernel 同时执行 required 的 `bensz.document.markdown-link-integrity@1.0.0` 与 advisory 的引用语义 Verifier，并保留统一 Gate 结果。
 

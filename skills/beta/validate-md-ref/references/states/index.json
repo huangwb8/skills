@@ -1,0 +1,34 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "state",
+  "entries": [
+    {
+      "directory": "input-ready",
+      "id": "bensz.validate-md-ref.input-ready",
+      "version": "1.0.0",
+      "kind": "skill",
+      "classification": "domain",
+      "aliases": ["validate-md-ref.input-ready"],
+      "contract": "STATE.md",
+      "entrypoint": "scripts/check_input.py"
+    },
+    {
+      "directory": "checking",
+      "id": "bensz.validate-md-ref.checking",
+      "version": "1.0.0",
+      "kind": "skill",
+      "classification": "domain",
+      "aliases": ["validate-md-ref.checking"],
+      "contract": "STATE.md"
+    },
+    {
+      "directory": "reported",
+      "id": "bensz.validate-md-ref.reported",
+      "version": "1.0.0",
+      "kind": "skill",
+      "classification": "domain",
+      "aliases": ["validate-md-ref.reported"],
+      "contract": "STATE.md"
+    }
+  ]
+}

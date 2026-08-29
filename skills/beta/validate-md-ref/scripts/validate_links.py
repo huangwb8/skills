@@ -515,34 +515,6 @@ def run_kernel_verifier(args) -> int:
         'error': 'bensz.evidence.citation-truth-fit requires normalized subject_context, source_metadata and source_excerpt evidence; use this Markdown adapter without --kernel mode',
     }, ensure_ascii=False))
     return 2
-    command, env = _kernel_command()
-    cmd = command + ['verifier', 'run', 'bensz.evidence.citation-truth-fit', '--version', '1.0.0', '--input', str(Path(args.markdown_file).resolve())]
-    if args.config_file:
-        try:
-            import yaml
-            config = yaml.safe_load(Path(args.config_file).read_text(encoding='utf-8')) or {}
-            timeout = config.get('validation', {}).get('timeout')
-            if timeout is not None:
-                cmd.extend(['--timeout', str(int(timeout))])
-            for domain in config.get('domain_blacklist', []) or []:
-                cmd.extend(['--blacklist', str(domain)])
-            for domain in config.get('domain_whitelist', []) or []:
-                cmd.extend(['--whitelist', str(domain)])
-        except (ImportError, OSError, ValueError) as exc:
-            print(json.dumps({'error': f'加载配置失败: {exc}'}, ensure_ascii=False))
-            return 1
-    if args.events:
-        cmd.extend(['--events', args.events])
-    if args.run_id:
-        cmd.extend(['--run-id', args.run_id])
-    if args.attempt_id:
-        cmd.extend(['--attempt-id', args.attempt_id])
-    completed = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
-    if completed.stdout:
-        print(completed.stdout, end='' if completed.stdout.endswith('\n') else '\n')
-    if completed.returncode != 0 and completed.stderr:
-        print(completed.stderr, file=sys.stderr, end='' if completed.stderr.endswith('\n') else '\n')
-    return completed.returncode
 
 
 def main(argv=None):
@@ -579,9 +551,6 @@ def main(argv=None):
 
     # 读取 Markdown 内容
     content = md_file.read_text(encoding='utf-8')
-
-    # 提取引用
-    references = extract_references(content)
 
     # 加载配置（自动使用默认配置或用户指定的配置）
     config = {}
@@ -624,18 +593,12 @@ def main(argv=None):
             }))
             return 1
 
-    # 验证引用
-    results = validate_references(references, config, content, md_file.parent)
-
-    # 生成摘要
-    summary = generate_summary(results)
-
-    # 输出结果
-    output = {
-        'file': str(md_file),
-        'summary': summary,
-        'references': results,
-    }
+    # The kernel Markdown verifier is the single source of truth for collected
+    # references and validation facts.  The legacy ``validate_references``
+    # helper remains available for callers that imported it directly, but the
+    # command-line entry point must not produce a second (and potentially less
+    # secure) network-validation result set.
+    output = {'file': str(md_file)}
 
     # The Markdown parser is an adapter. The verifier itself is format-agnostic
     # and receives normalized claim/source evidence instead of a Markdown file.
@@ -644,6 +607,29 @@ def main(argv=None):
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         resolved_md_file = md_file.resolve()
+        registry = FilesystemVerifierRegistry(builtin_verifier_root())
+        link_result = registry.run(
+            'bensz.document.markdown-link-integrity',
+            {
+                'request_id': request_id,
+                'subject': {'type': 'file', 'path': str(resolved_md_file), 'content_hash': content_hash},
+                'context': {
+                    'timeout': int(config.get('validation', {}).get('timeout', 10)),
+                    'blacklist': list(config.get('domain_blacklist', []) or []),
+                    'whitelist': list(config.get('domain_whitelist', []) or []),
+                },
+            },
+            version='1.0.0',
+        )
+        link_facts = link_result.get('facts')
+        if not isinstance(link_facts, dict) or not isinstance(link_facts.get('summary'), dict) or not isinstance(link_facts.get('references'), list):
+            raise RuntimeError('markdown-link-integrity returned no normalized facts')
+        # Expose exactly the facts produced by the kernel Pack.  This keeps the
+        # human-facing summary aligned with the required Verifier Gate and its
+        # SSRF-safe redirect/hostname policy.
+        results = link_facts['references']
+        summary = link_facts['summary']
+        output.update({'summary': summary, 'references': results})
         request = VerificationRequest(
             subject={'type': 'citation', 'source_format': 'markdown', 'path': str(resolved_md_file), 'content_hash': content_hash},
             requirements=('citation.semantic_review',),
@@ -653,20 +639,6 @@ def main(argv=None):
                 Evidence('source_excerpt', 'validator', {'summary': summary, 'references': results}),
             ),
             request_id=request_id,
-        )
-        registry = FilesystemVerifierRegistry(builtin_verifier_root())
-        link_result = registry.run(
-            'bensz.document.markdown-link-integrity',
-            {
-                'request_id': request.request_id,
-                'subject': {'type': 'file', 'path': str(resolved_md_file), 'content_hash': content_hash},
-                'context': {
-                    'timeout': int(config.get('validation', {}).get('timeout', 10)),
-                    'blacklist': list(config.get('domain_blacklist', []) or []),
-                    'whitelist': list(config.get('domain_whitelist', []) or []),
-                },
-            },
-            version='1.0.0',
         )
         citation_result = registry.run(
             'bensz.evidence.citation-truth-fit',

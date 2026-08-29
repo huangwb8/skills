@@ -1,6 +1,6 @@
 # validate-md-ref
 
-当前版本：`0.11.0`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。每次运行都会强制经过使用 canonical State ID 的 kernel 状态机并执行 canonical Verifier；它不把链接可达性冒充语义结论，也不自动修改原文档。
+当前版本：`0.12.0`。这个 skill 将 Markdown 作为输入适配层，提取引用并采集 URL/锚点事实，再交由目录化 verifier 协议判断引用完整性与引用真实性。每次运行都会强制经过使用 canonical State ID 的 kernel 状态机并执行 canonical Verifier；它不把链接可达性冒充语义结论，也不自动修改原文档。
 
 它适合跨格式引用核验；Markdown 只是当前可用的输入适配器。语义引擎缺口会明确标为 `unchecked` 或 `manual_review`。调用脚本时请使用能够导入 `bensz_skill_kernel`、且与 `bsk` 同一环境的 Python 解释器。
 
@@ -92,7 +92,7 @@
   - `validation`
   - `domain_whitelist`
   - `domain_blacklist`
-  - `runtime`：声明 `references/states` 状态包及链接/语义 Verifier 版本
+  - `runtime`：声明 `references/states` 状态包及链接/语义 Verifier 版本；状态包使用 `references/states/index.json` 的 `bensz-pack-index-v1` 清单
 
 Verifier 契约由 `bensz-skill-kernel` 内置 registry 统一维护；本 Skill 只声明调用方式和验证边界。
 

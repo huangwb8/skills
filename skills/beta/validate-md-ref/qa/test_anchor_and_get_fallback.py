@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -56,6 +59,38 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             projection = EventLog(events).projection()
             self.assertEqual(projection['verifications'][0]['request_id'], 'run-test')
             self.assertEqual(projection['gate_decisions'][0]['decision'], 'manual_review')
+
+    def test_skill_state_declaration_uses_indexed_state_pack(self) -> None:
+        from bensz_skill_kernel import SkillStateDeclaration
+
+        skill_root = SCRIPT.parents[1]
+        declaration = SkillStateDeclaration.from_skill_root(skill_root)
+        self.assertEqual(declaration.source.name, 'config.yaml')
+        self.assertEqual(
+            {item.id for item in declaration.registry().definitions(kind='skill')},
+            {
+                'bensz.validate-md-ref.input-ready',
+                'bensz.validate-md-ref.checking',
+                'bensz.validate-md-ref.reported',
+            },
+        )
+        self.assertEqual(
+            declaration.registry().resolve('validate-md-ref.input-ready').id,
+            'bensz.validate-md-ref.input-ready',
+        )
+
+    def test_cli_uses_kernel_facts_instead_of_legacy_network_adapter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            document = Path(directory) / 'README.md'
+            document.write_text('# Guide\n\n[local](#guide)\n', encoding='utf-8')
+            output = StringIO()
+            with patch.object(MODULE, 'validate_references', side_effect=AssertionError('legacy adapter called')):
+                with redirect_stdout(output):
+                    self.assertEqual(MODULE.main([str(document)]), 0)
+            payload = json.loads(output.getvalue())
+            self.assertEqual(payload['summary']['total'], 1)
+            self.assertTrue(payload['references'][0]['validation']['valid'])
+            self.assertEqual(payload['verification']['results'][0]['facts']['summary'], payload['summary'])
 
 
 if __name__ == '__main__':
