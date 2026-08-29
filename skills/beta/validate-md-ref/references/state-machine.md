@@ -15,6 +15,8 @@ Skill 根目录的 [`config.yaml`](../config.yaml) 的 `runtime` 节声明状态
 
 各状态的入口条件、不变量和允许转移分别记录在 [`input-ready`](states/input-ready/STATE.md)、[`checking`](states/checking/STATE.md) 和 [`reported`](states/reported/STATE.md) 的 `STATE.md` 中。`input-ready` 只接受现有且可读的 Markdown 文件；`checking` 要求保留规范化验证结果；`reported` 要求向用户披露不确定性并保持原文档不变。
 
+其中 `checking` 的 `verifier-result-recorded` 是 Kernel 可执行的不变量：离开该状态前，任务级 `events.ndjson` 必须同时存在 `verification.result` 和 `verification.gate`。其余自然语言不变量仍由本 Skill 的 helper 或人工复核负责。
+
 ## 必经 Kernel 操作
 
 ```bash

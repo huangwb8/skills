@@ -17,7 +17,7 @@ from typing import Any, Mapping
 
 from .builtins import build_builtin_registry
 from .runtime import EventLog, KernelError
-from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, execute_state
+from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
 from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
 from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
 
@@ -329,12 +329,25 @@ def _run_state_command(args: argparse.Namespace) -> int:
         if not machine.can_transition(args.target_state):
             _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
             return 0
+        events = EventLog(workspace.events).read()
+        invariant_failures = check_state_invariants(registry.resolve(current), events)
+        if invariant_failures:
+            _print(_state_response(
+                "transition",
+                "rejected",
+                current_state=current,
+                target_state=target.id,
+                definition=target,
+                snapshot=previous,
+                reason="State invariant failed: " + "; ".join(invariant_failures),
+            ), pretty=True)
+            return 0
         context = _json_object(args.context_json, label="--context-json")
         execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": context}, timeout=args.timeout)
         if execution.execution_status != "not_applicable" and execution.verdict != "pass":
             _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
             return 0
-        machine.transition(args.target_state)
+        machine.transition(args.target_state, events=events)
         snapshot = {
             "protocol": META_STATE_PROTOCOL_VERSION,
             "skill": workspace.paths(args.skill).skill,

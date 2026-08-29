@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Fixed（修复）
+- **Kernel 状态 invariant 强制执行**：状态转移现在会检查 Kernel 已定义的
+  `verifier-result-recorded` invariant；缺少 `verification.result` 或
+  `verification.gate` 时拒绝离开检查状态，避免漏跑验证器仍进入 `reported`。
 - **validate-md-ref 对齐最新 Kernel 协议**：事件记录补传稳定 `run_id`，验证输出同步 Kernel 的 assurance/覆盖指标，保持既有结果字段和调用方式兼容。
 - **Agent 执行证据链静态加固（P0-P2）**：完成门禁现在强制检查 required phase、Verifier/Gate、产物路径与内容哈希；事件账本增加跨进程锁、幂等意图冲突检测及崩溃尾部恢复；Pack helper 增加受信执行、输入输出/错误上限、最小环境和进程组超时终止。
 

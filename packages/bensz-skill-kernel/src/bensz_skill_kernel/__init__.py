@@ -34,7 +34,7 @@ from .verifiers import (
 from .builtins import CITATION_TRUTH_FIT_SPEC, FILE_SPEC, build_builtin_registry, collect_markdown
 from .verifier_ids import validate_verifier_id
 from .state_ids import validate_state_id
-from .states import CombinedStateRegistry, FilesystemStateRegistry, META_STATE_PROTOCOL_VERSION, SKILL_STATE_DECLARATION_VERSION, SkillStateDeclaration, StateDefinition, StateDefinitionError, StateExecutionError, StateExecutionResult, StateTransitionError, StateMachine, build_builtin_state_registry, build_state_registry, execute_state
+from .states import CombinedStateRegistry, FilesystemStateRegistry, META_STATE_PROTOCOL_VERSION, SKILL_STATE_DECLARATION_VERSION, SkillStateDeclaration, StateDefinition, StateDefinitionError, StateExecutionError, StateExecutionResult, StateTransitionError, StateMachine, build_builtin_state_registry, build_state_registry, check_state_invariants, execute_state
 from .workspace import META_STATE_SNAPSHOT_VERSION, TaskWorkspace, WorkspaceError, WorkspacePaths, WORKSPACE_KINDS, WORKSPACE_PROTOCOL_VERSION, workspace_path
 
 __all__ = [
@@ -91,6 +91,7 @@ __all__ = [
     "build_builtin_state_registry",
     "build_state_registry",
     "execute_state",
+    "check_state_invariants",
     "TaskWorkspace",
     "WorkspaceError",
     "WorkspacePaths",

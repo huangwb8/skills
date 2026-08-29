@@ -20,6 +20,14 @@ META_STATE_PROTOCOL_VERSION = "bensz-meta-state-v1"
 SKILL_STATE_DECLARATION_VERSION = "bensz-skill-state-v1"
 _SCRIPT_VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 
+# Invariants are intentionally opt-in and conservative.  Free-form invariant
+# text remains documentation; only entries with a defined kernel meaning are
+# enforced here.  This keeps domain rules out of the kernel while allowing a
+# Skill to request a small set of generic evidence guards.
+_INVARIANT_EVENT_REQUIREMENTS = {
+    "verifier-result-recorded": frozenset({"verification.result", "verification.gate"}),
+}
+
 
 class StateDefinitionError(ValueError):
     """A state definition is missing or malformed."""
@@ -31,6 +39,31 @@ class StateTransitionError(StateDefinitionError):
 
 class StateExecutionError(StateDefinitionError):
     """A state helper could not be run or returned an invalid response."""
+
+
+def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] = ()) -> tuple[str, ...]:
+    """Return failed, kernel-defined invariants for a state.
+
+    State contracts may contain prose invariants that require a domain adapter
+    or human review.  Those are deliberately not guessed by the kernel.  The
+    supported ``verifier-result-recorded`` invariant is an evidence guard: a
+    task event stream must contain both a verifier result and its Gate before
+    leaving the checking state.
+    """
+    event_types = {
+        str(getattr(event, "event_type", getattr(event, "type", "")))
+        if not isinstance(event, Mapping)
+        else str(event.get("type", event.get("event_type", "")))
+        for event in events
+    }
+    failures: list[str] = []
+    for invariant in definition.invariants:
+        required = _INVARIANT_EVENT_REQUIREMENTS.get(invariant)
+        if required:
+            missing = sorted(required - event_types)
+            if missing:
+                failures.append(f"{invariant} (missing events: {', '.join(missing)})")
+    return tuple(failures)
 
 
 def _frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -464,9 +497,12 @@ class StateMachine:
         }
         return destination.id in explicit or ("*" in source.transitions and self.current in entry_conditions)
 
-    def transition(self, target: str) -> StateDefinition:
+    def transition(self, target: str, *, events: Iterable[Any] = ()) -> StateDefinition:
         if not self.can_transition(target):
             raise StateTransitionError(f"illegal meta-state transition {self.current!r} -> {target!r}")
+        invariant_failures = check_state_invariants(self.registry.resolve(self.current), events)
+        if invariant_failures:
+            raise StateTransitionError("state invariant failed: " + "; ".join(invariant_failures))
         self.current = self.registry.resolve(target).id
         return self.registry.resolve(self.current)
 

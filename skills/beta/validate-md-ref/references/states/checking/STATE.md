@@ -13,4 +13,6 @@ transitions: bensz.validate-md-ref.reported
 
 Run the configured input adapter or `bensz.document.markdown-link-integrity`
 verifier. Preserve the normalized result and any Gate decision in the Skill log
-before proceeding.
+before proceeding. The Kernel enforces `verifier-result-recorded` when leaving
+this state: both `verification.result` and `verification.gate` events must be
+present in the task event log.

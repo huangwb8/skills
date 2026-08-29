@@ -47,6 +47,11 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name org.example.s
 持久化快照。每个 Skill 的当前元状态写入自身 `log/meta-state.json`；它与任务级
 `events.ndjson` / `state.json` 分层，后者仍只记录生命周期、验证与交付事实。
 
+状态 `invariants` 默认是面向领域的说明；Kernel 只执行有明确协议的通用 invariant。
+当前支持 `verifier-result-recorded`：离开声明该 invariant 的状态前，任务事件账本必须
+同时包含 `verification.result` 和 `verification.gate`。未满足时 CLI 返回结构化
+`rejected`，不会写入新的状态快照；领域专属 invariant 仍由 Skill helper 或人工复核负责。
+
 内置 State 的 ID、版本、kind、aliases、classification 和 tags 由 `states/index.json` 单独管理；
 `STATE.md` 只保留 `description`、`entry_conditions`、`invariants`、`transitions` 等状态工作契约及正文说明。
 没有 `index.json` 的外部兼容目录仍可在 `STATE.md` frontmatter 声明完整属性。可选 `entrypoint` 是相对于该 `STATE.md` 目录的脚本：stdin 接收

@@ -241,6 +241,65 @@ def test_state_transition_cli_keeps_snapshot_when_helper_fails(tmp_path: Path, c
     assert workspace.read_meta_state("demo-skill")["current_state"] == "bensz.workspace.ready"
 
 
+def test_state_transition_cli_enforces_verifier_result_invariant(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="demo")
+    skill = tmp_path / "demo-skill"
+    for name in ("checking", "reported"):
+        (skill / "states" / name).mkdir(parents=True)
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  state_roots: [states]\n"
+        "  initial_state: bensz.workspace.ready\n"
+        "  states: [test.demo.checking, test.demo.reported]\n",
+        encoding="utf-8",
+    )
+    (skill / "states" / "checking" / "STATE.md").write_text(
+        "---\n"
+        "id: test.demo.checking\n"
+        "entry_conditions: bensz.workspace.ready\n"
+        "invariants: verifier-result-recorded\n"
+        "transitions: test.demo.reported\n"
+        "---\n\n# Checking\n",
+        encoding="utf-8",
+    )
+    (skill / "states" / "reported" / "STATE.md").write_text(
+        "---\n"
+        "id: test.demo.reported\n"
+        "entry_conditions: test.demo.checking\n"
+        "transitions: bensz.workspace.closed\n"
+        "---\n\n# Reported\n",
+        encoding="utf-8",
+    )
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "transitioned"
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill),
+    ]) == 0
+    rejected = json.loads(capsys.readouterr().out)
+    assert rejected["status"] == "rejected"
+    assert "verifier-result-recorded" in rejected["reason"]
+    assert workspace.read_meta_state("demo-skill")["current_state"] == "test.demo.checking"
+
+    from bensz_skill_kernel import EventLog
+
+    log = EventLog(workspace.events)
+    log.record_verification(
+        {"verifier_id": "test.demo.links", "verdict": "pass", "execution_status": "completed"},
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+    )
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "transitioned"
+
+
 def test_state_id_requires_owner_machine_and_state() -> None:
     assert validate_state_id("bensz.workspace.ready") == "bensz.workspace.ready"
     assert validate_state_id("org.example.deploy.awaiting-approval") == "org.example.deploy.awaiting-approval"
