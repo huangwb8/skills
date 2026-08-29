@@ -12,6 +12,8 @@ python3 scripts/validate_links.py DOCUMENT.md [CONFIG.yaml]
 
 Verifier 的命令、版本和结果边界集中记录在 [`verifiers.md`](verifiers.md)。直接调用时需要自行传入配置参数，例如 `--timeout 10`、重复的 `--blacklist DOMAIN` 或 `--whitelist DOMAIN`；需要审计时追加 `--events EVENTS.ndjson --run-id RUN_ID`。
 
+脚本写入事件时会将 `run_id` 同时传给 Kernel 事件 Envelope，便于按运行 ID 离线检索审计轨迹。
+
 ## 配置
 
 ```yaml

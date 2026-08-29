@@ -13,6 +13,7 @@
 - `summary.total`、`summary.valid`、`summary.invalid`、`summary.skipped`
 - `references[*].url`、`references[*].line_number`、`references[*].validation`
 - `verification`（直接命令也提供顶层 `results` 和 `gate`）
+- `verification.metrics`：Kernel 汇总的 Verifier 覆盖率、未知/不确定比例、Gate 放行率、assurance tier 与耗时指标。
 
 可达性通过不代表网页内容支持正文论断；被安全策略跳过的地址也不等于链接失效。
 

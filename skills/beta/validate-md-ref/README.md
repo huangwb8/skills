@@ -79,8 +79,9 @@
   - `summary.skipped`
   - `references[*].validation`
 - 当前脚本直接把 JSON 结果输出到标准输出，不会自动生成独立 Markdown 报告文件。
-- 每次核查都会产生 `log/meta-state.json` 状态快照和 `log/events.ndjson` Verifier 事件账本；缺少其中任一项即代表执行未完成。
+- 使用状态机执行器时产生 `log/meta-state.json` 状态快照；传入 `--events` 时产生 `log/events.ndjson` Verifier 事件账本。直接脚本调用不会隐式创建任务工作区，若任务要求审计必须显式提供这些入口。
 - `verification.results` 保存原子规则结果与证据引用；本 Skill 的 `verification.gate` 用 `allow` 或 `reject` 表达链接完整性结果。格式无关的语义 Pack 才用 `manual_review` 表达验证缺口。
+- `verification.metrics` 保存 Kernel 计算的 Verifier 覆盖率、未知/不确定比例、Gate 放行率、assurance tier 与耗时指标。
 
 ## 配置
 

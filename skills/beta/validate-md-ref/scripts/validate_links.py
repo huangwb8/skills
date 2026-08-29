@@ -26,8 +26,8 @@ def _load_verifier_runtime():
     kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
     if str(kernel_src) not in sys.path:
         sys.path.insert(0, str(kernel_src))
-    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate
-    return Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate
+    from bensz_skill_kernel import Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate, summarize_metrics
+    return Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate, summarize_metrics
 
 
 def get_skill_root() -> Path:
@@ -501,6 +501,7 @@ def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, req
         '--actor', 'validate-md-ref',
         '--attempt-id', attempt_id,
         '--idempotency-key', request_id,
+        '--run-id', request_id,
     ]
     completed = subprocess.run(args, capture_output=True, text=True, env=env, check=False)
     if completed.returncode != 0:
@@ -603,7 +604,7 @@ def main(argv=None):
     # The Markdown parser is an adapter. The verifier itself is format-agnostic
     # and receives normalized claim/source evidence instead of a Markdown file.
     try:
-        Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate = _load_verifier_runtime()
+        Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate, summarize_metrics = _load_verifier_runtime()
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         resolved_md_file = md_file.resolve()
@@ -654,11 +655,13 @@ def main(argv=None):
         verifier_results = [link_result, citation_result]
         specs = [registry.resolve('bensz.document.markdown-link-integrity', '1.0.0').spec, registry.resolve('bensz.evidence.citation-truth-fit', '1.0.0').spec]
         normalized = tuple(normalize_result(item, spec) for item, spec in zip(verifier_results, specs))
-        gate = apply_gate(normalized).to_dict()
+        gate_decision = apply_gate(normalized)
+        gate = gate_decision.to_dict()
         output['verification'] = {
             'request_id': request.request_id,
             'results': verifier_results,
             'gate': gate,
+            'metrics': summarize_metrics(normalized, (gate_decision,)),
         }
     except Exception as exc:
         print(json.dumps({'error': f'kernel verifier unavailable: {exc}'}, ensure_ascii=False))

@@ -10,6 +10,9 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 对齐 `bensz-skill-kernel` 最新事件与指标协议：运行事件写入稳定 `run_id`，脚本结果新增 `verification.metrics`，保留原有 `summary`、`references`、`results` 和 `gate` 字段及旧 CLI 调用兼容性。
+
+### Changed（变更）
 - 对齐 kernel 最新 `bensz-pack-index-v1`：新增状态包索引，并让 CLI 以 Markdown Verifier 的规范化 facts 作为唯一摘要与引用来源，避免旧本地网络验证与 kernel 安全策略分叉。
 - 补充执行契约：CLI 不再将兼容 API 的本地探测结果与 kernel Verifier 结果混合。
 - 版本升级至 `0.12.0`。
