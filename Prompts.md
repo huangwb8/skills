@@ -10,13 +10,28 @@ version = 4.3.8
 - 用 git-publish-release skill 发布新的release。
 ```
 
+- 更新本地测试环境为最新状态
+
+```
+使用 install-bensz-skills 安装 skills/beta/validate-md-ref 。
+更新本机 bensz-skill-kernel 这个python包至最新版； 源代码在 packages/bensz-skill-kernel 。
+```
+
 - 测试
 
 ```
-使用 validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。如果该skill有要提交给用户审查的内容，可以放在 ./tmp/validate-md-ref/01 这个文件夹里。
+使用 validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。如果该skill有要提交给用户审查的内容，可以放在 ./tmp/validate-md-ref/{yyyy-mm-dd-mm-ss；这里就是时间戳；每次测试都开一个新的； 但如果用户的多轮对话在同一个会话里，不能重复地建} 这个文件夹里。
 ```
 
 # 日常
+
+---
+
+或者说，从刚刚的提示，你觉得有哪些东西可以先静态地提升一下？我的意思是：有一些原则性的问题，可以在实例考察前就可以完善（因为目前的源代码还是不够完善/有漏洞）。你懂我的意思吗？刚刚那个文档，看完之后，也许你会觉得目前的设计还可以再完善。 你觉得，这些可以优化的点是什么？请深入浅出地、通俗地说一下。
+
+---
+
+/Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep\_research/reports/LLM约定执行与Agent可审计性 对本项目有哪些新的启示？
 
 ---
 

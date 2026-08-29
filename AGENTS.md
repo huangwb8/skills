@@ -102,7 +102,7 @@
 - 按需使用专门 Skill 或多代理协作；协作结果必须回收、复核并由主流程统一验证。
 - 不得遗留已知缺陷，不得以无关重构扩大变更范围，不得破坏既有功能。
 - 修改代码后运行与风险匹配的构建、静态检查或测试，并把验证证据写入变更记录。
-- 默认只修改 `skills/alpha/`、`skills/beta/` 与其配套的 `packages/`、`docs/`、`tests/`；扩展到其它范围需用户明确授权。
+- 默认只修改 `skills/alpha/`、`skills/beta/` 与其配套的 `packages/`、`docs/`、`tests/`；`AGENTS.md`、`CLAUDE.md`、`CHANGELOG.md` 和 `docs/contribution.bac` 属于项目治理文件，可在遵守本文件变更记录与 BAC 规则的前提下修改；扩展到其它范围需用户明确授权。
 - 修改技能时，优先优化而非重写，保留用户自定义内容。
 
 ## 核心工作流
@@ -113,20 +113,23 @@
 - **执行流程**：需求确认 → 内容规划 → 撰写/实现 → 校审与测试 → 发布/安装。
 - **输出规范**：代码变更遵循项目现有风格，文档更新保持一致性，测试覆盖符合项目标准。
 
-## 工程原则
+### 对象化最小流程
 
-| 原则 | 核心思想 | 在本项目中的体现 |
-|------|----------|------------------|
-| **KISS** | Keep It Simple, Stupid | 追求极致简洁，避免过度设计 |
-| **YAGNI** | You Aren't Gonna Need It | 只实现当前需要的功能 |
-| **DRY** | Don't Repeat Yourself | 相似逻辑应抽象复用 |
-| **SOLID** | 面向对象设计五大原则 | 单一职责、开闭原则等 |
-| **关注点分离** | Separation of Concerns | 不同层次逻辑应分离 |
-| **奥卡姆剃刀** | 如无必要，勿增实体 | 优先选择最简单的解决方案 |
-| **最小惊讶原则** | Principle of Least Astonishment | API 行为应符合用户直觉 |
-| **早期返回原则** | Early Return | 尽早返回，减少嵌套 |
+- **Skill**：读取现有 `SKILL.md`、`config.yaml`、脚本和必要 references → 确认触发边界与输入输出 → 最小修改 → 静态一致性检查 → 轻量测试 → README、CHANGELOG 和 BAC 同步；影响安装发现时再运行安装器回归。
+- **Verifier**：确定稳定判断命题与 Evidence Contract → 判断是否应成为顶层 Verifier → 编写 `VERIFIER.md` 和入口 → 更新 `verifiers/index.json` → 测试 canonical/alias、非法输入、超时和安全边界 → 同步 kernel 文档与 CHANGELOG。
+- **State**：确定状态语义和所属 machine → 编写 `STATE.md` → 更新 `states/index.json` → 检查 entry conditions、invariants、transitions 与 Runtime reducer → 测试非法迁移、alias、helper 和 terminal state → 同步 Skill runtime 声明、文档与 CHANGELOG。
 
-**原则冲突时的决策优先级**：正确性 > 一切；简洁性 > 灵活性；清晰性 > 性能；扩展性 > 紧凑性。
+详细字段表和长示例应下沉到 `docs/`（建议维护 `docs/skill-development.md`、`docs/verifier-development.md`、`docs/state-development.md` 和 `docs/verification-matrix.md`）；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
+
+## Kernel 包开发
+
+`packages/bensz-skill-kernel/` 是独立 Python 包。包的公开 API、CLI 和目录化 Pack 资产必须同时保持可发现、可重放和向后兼容。
+
+- Python 版本、包版本、依赖和入口以 `packages/bensz-skill-kernel/pyproject.toml` 为准；运行时继续保持零第三方依赖，测试依赖不得进入运行时依赖。
+- 修改公开 API、CLI 参数、JSON 协议、事件字段、错误类型或退出码时，先判断兼容性，再同步 README、`docs/`、示例和 CHANGELOG；不得只修改实现而留下过时契约。
+- `states/**`、`verifiers/**` 等包内 Markdown、JSON 和脚本资产必须纳入 `pyproject.toml` 的 package data，并用安装后环境验证仍可发现。
+- 事件和状态投影必须可重放；时间、哈希和 JSON 序列化保持确定性。错误处理应提供稳定的错误类别或状态，不以异常文本作为调用方契约。
+- 包内单元测试放在 `packages/bensz-skill-kernel/tests/`；根级 `tests/` 仅用于仓库公开入口或跨包集成测试。测试运行产物统一写入 `tmp/`，不得写入源码或测试目录。
 
 ## Skill 开发
 
@@ -171,7 +174,7 @@
 - 使用 write-skill-readme skill 生成用户友好的 README.md：README.md 面向使用者说明如何触发和使用技能，SKILL.md 面向 AI 定义执行规范和工作流
 - 首次生成时，使用 which-model skill 为 README.md 添加 WHICHMODEL 章节，记录模型选择最佳实践
 
-**测试验证**：按"目录职责规则"在根级 `tests/` 编写或运行面向 `packages/` 核心功能的可执行测试脚本。
+**测试验证**：按"目录职责规则"在对应 `packages/<project>/tests/` 编写或运行包内测试；仅仓库公开入口和跨包集成测试放在根级 `tests/`。
 
 **系统安装**：运行 `python3 skills/alpha/install-bensz-skills/scripts/install.py`，验证技能在任意项目中可被发现。
 
@@ -183,12 +186,16 @@
 ---
 name: skill-name
 description: Brief description of what this Skill does and when to use it
+metadata:
+  author: Bensz Conan
 ---
 
 # Skill Title（Markdown body）
 
 [技能说明、工作流程、使用指南等]
 ```
+
+`SKILL.md` 的 description 负责触发边界，正文负责执行契约；详细参数以 `config.yaml` 为单一真相来源，不在文档中复制易变默认值。脚本必须基于 `Path(__file__).resolve()` 定位自身资产，不能依赖用户当前工作目录。
 
 ### 系统级安装
 
@@ -212,6 +219,51 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 仓库内所有新状态必须遵循 [`docs/state-id-naming.md`](docs/state-id-naming.md)：canonical ID 使用 `owner.machine.state` 格式，官方内置 owner 为 `bensz`，全小写 kebab-case，版本独立记录在 `version`。State ID 描述稳定状态节点，不表示 transition 动作、事件、helper、Verifier 或运行实例；状态 `kind` 也不得写入 ID。
 
 `initial_state`、`states`、`entry_conditions` 和 `transitions` 应引用 canonical ID。已发布 ID 不直接重命名；迁移时使用 `aliases` 保留兼容入口，新清单、CLI 回执和快照必须输出 canonical ID，历史事件与旧快照不得改写。修改状态命名或契约时，必须同步 kernel、相关 Skill 声明与 `STATE.md`、文档、测试和 `CHANGELOG.md`，并验证 canonical/alias 两条路径。
+
+## Skill、Verifier、State 的 Pack 开发契约
+
+以下规则是新增或修改 Pack 的最低要求；详细理论说明可放在 `docs/`，但不得与本节的强制契约冲突。
+
+### Verifier Pack
+
+- 目录使用 `verifiers/<directory>/`；至少包含 `VERIFIER.md`，可选 `scripts/verify.py` 或其它入口脚本。
+- 新增、删除或重命名目录时，必须同步 `verifiers/index.json`。索引协议为 `bensz-pack-index-v1`，其中 `directory`、canonical `id`、`version`、`classification`、`tags`、`contract` 和可选 `entrypoint` 必须与实际文件一致；索引是元数据单一真相来源。
+- `VERIFIER.md` 必须说明判断目标、Subject/Context/Evidence 输入、必需字段、证据边界、不判断范围和结果解释。没有入口脚本的 Verifier 必须明确标为 instruction-only。
+- 可执行入口通过 stdin 接收一个 JSON 请求，stdout 只输出一个 JSON 对象；stderr 只用于脱敏诊断。`verdict` 与执行状态分开，结果只能使用 `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out` 或 `skipped`。
+- 入口默认只读；确需副作用时必须在契约、请求和审计事件中显式声明，并提供失败恢复和幂等策略。超时、异常、非法 JSON、非零退出码不得由调用方猜测，必须由 kernel 归一化。
+- Verifier 只负责稳定的可复核判断；格式适配器负责把 Markdown、LaTeX 等输入转换为通用证据。只有需要独立注册、版本化和复用的能力才提升为顶层 Verifier。
+
+### State Pack
+
+- 目录使用 `states/<directory>/`；至少包含 `STATE.md`，可选附带 JSON-stdio helper。
+- 使用 `states/index.json` 时，索引负责 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、`contract` 和可选 `entrypoint`；`STATE.md` 负责 description、entry conditions、invariants 和 transitions。索引优先时不得在 Markdown 中复制易漂移的元数据。
+- `initial_state`、允许状态集合、`entry_conditions` 和 `transitions` 必须引用 canonical State ID；`state_roots` 只声明发现根，不能代替允许集合。`*` 只表示明确受支持的迁移策略，不是状态 ID。
+- State ID 描述已经成立或持续中的稳定状态；动作、事件、helper、Verifier 和运行实例必须使用不同标识。terminal 状态不得定义后继迁移；`kind: system|skill` 不得编码进 ID。
+- helper 通过 stdin 接收标准 JSON 请求、stdout 返回一个结果对象；只有执行成功且 `verdict=pass` 才能持久化转移。instruction-only 状态必须在正文中写明由 Agent 执行的检查。
+- Kernel 只提供发现、解析、转移校验、执行边界和持久化协议；领域 Skill 的业务状态、规则和判断不得硬编码进 kernel reducer。
+
+### 索引与安全门禁
+
+提交前必须检查：
+
+- Pack 索引无漏列、陈旧条目、重复目录、重复 canonical ID 或 alias 冲突；canonical 与 alias 两条解析路径均能通过 CLI 验证。
+- contract 和 entrypoint 文件真实存在，解析后的路径仍在 Pack 自身目录内；拒绝 `..`、绝对路径和 symlink 逃逸。
+- JSON 请求和结果均经过结构校验；日志、错误和证据引用不得包含密钥、令牌、密码、Cookie、完整私有 Prompt 或不必要的原始输入。
+- 网络、子进程和文件访问遵循最小权限、超时、资源上限和 SSRF/命令注入防护；不因“验证方便”扩大访问范围。
+
+## 变更类型、版本与验证矩阵
+
+| 变更类型 | 版本策略 | 最低验证 |
+|---|---|---|
+| 文案或实现修复，判断/协议不变 | patch | 原有测试、契约和索引检查 |
+| 新增可选字段、证据、标签或迁移能力 | minor | 新旧输入兼容、CLI 和索引测试 |
+| 修改输入契约、结果语义、Gate 或迁移边 | major | 迁移说明、回放、兼容和全量测试 |
+| canonical ID 重命名 | 新 ID + alias | canonical/alias 双路径，历史事件不改写 |
+| 删除字段、State 或 Verifier | major | deprecation、迁移和失败路径测试 |
+
+版本来源必须保持分层：Kernel 包版本来自 `packages/bensz-skill-kernel/pyproject.toml`，Skill 版本来自各自 `config.yaml:skill_info.version`，Pack 版本来自对应 `index.json` 或兼容 frontmatter，仓库版本来自 Git tag。
+
+涉及 Kernel、CLI、协议或 Pack 资产的变更，至少运行包内 pytest、Pack discovery/index 一致性、canonical/alias、非法 JSON/超时/越界路径和安装后 package-data 检查；涉及 Skill 安装发现时，再运行安装器回归测试。验证产物写入 `tmp/` 或当前任务工作区，不写入 `tests/` 和 Skill 源目录。
 
 ## 变更记录与版本号
 
@@ -245,7 +297,7 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 - 版本号同步顺序：`config.yaml`（唯一来源）→ README.md 等文档引用 → `CHANGELOG.md` 版本条目。
 - 技能初始化模板：`config.yaml` 声明 `skill_info.version: 0.1.0`，`CHANGELOG.md` 记录 `[0.1.0] - YYYY-MM-DD` 与 `Added（新增）- 初始化技能，实现核心功能`。
 
-检查技能版本号：`grep -A 3 "skill_info:" skills/<skill-name>/config.yaml | grep version`
+检查技能版本号：`rg -l "^skill_info:" skills/alpha skills/beta -g config.yaml | xargs -I{} sh -c 'grep -A 3 "skill_info:" "{}" | grep version'`
 
 ## Codex CLI 特定说明
 
@@ -254,6 +306,21 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 **代码编辑**：在"修改规范与边界"的基础上，保持类型安全（变更通过构建检查），无效输入早返回（遵循仓库的日志/通知模式）。
 
 **输出格式**：简单确认跳过繁重格式；提供简短的逻辑后续步骤（测试、提交、构建）。
+
+## 工程原则
+
+| 原则 | 核心思想 | 在本项目中的体现 |
+|------|----------|------------------|
+| **KISS** | Keep It Simple, Stupid | 追求极致简洁，避免过度设计 |
+| **YAGNI** | You Aren't Gonna Need It | 只实现当前需要的功能 |
+| **DRY** | Don't Repeat Yourself | 相似逻辑应抽象复用 |
+| **SOLID** | 面向对象设计五大原则 | 单一职责、开闭原则等 |
+| **关注点分离** | Separation of Concerns | 不同层次逻辑应分离 |
+| **奥卡姆剃刀** | 如无必要，勿增实体 | 优先选择最简单的解决方案 |
+| **最小惊讶原则** | Principle of Least Astonishment | API 行为应符合用户直觉 |
+| **早期返回原则** | Early Return | 尽早返回，减少嵌套 |
+
+**原则冲突时的决策优先级**：正确性 > 一切；简洁性 > 灵活性；清晰性 > 性能；扩展性 > 紧凑性。
 
 ## 有机更新原则
 
