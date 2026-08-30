@@ -40,6 +40,24 @@ def test_reducer_is_deterministic_and_rebuildable(tmp_path: Path):
     assert projection == reduce_events(events)
 
 
+def test_rebuild_detects_skill_snapshot_drift(tmp_path: Path):
+    from bensz_skill_kernel import state_snapshot_hash
+
+    task = tmp_path / "task"
+    skill_log = task / "demo" / "log"
+    skill_log.mkdir(parents=True)
+    snapshot = {"protocol": "bensz-meta-state-v1", "skill": "demo", "current_state": "bensz.demo.ready", "state_version": "1.0.0"}
+    snapshot["snapshot_hash"] = state_snapshot_hash(snapshot)
+    snapshot_path = skill_log / "meta-state.json"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    log = EventLog(task / "log" / "events.ndjson")
+    log.append("state.transition", payload={"state_domain": "skill", "skill": "demo", "to_state": "bensz.demo.ready", "snapshot_hash": snapshot["snapshot_hash"], "snapshot_path": str(snapshot_path)})
+    snapshot["current_state"] = "bensz.demo.tampered"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    with pytest.raises(IntegrityError, match="state snapshot hash mismatch"):
+        log.rebuild()
+
+
 def test_invalid_transition_is_rejected(tmp_path: Path):
     log = EventLog(tmp_path / "events.ndjson")
     log.append("task.created", payload={"state": "planned"})

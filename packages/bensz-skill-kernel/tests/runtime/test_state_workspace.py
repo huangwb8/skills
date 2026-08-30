@@ -219,6 +219,9 @@ def test_state_transition_cli_executes_helper_and_persists_snapshot(tmp_path: Pa
     assert payload["status"] == "transitioned"
     assert payload["execution"]["verdict"] == "pass"
     assert workspace.read_meta_state("demo-skill")["current_state"] == "test.demo.collect"
+    projection = __import__("bensz_skill_kernel").EventLog(workspace.events).projection()
+    assert projection["skill_states"]["demo-skill"]["state"] == "test.demo.collect"
+    assert projection["skill_state_transitions"][-1]["from_state"] == "bensz.workspace.ready"
 
 
 def test_state_transition_cli_keeps_snapshot_when_helper_fails(tmp_path: Path, capsys):
@@ -298,6 +301,35 @@ def test_state_transition_cli_enforces_verifier_result_invariant(tmp_path: Path,
         "--skill-root", str(skill),
     ]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "transitioned"
+
+
+def test_verifier_invariant_rejects_ambiguous_historical_run_identity():
+    from bensz_skill_kernel import EventLog, StateDefinition, check_state_invariants
+
+    definition = StateDefinition(id="test.demo.checking", version="1.0.0", invariants=("verifier-result-recorded",))
+    log = EventLog(Path(__import__("tempfile").mkdtemp()) / "events.ndjson")
+    log.record_verification(
+        {"verifier_id": "test.demo.links", "verifier_version": "1.0.0", "verdict": "pass", "execution_status": "completed"},
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+        run_id="old-run",
+    )
+    failures = check_state_invariants(definition, log.read())
+    assert any("run_id/attempt_id required" in item for item in failures)
+    assert check_state_invariants(definition, log.read(), context={"run_id": "new-run", "attempt_id": "default"})
+
+
+def test_verifier_invariant_rejects_half_bound_identity():
+    from bensz_skill_kernel import EventLog, StateDefinition, check_state_invariants
+
+    definition = StateDefinition(id="test.demo.checking", version="1.0.0", invariants=("verifier-result-recorded",))
+    log = EventLog(Path(__import__("tempfile").mkdtemp()) / "events.ndjson")
+    log.record_verification(
+        {"verifier_id": "test.demo.links", "verifier_version": "1.0.0", "verdict": "pass", "execution_status": "completed"},
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+        run_id="run-1", attempt_id="attempt-1",
+    )
+    failures = check_state_invariants(definition, log.read(), context={"attempt_id": "attempt-1"})
+    assert any("both must be provided" in item for item in failures)
 
 
 def test_state_id_requires_owner_machine_and_state() -> None:

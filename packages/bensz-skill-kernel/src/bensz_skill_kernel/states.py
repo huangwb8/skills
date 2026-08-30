@@ -41,7 +41,7 @@ class StateExecutionError(StateDefinitionError):
     """A state helper could not be run or returned an invalid response."""
 
 
-def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] = ()) -> tuple[str, ...]:
+def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] = (), *, context: Mapping[str, Any] | None = None) -> tuple[str, ...]:
     """Return failed, kernel-defined invariants for a state.
 
     State contracts may contain prose invariants that require a domain adapter
@@ -50,11 +50,32 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     task event stream must contain both a verifier result and its Gate before
     leaving the checking state.
     """
+    event_list = list(events)
+    context = context or {}
+    run_id = context.get("run_id")
+    attempt_id = context.get("attempt_id")
+    def _value(event: Any, key: str, default: Any = None) -> Any:
+        if isinstance(event, Mapping):
+            return event.get(key, default)
+        return getattr(event, key, default)
+
+    # Once an event stream carries run identity, silently evaluating the
+    # invariant against all historical attempts would allow stale evidence to
+    # satisfy a new run.  Callers must provide the *pair* explicitly; a
+    # half-bound context is ambiguous and is rejected as well.
+    has_identity = any(_value(event, "run_id") is not None or _value(event, "attempt_id", "default") != "default" for event in event_list)
+    if "verifier-result-recorded" in definition.invariants and has_identity and (run_id is None or attempt_id is None):
+        return ("verifier-result-recorded (run_id/attempt_id required; both must be provided)",)
+    if run_id is not None or attempt_id is not None:
+        def _matches(event: Any) -> bool:
+            get = event.get if isinstance(event, Mapping) else lambda key, default=None: getattr(event, key, default)
+            return (run_id is None or get("run_id") == run_id) and (attempt_id is None or get("attempt_id", "default") == attempt_id)
+        event_list = [event for event in event_list if _matches(event)]
     event_types = {
         str(getattr(event, "event_type", getattr(event, "type", "")))
         if not isinstance(event, Mapping)
         else str(event.get("type", event.get("event_type", "")))
-        for event in events
+        for event in event_list
     }
     failures: list[str] = []
     for invariant in definition.invariants:
@@ -63,6 +84,36 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
             missing = sorted(required - event_types)
             if missing:
                 failures.append(f"{invariant} (missing events: {', '.join(missing)})")
+            elif run_id is not None or attempt_id is not None:
+                result_events = [e for e in event_list if _value(e, "type", _value(e, "event_type", "")) == "verification.result"]
+                gate_events = [e for e in event_list if _value(e, "type", _value(e, "event_type", "")) == "verification.gate"]
+                def _payload(event: Any) -> Mapping[str, Any]:
+                    payload = _value(event, "payload", {})
+                    return payload if isinstance(payload, Mapping) else {}
+                result_refs = {f"{_payload(e).get('verifier_id')}@{_payload(e).get('verifier_version')}" for e in result_events}
+                if any(ref.startswith("None@") or ref.endswith("@None") for ref in result_refs):
+                    failures.append(f"{invariant} (verification result missing verifier identity)")
+                gate_refs = set()
+                for gate in gate_events:
+                    payload = _payload(gate)
+                    gate_refs.update(str(item) for item in payload.get("result_refs", ()))
+                if result_refs and not result_refs.issubset(gate_refs):
+                    failures.append(f"{invariant} (gate result_refs do not cover current run results)")
+                result_event_ids = {str(_value(item, "event_id")) for item in result_events}
+                bound_ids = {str(_payload(item).get("result_event_id")) for item in gate_events if _payload(item).get("result_event_id")}
+                if bound_ids and not bound_ids.issubset(result_event_ids):
+                    failures.append(f"{invariant} (gate result_event_id is not from the current run)")
+        elif invariant == "verifier-gate-allow":
+            allowed = False
+            for event in event_list:
+                kind = event.get("type", event.get("event_type", "")) if isinstance(event, Mapping) else getattr(event, "event_type", "")
+                if kind != "verification.gate":
+                    continue
+                payload = event.get("payload", event) if isinstance(event, Mapping) else getattr(event, "payload", {})
+                if payload.get("decision") in {"allow", "allow_with_warnings"}:
+                    allowed = True
+            if not allowed:
+                failures.append("verifier-gate-allow (no allowing Gate decision)")
     return tuple(failures)
 
 
@@ -337,6 +388,7 @@ class SkillStateDeclaration:
     state_roots: tuple[Path, ...]
     states: tuple[str, ...]
     source: Path
+    verifiers: tuple[Mapping[str, Any], ...] = ()
 
     @classmethod
     def from_skill_root(cls, skill_root: str | Path) -> "SkillStateDeclaration":
@@ -387,7 +439,28 @@ class SkillStateDeclaration:
             raise StateDefinitionError(
                 f"Skill state declaration references an unknown state: {exc}"
             ) from exc
-        return cls(root, canonical_initial, tuple(resolved_roots), canonical_names, source)
+        raw_verifiers = raw.get("verifiers", ())
+        if raw_verifiers is None:
+            raw_verifiers = ()
+        if not isinstance(raw_verifiers, Iterable) or isinstance(raw_verifiers, (str, bytes, Mapping)):
+            raise StateDefinitionError("Skill verifier declaration must be a list")
+        verifier_items = []
+        if raw_verifiers:
+            try:
+                from .verifiers import FilesystemVerifierRegistry, builtin_verifier_root, normalize_requirements
+                verifier_items = list(normalize_requirements(raw_verifiers, FilesystemVerifierRegistry(builtin_verifier_root())))
+            except (ImportError, KeyError, ValueError) as exc:
+                raise StateDefinitionError(f"invalid verifier requirements: {exc}") from exc
+        runtime_kernel = raw.get("kernel")
+        if isinstance(runtime_kernel, Mapping):
+            name = str(runtime_kernel.get("name", ""))
+            version = str(runtime_kernel.get("version", ""))
+            from . import __version__ as kernel_version
+            if name != "bensz-skill-kernel" or version != kernel_version:
+                raise StateDefinitionError(
+                    f"runtime kernel mismatch: declared {name}@{version}, running bensz-skill-kernel@{kernel_version}"
+                )
+        return cls(root, canonical_initial, tuple(resolved_roots), canonical_names, source, tuple(verifier_items))
 
     def registry(self) -> "CombinedStateRegistry":
         registry = build_state_registry(*self.state_roots)
@@ -409,7 +482,12 @@ class SkillStateDeclaration:
             "state_roots": [str(item) for item in self.state_roots],
             "states": list(self.states),
             "source": str(self.source),
+            "verifiers": [dict(item) for item in self.verifiers],
         }
+
+    def verifier_requirements(self) -> tuple[Mapping[str, Any], ...]:
+        """Return the immutable runtime verifier selection for adapters."""
+        return tuple(dict(item) for item in self.verifiers)
 
 
 @dataclass(frozen=True)
@@ -497,10 +575,10 @@ class StateMachine:
         }
         return destination.id in explicit or ("*" in source.transitions and self.current in entry_conditions)
 
-    def transition(self, target: str, *, events: Iterable[Any] = ()) -> StateDefinition:
+    def transition(self, target: str, *, events: Iterable[Any] = (), context: Mapping[str, Any] | None = None) -> StateDefinition:
         if not self.can_transition(target):
             raise StateTransitionError(f"illegal meta-state transition {self.current!r} -> {target!r}")
-        invariant_failures = check_state_invariants(self.registry.resolve(self.current), events)
+        invariant_failures = check_state_invariants(self.registry.resolve(self.current), events, context=context)
         if invariant_failures:
             raise StateTransitionError("state invariant failed: " + "; ".join(invariant_failures))
         self.current = self.registry.resolve(target).id

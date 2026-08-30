@@ -145,6 +145,7 @@ def _probe(
     result: dict[str, Any] = {
         'url': url,
         'valid': False,
+        'validation_status': 'unresolved',
         'status_code': None,
         'redirected': False,
         'final_url': url,
@@ -154,9 +155,11 @@ def _probe(
     if initial_skip_reason:
         if initial_skip_reason == 'URL 格式非法或协议不受支持':
             result['error'] = initial_skip_reason
+            result['validation_status'] = 'invalid'
         else:
             result['skipped'] = True
             result['reason'] = initial_skip_reason
+            result['validation_status'] = 'skipped'
         return result
     opener = opener or build_opener(_NoRedirectHandler())
     try:
@@ -164,25 +167,27 @@ def _probe(
             url, 'HEAD', timeout, blacklist, whitelist, opener
         )
         if redirect_error:
-            result.update(final_url=final_url, redirected=final_url != url, skipped=True, reason=redirect_error)
+            result.update(final_url=final_url, redirected=final_url != url, skipped=True, validation_status='skipped', reason=redirect_error)
             return result
         if status in {403, 405}:
             status, final_url, redirect_error = _request_with_checked_redirects(
                 url, 'GET', timeout, blacklist, whitelist, opener
             )
             if redirect_error:
-                result.update(final_url=final_url, redirected=final_url != url, skipped=True, reason=redirect_error)
+                result.update(final_url=final_url, redirected=final_url != url, skipped=True, validation_status='skipped', reason=redirect_error)
                 return result
         result.update(
             status_code=status,
             final_url=final_url,
             redirected=final_url != url,
             valid=200 <= status < 400,
+            validation_status='valid' if 200 <= status < 400 else 'invalid',
         )
         if not result['valid']:
             result['error'] = f'HTTP {status}'
     except (URLError, TimeoutError, OSError) as exc:
         result['error'] = str(exc)
+        result['validation_status'] = 'timed_out' if isinstance(exc, TimeoutError) else 'unresolved'
     return result
 
 
@@ -207,6 +212,7 @@ def collect_markdown(
             validation = {
                 'url': url,
                 'valid': anchor in anchors,
+                'validation_status': 'valid' if anchor in anchors else 'invalid',
                 'local_anchor': True,
                 'error': None if anchor in anchors else f'站内 anchor 不存在: {anchor}',
             }
@@ -222,23 +228,28 @@ def collect_markdown(
             except ValueError:
                 in_scope = False
             if not in_scope or not linked_path.is_file():
-                validation = {'url': url, 'valid': False, 'error': f'相对文件不存在或越界: {relative}'}
+                validation = {'url': url, 'valid': False, 'validation_status': 'invalid', 'error': f'相对文件不存在或越界: {relative}'}
             elif fragment:
                 linked_anchors = _anchor_ids(linked_path.read_text(encoding='utf-8'))
                 valid = unquote(fragment) in linked_anchors
-                validation = {'url': url, 'valid': valid, 'local_anchor': True, 'error': None if valid else f'目标文档 anchor 不存在: {fragment}'}
+                validation = {'url': url, 'valid': valid, 'validation_status': 'valid' if valid else 'invalid', 'local_anchor': True, 'error': None if valid else f'目标文档 anchor 不存在: {fragment}'}
             else:
-                validation = {'url': url, 'valid': True, 'local_file': True, 'error': None}
+                validation = {'url': url, 'valid': True, 'validation_status': 'valid', 'local_file': True, 'error': None}
         else:
             validation = _probe(url, timeout, blacklist, whitelist)
         collected.append({**reference, 'validation': validation})
     total = len(collected)
     valid = sum(1 for item in collected if item['validation'].get('valid', False))
     skipped = sum(1 for item in collected if item['validation'].get('skipped', False))
+    invalid = sum(1 for item in collected if item['validation'].get('validation_status') == 'invalid')
+    unresolved = sum(1 for item in collected if item['validation'].get('validation_status') in {'unresolved', 'timed_out'})
+    timed_out = sum(1 for item in collected if item['validation'].get('validation_status') == 'timed_out')
     summary = {
         'total': total,
         'valid': valid,
-        'invalid': total - valid - skipped,
+        'invalid': invalid,
+        'unresolved': unresolved,
+        'timed_out': timed_out,
         'skipped': skipped,
         'valid_rate': f'{valid / total * 100:.1f}%' if total else '0%',
     }

@@ -2,7 +2,7 @@ import importlib.util
 import json
 from email.message import Message
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 
 import pytest
@@ -21,6 +21,7 @@ from bensz_skill_kernel import (
     collect_markdown,
     validate_verifier_id,
     normalize_result,
+    normalize_requirements,
 )
 from bensz_skill_kernel.atomic_verifiers import run_atomic
 from bensz_skill_kernel.builtins import build_builtin_registry
@@ -53,6 +54,11 @@ class _RedirectingOpener:
         raise HTTPError(request.full_url, 302, 'Found', headers, None)
 
 
+class _UnreachableOpener:
+    def open(self, request, timeout: int):
+        raise URLError("name resolution failed")
+
+
 def test_redirect_to_private_address_is_skipped_before_request(monkeypatch) -> None:
     opener = _RedirectingOpener()
     monkeypatch.setattr(
@@ -66,6 +72,13 @@ def test_redirect_to_private_address_is_skipped_before_request(monkeypatch) -> N
     assert result['skipped'] is True
     assert result['reason'] == '重定向目标不在允许范围内'
     assert opener.requested_urls == ['https://public.invalid/start']
+
+
+def test_network_resolution_failure_is_unresolved(monkeypatch):
+    monkeypatch.setattr(_COLLECTOR, '_blocked', lambda _url, _blacklist: False)
+    result = _probe('https://public.invalid/start', 1, (), (), opener=_UnreachableOpener())
+    assert result['valid'] is False
+    assert result['validation_status'] == 'unresolved'
 
 
 def test_legacy_collect_markdown_export_delegates_to_verifier_collector(tmp_path: Path) -> None:
@@ -246,6 +259,17 @@ def test_instruction_only_verifier_returns_standard_unchecked_result(tmp_path):
     assert result["verifier_id"] == "test.manual.review"
 
 
+def test_instruction_only_verifier_preserves_evidence_refs(tmp_path):
+    verifier_dir = tmp_path / "manual"
+    verifier_dir.mkdir()
+    (verifier_dir / "VERIFIER.md").write_text("---\nid: test.manual.evidence\nversion: 1.0.0\n---\n", encoding="utf-8")
+    result = FilesystemVerifierRegistry(tmp_path).run(
+        "test.manual.evidence",
+        {"subject": {}, "evidence": [{"ref": "claim"}, {"ref": "source"}]},
+    )
+    assert result["evidence_refs"] == ("claim", "source")
+
+
 def test_script_verifier_uses_json_stdio_protocol(tmp_path):
     verifier_dir = tmp_path / "scripted"
     scripts = verifier_dir / "scripts"
@@ -297,6 +321,23 @@ def test_filesystem_registry_resolves_legacy_alias_to_canonical_id(tmp_path: Pat
     assert registry.resolve("markdown.references").verifier_id == "bensz.document.link-integrity"
     result = registry.run("markdown.link-integrity", {"subject": {}})
     assert result["verifier_id"] == "bensz.document.link-integrity"
+
+
+def test_normalize_requirements_rejects_unknown_duplicate_and_bad_versions(tmp_path: Path):
+    registry = FilesystemVerifierRegistry(builtin_verifier_root())
+    normalized = normalize_requirements(
+        [{"id": "markdown.link-integrity", "version": "1.0.0", "required": True}], registry
+    )
+    assert normalized[0] == {"id": "bensz.document.markdown-link-integrity", "version": "1.0.0", "required": True}
+    with pytest.raises(ValueError, match="unknown verifier"):
+        normalize_requirements([{"id": "bensz.document.missing", "version": "1.0.0"}], registry)
+    with pytest.raises(ValueError, match="invalid verifier version"):
+        normalize_requirements([{"id": "bensz.document.markdown-link-integrity", "version": "latest"}], registry)
+    with pytest.raises(ValueError, match="duplicate verifier"):
+        normalize_requirements([
+            {"id": "bensz.document.markdown-link-integrity", "version": "1.0.0"},
+            {"id": "markdown.link-integrity", "version": "1.0.0"},
+        ], registry)
 
 
 def test_noncanonical_filesystem_verifier_id_is_rejected(tmp_path: Path):
@@ -432,3 +473,10 @@ def test_optional_failure_gate_allows_with_warnings():
     spec = VerifierSpec("test.demo.optional", "1.0.0", "rule")
     result = normalize_result({"verdict": "fail"}, spec)
     assert apply_gate((result,), required=False).decision == "allow_with_warnings"
+
+
+def test_gate_requirements_classify_optional_and_required_failures():
+    required = normalize_result({"verdict": "fail"}, VerifierSpec("test.demo.required", "1.0.0", "rule"))
+    optional = normalize_result({"verdict": "fail"}, VerifierSpec("test.demo.optional2", "1.0.0", "rule"))
+    assert apply_gate((required, optional), requirements=[{"verifier_id": required.verifier_id, "required": True}, {"verifier_id": optional.verifier_id, "required": False}]).decision == "reject"
+    assert apply_gate((optional,), requirements=[{"verifier_id": optional.verifier_id, "required": False}]).decision == "allow_with_warnings"

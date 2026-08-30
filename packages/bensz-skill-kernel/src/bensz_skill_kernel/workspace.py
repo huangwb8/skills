@@ -14,6 +14,13 @@ from typing import Any, Iterable, Mapping
 WORKSPACE_KINDS = frozenset({"input", "output", "log"})
 WORKSPACE_PROTOCOL_VERSION = "bensz-api-task-v1"
 META_STATE_SNAPSHOT_VERSION = "bensz-meta-state-v1"
+_SNAPSHOT_VOLATILE_FIELDS = frozenset({"snapshot_hash", "state_event_id", "path"})
+
+
+def state_snapshot_hash(snapshot: Mapping[str, Any]) -> str:
+    """Hash the stable state snapshot fields using the public audit contract."""
+    stable = {str(key): value for key, value in snapshot.items() if key not in _SNAPSHOT_VOLATILE_FIELDS}
+    return hashlib.sha256(json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _redact(value: Any) -> Any:
@@ -201,8 +208,16 @@ class TaskWorkspace:
                 "workspace_state": self.manifest().get("state"),
             }
         try:
-            return json.loads(paths.meta_state.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
+            snapshot = json.loads(paths.meta_state.read_text(encoding="utf-8"))
+            if not isinstance(snapshot, dict):
+                raise ValueError("snapshot must be an object")
+            expected = snapshot.get("snapshot_hash")
+            if expected and str(expected).removeprefix("sha256:") != state_snapshot_hash(snapshot):
+                raise WorkspaceError(f"meta-state snapshot integrity mismatch: {paths.meta_state}")
+            return snapshot
+        except WorkspaceError:
+            raise
+        except (json.JSONDecodeError, ValueError) as exc:
             raise WorkspaceError(f"invalid meta-state snapshot: {paths.meta_state}") from exc
 
     def write_meta_state(self, skill: str, snapshot: dict[str, Any]) -> Path:

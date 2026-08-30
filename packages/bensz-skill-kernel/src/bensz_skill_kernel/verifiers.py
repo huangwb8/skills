@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,7 @@ VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_
 EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", "skipped"})
 MODES = frozenset({"rule", "prompt", "hybrid", "human"})
 ASSURANCE_TIERS = frozenset({"deterministic", "mixed", "llm_judge", "human"})
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
 
 def builtin_verifier_root() -> Path:
@@ -311,7 +313,12 @@ class FilesystemVerifierRegistry:
                 "context": dict(request.context),
             }
         definition = self.resolve(verifier_id, version)
-        base = {"verifier_id": definition.verifier_id, "verifier_version": definition.version, "evidence_refs": tuple(request.get("evidence_refs", ())), "request_id": request.get("request_id")}
+        explicit_refs = request.get("evidence_refs", ())
+        evidence_items = request.get("evidence", ())
+        inferred_refs = tuple(str(item.get("ref")) for item in evidence_items if isinstance(item, Mapping) and item.get("ref"))
+        base = {"verifier_id": definition.verifier_id, "verifier_version": definition.version,
+                "evidence_refs": tuple(explicit_refs) or inferred_refs,
+                "request_id": request.get("request_id")}
         if not definition.entrypoint:
             return {**base, "execution_status": "unchecked", "verdict": "unchecked", "uncertainty_reason": "instruction-only verifier; follow VERIFIER.md manually"}
         execution = run_stdio(definition.path, definition.entrypoint, request, timeout=timeout)
@@ -471,21 +478,72 @@ def normalize_result(raw: Mapping[str, Any], spec: VerifierSpec, *, evidence_ref
         return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status="unchecked", verdict="unchecked", uncertainty_reason="invalid verifier output", evidence_refs=tuple(evidence_refs))
 
 
-def apply_gate(results: Iterable[VerificationResult], *, required: bool = True) -> GateDecision:
+def apply_gate(results: Iterable[VerificationResult], *, required: bool = True,
+               required_ids: Iterable[str] | None = None,
+               requirements: Mapping[str, bool] | Iterable[Mapping[str, Any]] | None = None) -> GateDecision:
     """Apply conservative gate semantics; deterministic failures cannot be averaged away."""
     items = tuple(results)
     refs = tuple(f"{r.verifier_id}@{r.verifier_version}" for r in items)
     if not items:
         return GateDecision("wait", "no verification result", refs, ("missing_result",))
-    failures = [r for r in items if r.verdict in {"fail", "error", "timed_out"}]
-    unknown = [r for r in items if r.verdict in {"unchecked", "uncertain"}]
-    if failures and required:
-        return GateDecision("reject", "required verifier failure", refs, tuple(r.verifier_id for r in failures))
+    if requirements is not None:
+        if isinstance(requirements, Mapping):
+            required_set = {str(key) for key, value in requirements.items() if bool(value)}
+        else:
+            required_set = {str(item.get("verifier_id", item.get("id"))) for item in requirements if isinstance(item, Mapping) and item.get("verifier_id", item.get("id")) and bool(item.get("required", False))}
+    elif required_ids is not None:
+        required_set = {str(item) for item in required_ids}
+    else:
+        required_set = {r.verifier_id for r in items} if required else set()
+    failures = [r for r in items if r.verdict in {"fail", "error"}]
+    unknown = [r for r in items if r.verdict in {"unchecked", "uncertain", "timed_out"}]
+    required_failures = [r for r in failures if r.verifier_id in required_set]
+    if required_failures:
+        return GateDecision("reject", "required verifier failure", refs, tuple(r.verifier_id for r in required_failures))
     if unknown:
         return GateDecision("manual_review", "verification gap or semantic uncertainty", refs, tuple(r.verifier_id for r in unknown))
     if failures:
         return GateDecision("allow_with_warnings", "optional verifier failure", refs, tuple(r.verifier_id for r in failures))
     return GateDecision("allow", "all required verifiers passed", refs)
+
+
+def normalize_requirements(
+    requirements: Iterable[Mapping[str, Any]],
+    registry: Any,
+    *,
+    required_ids: Iterable[str] = (),
+) -> tuple[dict[str, Any], ...]:
+    """Validate and canonicalize a Skill's runtime verifier declaration.
+
+    Unknown IDs, duplicate canonical IDs, malformed versions and non-boolean
+    ``required`` flags fail closed before any verifier is executed.  Aliases
+    are accepted only as compatibility input and are emitted canonically.
+    """
+    if requirements is None or isinstance(requirements, (str, bytes, Mapping)):
+        raise ValueError("verifier requirements must be a list")
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    required_set = {str(item) for item in required_ids}
+    for item in requirements:
+        if not isinstance(item, Mapping) or not item.get("id", item.get("verifier_id")):
+            raise ValueError("each verifier requirement requires id")
+        requested = str(item.get("id", item.get("verifier_id")))
+        version = str(item.get("version", ""))
+        if not version or not _VERSION_RE.match(version):
+            raise ValueError(f"invalid verifier version for {requested}: {version!r}")
+        try:
+            definition = registry.resolve(requested, version)
+        except (KeyError, ValueError) as exc:
+            raise ValueError(f"unknown verifier: {requested}@{version}") from exc
+        canonical = definition.verifier_id
+        if canonical in seen:
+            raise ValueError(f"duplicate verifier requirement: {canonical}")
+        raw_required = item.get("required", canonical in required_set)
+        if not isinstance(raw_required, bool):
+            raise ValueError(f"verifier required must be boolean: {canonical}")
+        seen.add(canonical)
+        normalized.append({"id": canonical, "version": definition.version, "required": raw_required})
+    return tuple(normalized)
 
 
 class VerifierRunner:

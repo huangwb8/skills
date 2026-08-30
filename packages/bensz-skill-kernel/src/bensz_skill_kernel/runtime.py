@@ -194,6 +194,10 @@ def _event_state(event: EventEnvelope) -> tuple[str | None, dict[str, Any]]:
     """Return an optional target state and normalized payload for an event."""
     payload = dict(event.payload)
     if event.event_type in {"state.transition", "transition", "status.changed"}:
+        # Skill-owned state transitions share the append-only log but must not
+        # be interpreted as lifecycle states by the domain-neutral reducer.
+        if payload.get("state_domain") == "skill" or payload.get("to_state") is not None:
+            return None, payload
         return payload.get("to", payload.get("state")), payload
     aliases = {
         "task.created": "planned", "task.accepted": "planned", "task.started": "active",
@@ -223,6 +227,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "event_count": 0,
         "audit_trail": [],
         "run_snapshot": {},
+        "skill_states": {},
+        "skill_state_transitions": [],
     }
     if initial:
         projection.update(dict(initial))
@@ -266,6 +272,26 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             projection["verifications"].append(payload)
         elif event.event_type == "verification.gate":
             projection["gate_decisions"].append(payload)
+        elif event.event_type == "state.transition" and payload.get("state_domain") == "skill":
+            skill = str(payload.get("skill", ""))
+            target = payload.get("to_state")
+            if skill and target:
+                projection["skill_states"][skill] = {
+                    "state": str(target),
+                    "version": str(payload.get("state_version", "")),
+                    "event_id": event.event_id,
+                    "snapshot_hash": payload.get("snapshot_hash"),
+                }
+                projection["skill_state_transitions"].append({
+                    "skill": skill,
+                    "from_state": payload.get("from_state"),
+                    "to_state": target,
+                    "state_version": payload.get("state_version"),
+                    "run_id": event.run_id,
+                    "attempt_id": event.attempt_id,
+                    "event_id": event.event_id,
+                    "snapshot_hash": payload.get("snapshot_hash"),
+                })
         elif event.event_type in {"delivery.reported", "delivery.completed"}:
             projection["delivery_report"] = payload.get("report") or payload.get("path") or event.path or payload
         if event.snapshot:
@@ -292,6 +318,37 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         projection["last_event_id"] = event.event_id
         projection["event_count"] += 1
     return projection
+
+
+def _verify_skill_snapshots(events: Iterable[EventEnvelope], *, events_path: Path) -> None:
+    """Validate current on-disk Skill snapshots referenced by new state events.
+
+    Older events may not carry a snapshot hash/path and remain read-only
+    compatible. Missing cache files are also tolerated because the event log is
+    authoritative; a present file with a drifted hash is an integrity failure.
+    """
+    from .workspace import state_snapshot_hash
+    latest: dict[str, EventEnvelope] = {}
+    for event in events:
+        if event.event_type != "state.transition" or event.payload.get("state_domain") != "skill":
+            continue
+        latest[str(event.payload.get("skill", ""))] = event
+    for event in latest.values():
+        expected = event.payload.get("snapshot_hash")
+        if not expected:
+            continue
+        raw_path = event.payload.get("snapshot_path")
+        target = Path(raw_path) if raw_path else events_path.parent.parent / str(event.payload.get("skill", "")) / "log" / "meta-state.json"
+        if not target.is_absolute():
+            target = events_path.parent / target
+        if not target.is_file():
+            continue
+        try:
+            snapshot = json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise IntegrityError(f"state snapshot unreadable: {target}") from exc
+        if not isinstance(snapshot, Mapping) or state_snapshot_hash(snapshot) != str(expected).removeprefix("sha256:"):
+            raise IntegrityError(f"state snapshot hash mismatch: {target}")
 
 
 def _guard_completion(projection: Mapping[str, Any], contract: Mapping[str, Any] | None = None) -> None:
@@ -603,7 +660,9 @@ class EventLog:
         return self.append("delivery.reported", payload={"report": report, **metadata}, path=report)
 
     def rebuild(self, state_path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
-        projection = self.projection()
+        events = self.read()
+        _verify_skill_snapshots(events, events_path=self.path)
+        projection = reduce_events(events)
         target = Path(state_path) if state_path else self.path.parent / "state.json"
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_name(target.name + ".tmp")

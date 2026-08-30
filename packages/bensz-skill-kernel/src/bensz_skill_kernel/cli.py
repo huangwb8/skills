@@ -16,10 +16,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .builtins import build_builtin_registry
-from .runtime import EventLog, KernelError
+from .runtime import EventLog, IntegrityError, KernelError
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
-from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS
+from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS, state_snapshot_hash
 from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
+from . import __version__
 
 
 def _json_value(raw: str, *, label: str) -> Any:
@@ -80,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Bensz Skill lifecycle and verification kernel",
         epilog="Skills normally use subcommands; legacy --status/--rebuild/--append-event remain supported.",
     )
+    parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     status = commands.add_parser("status", help="show the current projection")
@@ -183,6 +185,8 @@ def build_parser() -> argparse.ArgumentParser:
     state_transition.add_argument("skill")
     state_transition.add_argument("target_state")
     state_transition.add_argument("--context-json", default="{}", help="JSON object passed to the state helper")
+    state_transition.add_argument("--run-id", help="run identity used when checking event-bound invariants")
+    state_transition.add_argument("--attempt-id", default="default", help="attempt identity used when checking event-bound invariants")
     state_transition.add_argument("--timeout", type=int, default=10)
     _add_state_source(state_transition)
 
@@ -330,7 +334,10 @@ def _run_state_command(args: argparse.Namespace) -> int:
             _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
             return 0
         events = EventLog(workspace.events).read()
-        invariant_failures = check_state_invariants(registry.resolve(current), events)
+        context = _json_object(args.context_json, label="--context-json")
+        if args.run_id is not None:
+            context = {**context, "run_id": args.run_id, "attempt_id": args.attempt_id}
+        invariant_failures = check_state_invariants(registry.resolve(current), events, context=context)
         if invariant_failures:
             _print(_state_response(
                 "transition",
@@ -342,12 +349,11 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 reason="State invariant failed: " + "; ".join(invariant_failures),
             ), pretty=True)
             return 0
-        context = _json_object(args.context_json, label="--context-json")
         execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": context}, timeout=args.timeout)
         if execution.execution_status != "not_applicable" and execution.verdict != "pass":
             _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
             return 0
-        machine.transition(args.target_state, events=events)
+        machine.transition(args.target_state, events=events, context=context)
         snapshot = {
             "protocol": META_STATE_PROTOCOL_VERSION,
             "skill": workspace.paths(args.skill).skill,
@@ -357,6 +363,28 @@ def _run_state_command(args: argparse.Namespace) -> int:
             "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "last_operation": _state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution),
         }
+        snapshot_hash = state_snapshot_hash(snapshot)
+        snapshot_path = workspace.paths(args.skill).meta_state
+        state_event = EventLog(workspace.events).append(
+            "state.transition",
+            payload={
+                "state_domain": "skill",
+                "skill": args.skill,
+                "from_state": current,
+                "to_state": target.id,
+                "state_version": target.version,
+                "snapshot_hash": snapshot_hash,
+                "snapshot_path": str(snapshot_path),
+            },
+            scope="skill",
+            actor="bsk:state",
+            attempt_id=args.attempt_id,
+            run_id=args.run_id,
+            idempotency_key=(f"state:{args.skill}:{args.run_id}:{args.attempt_id}:{target.id}" if args.run_id else None),
+            snapshot={"skill": args.skill, "state_hash": snapshot_hash},
+        )
+        snapshot["state_event_id"] = state_event.event_id
+        snapshot["snapshot_hash"] = snapshot_hash
         path = workspace.write_meta_state(args.skill, snapshot)
         snapshot["path"] = str(path)
         _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot), pretty=True)
@@ -520,10 +548,13 @@ def _run_legacy(argv: list[str]) -> int:
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
-        if argv and argv[0].startswith("--") and argv[0] not in {"--help", "-h"}:
+        if argv and argv[0].startswith("--") and argv[0] not in {"--help", "-h", "--version"}:
             return _run_legacy(argv)
         args = build_parser().parse_args(argv)
         return _run_command(args)
+    except IntegrityError as exc:
+        print(json.dumps({"error": "integrity_error", "message": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
     except (KernelError, KeyError, ValueError, OSError) as exc:
         print(f"bsk: {exc}", file=sys.stderr)
         return 2

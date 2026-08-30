@@ -29,12 +29,17 @@ def main() -> int:
         json.dump({"execution_status": "error", "verdict": "error", "uncertainty_reason": str(exc)}, sys.stdout)
         return 0
     invalid = report["summary"]["invalid"]
+    unresolved = report["summary"].get("unresolved", 0)
     findings = [
         {"id": "invalid-reference", "verdict": "fail", "reference": item.get("index"), "message": item.get("validation", {}).get("error")}
         for item in report["references"]
-        if not item.get("validation", {}).get("valid") and not item.get("validation", {}).get("skipped")
+        if item.get("validation", {}).get("validation_status") == "invalid"
     ]
-    json.dump({"execution_status": "completed", "verdict": "fail" if invalid else "pass", "facts": report, "findings": findings}, sys.stdout, ensure_ascii=False)
+    timed_out = report["summary"].get("timed_out", 0)
+    verdict = "fail" if invalid else ("timed_out" if unresolved and timed_out == unresolved else ("unchecked" if unresolved else "pass"))
+    execution_status = "timed_out" if verdict == "timed_out" else ("unchecked" if unresolved and not invalid else "completed")
+    json.dump({"execution_status": execution_status, "verdict": verdict, "facts": report, "findings": findings,
+               "uncertainty_reason": "one or more URLs could not be observed" if unresolved else None}, sys.stdout, ensure_ascii=False)
     return 0
 
 

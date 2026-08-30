@@ -46,11 +46,14 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-demo skill-name org.example.s
 状态操作统一返回 `bensz-meta-state-v1` JSON，包含操作、状态、结果、可选脚本回执和
 持久化快照。每个 Skill 的当前元状态写入自身 `log/meta-state.json`；它与任务级
 `events.ndjson` / `state.json` 分层，后者仍只记录生命周期、验证与交付事实。
+成功的 Skill 状态转移同时以 `state.transition`（`state_domain: skill`）追加到任务事件账本，
+`bsk rebuild` 会将其投影到 `skill_states`/`skill_state_transitions`，并核验最新元状态快照的稳定字段哈希；快照缺失时仍可据事件账本恢复，漂移则返回 `integrity_error`。
 
 状态 `invariants` 默认是面向领域的说明；Kernel 只执行有明确协议的通用 invariant。
 当前支持 `verifier-result-recorded`：离开声明该 invariant 的状态前，任务事件账本必须
 同时包含 `verification.result` 和 `verification.gate`。未满足时 CLI 返回结构化
 `rejected`，不会写入新的状态快照；领域专属 invariant 仍由 Skill helper 或人工复核负责。
+事件带有运行身份时，`run_id` 与 `attempt_id` 必须成对传入，避免重试之间串用验证证据。
 
 内置 State 的 ID、版本、kind、aliases、classification 和 tags 由 `states/index.json` 单独管理；
 `STATE.md` 只保留 `description`、`entry_conditions`、`invariants`、`transitions` 等状态工作契约及正文说明。
@@ -107,4 +110,4 @@ instruction-only，由 Agent 读取正文执行。脚本入口遵循：stdin 一
 
 Pack helper 默认以受信本地进程运行，但内核会限制输入、stdout/stderr 体积、环境变量和执行时长，并在超时后终止整个进程组；调用不可信 Pack 时应显式传入 `trusted=False`，此时会 fail-closed。该边界是进程级资源与路径约束，不等同于容器或操作系统沙箱。
 
-事件账本除状态投影外还保留可选的运行契约快照、授权链和执行审计轨迹；`reduce_events()` 仅用于离线状态投影重放，不会重新调用模型或工具。Verifier 结果可通过 `summarize_metrics()` 汇总 required 覆盖、未知/不确定比例、Gate 放行率、assurance tier 与耗时。
+事件账本除状态投影外还保留可选的运行契约快照、授权链和执行审计轨迹；`reduce_events()` 仅用于离线状态投影重放，不会重新调用模型或工具。Verifier 结果可通过 `summarize_metrics()` 汇总 required 覆盖、未知/不确定比例、Gate 放行率、assurance tier 与耗时；`apply_gate()` 支持按 Verifier ID 的 required/advisory requirements，网络不可观测结果应保持 `unchecked` 并进入人工复核。
