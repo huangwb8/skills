@@ -5,6 +5,19 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-30
+
+### Changed
+- 将状态机与 `bensz.prompt.contract-conformance@1.0.0` 从说明性接入改为每次执行的强制门禁；只有 Kernel 记录并允许 Gate、完成语义复核后才能交付。
+- 修正状态机与 Verifier 的 CLI 调用契约，并让 Verifier 脚本输出稳定身份与执行状态，确保 Kernel 能重算并绑定 Gate。
+
+## [0.3.0] - 2026-08-30
+
+### Added
+- 新增 `references/states/` 状态 Pack，对齐 `S-prompt` 的 `draft → schema-valid → reviewed → published` 阶段。
+- 新增 `bensz.prompt.contract-conformance@1.0.0` 确定性 Verifier Pack，检查六原子结构、必需块、内容和顺序。
+- 在 `config.yaml.runtime`、SKILL.md 与 README 中接入状态机和验证器契约。
+
 ## [0.2.1] - 2026-04-11
 
 ### Changed

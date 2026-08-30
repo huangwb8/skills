@@ -116,8 +116,12 @@
 ### 对象化最小流程
 
 - **Skill**：读取现有 `SKILL.md`、`config.yaml`、脚本和必要 references → 确认触发边界与输入输出 → 最小修改 → 静态一致性检查 → 轻量测试 → README、CHANGELOG 和 BAC 同步；影响安装发现时再运行安装器回归。
-- **Verifier**：确定稳定判断命题与 Evidence Contract → 判断是否应成为顶层 Verifier → 编写 `VERIFIER.md` 和入口 → 更新 `verifiers/index.json` → 测试 canonical/alias、非法输入、超时和安全边界 → 同步 kernel 文档与 CHANGELOG。
-- **State**：确定状态语义和所属 machine → 编写 `STATE.md` → 更新 `states/index.json` → 检查 entry conditions、invariants、transitions 与 Runtime reducer → 测试非法迁移、alias、helper 和 terminal state → 同步 Skill runtime 声明、文档与 CHANGELOG。
+- **Verifier（按需）**：仅当开发者明确要求本次 Skill 开发引入或使用验证器时，才确定稳定判断命题与 Evidence Contract → 判断是否应成为顶层 Verifier → 编写 `VERIFIER.md` 和入口 → 更新 `verifiers/index.json` → 测试 canonical/alias、非法输入、超时和安全边界 → 同步 kernel 文档与 CHANGELOG。
+- **State（按需）**：仅当开发者明确要求本次 Skill 开发引入或使用状态机时，才确定状态语义和所属 machine → 编写 `STATE.md` → 更新 `states/index.json` → 检查 entry conditions、invariants、transitions 与 Runtime reducer → 测试非法迁移、alias、helper 和 terminal state → 同步 Skill runtime 声明、文档与 CHANGELOG。
+
+### 状态机与验证器的可选性
+
+状态机、Verifier 及其 Pack/Gate 集成不是普通 Skill 开发的默认必需项。只有开发者在当前任务中明确表示需要使用状态机或验证器时，才纳入相应流程、运行时声明、Pack 资产和专门测试；未明确要求时按普通 Skill 的最小流程处理，不得因仓库已有 Kernel、Pack 或示例而自动接入。由于这两类基础设施仍处于活跃开发阶段、成熟度和兼容性尚在演进，决定采用前应评估实际收益、失败风险与回退方案。
 
 详细字段表和长示例应下沉到 `docs/`（建议维护 `docs/skill-development.md`、`docs/verifier-development.md`、`docs/state-development.md` 和 `docs/verification-matrix.md`）；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
 
@@ -127,8 +131,8 @@
 
 - Python 版本、包版本、依赖和入口以 `packages/bensz-skill-kernel/pyproject.toml` 为准；运行时继续保持零第三方依赖，测试依赖不得进入运行时依赖。
 - 修改公开 API、CLI 参数、JSON 协议、事件字段、错误类型或退出码时，先判断兼容性，再同步 README、`docs/`、示例和 CHANGELOG；不得只修改实现而留下过时契约。
-- `states/**`、`verifiers/**` 等包内 Markdown、JSON 和脚本资产必须纳入 `pyproject.toml` 的 package data，并用安装后环境验证仍可发现。
-- 事件和状态投影必须可重放；时间、哈希和 JSON 序列化保持确定性。错误处理应提供稳定的错误类别或状态，不以异常文本作为调用方契约。
+- 如本次修改涉及 `states/**`、`verifiers/**` 等包内 Markdown、JSON 或脚本资产，必须将其纳入 `pyproject.toml` 的 package data，并用安装后环境验证仍可发现。
+- 如本次修改涉及状态或验证运行时，事件和状态投影必须可重放；时间、哈希和 JSON 序列化保持确定性。错误处理应提供稳定的错误类别或状态，不以异常文本作为调用方契约。
 - 包内单元测试放在 `packages/bensz-skill-kernel/tests/`；根级 `tests/` 仅用于仓库公开入口或跨包集成测试。测试运行产物统一写入 `tmp/`，不得写入源码或测试目录。
 
 ## Skill 开发
@@ -224,7 +228,7 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 
 以下规则是新增或修改 Pack 的最低要求；详细理论说明可放在 `docs/`，但不得与本节的强制契约冲突。
 
-### Verifier Pack
+### Verifier Pack（仅在显式采用 Verifier 时适用）
 
 - 目录使用 `verifiers/<directory>/`；至少包含 `VERIFIER.md`，可选 `scripts/verify.py` 或其它入口脚本。
 - 新增、删除或重命名目录时，必须同步 `verifiers/index.json`。索引协议为 `bensz-pack-index-v1`，其中 `directory`、canonical `id`、`version`、`classification`、`tags`、`contract` 和可选 `entrypoint` 必须与实际文件一致；索引是元数据单一真相来源。
@@ -233,7 +237,7 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 - 入口默认只读；确需副作用时必须在契约、请求和审计事件中显式声明，并提供失败恢复和幂等策略。超时、异常、非法 JSON、非零退出码不得由调用方猜测，必须由 kernel 归一化。
 - Verifier 只负责稳定的可复核判断；格式适配器负责把 Markdown、LaTeX 等输入转换为通用证据。只有需要独立注册、版本化和复用的能力才提升为顶层 Verifier。
 
-### State Pack
+### State Pack（仅在显式采用状态机时适用）
 
 - 目录使用 `states/<directory>/`；至少包含 `STATE.md`，可选附带 JSON-stdio helper。
 - 使用 `states/index.json` 时，索引负责 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、`contract` 和可选 `entrypoint`；`STATE.md` 负责 description、entry conditions、invariants 和 transitions。索引优先时不得在 Markdown 中复制易漂移的元数据。
@@ -242,7 +246,7 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用�
 - helper 通过 stdin 接收标准 JSON 请求、stdout 返回一个结果对象；只有执行成功且 `verdict=pass` 才能持久化转移。instruction-only 状态必须在正文中写明由 Agent 执行的检查。
 - Kernel 只提供发现、解析、转移校验、执行边界和持久化协议；领域 Skill 的业务状态、规则和判断不得硬编码进 kernel reducer。
 
-### 索引与安全门禁
+### 索引与安全门禁（仅在本次任务涉及 Pack 时适用）
 
 提交前必须检查：
 

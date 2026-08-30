@@ -226,3 +226,13 @@ A：当你只想润色语气、不想改变结构，或者你给的根本不是 
 - OpenAI Model Selection Guide：<https://developers.openai.com/api/docs/guides/model-selection>
 - Anthropic Models Overview：<https://platform.claude.com/docs/en/about-claude/models/overview>
 - 这些模型版本变化较快；如果你在 2026-04-11 之后阅读本 README，建议重新核对官方文档。
+
+## 运行时状态与结构验证
+
+技能运行阶段由 [`references/state-machine.md`](references/state-machine.md) 定义，状态
+从输入就绪、翻译、验证、通过到交付依次推进。结构检查由
+[`references/verifiers.md`](references/verifiers.md) 中的
+`bensz.prompt.contract-conformance@1.0.0` 完成；它只确认必需块存在、非空且顺序正确，
+不替代对原始 prompt 意图的人工或语义判断。两者都是每次执行的强制门禁：必须先由
+Kernel 写入状态转移和验证结果/Gate，且仅在 Gate 允许并完成语义复核后返回最终 Prompt
+Program；命令失败或证据缺失时不得静默降级。

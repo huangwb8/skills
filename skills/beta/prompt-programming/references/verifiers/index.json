@@ -1,0 +1,16 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "verifier",
+  "entries": [
+    {
+      "directory": "program-conformance",
+      "id": "bensz.prompt.contract-conformance",
+      "version": "1.0.0",
+      "classification": "atomic",
+      "tags": ["prompt", "structure", "deterministic"],
+      "aliases": ["prompt-programming.contract-conformance"],
+      "contract": "VERIFIER.md",
+      "entrypoint": "scripts/verify.py"
+    }
+  ]
+}

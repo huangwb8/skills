@@ -1,4 +1,4 @@
-## General
+# General
 
 - 更新
 
@@ -175,3 +175,43 @@ skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述�
 
 - 作者有可能通过提交不太重要的pr，从而来蹭贡献者。因为我看了作者的仓库，他fork了很多ai相关的仓库。 所以，他有可能在系统地通过这些工作进行虚假地进行贡献，来给自己刷简历。如果是这种情况，我不打算merge他的pr
 - 其它你觉得可疑的地方也要说。
+
+# Skill加状态机和验证器
+
+## prompt-programming
+
+使用 skills/beta/prompt-programming 编码下列prompt：
+
+```
+采用多个独立串行的subagent重复做2次下面的测试：
+
+- 定义工作目录：
+  - 输出：{WORKSPACE}=`/Volumes/2T01/Github/skills`
+- Subagent 0 更新本地测试环境为最新状态。
+  - 输入： 使用 install-bensz-skills 安装 {WORKSPACE}/skills/beta/validate-md-ref 。更新本机 bensz-skill-kernel 这个python包至最新版； 源代码在 {WORKSPACE}/packages/bensz-skill-kernel 。
+  - 输出：无。
+- Subagent 0 定义工作ID：
+  - 生成一个标签作为本次测试的唯一ID： TaskID={yyyy-mm-dd-mm-ss} 。这里就是时间戳；每次测试都开一个新的； 但如果用户的多轮对话在同一个会话里，不能重复地建。
+  - 输出：{TaskID}； Subagent 0 结束
+- Subagent 1 运行测试
+  - 输入：使用 {WORKSPACE}/skills/beta/validate-md-ref skill 检查 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/ai/GPT-5.6系列模型的社区反馈、基准表现和使用建议.md 这个博客文章的参考文献。中间的运行过程保存在 {WORKSPACE}/.bensz-api/task-lsm-validate-md-ref-{TaskID}
+  - 输出：{WORKSPACE}/.bensz-api/task-lsm-validate-md-ref-{TaskID}`及其内容； 定义为`{LOGSPACE}`。Subagent 1 结束。
+- Subagent 2/3/4 并行评估过程文件
+  - 输入：请调查{LOGSPACE}里状态机和验证器是否生效； 如果生效，如何协作；对于整个过程你有什么看法（比如，这个实例有没有暴露出 {WORKSPACE}/packages/bensz-skill-kernel 存在的源代码缺陷 ）？如果 {WORKSPACE}/packages/bensz-skill-kernel 或者 {WORKSPACE}/skills/beta/validate-md-ref 确实有缺陷，请你写个源代码优化计划，保存在 {WORKSPACE}/docs/plans/plan-{TaskID}.md；如果没有缺陷，请客观评价并跳过修改源代码，并且不写优化计划。
+  - 输出：计划文件`{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md`。 Subagent 2/3/4 结束。
+- 主Agent再优化
+  - 如果 `{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md` 不存在，表明优化完成，结束流程。 
+  - 如果 `{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md` 不存在，表明仍需要优化，此时：
+    - 输入：根据{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md 优化 {WORKSPACE}/packages/bensz-skill-kernel或{WORKSPACE}/skills/beta/validate-md-ref的源代码，跳过计划与根因核验步骤，直接开始落实计划。计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
+    - 输出：bensz-skill-kernel和validate-md-ref的源代码更新。
+```
+
+---
+
+使用 install-bensz-skills 安装 skills/beta/prompt-programming 。
+更新本机 bensz-skill-kernel 这个python包至最新版； 源代码在 packages/bensz-skill-kernel 。
+
+---
+
+SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}`加入状态机和验证器。 docs/events/2026-08-27-全生态-verifier与state设计报告.md 里有一些关于`{SKILL}`的改造建议，你可以重点参考。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
+

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- **prompt-programming 强制运行时门禁**：将状态机与 `bensz.prompt.contract-conformance@1.0.0` 从说明性接入改为每次执行必经流程；仅允许在 Kernel 记录验证结果/Gate、完成语义复核并推进至 `published` 后交付，并修正对应 CLI 与 Verifier 结果身份契约。
+- **状态机与验证器改为显式可选**：更新 `AGENTS.md`，明确普通 Skill 开发默认不要求接入状态机、Verifier、Pack 或 Gate；仅在开发者明确提出时执行相关流程与门禁，并提示这些基础设施仍处于活跃开发阶段，采用前需评估风险与回退方案。
+
 ### Fixed（修复）
 - **Kernel Gate 缺失验证器 fail-closed**：`apply_gate` 现在在声明的 required Verifier 结果缺失时返回 `manual_review` 并列出缺失 canonical ID，避免公共 Gate API fail-open；Kernel 版本更新至 `0.12.4`。
 - **Kernel Verifier 请求边界归一化**：`FilesystemVerifierRegistry.run` 对非 JSON object 请求返回结构化 `error` 结果，避免 `AttributeError` 泄露给调用方；`validate-md-ref` runtime kernel 版本同步至 `0.12.4`。
