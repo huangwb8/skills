@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Fixed（修复）
+- **Kernel Gate 缺失验证器 fail-closed**：`apply_gate` 现在在声明的 required Verifier 结果缺失时返回 `manual_review` 并列出缺失 canonical ID，避免公共 Gate API fail-open；Kernel 版本更新至 `0.12.4`。
+- **Kernel Verifier 请求边界归一化**：`FilesystemVerifierRegistry.run` 对非 JSON object 请求返回结构化 `error` 结果，避免 `AttributeError` 泄露给调用方；`validate-md-ref` runtime kernel 版本同步至 `0.12.4`。
+- **Kernel Gate 约束输入校验**：`apply_gate` 对非布尔 required 标志、缺失 ID 和非法版本格式统一 fail-closed，避免未经规范化的公共 API 输入静默放行。
 - **Kernel 批量验证事务边界**：`record_verification_batch` 现在在同一事件账本锁内追加全部结果及 Gate，避免并发批次交错或半批次写入；Kernel 版本更新至 `0.12.3`，并补充并发连续性回归测试。
 - **Kernel CLI 多验证器 Gate 绑定**：`bsk verification` 现在通过批量编排登记全部验证结果，并让 Kernel Gate 的 `result_refs` 覆盖当前批次，避免多验证器运行在 `checking → reported` 阶段因证据引用不完整而被错误阻塞；保留原有逐条 CLI 输出和“无 Gate 不写入 Gate”兼容性，并补充回归测试。该修复随 kernel `0.12.2` 引入，后续事务边界加固见 `0.12.3`。
 - **validate-md-ref 运行时版本对齐**：同步 beta Skill 的 `runtime.kernel.version` 至 `0.12.3`，避免安装后的 Skill 因严格版本门禁拒绝使用已修复的 Kernel。

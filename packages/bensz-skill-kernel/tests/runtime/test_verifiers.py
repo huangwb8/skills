@@ -480,3 +480,63 @@ def test_gate_requirements_classify_optional_and_required_failures():
     optional = normalize_result({"verdict": "fail"}, VerifierSpec("test.demo.optional2", "1.0.0", "rule"))
     assert apply_gate((required, optional), requirements=[{"verifier_id": required.verifier_id, "required": True}, {"verifier_id": optional.verifier_id, "required": False}]).decision == "reject"
     assert apply_gate((optional,), requirements=[{"verifier_id": optional.verifier_id, "required": False}]).decision == "allow_with_warnings"
+
+
+def test_gate_missing_required_verifier_fails_closed():
+    present = normalize_result({"verdict": "pass"}, VerifierSpec("test.demo.present", "1.0.0", "rule"))
+    gate = apply_gate(
+        (present,),
+        requirements=[
+            {"verifier_id": present.verifier_id, "required": True},
+            {"verifier_id": "test.demo.missing", "required": True},
+        ],
+    )
+    assert gate.decision == "manual_review"
+    assert gate.unresolved == ("test.demo.missing",)
+    assert gate.result_refs == ("test.demo.present@1.0.0",)
+
+
+def test_filesystem_registry_rejects_non_object_request_as_structured_error():
+    result = FilesystemVerifierRegistry(builtin_verifier_root()).run(
+        "bensz.artifact.file-existence", [], version="1.0.0"
+    )
+    assert result["execution_status"] == "error"
+    assert result["verdict"] == "error"
+    assert "JSON object" in result["uncertainty_reason"]
+
+
+def test_gate_required_version_mismatch_fails_closed():
+    result = normalize_result(
+        {"verdict": "pass"},
+        VerifierSpec("test.demo.versioned", "9.9.9", "rule"),
+    )
+    gate = apply_gate(
+        (result,),
+        requirements=[{"verifier_id": result.verifier_id, "version": "1.0.0", "required": True}],
+    )
+    assert gate.decision == "manual_review"
+    assert gate.unresolved == ("test.demo.versioned@1.0.0",)
+
+
+def test_gate_malformed_required_requirement_fails_closed():
+    result = normalize_result({"verdict": "pass"}, VerifierSpec("test.demo.malformed", "1.0.0", "rule"))
+    gate = apply_gate((result,), requirements=[{"required": True}])
+    assert gate.decision == "manual_review"
+    assert gate.unresolved == ("invalid_requirement",)
+
+
+def test_gate_non_boolean_mapping_requirement_fails_closed():
+    result = normalize_result({"verdict": "pass"}, VerifierSpec("test.demo.mapping", "1.0.0", "rule"))
+    gate = apply_gate((result,), requirements={result.verifier_id: "yes"})
+    assert gate.decision == "manual_review"
+    assert gate.unresolved == ("invalid_requirement",)
+
+
+def test_gate_invalid_optional_requirement_version_fails_closed():
+    result = normalize_result({"verdict": "pass"}, VerifierSpec("test.demo.optional-version", "1.0.0", "rule"))
+    gate = apply_gate(
+        (result,),
+        requirements=[{"verifier_id": result.verifier_id, "version": "not-semver", "required": False}],
+    )
+    assert gate.decision == "manual_review"
+    assert gate.unresolved == ("invalid_requirement",)

@@ -313,6 +313,16 @@ class FilesystemVerifierRegistry:
                 "context": dict(request.context),
             }
         definition = self.resolve(verifier_id, version)
+        if not isinstance(request, Mapping):
+            return {
+                "verifier_id": definition.verifier_id,
+                "verifier_version": definition.version,
+                "evidence_refs": (),
+                "request_id": None,
+                "execution_status": "error",
+                "verdict": "error",
+                "uncertainty_reason": "invalid verifier request: request must be a JSON object",
+            }
         explicit_refs = request.get("evidence_refs", ())
         evidence_items = request.get("evidence", ())
         inferred_refs = tuple(str(item.get("ref")) for item in evidence_items if isinstance(item, Mapping) and item.get("ref"))
@@ -486,15 +496,60 @@ def apply_gate(results: Iterable[VerificationResult], *, required: bool = True,
     refs = tuple(f"{r.verifier_id}@{r.verifier_version}" for r in items)
     if not items:
         return GateDecision("wait", "no verification result", refs, ("missing_result",))
+    invalid_requirements: list[str] = []
+    required_versions: dict[str, str | None] = {}
     if requirements is not None:
         if isinstance(requirements, Mapping):
-            required_set = {str(key) for key, value in requirements.items() if bool(value)}
+            required_set = set()
+            for key, value in requirements.items():
+                if not isinstance(value, bool):
+                    invalid_requirements.append("invalid_requirement")
+                    continue
+                if value:
+                    required_set.add(str(key))
+            required_versions = {key: None for key in required_set}
         else:
-            required_set = {str(item.get("verifier_id", item.get("id"))) for item in requirements if isinstance(item, Mapping) and item.get("verifier_id", item.get("id")) and bool(item.get("required", False))}
+            required_set = set()
+            for item in requirements:
+                if not isinstance(item, Mapping):
+                    invalid_requirements.append("invalid_requirement")
+                    continue
+                identifier = item.get("verifier_id", item.get("id"))
+                required_flag = item.get("required", False)
+                if not identifier or not isinstance(required_flag, bool):
+                    invalid_requirements.append("invalid_requirement")
+                    continue
+                version = item.get("version")
+                if version is not None and (not isinstance(version, str) or not _VERSION_RE.match(version)):
+                    invalid_requirements.append("invalid_requirement")
+                    continue
+                if required_flag:
+                    canonical = str(identifier)
+                    required_set.add(canonical)
+                    required_versions[canonical] = version
     elif required_ids is not None:
         required_set = {str(item) for item in required_ids}
     else:
         required_set = {r.verifier_id for r in items} if required else set()
+    actual_ids = {r.verifier_id for r in items}
+    if invalid_requirements:
+        return GateDecision("manual_review", "invalid verifier requirements", refs, tuple(sorted(set(invalid_requirements))))
+    missing_required = tuple(sorted(required_set - actual_ids))
+    if missing_required:
+        return GateDecision(
+            "manual_review",
+            "required verifier result missing",
+            refs,
+            missing_required,
+        )
+    mismatched_versions = tuple(sorted(
+        f"{verifier_id}@{version}"
+        for verifier_id, version in required_versions.items()
+        if version is not None
+        and not any(r.verifier_id == verifier_id and r.verifier_version == version for r in items)
+    ))
+    if mismatched_versions:
+        return GateDecision("manual_review", "required verifier version mismatch", refs, mismatched_versions)
     failures = [r for r in items if r.verdict in {"fail", "error"}]
     unknown = [r for r in items if r.verdict in {"unchecked", "uncertain", "timed_out"}]
     required_failures = [r for r in failures if r.verifier_id in required_set]

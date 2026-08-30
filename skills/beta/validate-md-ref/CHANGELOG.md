@@ -9,6 +9,9 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+- 同步 `bensz-skill-kernel` 运行时版本至 `0.12.4`，使用缺失 required verifier 的 fail-closed Gate 和结构化非法请求错误。
+
 ### Changed（变更）
 - 运行时按 required/advisory requirements 计算 Gate，区分确定性链接失效与 DNS/连接/超时不可观测状态，并保留 instruction-only Verifier 的 evidence refs。
 - 运行身份要求 `run_id` 与 `attempt_id` 成对提供；状态转移追加可回放事件，状态快照采用稳定字段哈希并在读取/回放时核验漂移。

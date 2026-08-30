@@ -163,6 +163,19 @@ def test_verification_batches_are_contiguous_under_concurrency(tmp_path: Path):
         ]
 
 
+def test_verification_batch_gate_rejects_required_version_mismatch(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    _, gate = log.record_verification_batch(
+        [{"verifier_id": "bensz.demo.check", "verifier_version": "9.9.9", "verdict": "pass", "execution_status": "completed"}],
+        {"decision": "allow"},
+        requirements=[{"verifier_id": "bensz.demo.check", "version": "1.0.0", "required": True}],
+        run_id="run-version",
+    )
+    assert gate is not None
+    assert gate.payload["decision"] == "manual_review"
+    assert gate.payload["unresolved"] == ["bensz.demo.check@1.0.0"]
+
+
 def test_event_boundary_redacts_paths_raw_text_and_secrets(tmp_path: Path):
     log = EventLog(tmp_path / "events.ndjson")
     event = log.append(

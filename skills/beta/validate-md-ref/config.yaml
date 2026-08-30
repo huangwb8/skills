@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: validate-md-ref
-  version: 0.13.1
+  version: 0.13.2
   description: 验证 Markdown 文档中链接的完整性与 URL 可访问性
   author: "Bensz Conan"
   category: 文档质量
@@ -32,7 +32,7 @@ domain_blacklist:
 runtime:
   kernel:
     name: bensz-skill-kernel
-    version: 0.12.3
+    version: 0.12.4
   state_roots: [references/states]
   initial_state: bensz.workspace.ready
   states:
