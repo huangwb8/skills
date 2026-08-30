@@ -33,7 +33,7 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 - 测试2
 
 ```
-采用多个独立串行的subagent重复做1次下面的测试：
+采用多个独立串行的subagent重复做2次下面的测试：
 
 - 定义工作目录：
   - 输出：{WORKSPACE}=`/Volumes/2T01/Github/skills`
@@ -52,7 +52,7 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 - 主Agent再优化
   - 如果 `{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md` 不存在，表明优化完成，结束流程。 
   - 如果 `{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md` 不存在，表明仍需要优化，此时：
-    - 输入：使用Codex运行Prompt`根据{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md 优化 {WORKSPACE}/packages/bensz-skill-kernel或{WORKSPACE}/skills/beta/validate-md-ref的源代码。`
+    - 输入：根据{WORKSPACE}/docs/plans/plan-validate-md-ref-{TaskID}.md 优化 {WORKSPACE}/packages/bensz-skill-kernel或{WORKSPACE}/skills/beta/validate-md-ref的源代码，跳过计划与根因核验步骤，直接开始落实计划。计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
     - 输出：bensz-skill-kernel和validate-md-ref的源代码更新。
 ```
 
