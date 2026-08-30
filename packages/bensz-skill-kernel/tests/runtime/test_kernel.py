@@ -105,6 +105,67 @@ def test_verifier_events_are_replayable(tmp_path: Path):
     assert projection["gate_decisions"][0]["decision"] == "reject"
 
 
+def test_kernel_recomputes_forged_allow_gate_and_binds_result(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    result, gate = log.record_verification(
+        {
+            "verifier_id": "bensz.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "fail",
+            "execution_status": "completed",
+        },
+        {"decision": "allow", "reason": "forged"},
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    assert gate is not None
+    assert gate.payload["decision"] == "reject"
+    assert gate.payload["computed_by"] == "kernel"
+    assert gate.payload["result_event_id"] == result.event_id
+    assert gate.run_id == result.run_id == "run-1"
+    assert gate.attempt_id == result.attempt_id == "attempt-1"
+
+
+def test_direct_gate_append_is_forbidden(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    with pytest.raises(IntegrityError, match="record_verification"):
+        log.append("verification.gate", payload={"decision": "allow", "computed_by": "kernel"})
+    with pytest.raises(IntegrityError, match="record_verification"):
+        log.append("verification.gate", payload={"decision": "allow"}, _kernel_gate=True)
+
+
+def test_event_boundary_redacts_paths_raw_text_and_secrets(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    event = log.append(
+        "audit",
+        summary="/private/user/input.md",
+        path="DOCUMENT CONTENT",
+        evidence_refs=("/private/user/evidence.json",),
+        payload={"facts": {"path": "/private/user/input.md", "password": "secret"}, "stdout": "raw output"},
+    )
+    raw = json.dumps(event.to_dict())
+    assert "/private/user" not in raw
+    assert "DOCUMENT CONTENT" not in raw
+    assert "raw output" not in raw
+    assert "[REDACTED]" in raw
+
+
+def test_snapshot_hash_event_missing_file_is_integrity_error(tmp_path: Path):
+    log = EventLog(tmp_path / "log" / "events.ndjson")
+    log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo",
+            "to_state": "bensz.demo.ready",
+            "snapshot_hash": "0" * 64,
+            "snapshot_path": "demo/log/meta-state.json",
+        },
+    )
+    with pytest.raises(IntegrityError, match="state snapshot missing"):
+        log.rebuild()
+
+
 def test_idempotency_replays_same_intent_and_rejects_conflict(tmp_path: Path):
     log = EventLog(tmp_path / "events.ndjson")
 

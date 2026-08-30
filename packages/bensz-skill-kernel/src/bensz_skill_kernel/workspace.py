@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -199,6 +200,8 @@ class TaskWorkspace:
 
     def read_meta_state(self, skill: str) -> dict[str, Any]:
         paths = self.paths(skill)
+        if paths.meta_state.with_name(paths.meta_state.name + ".tmp").exists():
+            raise WorkspaceError(f"meta-state snapshot has an incomplete commit: {paths.meta_state}")
         if not paths.meta_state.is_file():
             return {
                 "protocol": META_STATE_SNAPSHOT_VERSION,
@@ -214,6 +217,8 @@ class TaskWorkspace:
             expected = snapshot.get("snapshot_hash")
             if expected and str(expected).removeprefix("sha256:") != state_snapshot_hash(snapshot):
                 raise WorkspaceError(f"meta-state snapshot integrity mismatch: {paths.meta_state}")
+            if snapshot.get("state_event_id") == "pending":
+                raise WorkspaceError(f"meta-state snapshot has an incomplete commit: {paths.meta_state}")
             return snapshot
         except WorkspaceError:
             raise
@@ -221,11 +226,33 @@ class TaskWorkspace:
             raise WorkspaceError(f"invalid meta-state snapshot: {paths.meta_state}") from exc
 
     def write_meta_state(self, skill: str, snapshot: dict[str, Any]) -> Path:
+        temporary, target = self.prepare_meta_state(skill, snapshot)
+        os.replace(temporary, target)
+        return target
+
+    def prepare_meta_state(self, skill: str, snapshot: dict[str, Any]) -> tuple[Path, Path]:
+        """Write and fsync a snapshot staging file without publishing it."""
+        if snapshot.get("snapshot_hash") and str(snapshot["snapshot_hash"]).removeprefix("sha256:") != state_snapshot_hash(snapshot):
+            raise WorkspaceError("meta-state snapshot hash does not match its contents")
         paths = self.paths(skill)
         target = paths.meta_state
         temporary = target.with_name(target.name + ".tmp")
         temporary.write_text(json.dumps(snapshot, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(target)
+        with temporary.open("rb") as handle:
+            os.fsync(handle.fileno())
+        return temporary, target
+
+    def commit_meta_state(self, temporary: Path, target: Path) -> Path:
+        """Atomically publish a previously prepared snapshot."""
+        os.replace(temporary, target)
+        try:
+            directory = os.open(str(target.parent), os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        except OSError:
+            pass
         return target
 
 

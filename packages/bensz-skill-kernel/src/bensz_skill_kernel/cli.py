@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -361,10 +362,23 @@ def _run_state_command(args: argparse.Namespace) -> int:
             "state_version": target.version,
             "workspace_state": workspace.manifest().get("state"),
             "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "last_operation": _state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution),
+            "last_operation": {
+                "operation": "transition",
+                "status": "transitioned",
+                "current_state": current,
+                "target_state": target.id,
+                "execution_status": execution.execution_status,
+                "verdict": execution.verdict,
+            },
         }
         snapshot_hash = state_snapshot_hash(snapshot)
-        snapshot_path = workspace.paths(args.skill).meta_state
+        # Stage a pending snapshot before appending the event.  The stable
+        # event ID is preallocated so recovery can detect an interrupted
+        # commit instead of silently accepting a split projection.
+        state_event_id = str(uuid.uuid4())
+        snapshot["state_event_id"] = state_event_id
+        snapshot["snapshot_hash"] = snapshot_hash
+        pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
         state_event = EventLog(workspace.events).append(
             "state.transition",
             payload={
@@ -374,7 +388,8 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 "to_state": target.id,
                 "state_version": target.version,
                 "snapshot_hash": snapshot_hash,
-                "snapshot_path": str(snapshot_path),
+                "snapshot_path": f"{args.skill}/log/meta-state.json",
+                "state_event_id": state_event_id,
             },
             scope="skill",
             actor="bsk:state",
@@ -382,10 +397,9 @@ def _run_state_command(args: argparse.Namespace) -> int:
             run_id=args.run_id,
             idempotency_key=(f"state:{args.skill}:{args.run_id}:{args.attempt_id}:{target.id}" if args.run_id else None),
             snapshot={"skill": args.skill, "state_hash": snapshot_hash},
+            event_id=state_event_id,
         )
-        snapshot["state_event_id"] = state_event.event_id
-        snapshot["snapshot_hash"] = snapshot_hash
-        path = workspace.write_meta_state(args.skill, snapshot)
+        path = workspace.commit_meta_state(pending_tmp, pending_target)
         snapshot["path"] = str(path)
         _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot), pretty=True)
     else:

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed（修复）
+- **Kernel 证据边界与状态持久化加固**：Gate 由 Kernel 基于当前结果重算并绑定运行身份/结果事件；事件统一递归脱敏路径、原文和敏感字段；Skill 元状态采用可恢复的暂存、fsync 与原子发布协议，并在快照缺失、漂移或未完成提交时 fail-closed。
+
 ### Changed（变更）
 - **validate-md-ref/kernel 运行契约加固**：区分确定性链接失效与网络不可观测状态，按 required/advisory requirements 计算 Gate，保留 instruction-only evidence refs，并校验 Verifier、Kernel 版本和运行来源。Kernel/Skill 版本分别更新至 `0.12.1`/`0.13.1`。
 - **状态审计与运行隔离增强**：状态转移写入可回放的 `state.transition` 事件；验证证据要求成对 `run_id`/`attempt_id`，状态快照使用稳定字段哈希并在读取/回放时检测漂移。
