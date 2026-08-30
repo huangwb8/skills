@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- **validate-md-ref/kernel 运行契约加固**：区分确定性链接失效与网络不可观测状态，按 required/advisory requirements 计算 Gate，保留 instruction-only evidence refs，并校验 Verifier、Kernel 版本和运行来源。Kernel/Skill 版本分别更新至 `0.12.1`/`0.13.1`。
+- **状态审计与运行隔离增强**：状态转移写入可回放的 `state.transition` 事件；验证证据要求成对 `run_id`/`attempt_id`，状态快照使用稳定字段哈希并在读取/回放时检测漂移。
+
 ### Fixed（修复）
+- **状态回放完整性错误结构化**：`bsk rebuild` 遇到快照哈希不一致时返回稳定的 `integrity_error` 类别，缺失缓存仍可由事件账本恢复。
+
+### Added（新增）
+- **validate-md-ref 优化计划**：补充三份基于实际运行证据的缺陷分析、迁移策略和验收标准文档。
 - **Kernel 状态 invariant 强制执行**：状态转移现在会检查 Kernel 已定义的
   `verifier-result-recorded` invariant；缺少 `verification.result` 或
   `verification.gate` 时拒绝离开检查状态，避免漏跑验证器仍进入 `reported`。

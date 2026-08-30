@@ -26,11 +26,15 @@ version = 4.3.8
 - 观察状态机和验证器的协作
 
 ```
-WORKSPACE = ./.bensz-api/task-20260829-1531-检查博客参考文献/
+WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 请调查{WORKSPACE}里状态机和验证器是否生效； 如果生效，如何协作；对于整个过程你有什么看法（比如，这个实例有没有暴露出 packages/bensz-skill-kernel 存在的源代码缺陷 ）？
 ```
 
 # 日常
+
+---
+
+基于 docs/plans/2026-08-30-kernel-evidence-boundary-hardening.md 优化本项目的源代码。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
 ---
 
