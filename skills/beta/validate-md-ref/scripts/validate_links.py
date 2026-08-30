@@ -461,31 +461,56 @@ def generate_summary(results: List[Dict]) -> Dict:
         摘要统计信息
     """
     total = len(results)
-    valid = sum(1 for r in results if r.get('validation', {}).get('valid', False))
-    invalid = sum(1 for r in results if not r.get('validation', {}).get('valid', False) and not r.get('validation', {}).get('skipped', False))
-    skipped = sum(1 for r in results if r.get('validation', {}).get('skipped', False))
+    valid = invalid = unresolved = timed_out = skipped = 0
+    for item in results:
+        validation = item.get('validation', {})
+        status = validation.get('validation_status')
+        if status == 'valid' or (status is None and validation.get('valid', False)):
+            valid += 1
+        elif status == 'invalid' or (status is None and not validation.get('valid', False) and not validation.get('skipped', False)):
+            invalid += 1
+        elif status in {'unresolved', 'timed_out'}:
+            unresolved += 1
+            timed_out += status == 'timed_out'
+        elif status == 'skipped' or (status is None and validation.get('skipped', False)):
+            skipped += 1
 
     return {
         'total': total,
         'valid': valid,
         'invalid': invalid,
+        'unresolved': unresolved,
+        'timed_out': timed_out,
         'skipped': skipped,
         'valid_rate': f"{(valid / total * 100):.1f}%" if total > 0 else "0%"
     }
 
 
 def _kernel_command() -> tuple[list[str], dict[str, str]]:
-    """Resolve the public kernel command, with a source-tree fallback for development."""
+    """Resolve a version-compatible kernel CLI without silently using stale ``bsk``."""
+    script_root = Path(__file__).resolve()
+    kernel_src = script_root.parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
+    if kernel_src.is_dir() and (kernel_src / 'bensz_skill_kernel' / '__init__.py').is_file():
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(kernel_src) + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+        return [sys.executable, '-m', 'bensz_skill_kernel.cli'], env
+
     executable = shutil.which('bsk')
     if executable:
-        probe = subprocess.run([executable, '--help'], capture_output=True, text=True, check=False)
-        if probe.returncode == 0 and 'verification' in probe.stdout:
+        probe = subprocess.run([executable, '--version'], capture_output=True, text=True, check=False)
+        expected = None
+        try:
+            config_text = get_config_path().read_text(encoding='utf-8')
+            match = re.search(r'(?ms)^runtime:\s*\n\s+kernel:\s*\n\s+name:\s*[^\n]+\n\s+version:\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$', config_text)
+            expected = match.group(1) if match else None
+        except (OSError, RuntimeError):
+            pass
+        actual = probe.stdout.strip().splitlines()[-1].strip() if probe.stdout.strip() else ''
+        if probe.returncode == 0 and (expected is None or actual == expected):
             return [executable], os.environ.copy()
-
-    kernel_src = Path(__file__).resolve().parents[4] / 'packages' / 'bensz-skill-kernel' / 'src'
-    env = os.environ.copy()
-    env['PYTHONPATH'] = str(kernel_src) + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
-    return [sys.executable, '-m', 'bensz_skill_kernel.cli'], env
+        detail = f'kernel CLI version mismatch (expected {expected or "declared"}, got {actual or "unknown"})'
+        raise RuntimeError(detail)
+    raise RuntimeError('bensz-skill-kernel CLI is unavailable; install a matching bsk or run from the source tree')
 
 
 def record_runtime_events(events_path: str, results: List[Dict], gate: Dict, request_id: str, attempt_id: str = 'default') -> Dict:
@@ -605,10 +630,27 @@ def main(argv=None):
     # and receives normalized claim/source evidence instead of a Markdown file.
     try:
         Evidence, VerificationRequest, FilesystemVerifierRegistry, builtin_verifier_root, normalize_result, apply_gate, summarize_metrics = _load_verifier_runtime()
+        runtime_decl = config.get('runtime', {}) if isinstance(config.get('runtime', {}), dict) else {}
+        kernel_decl = runtime_decl.get('kernel', {}) if isinstance(runtime_decl.get('kernel', {}), dict) else {}
+        if kernel_decl:
+            from bensz_skill_kernel import __version__ as running_kernel_version
+            if kernel_decl.get('name') != 'bensz-skill-kernel' or str(kernel_decl.get('version')) != str(running_kernel_version):
+                raise RuntimeError(f"kernel runtime mismatch: declared {kernel_decl.get('name')}@{kernel_decl.get('version')}, running bensz-skill-kernel@{running_kernel_version}")
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         resolved_md_file = md_file.resolve()
         registry = FilesystemVerifierRegistry(builtin_verifier_root())
+        declared = config.get('runtime', {}).get('verifiers', []) if isinstance(config.get('runtime', {}), dict) else []
+        from bensz_skill_kernel import normalize_requirements
+        requirements = list(normalize_requirements(declared or [
+            {'id': 'bensz.document.markdown-link-integrity', 'version': '1.0.0', 'required': True},
+            {'id': 'bensz.evidence.citation-truth-fit', 'version': '1.0.0', 'required': False},
+        ], registry))
+        requirement_by_id = {item['id']: item for item in requirements}
+        if 'bensz.document.markdown-link-integrity' not in requirement_by_id:
+            raise ValueError('runtime verifier declaration must include bensz.document.markdown-link-integrity')
+        link_requirement = requirement_by_id.get('bensz.document.markdown-link-integrity', {'version': '1.0.0'})
+        citation_requirement = requirement_by_id.get('bensz.evidence.citation-truth-fit', {'version': '1.0.0'})
         link_result = registry.run(
             'bensz.document.markdown-link-integrity',
             {
@@ -620,7 +662,7 @@ def main(argv=None):
                     'whitelist': list(config.get('domain_whitelist', []) or []),
                 },
             },
-            version='1.0.0',
+            version=link_requirement.get('version') or None,
         )
         link_facts = link_result.get('facts')
         if not isinstance(link_facts, dict) or not isinstance(link_facts.get('summary'), dict) or not isinstance(link_facts.get('references'), list):
@@ -641,27 +683,45 @@ def main(argv=None):
             ),
             request_id=request_id,
         )
-        citation_result = registry.run(
-            'bensz.evidence.citation-truth-fit',
-            {
-                'request_id': request.request_id,
-                'subject': dict(request.subject),
-                'requirements': list(request.requirements),
-                'evidence': [item.to_dict() for item in request.evidence],
-                'context': dict(request.context),
+        from bensz_skill_kernel import __version__ as kernel_version
+        runtime_metadata = {
+            'kernel': {
+                'name': 'bensz-skill-kernel',
+                'version': kernel_version,
+                'source': 'source-tree' if Path(__file__).resolve().parents[4].joinpath('packages', 'bensz-skill-kernel').is_dir() else 'installed-package',
             },
-            version='1.0.0',
-        )
-        verifier_results = [link_result, citation_result]
-        specs = [registry.resolve('bensz.document.markdown-link-integrity', '1.0.0').spec, registry.resolve('bensz.evidence.citation-truth-fit', '1.0.0').spec]
-        normalized = tuple(normalize_result(item, spec) for item, spec in zip(verifier_results, specs))
-        gate_decision = apply_gate(normalized)
+            'pack_versions': {item['id']: item['version'] for item in requirements},
+        }
+        verifier_results = [{**link_result, 'runtime': runtime_metadata}]
+        if 'bensz.evidence.citation-truth-fit' in requirement_by_id:
+            citation_result = registry.run(
+                'bensz.evidence.citation-truth-fit',
+                {
+                    'request_id': request.request_id,
+                    'subject': dict(request.subject),
+                    'requirements': list(request.requirements),
+                    'evidence': [item.to_dict() for item in request.evidence],
+                    'context': dict(request.context),
+                },
+                version=citation_requirement.get('version') or None,
+            )
+            verifier_results.append({**citation_result, 'runtime': runtime_metadata})
+        specs = {item['id']: registry.resolve(item['id'], item.get('version') or None).spec for item in requirements}
+        for item in verifier_results:
+            verifier_id = item.get('verifier_id')
+            if verifier_id and verifier_id not in specs:
+                specs[verifier_id] = registry.resolve(verifier_id, item.get('verifier_version') or None).spec
+        normalized = tuple(normalize_result(item, specs[item.get('verifier_id')], evidence_refs=item.get('evidence_refs', ())) for item in verifier_results if item.get('verifier_id') in specs)
+        gate_decision = apply_gate(normalized, requirements=requirements)
         gate = gate_decision.to_dict()
+        gate['requirements'] = requirements
         output['verification'] = {
             'request_id': request.request_id,
             'results': verifier_results,
             'gate': gate,
-            'metrics': summarize_metrics(normalized, (gate_decision,)),
+            'metrics': summarize_metrics(normalized, (gate_decision,), required_ids=[item['id'] for item in requirements if item.get('required')]),
+            'requirements': requirements,
+            'runtime': runtime_metadata,
         }
     except Exception as exc:
         print(json.dumps({'error': f'kernel verifier unavailable: {exc}'}, ensure_ascii=False))

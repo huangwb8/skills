@@ -35,3 +35,4 @@ python3 scripts/validate_links.py DOCUMENT.md config.yaml \
 保留 Verifier 返回的 `verification.results` 与 `verification.gate`。链接事实通常用 `allow` 或 `reject` 表达；缺少语义证据、来源不可获取、判断引擎不可用或证据冲突时，应保留 `unchecked`、`uncertain` 或 `manual_review`，不得为了通过门禁而猜测。
 
 `bensz.evidence.citation-truth-fit` 的证据字段和语义判断详见 [`citation-truth-and-fit.md`](citation-truth-and-fit.md)。
+链接完整性 Verifier 将 HTTP 明确错误、本地 anchor 缺失和越界文件标为 `invalid/fail`；DNS、连接失败和超时标为 `unresolved`/`timed_out`，结果为 `unchecked` 或 `timed_out`，交由 Gate 进入人工复核，不把环境不可观测误判为链接失效。

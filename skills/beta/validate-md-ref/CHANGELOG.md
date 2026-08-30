@@ -10,6 +10,14 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 运行时按 required/advisory requirements 计算 Gate，区分确定性链接失效与 DNS/连接/超时不可观测状态，并保留 instruction-only Verifier 的 evidence refs。
+- 运行身份要求 `run_id` 与 `attempt_id` 成对提供；状态转移追加可回放事件，状态快照采用稳定字段哈希并在读取/回放时核验漂移。
+- 运行时统一校验 Kernel 与 Verifier 版本、canonical ID、重复项和非法版本；Skill 升级至 `0.13.1`，匹配 `bensz-skill-kernel@0.12.1`。
+
+### Fixed（修复）
+- `bsk rebuild` 对快照完整性失败返回结构化 `integrity_error`，删除缓存时仍以事件账本为准恢复投影。
+
+### Changed（变更）
 - 对齐 `bensz-skill-kernel` 最新事件与指标协议：运行事件写入稳定 `run_id`，脚本结果新增 `verification.metrics`，保留原有 `summary`、`references`、`results` 和 `gate` 字段及旧 CLI 调用兼容性。
 
 ### Changed（变更）

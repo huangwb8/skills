@@ -92,6 +92,23 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             self.assertTrue(payload['references'][0]['validation']['valid'])
             self.assertEqual(payload['verification']['results'][0]['facts']['summary'], payload['summary'])
 
+    def test_generate_summary_keeps_network_unknown_separate_from_invalid(self) -> None:
+        results = [
+            {'validation': {'valid': True, 'validation_status': 'valid'}},
+            {'validation': {'valid': False, 'validation_status': 'unresolved'}},
+            {'validation': {'valid': False, 'validation_status': 'timed_out'}},
+            {'validation': {'valid': False, 'validation_status': 'invalid'}},
+            {'validation': {'valid': False, 'validation_status': 'skipped', 'skipped': True}},
+        ]
+
+        summary = MODULE.generate_summary(results)
+
+        self.assertEqual(summary['valid'], 1)
+        self.assertEqual(summary['invalid'], 1)
+        self.assertEqual(summary['unresolved'], 2)
+        self.assertEqual(summary['timed_out'], 1)
+        self.assertEqual(summary['skipped'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

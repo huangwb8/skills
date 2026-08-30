@@ -34,6 +34,8 @@ AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转�
 3. 保留链接 Verifier 标准结果；真实性或适切性仅保留语义 Verifier 的 `unchecked`/`manual_review`，无证据不得判通过。
 4. 汇总总数、有效、无效、跳过项，逐条披露位置、状态、失败原因和语义边界。
 
+网络 DNS、连接失败和超时属于 `unresolved`/`timed_out` 观测不确定性，不得当作确定性链接失效；只有 HTTP 明确错误、本地 anchor 缺失或越界文件才计入 `invalid`。
+
 命令行入口以 kernel `bensz.document.markdown-link-integrity` Pack 返回的
 `facts.summary` 与 `facts.references` 为唯一链接事实来源；不要将旧兼容函数的本地
 探测结果与 Verifier 结果合并或互相覆盖。
