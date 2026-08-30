@@ -11,7 +11,7 @@ import json
 import os
 import re
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -596,7 +596,7 @@ class EventLog:
             previous = event.event_hash
         return events
 
-    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None) -> EventEnvelope:
+    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None, _lock_held: bool = False) -> EventEnvelope:
         # Use the declared artifact/project root for artifact locators; this
         # keeps legitimate completion paths resolvable while still redacting
         # anything outside the allowed boundary.
@@ -616,7 +616,7 @@ class EventLog:
             safe_path = f"text#sha256:{hashlib.sha256(str(path).encode('utf-8')).hexdigest()}"
         safe_summary = str(_event_safe_value(summary, key="summary", base_dir=base_dir))
         request_hash = _request_hash(event_type, data, safe_summary, scope, actor, attempt_id, safe_path, refs, run_id, auth, snap)
-        with self._locked():
+        with (nullcontext() if _lock_held else self._locked()):
             self._recover_partial_tail()
             events = self.read()
             if event_type == "verification.gate" and _kernel_gate is not _KERNEL_GATE_TOKEN:
@@ -729,6 +729,7 @@ class EventLog:
         authorization: Mapping[str, Any] | None = None,
         snapshot: Mapping[str, Any] | None = None,
         requirements: Mapping[str, bool] | Iterable[Mapping[str, Any]] | None = None,
+        _lock_held: bool = False,
     ) -> tuple[EventEnvelope, EventEnvelope | None]:
         """Append a verifier result and a Kernel-recomputed gate decision.
 
@@ -771,6 +772,7 @@ class EventLog:
             run_id=run_id,
             authorization=authorization,
             snapshot=snapshot,
+            _lock_held=_lock_held,
         )
         gate_event = None
         if gate is not None:
@@ -801,6 +803,7 @@ class EventLog:
                 authorization=authorization,
                 snapshot=snapshot,
                 _kernel_gate=_KERNEL_GATE_TOKEN,
+                _lock_held=_lock_held,
             )
         return verification, gate_event
 
@@ -821,25 +824,26 @@ class EventLog:
         items = tuple(results)
         if not items:
             raise ValueError("verification result list cannot be empty")
-        result_events: list[EventEnvelope] = []
-        for index, item in enumerate(items):
-            event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements)
-            result_events.append(event)
-        computed_results: list[VerificationResult] = []
-        for item in items:
-            try:
-                from .verifier_ids import validate_verifier_id
-                validate_verifier_id(str(item["verifier_id"]))
-                computed_results.append(VerificationResult(verifier_id=str(item["verifier_id"]), verifier_version=str(item["verifier_version"]), execution_status=str(item.get("execution_status", "completed")), verdict=str(item["verdict"]), evidence_refs=tuple(item.get("evidence_refs", ()))))
-            except (KeyError, TypeError, ValueError):
-                continue
-        computed = apply_gate(computed_results, requirements=requirements) if len(computed_results) == len(items) else None
-        if gate is None:
-            return result_events[-1], None
-        gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
-        if computed is not None:
-            gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
-        return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN)
+        with self._locked():
+            result_events: list[EventEnvelope] = []
+            for index, item in enumerate(items):
+                event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
+                result_events.append(event)
+            computed_results: list[VerificationResult] = []
+            for item in items:
+                try:
+                    from .verifier_ids import validate_verifier_id
+                    validate_verifier_id(str(item["verifier_id"]))
+                    computed_results.append(VerificationResult(verifier_id=str(item["verifier_id"]), verifier_version=str(item["verifier_version"]), execution_status=str(item.get("execution_status", "completed")), verdict=str(item["verdict"]), evidence_refs=tuple(item.get("evidence_refs", ()))))
+                except (KeyError, TypeError, ValueError):
+                    continue
+            computed = apply_gate(computed_results, requirements=requirements) if len(computed_results) == len(items) else None
+            if gate is None:
+                return result_events[-1], None
+            gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
+            if computed is not None:
+                gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
+            return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
 
     def record_audit(self, event_type: str, *, payload: Mapping[str, Any] | None = None, run_id: str | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:
         """Record a redacted execution-audit event without changing lifecycle state."""

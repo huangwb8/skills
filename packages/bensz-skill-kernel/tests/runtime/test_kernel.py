@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -132,6 +133,34 @@ def test_direct_gate_append_is_forbidden(tmp_path: Path):
         log.append("verification.gate", payload={"decision": "allow", "computed_by": "kernel"})
     with pytest.raises(IntegrityError, match="record_verification"):
         log.append("verification.gate", payload={"decision": "allow"}, _kernel_gate=True)
+
+
+def test_verification_batches_are_contiguous_under_concurrency(tmp_path: Path):
+    events_path = tmp_path / "events.ndjson"
+    batches = [
+        [
+            {"verifier_id": "bensz.document.markdown-link-integrity", "verifier_version": "1.0.0", "verdict": "pass", "execution_status": "completed"},
+            {"verifier_id": "bensz.evidence.citation-truth-fit", "verifier_version": "1.0.0", "verdict": "unchecked", "execution_status": "unchecked"},
+        ],
+        [
+            {"verifier_id": "bensz.document.markdown-link-integrity", "verifier_version": "1.0.0", "verdict": "pass", "execution_status": "completed"},
+            {"verifier_id": "bensz.evidence.citation-truth-fit", "verifier_version": "1.0.0", "verdict": "unchecked", "execution_status": "unchecked"},
+        ],
+    ]
+
+    def write(index: int):
+        EventLog(events_path).record_verification_batch(
+            batches[index], {"decision": "manual_review"}, run_id=f"run-{index}", idempotency_key=f"batch-{index}"
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(write, range(2)))
+    events = EventLog(events_path).read()
+    assert len(events) == 6
+    for offset in (0, 3):
+        assert [event.event_type for event in events[offset:offset + 3]] == [
+            "verification.result", "verification.result", "verification.gate"
+        ]
 
 
 def test_event_boundary_redacts_paths_raw_text_and_secrets(tmp_path: Path):

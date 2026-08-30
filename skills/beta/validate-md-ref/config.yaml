@@ -32,7 +32,7 @@ domain_blacklist:
 runtime:
   kernel:
     name: bensz-skill-kernel
-    version: 0.12.2
+    version: 0.12.3
   state_roots: [references/states]
   initial_state: bensz.workspace.ready
   states:

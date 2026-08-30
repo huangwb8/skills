@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Fixed（修复）
-- **Kernel CLI 多验证器 Gate 绑定**：`bsk verification` 现在通过批量编排登记全部验证结果，并让 Kernel Gate 的 `result_refs` 覆盖当前批次，避免多验证器运行在 `checking → reported` 阶段因证据引用不完整而被错误阻塞；保留原有逐条 CLI 输出和“无 Gate 不写入 Gate”兼容性，并补充回归测试。Kernel 版本更新至 `0.12.2`。
-- **validate-md-ref 运行时版本对齐**：同步 beta Skill 的 `runtime.kernel.version` 至 `0.12.2`，避免安装后的 Skill 因严格版本门禁拒绝使用已修复的 Kernel。
+- **Kernel 批量验证事务边界**：`record_verification_batch` 现在在同一事件账本锁内追加全部结果及 Gate，避免并发批次交错或半批次写入；Kernel 版本更新至 `0.12.3`，并补充并发连续性回归测试。
+- **Kernel CLI 多验证器 Gate 绑定**：`bsk verification` 现在通过批量编排登记全部验证结果，并让 Kernel Gate 的 `result_refs` 覆盖当前批次，避免多验证器运行在 `checking → reported` 阶段因证据引用不完整而被错误阻塞；保留原有逐条 CLI 输出和“无 Gate 不写入 Gate”兼容性，并补充回归测试。该修复随 kernel `0.12.2` 引入，后续事务边界加固见 `0.12.3`。
+- **validate-md-ref 运行时版本对齐**：同步 beta Skill 的 `runtime.kernel.version` 至 `0.12.3`，避免安装后的 Skill 因严格版本门禁拒绝使用已修复的 Kernel。
 
 ### Fixed（修复）
 - **Kernel 证据边界与状态持久化加固**：Gate 由 Kernel 基于当前结果重算并绑定运行身份/结果事件；事件统一递归脱敏路径、原文和敏感字段；Skill 元状态采用可恢复的暂存、fsync 与原子发布协议，并在快照缺失、漂移或未完成提交时 fail-closed。
