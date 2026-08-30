@@ -523,18 +523,48 @@ def _run_command(args: argparse.Namespace) -> int:
         gate = _read_json_value(args.gate_file, args.gate_json, label="a gate") if (args.gate_file or args.gate_json) else None
         if gate is not None and not isinstance(gate, Mapping):
             raise ValueError("gate must be a JSON object")
-        events = []
-        for index, result in enumerate(results):
-            result_event, gate_event = _log(args).record_verification(
-                dict(result),
-                dict(gate) if gate is not None and index == len(results) - 1 else None,
-                scope=args.scope,
-                actor=args.actor,
-                attempt_id=args.attempt_id,
-                idempotency_key=f"{args.idempotency_key}:{index}" if args.idempotency_key else None,
-                run_id=args.run_id,
-            )
-            events.append({"result_event": result_event.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
+        log = _log(args)
+        before_count = len(log.read())
+        last_result, gate_event = log.record_verification_batch(
+            (dict(result) for result in results),
+            dict(gate) if gate is not None else None,
+            scope=args.scope,
+            actor=args.actor,
+            attempt_id=args.attempt_id,
+            idempotency_key=args.idempotency_key,
+            run_id=args.run_id,
+        )
+        # Keep the historical per-result CLI response while persisting one
+        # kernel-computed gate for the complete batch.  Reading the appended
+        # slice avoids expanding the public EventLog return type.
+        all_events = log.read()
+        result_events = [event for event in all_events[before_count:] if event.event_type == "verification.result"]
+        if len(result_events) < len(results):
+            # Idempotent retries append nothing; recover the existing batch
+            # events so the response shape remains one entry per input.
+            if args.idempotency_key:
+                key_order = [f"{args.idempotency_key}:{index}" for index in range(len(results))]
+                by_key = {event.idempotency_key: event for event in all_events if event.event_type == "verification.result"}
+                result_events = [by_key[key] for key in key_order if key in by_key]
+            else:
+                matching = [
+                    event for event in all_events
+                    if event.event_type == "verification.result"
+                    and event.run_id == args.run_id
+                    and event.attempt_id == args.attempt_id
+                    and event.scope == args.scope
+                    and event.actor == args.actor
+                ]
+                result_events = matching[-len(results):]
+        if not result_events:
+            result_events = [last_result]
+        events = [
+            {
+                "result_event": event.to_dict(),
+                "gate_event": gate_event.to_dict() if index == len(result_events) - 1 and gate_event else None,
+            }
+            for index, event in enumerate(result_events)
+        ]
         _print({"events": events})
     elif args.command == "delivery":
         _print(_log(args).record_delivery(args.report, **_json_object(args.metadata, label="--metadata")).to_dict())

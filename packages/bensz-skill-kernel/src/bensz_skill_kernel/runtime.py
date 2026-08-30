@@ -834,6 +834,8 @@ class EventLog:
             except (KeyError, TypeError, ValueError):
                 continue
         computed = apply_gate(computed_results, requirements=requirements) if len(computed_results) == len(items) else None
+        if gate is None:
+            return result_events[-1], None
         gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
         if computed is not None:
             gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
