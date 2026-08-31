@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **状态机直观教程**：新增 `docs/state-machine-tutorial.md`，通过 Mermaid 流程图、完整迁移示例和 Kernel 代码映射，说明工作区状态、运行生命周期、Skill 领域状态、Verifier 与事件账本如何协作。
 
 ### Changed（变更）
+- **Research-Idea 科学问题通俗解释**：在 `docs/plans/Research-Idea_skills科研化评估_20260831.md` 的“最佳科学问题-科学假设对”部分补充版本绑定验证的生活化类比、术语对照、前后对比和白话版问题/假设，帮助非本领域读者理解研究对象，同时保持原有变量、基线与可证伪边界不变。
 - **状态机与验证器理论讨论补充**：在 `docs/状态机和验证器的理论基础的相关讨论.md` 中新增 Agent Skill 细粒度组件化、Kernel 共享协议层、Skill-like Pack、模糊端与精确端协作及工程创新性边界的讨论，明确其与单个普通 Skill 的比较层次。
 - **Kernel 内置 State 阶段契约补全**：为 `packages/bensz-skill-kernel/src/bensz_skill_kernel/states/` 的内置 State 增加进入条件、Agent 行动、输入/证据、离开条件、转移指引、失败恢复与执行边界说明；同时在 `AGENTS.md` 固化完整阶段型 `STATE.md` 的最低内容要求，不改变现有生命周期转移表。
 - **AGENTS.md Verifier/State 规则收敛**：将 Verifier/State 的规划、删留和 Kernel 复用判断明确委托给 `verifier-state-architect`，并把治理文件中的重复说明压缩为实现阶段不可下沉的协议、安全与兼容性门禁；详细设计继续以 Skill、ID 文档和 Kernel 契约为准。
