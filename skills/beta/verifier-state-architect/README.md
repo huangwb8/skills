@@ -26,6 +26,8 @@
 - 删除这个 Verifier/State 后，能力、决策或审计是否真的变差？
 - 哪些工作适合脚本做，哪些必须由 AI 依据自然语言和证据判断？
 - 如何使用 `bensz-skill-kernel` 的 Pack、canonical ID、Evidence Contract、Gate 和可回放事件？
+- Kernel 里是否已经有可直接复用或组合的 Verifier/State，避免重复造轮子？
+- 当前需求是否暴露出跨多个领域、值得提炼进 Kernel 的元 Verifier/State？如果复用或提炼都不成立，也会分点说明证据、代价和原因。
 
 因此，最终结果可能是接入多个组件，也可能是只保留一个，甚至明确“不需要 Verifier/State”。
 
@@ -34,9 +36,11 @@
 1. 阅读目标 Skill、配置、脚本、references 和现有运行声明。
 2. 绘制业务目标、阶段、风险、证据和人工介入点。
 3. 做删除影响测试，过滤形式主义组件。
-4. 设计 Verifier/State 矩阵，划分 AI 与确定性边界。
-5. 映射到 Kernel 的 Pack、ID、Gate、事件、重放和资源限制。
-6. 输出最小状态图、验收测试和实施顺序。
+4. 盘点 Kernel 现有索引与契约，逐项判断直接复用、组合、适配或不适用。
+5. 评估可否提炼跨领域的元 Verifier/State，并把复用与提炼结论及分点理由写入独立计划章节。
+6. 设计 Verifier/State 矩阵，划分 AI 与确定性边界。
+7. 映射到 Kernel 的 Pack、ID、Gate、事件、重放和资源限制。
+8. 输出最小状态图、验收测试和实施顺序。
 
 它不会直接创建 `VERIFIER.md`、`STATE.md` 或修改 Kernel 源码；后续实现可依据计划继续进行。
 
@@ -46,7 +50,7 @@
 
 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`
 
-若你指定了 `docs/plans/` 或其它路径，则按指定路径输出。计划通常包含业务风险地图、删除影响测试、Verifier/State 矩阵、AI/脚本分工、Kernel 对接、P0-P2 实施顺序和回归测试。
+若你指定了 `docs/plans/` 或其它路径，则按指定路径输出。计划通常包含业务风险地图、删除影响测试、Verifier/State 矩阵、AI/脚本分工、Kernel 对接、Kernel 复用与元组件提炼决策（含分点理由）、P0-P2 实施顺序和回归测试。
 
 ## 常见场景示例
 

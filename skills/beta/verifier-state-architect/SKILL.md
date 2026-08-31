@@ -16,78 +16,82 @@ metadata:
 
 # Verifier-State Architect
 
-这是一个架构顾问 Skill：Verifier/State 是可插拔外挂，不是为了展示 Kernel 而强行加入。只产出设计计划，不写 `VERIFIER.md`、`STATE.md`、Pack 脚本或 Kernel 源码。
+架构顾问 Skill：Verifier/State 是可插拔外挂，不为展示 Kernel 强行加入。只产出设计计划，不写 `VERIFIER.md`、`STATE.md`、Pack 脚本或 Kernel 源码。
 
 ## 适用边界
 
-用于：规划或审查 Skill 的 Verifier/State 接入、把自然语言判断映射到 Kernel 契约、生成实现交接计划。
+- **适用**：规划/审查 Skill 的 Verifier/State 接入、把自然语言判断映射到 Kernel 契约、生成实现交接计划。
+- **不适用**：直接实现已确定组件、修 Kernel bug、写普通 Skill 内容，或跳过分析直接改代码；这些任务可把本 Skill 计划作为前置阶段。
 
-不用于：直接实现已确定组件、修 Kernel bug、写普通 Skill 内容或跳过分析直接改代码；这些任务可把本 Skill 计划作为前置阶段。
+## 输入、输出与工作区
 
-## 输入与默认输出
-
-- **必需**：目标 Skill 根目录或完整内容；用户的业务目标和已知约束。
-- **可选**：Kernel 包路径（默认 `packages/bensz-skill-kernel`）、现有 `runtime` 声明、Pack、测试、历史报告和用户指定的输出路径。
-- **默认中间输出**：`./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`。
-- **用户指定路径优先**：若用户要求正式计划，写入 `docs/plans/` 或其指定位置；不要把正式交付物藏在 `.bensz-api`。
-
-计划是给后续 Agent 使用的短契约，不复制完整源文件。所有引用都写相对路径和行号/标题锚点，敏感内容只记录脱敏摘要。
-
-开始前先复用会话中已声明的任务根目录；没有任务根目录时，用 `bsk workspace init . --description verifier-state-architect` 初始化，并在 Skill 专属 `input|output|log` 边界工作。记录目标 Skill 路径、读取清单、Kernel 版本和计划路径；不把用户提供的完整原文复制进日志。
+- **必需输入**：目标 Skill 根目录或完整内容、业务目标和已知约束。
+- **可选输入**：Kernel 路径（默认 `packages/bensz-skill-kernel`）、`runtime` 声明、Pack、测试、历史报告和输出路径。
+- **默认计划**：`./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`；用户指定正式计划时优先写 `docs/plans/` 或指定路径，不把正式交付藏在 `.bensz-api`。
+- 计划只作后续 Agent 的短契约：引用用相对路径和行号/标题锚点，日志只写脱敏摘要。
+- 复用会话已声明的任务根目录；否则用 `bsk workspace init . --description verifier-state-architect` 初始化，并在 Skill 专属 `input|output|log` 边界工作。记录目标路径、读取清单、Kernel 版本和计划路径。
 
 ## 核心工作流
 
 ### 理解服务对象
 
-1. 读取目标 `SKILL.md`、`config.yaml`、脚本、references、模板和运行声明；按需读取 Kernel Pack、ID 与运行时文档。
-2. 画出目标、输入、输出、阶段、失败/回退、人工介入和产物；不从文件名或关键词推断。
-3. 从证据列出 Verifier 候选（稳定命题）与 State 候选（持续阶段），标注来源和不确定性。
+读取目标 `SKILL.md`、`config.yaml`、脚本、references、模板和运行声明；按需读取 Kernel Pack、ID 与运行时文档。绘制目标、输入/输出、阶段、风险、失败/回退、人工介入和产物；从证据列出稳定命题的 Verifier 候选与持续阶段的 State 候选，标记来源和不确定性，不从文件名或关键词臆测。
 
-### 先证明“值得存在”
+### 删除影响闸门
 
-逐项执行删除影响测试：
+逐项回答：
 
-- **删除 Verifier 后**，是否会失去可复核的安全/质量边界，或只是少一段形式检查？
-- **删除 State 后**，是否会失去恢复、协作、Gate 或阶段可见性，或只是给流程贴标签？
-- 它是否改变下一步决策、阻止高代价错误、支持重放/审计，或提供可行动的人工复核入口？
-- 是否已有更通用的内置 Pack/状态可以复用？专用组件只有在通用组件无法表达稳定命题时才成立。
+- 删除 Verifier 是否损失可复核的安全/质量边界，而非只少形式检查？
+- 删除 State 是否损失恢复、协作、Gate 或阶段可见性，而非只少标签？
+- 组件是否改变下一步决策、阻止高代价错误、支持重放/审计或提供可行动的人工复核？
+- 是否已有更通用的内置 Pack/State？只有通用组件无法表达稳定命题时才设计专用组件。
 
-若删除不改变能力、决策或审计性，明确“不接入”。零组件或只保留一个都是合法结果；数量不是指标。
+若删除不改变能力、决策或审计性，明确“不接入”；零组件或只保留一个均合法。
 
-### 划分 AI 与确定性边界
+### Kernel 复用与元组件二层审查
 
-为每个设计项写一行“能力分工”：
+在专用设计前完成以下盘点，避免重复造轮子，也不默认新增 Kernel 功能：
 
-- **确定性实现**：JSON/Markdown 结构、路径范围、哈希、存在性、超时、结果枚举、事件完整性等可机械复现的边界。
-- **AI/自然语言判断**：业务语义、质量充分性、相关性、风险解释、冲突处理、下一步规划。输出必须带理由、证据锚点、置信度与 `uncertain/unchecked` 路径。
-- **混合实现**：脚本只收集/规范化事实，AI 按 `VERIFIER.md` 的命题和 Evidence Contract 判断；脚本不得偷偷编码领域结论。
+1. 读取 `packages/bensz-skill-kernel` 的 `verifiers/index.json`、`states/index.json`、对应 `VERIFIER.md`/`STATE.md`、README 和版本声明；记录 canonical ID、版本、classification/kind、输入契约、入口及限制，不能只看名称/标签。
+2. 为每个候选标记“直接复用 / 组合复用 / 适配后复用 / 不适用”，比较语义、输入/证据契约、Gate/转移、资源边界、版本兼容和失败路径；事实结构相同而仅词汇不同，优先适配器。
+3. 检查是否有可在两个及以上不相邻领域复用、领域无关、契约稳定、可独立版本化和可回放的能力。Verifier 要能用 `subject/context/evidence` 表达稳定命题；State 要表达跨 Skill 的持续阶段/生命周期，而非动作、标签或一次性 helper。
+4. 依赖领域规则、模型偏好、易变阈值、特定格式或单一 Skill 偶然流程的候选，留在 Skill/适配器层；证据不足时标为“待验证的 Kernel 提炼候选”。Kernel 建议只写入计划（范围、契约、兼容/迁移、测试、风险），不直接改 Kernel。
+5. 最终计划必须单独列出“Kernel 复用结论”和“Kernel 元组件提炼结论”。无论复用、适配、暂不复用、推荐提炼还是明确不提炼，每项至少用 2 个项目符号说明证据、收益/代价和边界理由；证据不足还要列缺口与验证动作。
 
-对“硬编码规则”逐条追问：规则是否稳定、跨模型可复现、能安全地 fail-closed？若不是，把它改成自然语言契约、证据字段和人工复核条件，而不是新增阈值或关键词表。
+### AI 与确定性分工
 
-语义 Verifier 的计划至少定义 `subject`、`context`、`evidence`、`verdict`、`summary`、`evidence_refs`、`confidence` 和 `uncertainties`；`verdict` 只能使用 Kernel 支持的枚举。证据不足或网络不可观测时返回 `uncertain`/`unchecked`，不得把模型自评当作 `pass`。
+为每个设计项写一行分工：
 
-### 映射到 bensz-skill-kernel
+- **确定性**：JSON/Markdown 结构、路径、哈希、存在性、超时、结果枚举、事件完整性等机械边界。
+- **AI/自然语言**：业务语义、质量充分性、相关性、风险解释、冲突处理和下一步规划；结果带理由、证据锚点、置信度及 `uncertain/unchecked` 路径。
+- **混合**：脚本只收集/规范化事实，AI 按 `VERIFIER.md` 与 Evidence Contract 判断；脚本不得编码领域结论。
+
+逐条追问硬编码规则是否稳定、跨模型可复现且能安全 fail-closed；否则改为自然语言契约、证据字段和人工复核条件。语义 Verifier 至少定义 `subject`、`context`、`evidence`、`verdict`、`summary`、`evidence_refs`、`confidence`、`uncertainties`；`verdict` 只用 Kernel 枚举，证据不足/网络不可观测返回 `uncertain`/`unchecked`，不得把模型自评当 `pass`。
+
+### Kernel 对接
 
 计划必须说明：
 
-- Verifier 使用 `owner.domain.capability` canonical ID；State 使用 `owner.machine.state` canonical ID；版本和 alias 独立维护，不把 Skill 名、模型、实现或 Gate 策略塞进 ID。
-- 每个 Pack 的 `VERIFIER.md`/`STATE.md` 负责判断目标、入口条件、不变量、证据边界和转移；`index.json` 是元数据单一来源。入口脚本只通过 JSON-stdio 工作，路径必须留在 Pack 目录内。
-- Kernel 只负责发现、协议校验、超时/资源边界、结果归一化、Gate、事件记录和状态持久化；领域判断留在 Skill 的契约或 AI 适配器。
-- 明确 `required` 与 `advisory`、Gate 放行条件、`uncertain/unchecked` 的人工复核去向、`run_id`/`attempt_id` 绑定、失败和恢复策略，以及如何从事件重放。
-- 若没有 Verifier，Gate 应明确为“不适用/无需验证”，而不是伪造通过结果；若没有 State，说明由普通 Skill 流程和工作区生命周期承担边界。若接入组件，写清 required 缺失时 fail-closed、advisory 如何提示但不阻塞。
-- 状态图只保留对业务有意义的稳定节点；动作放在 transition/event/helper 名称中。系统工作区状态与 Skill 领域状态分层，不把领域状态硬编码进 Kernel reducer。
-- 对外部路径、网络、子进程和大输入给出最小权限、超时、体积上限和越界拒绝策略；入口脚本必须是 Pack 内相对路径，禁止 `..`、绝对路径和 symlink 逃逸。
+- Verifier 用 `owner.domain.capability`、State 用 `owner.machine.state`；版本和 alias 独立维护，不把 Skill 名、模型、实现或 Gate 策略写入 ID。
+- Pack 的 `VERIFIER.md`/`STATE.md` 负责判断目标、入口条件、不变量、证据边界和转移；`index.json` 是元数据单一来源；入口仅 JSON-stdio，路径留在 Pack 内。
+- Kernel 只负责发现、协议校验、超时/资源边界、结果归一化、Gate、事件和状态持久化；领域判断留在 Skill 契约或 AI 适配器。
+- `required`/`advisory`、Gate 放行条件、`uncertain/unchecked` 人工复核去向、`run_id`/`attempt_id`、失败/恢复和事件重放策略。
+- 无 Verifier 时将 Gate 写为“不适用/无需验证”，无 State 时说明由普通流程和工作区生命周期承担；接入时 required 缺失必须 fail-closed，advisory 只提示不阻塞。
+- 状态图只保留稳定业务节点；动作放入 transition/event/helper；系统工作区状态与 Skill 领域状态分层，不把领域状态硬编码进 Kernel reducer。
+- 外部路径、网络、子进程和大输入采用最小权限、超时、体积上限及越界拒绝；入口禁止 `..`、绝对路径和 symlink 逃逸。
 
-### 生成最小设计
+附“Kernel 复用与提炼决策表”：候选能力、现有 Kernel ID/版本、复用方式、契约差异、是否跨领域、提炼建议、主要理由、验证动作；表格须与两个结论互相引用。
 
-用一张矩阵让后续 Agent 能直接实现：
+### 最小设计
+
+使用矩阵：
 
 | 候选 | 保留/删除 | 稳定命题或状态含义 | AI/脚本分工 | 输入与证据 | Gate/转移 | 失败与人工复核 |
 | --- | --- | --- | --- | --- | --- | --- |
 
-然后给出最小状态图（初始、主要阶段、终止/失败、可选回退）和 Verifier 清单。每项都必须有“为什么不可删除”的一句话；没有这句话就删掉或降级为普通说明。
+给出最小状态图（初始、主要阶段、终止/失败、可选回退）和 Verifier 清单；每项写“为什么不可删除”，否则删除或降级为普通说明。
 
-## 计划文件固定结构
+## 计划固定结构
 
 ```markdown
 # Verifier/State 设计计划：<skill>
@@ -98,29 +102,34 @@ metadata:
 ## State 设计矩阵与最小状态图
 ## AI/确定性分工与 Evidence Contract
 ## Kernel 对接、Gate、重放与资源边界
+## Kernel 复用与元 Verifier/State 提炼决策
 ## 实施顺序（P0/P1/P2）
 ## 验收与回归测试
 ## 已知不确定性、回退方案和不在范围内的事项
 ```
 
-实施顺序只写下一步可执行的改动，不直接修改源代码。P0 是安全、数据完整性或不可恢复错误；P1 是重要契约/可观测性问题；P2 是可选改进。每一项包含文件位置、证据、影响、验证命令和完成条件。
+“Kernel 复用与元 Verifier/State 提炼决策”必须包含：
+
+- **现有 Kernel 能力盘点**：实际读取的索引/契约及其对应候选。
+- **Kernel 复用结论**：直接、组合、适配或不适用；每项至少两条理由，含契约匹配度及失败/维护成本。
+- **元组件提炼结论**：推荐、暂缓验证或明确不提炼；每项至少两条理由，含跨领域证据、稳定性、版本化收益及领域耦合风险。
+- **对人类决策的影响**：采纳/不采纳建议会改变的文件、兼容性、测试、迁移成本和维护责任。
+
+两类结论即使均为“不复用/不提炼”也必须保留并分点说明。实施顺序只写下一步改动，不改源代码：P0 为安全/完整性/不可恢复错误，P1 为契约/可观测性，P2 为可选改进；每项含文件位置、证据、影响、验证命令和完成条件。
 
 ## 质量闸门
 
-交付前自问：
+- 是否有删掉也不影响能力的组件？若有删除或解释保留理由。
+- 是否把领域规则硬编码进 Kernel、脚本阈值或 ID？若有迁移到契约/适配器。
+- 是否区分事实收集与语义判断，并保留不确定结果的人工复核？
+- 是否逐项核对 Kernel 索引/契约，记录复用或不适用理由？
+- 是否找到并论证跨至少两个领域的元组件？若没有，是否说明耦合、证据不足或维护成本原因？
+- 是否能从事件/快照重放，且失败不会伪装为通过？
+- 测试是否覆盖 canonical/alias、非法输入、超时、越界路径、Gate 缺证据和删除后的回退？
+- 计划是否写出目标 Skill/Kernel 版本、读取证据、决策日期、实现位置，以及两个独立结论的分点理由和人类决策影响？
 
-- 是否存在“删掉也不影响能力”的 Verifier/State？若有，删除或解释保留理由。
-- 是否把业务规则硬编码进 Kernel、脚本阈值或 ID？若有，迁移到自然语言契约或证据适配器。
-- 是否区分事实收集与语义判断，并为不确定结果保留人工复核？
-- 是否能用内置 Pack 表达，是否真的需要专用 Pack？
-- 是否能从事件和快照重放，且失败不会伪装成通过？
-- 是否有最小测试覆盖 canonical/alias、非法输入、超时、越界路径、Gate 缺证据和删除后的回退？
-- 计划是否包含目标 Skill/Kernel 版本、读取证据、决策日期和可追溯的实现文件位置？
-
-若资料不足，停止在“待确认”并写缺口，不凭空补状态或规则。中间分析、快照和验证日志遵循 BenszAPI 工作区协议，不记录密钥、令牌、Cookie、私有 Prompt 或不必要的原始数据。
-
-若本 Skill 作为更大任务的中间环节，只交付计划和机器可读摘要，不重复向用户解释；若它是独立任务，在结束时用通俗语言说明保留/删除了什么、为什么、下一步如何实现，并列出计划路径和验证证据。
+资料不足时停在“待确认”，不凭空补状态/规则；中间文件遵循 `.bensz-api` 协议，禁止记录密钥、令牌、Cookie、私有 Prompt 或不必要原始数据。作为更大任务中间环节时只交付计划和机器可读摘要；独立使用时说明保留/删除、原因、下一步、计划路径和验证证据。
 
 ## 与 bensz-collect-bugs 的边界
 
-仅当发现本 Skill 或 Bensz 基础设施的设计缺陷（例如触发漏判、契约不完整、环境假设错误）时记录 bug；用户数据错误、第三方抖动、用户主动改源码和偶发模型波动不属于此范围。先脱敏记录到 `~/.bensz-skills/bugs/`，本轮不中断；只有用户明确要求才用本机 `gh api` 公开上报。禁止直接修改用户本地已安装 Skill 来“顺手修 bug”。
+仅记录本 Skill 或 Bensz 基础设施的设计缺陷（触发漏判、契约不完整、环境假设错误等）；用户数据错误、第三方抖动、用户改源码和偶发模型波动不属于此范围。先脱敏写入 `~/.bensz-skills/bugs/`，本轮不中断；只有用户明确要求才用本机 `gh api` 上报 `huangwb8/bensz-bugs`，不 clone。禁止直接修改用户本地已安装 Skill 来“顺手修 bug”。
