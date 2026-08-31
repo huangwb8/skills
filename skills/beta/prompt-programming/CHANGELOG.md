@@ -5,6 +5,17 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-31
+
+### Added
+- 新增 `bensz.prompt.semantic-equivalence@1.0.0` AI 语义 Verifier，按六项评分标准检查 Prompt Program 与原始 prompt 的意图、输入输出、控制流、硬约束、歧义处理及臆造内容。
+- 将结构 Verifier 与 AI 语义 Verifier 纳入同一 Kernel 批量 Gate，要求逐项证据锚点、严重级别、置信度和不确定性处理。
+- `schema-valid`/`reviewed` 状态新增 required Verifier 完整通过不变量，缺少 AI 语义结果时不得继续交付。
+
+### Changed
+- Kernel 目录化 Verifier 合同现在显式解析 `mode`，可正确声明 `prompt`/`llm_judge` 类型，而不是把无脚本 Verifier 一律显示为 `human`；Kernel 升级至 `0.13.0`。
+- `prompt-programming` 的 `schema-valid` 与 `reviewed` 状态改为要求结构和语义验证共同通过。
+
 ## [0.4.0] - 2026-08-30
 
 ### Changed

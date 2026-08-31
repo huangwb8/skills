@@ -114,6 +114,42 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                     allowed = True
             if not allowed:
                 failures.append("verifier-gate-allow (no allowing Gate decision)")
+        elif invariant == "required-verifiers-pass":
+            required = context.get("required_verifiers")
+            if not isinstance(required, Iterable) or isinstance(required, (str, bytes, Mapping)):
+                failures.append("required-verifiers-pass (required_verifiers missing)")
+                continue
+            required_refs = set()
+            for item in required:
+                if isinstance(item, Mapping):
+                    identifier = item.get("id", item.get("verifier_id"))
+                    version = item.get("version")
+                    if identifier and version:
+                        required_refs.add(f"{identifier}@{version}")
+            if not required_refs:
+                failures.append("required-verifiers-pass (required_verifiers empty)")
+                continue
+            passed_refs = set()
+            gate_refs = set()
+            allowing_gate = False
+            for event in event_list:
+                kind = event.get("type", event.get("event_type", "")) if isinstance(event, Mapping) else getattr(event, "event_type", "")
+                payload = event.get("payload", {}) if isinstance(event, Mapping) else getattr(event, "payload", {})
+                if not isinstance(payload, Mapping):
+                    payload = {}
+                if kind == "verification.result":
+                    ref = f"{payload.get('verifier_id')}@{payload.get('verifier_version')}"
+                    if payload.get("execution_status") == "completed" and payload.get("verdict") == "pass":
+                        passed_refs.add(ref)
+                elif kind == "verification.gate":
+                    if payload.get("decision") in {"allow", "allow_with_warnings"}:
+                        allowing_gate = True
+                    gate_refs.update(str(item) for item in payload.get("result_refs", ()))
+            missing = sorted(required_refs - passed_refs)
+            if missing:
+                failures.append("required-verifiers-pass (missing passing results: " + ", ".join(missing) + ")")
+            elif not allowing_gate or not required_refs.issubset(gate_refs):
+                failures.append("required-verifiers-pass (allowing Gate does not cover all required verifiers)")
     return tuple(failures)
 
 
@@ -447,8 +483,13 @@ class SkillStateDeclaration:
         verifier_items = []
         if raw_verifiers:
             try:
-                from .verifiers import FilesystemVerifierRegistry, builtin_verifier_root, normalize_requirements
-                verifier_items = list(normalize_requirements(raw_verifiers, FilesystemVerifierRegistry(builtin_verifier_root())))
+                from .verifiers import CombinedVerifierRegistry, FilesystemVerifierRegistry, builtin_verifier_root, normalize_requirements
+                verifier_roots = [FilesystemVerifierRegistry(builtin_verifier_root())]
+                local_verifier_root = root / "references" / "verifiers"
+                if local_verifier_root.is_dir():
+                    verifier_roots.append(FilesystemVerifierRegistry(local_verifier_root))
+                verifier_registry = CombinedVerifierRegistry(*verifier_roots)
+                verifier_items = list(normalize_requirements(raw_verifiers, verifier_registry))
             except (ImportError, KeyError, ValueError) as exc:
                 raise StateDefinitionError(f"invalid verifier requirements: {exc}") from exc
         runtime_kernel = raw.get("kernel")

@@ -27,8 +27,8 @@ metadata:
 
 1. 复用或初始化任务工作区，并为本次尝试确定同一 `run_id`、`attempt_id` 和事件账本路径。
 2. 通过 `bsk state transition` 进入 `bensz.prompt-programming.draft`，记录原始 prompt（只读）。输入为空、过短或非 prompt 时，记录失败路径并停止，不得伪造 Prompt Program。
-3. 完成翻译后，**必须**运行 `bensz.prompt.contract-conformance@1.0.0`。本 Skill 的领域 Verifier 入口是 [`references/verifiers/program-conformance/scripts/verify.py`](references/verifiers/program-conformance/scripts/verify.py)；将请求和结果分别保存到 Skill 工作区 `input/`、`output/`，不得把结果留在对话上下文中作为唯一证据。
-4. 使用 `bsk verification` 将原始 Verifier 结果和 Gate 写入同一事件账本；Gate 必须由 Kernel 重算，并与本次 `run_id`/`attempt_id` 绑定。只有 `verdict=pass` 且 Gate 为允许时，才可转移到 `bensz.prompt-programming.reviewed`。
+3. 完成翻译后，**必须**运行 `bensz.prompt.contract-conformance@1.0.0`，并按 [`references/verifiers/semantic-equivalence/PROMPT.md`](references/verifiers/semantic-equivalence/PROMPT.md) 由当前 AI 执行 `bensz.prompt.semantic-equivalence@1.0.0`。前者检查结构，后者检查原始 prompt 与候选 Program 的语义保真；两者请求和结果分别保存到 Skill 工作区 `input/`、`output/`，不得把结果留在对话上下文中作为唯一证据。
+4. 将两个 Verifier 结果作为同一批次交给 `bsk verification`；Gate 必须由 Kernel 重算，并与本次 `run_id`/`attempt_id` 绑定。只有两个 required Verifier 都是 `completed + pass` 且 Gate 为允许时，才可转移到 `bensz.prompt-programming.reviewed`。AI 不可用、超时或语义不确定时必须停在人工复核/失败路径。
 5. 在 `reviewed` 阶段执行语义复核：确认核心意图、硬约束、输出契约和显式顺序均保留。复核通过后依次转移到 `bensz.prompt-programming.published`，再关闭工作区；未通过则转移到 `bensz.runtime.failed`，保留诊断。
 
 ### 不可绕过的执行规则
@@ -42,6 +42,13 @@ metadata:
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+## 语义验证要求
+
+`bensz.prompt.semantic-equivalence@1.0.0` 是 AI 评审器，不是自动改写器。当前
+Agent 必须把原始 prompt 和候选 Prompt Program 提交给 `PROMPT.md` 规定的六项评分表，
+输出带来源/候选锚点、严重级别和置信度的标准 JSON。不得用“块存在”“文件可读”或模型
+一句话自评替代逐项判断；语义验证结果必须与结构验证结果批量写入同一 Kernel Gate。
 
 把原始 prompt 编译成 Prompt Program：像程序，但仍是自然语言。目标是把输入、输出、约束、流程、分支和校验整理成可维护、可评审的假代码。
 

@@ -26,6 +26,8 @@ bsk state transition TASK_ROOT prompt-programming bensz.prompt-programming.draft
 
 后续转移按清单顺序执行。每次成功转移都**必须**检查标准 `bensz-meta-state-v1` 回执，并将
 快照保存在任务工作区 Skill 的 `log/meta-state.json`。`schema-valid` 离开前，事件账本必须
-包含同一 `run_id/attempt_id` 下的 `verification.result` 与 `verification.gate`；
+包含同一 `run_id/attempt_id` 下结构 Verifier 与 AI 语义 Verifier 的
+`verification.result`，且两个结果均为 `completed + pass`，以及覆盖两者的
+Kernel `verification.gate`；缺少任一 required Verifier 时不得进入 `reviewed`。
 `reviewed` 离开前还必须有 allowing Gate。任何命令失败、回执缺失或身份不一致都走
 `bensz.runtime.failed`，不得直接返回翻译结果。

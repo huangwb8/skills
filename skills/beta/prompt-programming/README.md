@@ -230,9 +230,10 @@ A：当你只想润色语气、不想改变结构，或者你给的根本不是 
 ## 运行时状态与结构验证
 
 技能运行阶段由 [`references/state-machine.md`](references/state-machine.md) 定义，状态
-从输入就绪、翻译、验证、通过到交付依次推进。结构检查由
-[`references/verifiers.md`](references/verifiers.md) 中的
-`bensz.prompt.contract-conformance@1.0.0` 完成；它只确认必需块存在、非空且顺序正确，
-不替代对原始 prompt 意图的人工或语义判断。两者都是每次执行的强制门禁：必须先由
-Kernel 写入状态转移和验证结果/Gate，且仅在 Gate 允许并完成语义复核后返回最终 Prompt
-Program；命令失败或证据缺失时不得静默降级。
+从输入就绪、翻译、验证、通过到交付依次推进。每次执行同时使用两个 Verifier：
+`bensz.prompt.contract-conformance@1.0.0` 负责结构门禁，
+`bensz.prompt.semantic-equivalence@1.0.0` 按
+[`references/verifiers/semantic-equivalence/PROMPT.md`](references/verifiers/semantic-equivalence/PROMPT.md)
+由当前 AI 评估意图、契约、控制流和约束保真。两者结果必须批量交给 Kernel 重算 Gate；只有
+两个结果均为 `completed + pass` 且 Gate 允许，才能返回最终 Prompt Program。模型不可用、
+证据不足或语义不确定时不得静默降级。

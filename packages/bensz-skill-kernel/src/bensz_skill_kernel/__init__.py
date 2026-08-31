@@ -15,6 +15,7 @@ from .runtime import (
 from .contracts import Artifact, Authorization, Contract, Effect, Requirement, Subject, RUNTIME_PROTOCOL_VERSION
 from .verifiers import (
     Evidence,
+    CombinedVerifierRegistry,
     FilesystemVerifierRegistry,
     GateDecision,
     PackRegistry,
@@ -57,6 +58,7 @@ __all__ = [
     "Subject",
     "RUNTIME_PROTOCOL_VERSION",
     "Evidence",
+    "CombinedVerifierRegistry",
     "FilesystemVerifierRegistry",
     "VerifierRegistry",
     "GateDecision",

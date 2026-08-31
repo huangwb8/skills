@@ -145,6 +145,7 @@ class VerifierDefinition:
     aliases: tuple[str, ...] = ()
     classification: str = "domain"
     assurance_tier: str = "deterministic"
+    mode: str = "human"
 
     @classmethod
     def from_directory(cls, path: str | os.PathLike[str]) -> "VerifierDefinition":
@@ -169,9 +170,12 @@ class VerifierDefinition:
         if verifier_id in aliases:
             raise ValueError("verifier aliases must differ from the canonical ID")
         assurance_tier = fields.get("assurance_tier", "deterministic")
-        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags", "aliases", "assurance_tier"}
+        mode = fields.get("mode", "rule" if entrypoint else "human")
+        if mode not in MODES:
+            raise ValueError(f"unsupported verifier mode: {mode}")
+        reserved = {"id", "verifier_id", "version", "description", "entrypoint", "script", "tags", "aliases", "assurance_tier", "mode"}
         metadata = {key: value for key, value in fields.items() if key not in reserved}
-        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases, fields.get("classification", "domain"), assurance_tier)
+        return cls(verifier_id, version, root, instructions, fields.get("description", ""), entrypoint, tags, metadata, aliases, fields.get("classification", "domain"), assurance_tier, mode)
 
     @classmethod
     def from_indexed_directory(cls, path: str | os.PathLike[str], entry: Mapping[str, Any]) -> "VerifierDefinition":
@@ -185,6 +189,9 @@ class VerifierDefinition:
             raise ValueError(f"indexed verifier requires version: {root}")
         entrypoint = resolve_entrypoint(root, entry.get("entrypoint"), label="verifier")
         aliases = parse_aliases(",".join(str(item) for item in entry.get("aliases", ())))
+        mode = str(entry.get("mode", "rule" if entrypoint else "human"))
+        if mode not in MODES:
+            raise ValueError(f"unsupported verifier mode: {mode}")
         return cls(
             verifier_id=verifier_id,
             version=version,
@@ -197,6 +204,7 @@ class VerifierDefinition:
             aliases=aliases,
             classification=str(entry.get("classification", "domain")),
             assurance_tier=str(entry.get("assurance_tier", "deterministic")),
+            mode=mode,
         )
 
     @property
@@ -204,7 +212,7 @@ class VerifierDefinition:
         return VerifierSpec(
             verifier_id=self.verifier_id,
             version=self.version,
-            mode="rule" if self.entrypoint else "human",
+            mode=self.mode,
             tags=self.tags,
             aliases=self.aliases,
             subject_kinds=tuple(item.strip() for item in str(self.metadata.get("subject_kinds", "")).split(",") if item.strip()),
@@ -342,6 +350,56 @@ class FilesystemVerifierRegistry:
         if not isinstance(raw, Mapping):
             return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": "invalid verifier JSON: verifier output must be a JSON object"}
         return {**normalize_result(raw, definition.spec, evidence_refs=base["evidence_refs"]).to_dict(), "request_id": request.get("request_id")}
+
+
+class CombinedVerifierRegistry:
+    """Read-only union of built-in and Skill-local Verifier Pack roots."""
+
+    def __init__(self, *registries: FilesystemVerifierRegistry):
+        self.registries = registries
+        self._definitions: dict[tuple[str, str], VerifierDefinition] = {}
+        self._aliases: dict[tuple[str, str], tuple[str, str]] = {}
+        for registry in registries:
+            for definition in registry.definitions():
+                key = (definition.verifier_id, definition.version)
+                if key in self._definitions or key in self._aliases:
+                    raise ValueError(f"duplicate verifier: {definition.verifier_id}@{definition.version}")
+                self._definitions[key] = definition
+                for alias in definition.aliases:
+                    alias_key = (alias, definition.version)
+                    if alias_key in self._definitions or alias_key in self._aliases:
+                        raise ValueError(f"duplicate verifier alias: {alias}@{definition.version}")
+                    self._aliases[alias_key] = key
+
+    def resolve(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
+        if version and (verifier_id, version) in self._aliases:
+            verifier_id, version = self._aliases[(verifier_id, version)]
+        elif not version:
+            alias_versions = [key for key in self._aliases if key[0] == verifier_id]
+            if alias_versions:
+                alias_version = sorted((key[1] for key in alias_versions), key=_version_key)[-1]
+                verifier_id, version = self._aliases[(verifier_id, alias_version)]
+        if version:
+            try:
+                return self._definitions[(verifier_id, version)]
+            except KeyError as exc:
+                raise KeyError(f"verifier not found: {verifier_id}@{version}") from exc
+        candidates = [item for (identifier, _), item in self._definitions.items() if identifier == verifier_id]
+        if not candidates:
+            raise KeyError(f"verifier not found: {verifier_id}")
+        return sorted(candidates, key=lambda item: _version_key(item.version))[-1]
+
+    def definitions(self, *, tag: str | None = None) -> tuple[VerifierDefinition, ...]:
+        items = tuple(self._definitions.values())
+        if tag:
+            items = tuple(item for item in items if tag in item.tags)
+        return tuple(sorted(items, key=lambda item: (item.verifier_id, item.version)))
+
+    def specs(self, *, tag: str | None = None) -> tuple[VerifierSpec, ...]:
+        return tuple(item.spec for item in self.definitions(tag=tag))
+
+    def describe(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
+        return self.resolve(verifier_id, version)
 
 
 # Short public name for callers that do not care about the storage backend.

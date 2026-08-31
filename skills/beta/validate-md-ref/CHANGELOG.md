@@ -9,6 +9,9 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+- 同步 `bensz-skill-kernel` 至 `0.13.0`，支持 Skill 本地 Verifier Pack 合并发现和 `mode: prompt` 元数据。
+
 ### Fixed（修复）
 - 同步 `bensz-skill-kernel` 运行时版本至 `0.12.4`，使用缺失 required verifier 的 fail-closed Gate 和结构化非法请求错误。
 

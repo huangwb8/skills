@@ -338,6 +338,8 @@ def _run_state_command(args: argparse.Namespace) -> int:
         context = _json_object(args.context_json, label="--context-json")
         if args.run_id is not None:
             context = {**context, "run_id": args.run_id, "attempt_id": args.attempt_id}
+        if declaration:
+            context = {**context, "required_verifiers": list(declaration.verifier_requirements())}
         invariant_failures = check_state_invariants(registry.resolve(current), events, context=context)
         if invariant_failures:
             _print(_state_response(
