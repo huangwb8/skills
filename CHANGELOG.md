@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **verifier-state-architect beta Skill**：新增面向 Verifier/State 架构规划的顾问型 Skill，允许“不接入”结论，强调删除影响测试、自然语言语义判断与 Kernel 契约对接。
 
 ### Changed（变更）
+- **Kernel 内置 State 阶段契约补全**：为 `packages/bensz-skill-kernel/src/bensz_skill_kernel/states/` 的内置 State 增加进入条件、Agent 行动、输入/证据、离开条件、转移指引、失败恢复与执行边界说明；同时在 `AGENTS.md` 固化完整阶段型 `STATE.md` 的最低内容要求，不改变现有生命周期转移表。
+- **AGENTS.md Verifier/State 规则收敛**：将 Verifier/State 的规划、删留和 Kernel 复用判断明确委托给 `verifier-state-architect`，并把治理文件中的重复说明压缩为实现阶段不可下沉的协议、安全与兼容性门禁；详细设计继续以 Skill、ID 文档和 Kernel 契约为准。
+- **verifier-state-architect beta Skill**：版本更新至 `0.2.1`；压缩工作型 `SKILL.md` 的重复说明，保持触发语义、输入输出、Kernel 复用/元组件审查、安全边界与计划契约不变。
+- **verifier-state-architect beta Skill**：补充 Kernel 二层架构审查，要求在设计专用组件前盘点现有 Verifier/State 的复用可能，并评估可跨领域提炼进 `packages/bensz-skill-kernel` 的元组件；最终计划必须以独立章节和分点理由同时说明两类判断及其对人类决策的影响。
 - **Kernel Verifier Pack 能力扩展**：版本更新至 `0.13.0`；支持目录化 Verifier 显式声明 `mode`，让 Skill 状态声明合并发现内置与本地 `references/verifiers` Pack，并在状态不变量中核对 required Verifier 的完整通过结果，支持 `prompt`/`llm_judge` 语义验证器。
 - **prompt-programming 强制运行时门禁**：将状态机与 `bensz.prompt.contract-conformance@1.0.0` 从说明性接入改为每次执行必经流程；仅允许在 Kernel 记录验证结果/Gate、完成语义复核并推进至 `published` 后交付，并修正对应 CLI 与 Verifier 结果身份契约。
 - **状态机与验证器改为显式可选**：更新 `AGENTS.md`，明确普通 Skill 开发默认不要求接入状态机、Verifier、Pack 或 Gate；仅在开发者明确提出时执行相关流程与门禁，并提示这些基础设施仍处于活跃开发阶段，采用前需评估风险与回退方案。

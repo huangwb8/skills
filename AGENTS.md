@@ -116,14 +116,14 @@
 ### 对象化最小流程
 
 - **Skill**：读取现有 `SKILL.md`、`config.yaml`、脚本和必要 references → 确认触发边界与输入输出 → 最小修改 → 静态一致性检查 → 轻量测试 → README、CHANGELOG 和 BAC 同步；影响安装发现时再运行安装器回归。
-- **Verifier（按需）**：仅当开发者明确要求本次 Skill 开发引入或使用验证器时，才确定稳定判断命题与 Evidence Contract → 判断是否应成为顶层 Verifier → 编写 `VERIFIER.md` 和入口 → 更新 `verifiers/index.json` → 测试 canonical/alias、非法输入、超时和安全边界 → 同步 kernel 文档与 CHANGELOG。
-- **State（按需）**：仅当开发者明确要求本次 Skill 开发引入或使用状态机时，才确定状态语义和所属 machine → 编写 `STATE.md` → 更新 `states/index.json` → 检查 entry conditions、invariants、transitions 与 Runtime reducer → 测试非法迁移、alias、helper 和 terminal state → 同步 Skill runtime 声明、文档与 CHANGELOG。
+- **Verifier/State 规划与审查（按需）**：凡需规划、评估、精简或接入 Verifier/State，先使用 `skills/beta/verifier-state-architect` 产出设计计划；该 Skill 负责删除影响测试、Kernel 复用/提炼判断和最小契约设计，不直接实现 Pack 或 Kernel。
+- **Verifier/State 实现**：仅在开发者明确要求时执行，并以该 Skill 的计划、下方最小门禁及 Kernel/ID 文档为依据。
 
 ### 状态机与验证器的可选性
 
 状态机、Verifier 及其 Pack/Gate 集成不是普通 Skill 开发的默认必需项。只有开发者在当前任务中明确表示需要使用状态机或验证器时，才纳入相应流程、运行时声明、Pack 资产和专门测试；未明确要求时按普通 Skill 的最小流程处理，不得因仓库已有 Kernel、Pack 或示例而自动接入。由于这两类基础设施仍处于活跃开发阶段、成熟度和兼容性尚在演进，决定采用前应评估实际收益、失败风险与回退方案。
 
-详细字段表和长示例应下沉到 `docs/`（建议维护 `docs/skill-development.md`、`docs/verifier-development.md`、`docs/state-development.md` 和 `docs/verification-matrix.md`）；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
+详细字段表和长示例应下沉到 `docs/`；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
 
 ## Kernel 包开发
 
@@ -212,48 +212,41 @@ metadata:
 
 ⚠️ **强制联动**：当 `install-bensz-skills` 发生业务逻辑变更（安装流程、版本控制策略、命令行参数、目标目录约定、manifest 格式等）时，必须检查 `bootstrap_install.py` 是否需要同步对齐，保证两者对 alpha 默认源、manifest 和安装目标的可观测行为一致；仅 Git 缓存与远程拉取实现允许不同。
 
-### Verifier ID 命名规范
+## Verifier、State 与 Pack 的最小实现门禁
 
-仓库内所有新 Verifier 必须遵循 [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md)：canonical ID 使用 `owner.domain.capability` 格式，官方内置 owner 为 `bensz`，全小写 kebab-case，版本独立记录在 `version` 字段。不得把 Skill 名称、输入格式（除非判断契约确实格式专属）、实现方式、模型、Gate 策略或版本写入 ID。已发布 ID 不重命名；迁移时使用 `aliases` 保留兼容入口，历史事件记录不得改写。
+Verifier 使用 `owner.domain.capability`，State 使用 `owner.machine.state`；版本独立维护，重命名使用唯一 `aliases`，历史事件/快照不改写。详细命名规则见 [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`docs/state-id-naming.md`](docs/state-id-naming.md)。
 
-Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例必须使用不同层级的标识；只有独立注册、版本化和复用的组件才提升为顶层 Verifier。修改 verifier 命名或契约时，必须同步 `packages/bensz-skill-kernel`、相关 Skill、文档、测试和 `CHANGELOG.md`，并验证 canonical/alias 两条解析路径。
+Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例使用不同层级的标识；只有独立注册、版本化和复用的组件才提升为顶层 Verifier。修改命名或契约时同步相关 Kernel、Skill、文档、测试和 `CHANGELOG.md`，并验证 canonical/alias 两条解析路径。
 
-### State ID 命名规范
+### State ID 与迁移约束
 
 仓库内所有新状态必须遵循 [`docs/state-id-naming.md`](docs/state-id-naming.md)：canonical ID 使用 `owner.machine.state` 格式，官方内置 owner 为 `bensz`，全小写 kebab-case，版本独立记录在 `version`。State ID 描述稳定状态节点，不表示 transition 动作、事件、helper、Verifier 或运行实例；状态 `kind` 也不得写入 ID。
 
-`initial_state`、`states`、`entry_conditions` 和 `transitions` 应引用 canonical ID。已发布 ID 不直接重命名；迁移时使用 `aliases` 保留兼容入口，新清单、CLI 回执和快照必须输出 canonical ID，历史事件与旧快照不得改写。修改状态命名或契约时，必须同步 kernel、相关 Skill 声明与 `STATE.md`、文档、测试和 `CHANGELOG.md`，并验证 canonical/alias 两条路径。
+`initial_state`、允许状态集合、入口条件和迁移边引用 canonical State ID；发布后的重命名使用唯一 `aliases`，历史事件/快照不改写，修改契约时同步 Kernel、Skill、文档、测试和 `CHANGELOG.md`。
 
-## Skill、Verifier、State 的 Pack 开发契约
-
-以下规则是新增或修改 Pack 的最低要求；详细理论说明可放在 `docs/`，但不得与本节的强制契约冲突。
+Pack 的详细设计与审查由 `skills/beta/verifier-state-architect` 负责；本节只保留实现时不可违反的边界。
 
 ### Verifier Pack（仅在显式采用 Verifier 时适用）
 
-- 目录使用 `verifiers/<directory>/`；至少包含 `VERIFIER.md`，可选 `scripts/verify.py` 或其它入口脚本。
-- 新增、删除或重命名目录时，必须同步 `verifiers/index.json`。索引协议为 `bensz-pack-index-v1`，其中 `directory`、canonical `id`、`version`、`classification`、`tags`、`contract` 和可选 `entrypoint` 必须与实际文件一致；索引是元数据单一真相来源。
-- `VERIFIER.md` 必须说明判断目标、Subject/Context/Evidence 输入、必需字段、证据边界、不判断范围和结果解释。没有入口脚本的 Verifier 必须明确标为 instruction-only。
-- 可执行入口通过 stdin 接收一个 JSON 请求，stdout 只输出一个 JSON 对象；stderr 只用于脱敏诊断。`verdict` 与执行状态分开，结果只能使用 `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out` 或 `skipped`。
-- 入口默认只读；确需副作用时必须在契约、请求和审计事件中显式声明，并提供失败恢复和幂等策略。超时、异常、非法 JSON、非零退出码不得由调用方猜测，必须由 kernel 归一化。
-- Verifier 只负责稳定的可复核判断；格式适配器负责把 Markdown、LaTeX 等输入转换为通用证据。只有需要独立注册、版本化和复用的能力才提升为顶层 Verifier。
+- Verifier Pack 至少包含契约文件并与索引一致；可执行入口遵循 JSON-stdio，结果枚举、只读/副作用和超时边界遵循 Kernel 协议。
 
 ### State Pack（仅在显式采用状态机时适用）
 
-- 目录使用 `states/<directory>/`；至少包含 `STATE.md`，可选附带 JSON-stdio helper。
-- 使用 `states/index.json` 时，索引负责 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、`contract` 和可选 `entrypoint`；`STATE.md` 负责 description、entry conditions、invariants 和 transitions。索引优先时不得在 Markdown 中复制易漂移的元数据。
-- `initial_state`、允许状态集合、`entry_conditions` 和 `transitions` 必须引用 canonical State ID；`state_roots` 只声明发现根，不能代替允许集合。`*` 只表示明确受支持的迁移策略，不是状态 ID。
-- State ID 描述已经成立或持续中的稳定状态；动作、事件、helper、Verifier 和运行实例必须使用不同标识。terminal 状态不得定义后继迁移；`kind: system|skill` 不得编码进 ID。
-- helper 通过 stdin 接收标准 JSON 请求、stdout 返回一个结果对象；只有执行成功且 `verdict=pass` 才能持久化转移。instruction-only 状态必须在正文中写明由 Agent 执行的检查。
-- Kernel 只提供发现、解析、转移校验、执行边界和持久化协议；领域 Skill 的业务状态、规则和判断不得硬编码进 kernel reducer。
+- State Pack 至少包含状态契约并与索引一致；只有满足契约的成功检查才能持久化转移，领域规则不得写入 Kernel reducer。
+- 一份完整的阶段型 `STATE.md` 至少包含以下内容：
+  - **状态含义**：说明该阶段已经成立的事实、负责范围，以及它不代表的动作或结果。
+  - **进入条件**：列出进入前必须满足的前置条件，并区分 Kernel 可检查的条件与需要 Agent、Adapter、Verifier 或人工确认的条件。
+  - **Agent 行动**：说明 Agent 在该阶段必须执行的工作、允许读取/写入的范围、应调用的工具或 Verifier；若只提供状态标记，必须明确写明“无 Agent 操作”。
+  - **输入与证据**：说明必需输入、产物、证据引用、快照或事件，以及每项证据由谁产生。
+  - **离开条件**：给出可观察、可验收的完成条件，并分别说明成功、失败、不确定、等待或取消时的处理；不能只写“工作完成”或“检查通过”。
+  - **转移指引**：解释 frontmatter `transitions` 中每个目标状态的触发条件；正文不得声明未列出的目标，终态必须明确说明没有后继状态。
+  - **失败、恢复与回滚**：说明失败证据如何保留、是否允许重试、恢复从哪里开始，以及是否需要新的 run/attempt。
+  - **边界与执行归属**：明确哪些内容由 Kernel、helper、Adapter、Agent 或人工执行；自然语言要求未被 Kernel 实现时不得暗示已自动执行。
+- 内置系统 State 即使保持领域中立，也必须按上述模板写清“阶段手册”与“通用边界”；领域 Skill 的具体动作仍放在 Skill 自有 State/`SKILL.md`，不得把领域规则硬编码进 Kernel reducer。
 
 ### 索引与安全门禁（仅在本次任务涉及 Pack 时适用）
 
-提交前必须检查：
-
-- Pack 索引无漏列、陈旧条目、重复目录、重复 canonical ID 或 alias 冲突；canonical 与 alias 两条解析路径均能通过 CLI 验证。
-- contract 和 entrypoint 文件真实存在，解析后的路径仍在 Pack 自身目录内；拒绝 `..`、绝对路径和 symlink 逃逸。
-- JSON 请求和结果均经过结构校验；日志、错误和证据引用不得包含密钥、令牌、密码、Cookie、完整私有 Prompt 或不必要的原始输入。
-- 网络、子进程和文件访问遵循最小权限、超时、资源上限和 SSRF/命令注入防护；不因“验证方便”扩大访问范围。
+提交前检查索引/契约/入口一致性、canonical/alias 解析、非法输入/超时/越界路径和脱敏；网络、子进程与文件访问遵循最小权限及 SSRF/命令注入防护。
 
 ## 变更类型、版本与验证矩阵
 

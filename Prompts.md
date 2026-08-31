@@ -60,6 +60,19 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+该skill已经存在；  AGENTS.md 里某些东西是不是可以简化了？相关的职能直接指定用 该skill来负责就可以了。 你觉得可以吗？如果可以，请执行； 如果不可以，请说明理由。
+
+---
+
+目前该skill有一个盲区。 它在为新的skill设计verifier和state时，应该多思考一层：
+
+- packages/bensz-skill-kernel 已经存在一些基础的verifier和state。 我是否可以不需要重复造轮子？
+- 设计的时候，会不会发现其实可以提练出新的元verifier和state （具有很强的通用性），推荐放在 packages/bensz-skill-kernel 里
+
+上述思考不管作出的最终判断是什么，都要具体说明原因，且要分点说明（在最终的计划里）。这很重要—因为人类在使用这个skill的时候，他一般也会有优化 packages/bensz-skill-kernel 的需求； 这些建议可能会影响人类的决策。
+
+---
+
 我要设计一个新的skill（名字你看情况取个好的），保存在 skills/beta 里。 它的作用是： 帮助ai更好地为skills设计verifier和state。这个skill不需要上状态机和验证器。 我发现ai经常设计很烂的verifier和state：
 
 - 一些无关紧要的verifier/state； 即便删除了，预计也不会对skill的能力造成影响； 大多数都是一些“形式主义”，为了使用 verifier/state 系统而强行设计的
