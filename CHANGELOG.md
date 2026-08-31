@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- **Verifier 直观教程**：新增 `docs/verifier-tutorial.md`，通过真实请求/结果示例、Mermaid 执行图、Gate 分支和 Kernel 函数级代码地图，说明 Verifier 从发现、隔离执行到事件持久化与完成门禁的完整工作过程。
 - **verifier-state-architect beta Skill**：新增面向 Verifier/State 架构规划的顾问型 Skill，允许“不接入”结论，强调删除影响测试、自然语言语义判断与 Kernel 契约对接。
+- **状态机直观教程**：新增 `docs/state-machine-tutorial.md`，通过 Mermaid 流程图、完整迁移示例和 Kernel 代码映射，说明工作区状态、运行生命周期、Skill 领域状态、Verifier 与事件账本如何协作。
 
 ### Changed（变更）
+- **状态机与验证器理论讨论补充**：在 `docs/状态机和验证器的理论基础的相关讨论.md` 中新增 Agent Skill 细粒度组件化、Kernel 共享协议层、Skill-like Pack、模糊端与精确端协作及工程创新性边界的讨论，明确其与单个普通 Skill 的比较层次。
 - **Kernel 内置 State 阶段契约补全**：为 `packages/bensz-skill-kernel/src/bensz_skill_kernel/states/` 的内置 State 增加进入条件、Agent 行动、输入/证据、离开条件、转移指引、失败恢复与执行边界说明；同时在 `AGENTS.md` 固化完整阶段型 `STATE.md` 的最低内容要求，不改变现有生命周期转移表。
 - **AGENTS.md Verifier/State 规则收敛**：将 Verifier/State 的规划、删留和 Kernel 复用判断明确委托给 `verifier-state-architect`，并把治理文件中的重复说明压缩为实现阶段不可下沉的协议、安全与兼容性门禁；详细设计继续以 Skill、ID 文档和 Kernel 契约为准。
 - **verifier-state-architect beta Skill**：版本更新至 `0.2.1`；压缩工作型 `SKILL.md` 的重复说明，保持触发语义、输入输出、Kernel 复用/元组件审查、安全边界与计划契约不变。
