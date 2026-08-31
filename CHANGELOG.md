@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- **版本绑定验证与错误完成文献记录**：新增 `docs/版本绑定验证与错误完成_经典研究文献.md`，整理 API/依赖兼容性、软件供应链证明、自动化偏信、目标错配、LLM verifier 与 Agent 任务完成评测等经典研究，并提出证据约束的完成声明框架。
 - **Verifier 直观教程**：新增 `docs/verifier-tutorial.md`，通过真实请求/结果示例、Mermaid 执行图、Gate 分支和 Kernel 函数级代码地图，说明 Verifier 从发现、隔离执行到事件持久化与完成门禁的完整工作过程。
 - **verifier-state-architect beta Skill**：新增面向 Verifier/State 架构规划的顾问型 Skill，允许“不接入”结论，强调删除影响测试、自然语言语义判断与 Kernel 契约对接。
 - **状态机直观教程**：新增 `docs/state-machine-tutorial.md`，通过 Mermaid 流程图、完整迁移示例和 Kernel 代码映射，说明工作区状态、运行生命周期、Skill 领域状态、Verifier 与事件账本如何协作。
