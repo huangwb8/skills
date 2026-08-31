@@ -88,14 +88,14 @@ stateDiagram-v2
 
 ## Skill 状态如何叠加在生命周期之上
 
-领域状态由 Skill 自己托管，通常放在 `references/states/<state>/STATE.md`，并在 Skill 的 `config.yaml` 中声明。例如 `prompt-programming` 声明了：
+领域状态由 Skill 自己托管，通常放在 `references/states/<state>/STATE.md`，并在 Skill 的 `config.yaml` 中声明。例如，一个接入了领域状态 Pack 的 Skill 可以声明：
 
 ```text
 bensz.workspace.ready
-  → bensz.prompt-programming.draft
-  → bensz.prompt-programming.schema-valid
-  → bensz.prompt-programming.reviewed
-  → bensz.prompt-programming.published
+  → bensz.example.review.draft
+  → bensz.example.review.checking
+  → bensz.example.review.reviewed
+  → bensz.example.review.published
   → bensz.workspace.closed
 ```
 

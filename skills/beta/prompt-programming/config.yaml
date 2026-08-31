@@ -2,7 +2,7 @@
 
 skill_info:
   name: prompt-programming
-  version: 0.5.0
+  version: 0.2.1
   description: "将用户原始 prompt 翻译为具有程序架构的人类自然语言"
   author: "Bensz Conan"
   category: "Prompt 结构化"
@@ -89,24 +89,3 @@ quality_bar:
   max_redundant_constraints: 2
   soft_sentence_budget: 18
   relax_budget_when_complex: true
-
-# Runtime Pack declaration. The state and verifier indexes under references/
-# are authoritative for this Skill's domain lifecycle and checks.
-runtime:
-  kernel:
-    name: bensz-skill-kernel
-    version: 0.13.0
-  state_roots: [references/states]
-  initial_state: bensz.workspace.ready
-  states:
-    - bensz.prompt-programming.draft
-    - bensz.prompt-programming.schema-valid
-    - bensz.prompt-programming.reviewed
-    - bensz.prompt-programming.published
-  verifiers:
-    - id: bensz.prompt.contract-conformance
-      version: 1.0.0
-      required: true
-    - id: bensz.prompt.semantic-equivalence
-      version: 1.0.0
-      required: true

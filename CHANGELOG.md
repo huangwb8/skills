@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- **恢复 `prompt-programming` 的轻量执行模式**：移除该 Skill 的状态机、Verifier Pack、运行时门禁及相关说明，恢复至接入这些运行时能力之前的 `0.2.1` 配置与 Prompt Program 翻译流程。
+
 ### Added（新增）
 - **版本绑定验证与错误完成文献记录**：新增 `docs/版本绑定验证与错误完成_经典研究文献.md`，整理 API/依赖兼容性、软件供应链证明、自动化偏信、目标错配、LLM verifier 与 Agent 任务完成评测等经典研究，并提出证据约束的完成声明框架。
 - **Verifier 直观教程**：新增 `docs/verifier-tutorial.md`，通过真实请求/结果示例、Mermaid 执行图、Gate 分支和 Kernel 函数级代码地图，说明 Verifier 从发现、隔离执行到事件持久化与完成门禁的完整工作过程。

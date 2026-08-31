@@ -5,30 +5,6 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2026-08-31
-
-### Added
-- 新增 `bensz.prompt.semantic-equivalence@1.0.0` AI 语义 Verifier，按六项评分标准检查 Prompt Program 与原始 prompt 的意图、输入输出、控制流、硬约束、歧义处理及臆造内容。
-- 将结构 Verifier 与 AI 语义 Verifier 纳入同一 Kernel 批量 Gate，要求逐项证据锚点、严重级别、置信度和不确定性处理。
-- `schema-valid`/`reviewed` 状态新增 required Verifier 完整通过不变量，缺少 AI 语义结果时不得继续交付。
-
-### Changed
-- Kernel 目录化 Verifier 合同现在显式解析 `mode`，可正确声明 `prompt`/`llm_judge` 类型，而不是把无脚本 Verifier 一律显示为 `human`；Kernel 升级至 `0.13.0`。
-- `prompt-programming` 的 `schema-valid` 与 `reviewed` 状态改为要求结构和语义验证共同通过。
-
-## [0.4.0] - 2026-08-30
-
-### Changed
-- 将状态机与 `bensz.prompt.contract-conformance@1.0.0` 从说明性接入改为每次执行的强制门禁；只有 Kernel 记录并允许 Gate、完成语义复核后才能交付。
-- 修正状态机与 Verifier 的 CLI 调用契约，并让 Verifier 脚本输出稳定身份与执行状态，确保 Kernel 能重算并绑定 Gate。
-
-## [0.3.0] - 2026-08-30
-
-### Added
-- 新增 `references/states/` 状态 Pack，对齐 `S-prompt` 的 `draft → schema-valid → reviewed → published` 阶段。
-- 新增 `bensz.prompt.contract-conformance@1.0.0` 确定性 Verifier Pack，检查六原子结构、必需块、内容和顺序。
-- 在 `config.yaml.runtime`、SKILL.md 与 README 中接入状态机和验证器契约。
-
 ## [0.2.1] - 2026-04-11
 
 ### Changed
