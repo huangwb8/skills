@@ -1,0 +1,33 @@
+skill_info:
+  name: verifier-state-architect
+  version: 0.1.0
+  description: 为 Agent Skill 规划最小、可解释、AI 友好的 Verifier 与 State 组合
+  author: Bensz Conan
+  category: skill architecture
+
+directories:
+  workspace_subdir: verifier-state-architect
+  default_output: output/design-plan.md
+  formal_plan_root: docs/plans
+
+planning:
+  allow_zero_components: true
+  require_deletion_impact_test: true
+  require_ai_deterministic_split: true
+  require_kernel_mapping: true
+  required_plan_sections:
+    - conclusion
+    - business-flow-and-risk-map
+    - deletion-impact-test
+    - verifier-matrix
+    - state-matrix
+    - ai-deterministic-boundary
+    - kernel-integration
+    - implementation-order
+    - acceptance-tests
+    - uncertainty-and-fallback
+
+safety:
+  default_read_only: true
+  never_modify_installed_skill: true
+  redact_sensitive_data: true
