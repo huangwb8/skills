@@ -60,6 +60,25 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+我要设计一个新的skill（名字你看情况取个好的），保存在 skills/beta 里。 它的作用是： 帮助ai更好地为skills设计verifier和state。这个skill不需要上状态机和验证器。 我发现ai经常设计很烂的verifier和state：
+
+- 一些无关紧要的verifier/state； 即便删除了，预计也不会对skill的能力造成影响； 大多数都是一些“形式主义”，为了使用 verifier/state 系统而强行设计的
+- 基本上都是硬编码规则； 但强大的verifier/state 应该是基于ai和自然语言的。 目前的架构显然支持； 但ai没有灵活运用
+- 其它问题
+
+显然，这个新的skill要帮助ai为skill设计最好的verifier和state。 因此。它大致的工作过程如下：
+
+- 目录： 中间文件是放在 .bensz-api ; 这个规范和其它skill一样
+- 彻底了解它要服务的skill的业务逻辑
+- 推理出需要什么样的verifier/state； 每个verifier、state的硬编码/ai自动规划的逻辑如何
+- 如何在 bensz-skill-kernel 的框架下做好verifier/state
+- 输出：一个md计划文件； 放在合适的位置（你可以定义一个好的规范； 一般来说用户不怎么关心这个文件的内容；这个skill往往是给ai提供一个确定的思路，所以它的md多数是中间文件）。有时候用户会要求放在具体的位置，那按他的说。
+- 汇报：结束前通俗地解释你的设计。当然，如果本skill的工作是某个任务的中间环节，也可以不汇报（因为这时候任务还没有完全结束，汇报没有意义）
+
+大致是这样的东西。 你设计一下。然后用 auto-test-skill 优化1次。用 compact-bensz-skills 压缩文档。
+
+---
+
 基于 docs/plans/2026-08-30-kernel-evidence-boundary-hardening.md 优化本项目的源代码。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
 ---
@@ -180,9 +199,11 @@ skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述�
 
 ## prompt-programming
 
-使用 skills/beta/prompt-programming 编码下列prompt：
+测试运行：
 
 ```
+使用 skills/beta/prompt-programming 编码下列prompt：
+
 采用多个独立串行的subagent重复做2次下面的测试：
 
 - 定义工作目录：

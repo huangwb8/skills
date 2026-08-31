@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- **verifier-state-architect beta Skill**：新增面向 Verifier/State 架构规划的顾问型 Skill，允许“不接入”结论，强调删除影响测试、自然语言语义判断与 Kernel 契约对接。
+
 ### Changed（变更）
+- **Kernel Verifier Pack 能力扩展**：版本更新至 `0.13.0`；支持目录化 Verifier 显式声明 `mode`，让 Skill 状态声明合并发现内置与本地 `references/verifiers` Pack，并在状态不变量中核对 required Verifier 的完整通过结果，支持 `prompt`/`llm_judge` 语义验证器。
 - **prompt-programming 强制运行时门禁**：将状态机与 `bensz.prompt.contract-conformance@1.0.0` 从说明性接入改为每次执行必经流程；仅允许在 Kernel 记录验证结果/Gate、完成语义复核并推进至 `published` 后交付，并修正对应 CLI 与 Verifier 结果身份契约。
 - **状态机与验证器改为显式可选**：更新 `AGENTS.md`，明确普通 Skill 开发默认不要求接入状态机、Verifier、Pack 或 Gate；仅在开发者明确提出时执行相关流程与门禁，并提示这些基础设施仍处于活跃开发阶段，采用前需评估风险与回退方案。
 
