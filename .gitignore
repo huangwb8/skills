@@ -91,7 +91,8 @@ packages/**/tests/**/__pycache__/
 skills/*/tests/
 skills/*/plans/
 .git-pr-review/
-.bensz-api
+.bensz-api/
+reviews/
 
 # macOS metadata must remain ignored even inside explicitly reviewable test trees
 .DS_Store

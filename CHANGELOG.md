@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **Kernel Contract Pack 混合执行层**：`bensz-skill-kernel` 更新至 `0.14.0`，新增 State/Verifier 共用的版本化组件描述、契约/计划哈希、`script`/`agent`/`human` 交接、依赖顺序、证据约束和保守合并；State 与 Verifier 继续通过独立适配器解释阶段条件及 verdict/Gate，旧单入口 Pack 保持兼容。
+- **固化 State/Verifier 共用底层设计原则**：更新 `AGENTS.md`，明确 State 与 Verifier 共享 Contract Pack 的发现、执行、证据和审计基础设施，同时保留各自的状态迁移/invariant 与 verdict/Gate 语义适配，避免后续开发形成两套平行框架。
 - **恢复 `prompt-programming` 的轻量执行模式**：移除该 Skill 的状态机、Verifier Pack、运行时门禁及相关说明，恢复至接入这些运行时能力之前的 `0.2.1` 配置与 Prompt Program 翻译流程。
 
 ### Added（新增）
+- **State/Verifier 共用 Contract Pack 执行层优化计划**：新增 `docs/plans/2026-09-01-verifier混合执行优化计划.md`，规划共享契约发现、脚本/Agent/人工执行、混合编排、证据审计和 State/Verifier 个性化适配路径。
 - **版本绑定验证与错误完成文献记录**：新增 `docs/版本绑定验证与错误完成_经典研究文献.md`，整理 API/依赖兼容性、软件供应链证明、自动化偏信、目标错配、LLM verifier 与 Agent 任务完成评测等经典研究，并提出证据约束的完成声明框架。
 - **Verifier 直观教程**：新增 `docs/verifier-tutorial.md`，通过真实请求/结果示例、Mermaid 执行图、Gate 分支和 Kernel 函数级代码地图，说明 Verifier 从发现、隔离执行到事件持久化与完成门禁的完整工作过程。
 - **verifier-state-architect beta Skill**：新增面向 Verifier/State 架构规划的顾问型 Skill，允许“不接入”结论，强调删除影响测试、自然语言语义判断与 Kernel 契约对接。
@@ -28,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **状态机与验证器改为显式可选**：更新 `AGENTS.md`，明确普通 Skill 开发默认不要求接入状态机、Verifier、Pack 或 Gate；仅在开发者明确提出时执行相关流程与门禁，并提示这些基础设施仍处于活跃开发阶段，采用前需评估风险与回退方案。
 
 ### Fixed（修复）
+- **Kernel 混合结果 fail-closed、路径范围与构建清洁度修复**：`verification-v2` 事件会由 Kernel 复核组件哈希、run/attempt、执行者、人工确认、证据引用和 required 结果，拒绝组件漏跑、重复/串台或伪造 aggregate pass；同时修复允许目录尚未创建时 `path-scope` 将合法子路径误判越界的问题，并阻止本地 `__pycache__`/字节码进入发布 wheel。
 - **Kernel Gate 缺失验证器 fail-closed**：`apply_gate` 现在在声明的 required Verifier 结果缺失时返回 `manual_review` 并列出缺失 canonical ID，避免公共 Gate API fail-open；Kernel 版本更新至 `0.12.4`。
 - **Kernel Verifier 请求边界归一化**：`FilesystemVerifierRegistry.run` 对非 JSON object 请求返回结构化 `error` 结果，避免 `AttributeError` 泄露给调用方；`validate-md-ref` runtime kernel 版本同步至 `0.12.4`。
 - **Kernel Gate 约束输入校验**：`apply_gate` 对非布尔 required 标志、缺失 ID 和非法版本格式统一 fail-closed，避免未经规范化的公共 API 输入静默放行。
