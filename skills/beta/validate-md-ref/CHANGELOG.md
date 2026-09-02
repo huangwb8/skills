@@ -10,6 +10,7 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 升级至 `0.13.3` 并同步 `bensz-skill-kernel@0.14.0`，继续使用原有 canonical Verifier/State，同时兼容新的 Contract Pack 组件结果与 fail-closed Gate 绑定。
 - 同步 `bensz-skill-kernel` 至 `0.13.0`，支持 Skill 本地 Verifier Pack 合并发现和 `mode: prompt` 元数据。
 
 ### Fixed（修复）
