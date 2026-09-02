@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio
 from .state_ids import parse_state_aliases, validate_state_id
 
@@ -332,6 +333,27 @@ class StateDefinition:
             "tags": list(self.tags),
         }
 
+    def contract_pack(self) -> ContractPack:
+        """Return the common execution descriptor without changing State semantics."""
+        if not self.source:
+            raise StateDefinitionError(f"state {self.id} has no source path")
+        index = self.metadata.get("index")
+        entry = dict(index) if isinstance(index, Mapping) else {
+            "id": self.id,
+            "version": self.version,
+            "contract": "STATE.md",
+            "entrypoint": self.entrypoint,
+            "mode": "rule" if self.entrypoint else "human",
+            "assurance_tier": "deterministic" if self.entrypoint else "human",
+            "aliases": list(self.aliases),
+        }
+        return ContractPack.from_directory(
+            Path(self.source).parent,
+            package_kind="state",
+            contract_name="STATE.md",
+            entry=entry,
+        )
+
 
 class FilesystemStateRegistry:
     """Discover ``STATE.md`` definitions below a filesystem root."""
@@ -541,6 +563,13 @@ class StateExecutionResult:
     summary: str = ""
     facts: Mapping[str, Any] = field(default_factory=dict)
     evidence_refs: tuple[str, ...] = ()
+    contract_hash: str | None = None
+    plan_hash: str | None = None
+    execution_plan: Mapping[str, Any] = field(default_factory=dict)
+    component_results: tuple[Mapping[str, Any], ...] = ()
+    handoffs: tuple[Mapping[str, Any], ...] = ()
+    run_id: str | None = None
+    attempt_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -551,11 +580,79 @@ class StateExecutionResult:
             "summary": self.summary,
             "facts": dict(self.facts),
             "evidence_refs": list(self.evidence_refs),
+            "contract_hash": self.contract_hash,
+            "plan_hash": self.plan_hash,
+            "execution_plan": dict(self.execution_plan),
+            "component_results": [dict(item) for item in self.component_results],
+            "handoffs": [dict(item) for item in self.handoffs],
+            "run_id": self.run_id,
+            "attempt_id": self.attempt_id,
         }
+
+
+class StateContractAdapter:
+    """Interpret a common execution report as State entry/exit evidence."""
+
+    def adapt(self, state_id: str, report: ContractExecutionReport) -> StateExecutionResult:
+        if report.package_kind != "state":
+            # A shared test/example may deliberately reuse one execution report
+            # across both adapters.  The adapter owns the semantic target ID and
+            # does not mutate the common report.
+            package_kind = report.package_kind
+        else:
+            package_kind = "state"
+        if report.decision in {"completed", "completed_with_warnings"}:
+            status, verdict = "completed", "pass"
+        elif report.decision == "reject":
+            status, verdict = "completed", "fail"
+        elif report.decision == "manual_review":
+            status, verdict = "unchecked", "uncertain"
+        else:
+            status, verdict = "pending", "unchecked"
+        refs = tuple(dict.fromkeys(ref for item in report.results for ref in item.evidence_refs))
+        return StateExecutionResult(
+            state_id=state_id,
+            execution_status=status,
+            verdict=verdict,
+            summary=f"Contract execution {report.decision} ({package_kind} adapter).",
+            facts={"decision": report.decision, "unresolved": list(report.unresolved)},
+            evidence_refs=refs,
+            contract_hash=report.contract_hash,
+            plan_hash=report.plan_hash,
+            execution_plan=dict(report.execution_plan),
+            component_results=tuple(item.to_dict() for item in report.results),
+            handoffs=tuple(item.to_dict() for item in report.handoffs),
+            run_id=report.run_id,
+            attempt_id=report.attempt_id,
+        )
 
 
 def execute_state(definition: StateDefinition, request: Mapping[str, Any], *, timeout: int = 10) -> StateExecutionResult:
     """Run an optional state helper using the same JSON-stdio boundary as verifiers."""
+    index = definition.metadata.get("index")
+    if isinstance(index, Mapping) and "components" in index:
+        if not definition.source:
+            raise StateExecutionError(f"state {definition.id} has no source path")
+        try:
+            pack = definition.contract_pack()
+            raw_submissions = request.get("component_results", request.get("submissions", ()))
+            if not isinstance(raw_submissions, (list, tuple)):
+                raise StateExecutionError("state component results must be a list")
+            submissions = raw_submissions
+            context = request.get("context", {})
+            run_id = str(context.get("run_id", request.get("run_id", "run"))) if isinstance(context, Mapping) else "run"
+            attempt_id = str(context.get("attempt_id", request.get("attempt_id", "default"))) if isinstance(context, Mapping) else "default"
+            report = ContractPackExecutor().execute(
+                pack,
+                request=request,
+                submissions=submissions,
+                run_id=run_id,
+                attempt_id=attempt_id,
+                timeout=timeout,
+            )
+            return StateContractAdapter().adapt(definition.id, report)
+        except ValueError as exc:
+            raise StateExecutionError(str(exc)) from exc
     if not definition.entrypoint:
         return StateExecutionResult(definition.id, "not_applicable", "unchecked", "This state has no helper script.")
     if not definition.source:

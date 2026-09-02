@@ -434,9 +434,17 @@ def test_atomic_verifiers_fail_for_unsatisfied_contracts(name, subject, context)
 
 
 def test_atomic_path_scope_rejects_outside_path_and_provenance_requires_all_fields(tmp_path: Path):
+    allowed_root = tmp_path / "allowed"
+    inside = run_atomic(
+        "path-scope",
+        {"subject": {"paths": [str(allowed_root / "future.txt")]}, "context": {"allowed_paths": [str(allowed_root)]}},
+    )
+    assert inside["verdict"] == "pass"
+    assert not allowed_root.exists()
+
     result = run_atomic(
         "path-scope",
-        {"subject": {"paths": [str(tmp_path / "outside.txt")]}, "context": {"allowed_paths": [str(tmp_path / "allowed")]}},
+        {"subject": {"paths": [str(tmp_path / "outside.txt")]}, "context": {"allowed_paths": [str(allowed_root)]}},
     )
     assert result["verdict"] == "fail"
     result = run_atomic(

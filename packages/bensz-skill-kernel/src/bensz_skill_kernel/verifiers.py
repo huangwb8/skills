@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
+from .contract_packs import ContractExecutionError, ContractExecutionReport, ContractPack, ContractPackExecutor
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio, version_key as _version_key
 from .verifier_ids import parse_aliases, validate_verifier_id
 
@@ -240,7 +241,31 @@ class VerifierDefinition:
             "metadata": dict(self.metadata),
             "classification": self.classification,
             "assurance_tier": self.assurance_tier,
+            "mode": self.mode,
+            "execution_contract": self.contract_pack().audit_dict(),
         }
+
+    def contract_pack(self) -> ContractPack:
+        """Return the shared executable descriptor for this filesystem Pack."""
+        index = self.metadata.get("index")
+        if isinstance(index, Mapping):
+            entry = dict(index)
+        else:
+            entry = {
+                "id": self.verifier_id,
+                "version": self.version,
+                "contract": "VERIFIER.md",
+                "entrypoint": self.entrypoint,
+                "mode": self.mode,
+                "assurance_tier": self.assurance_tier,
+                "aliases": list(self.aliases),
+            }
+        return ContractPack.from_directory(
+            self.path,
+            package_kind="verifier",
+            contract_name="VERIFIER.md",
+            entry=entry,
+        )
 
 
 class FilesystemVerifierRegistry:
@@ -337,6 +362,21 @@ class FilesystemVerifierRegistry:
         base = {"verifier_id": definition.verifier_id, "verifier_version": definition.version,
                 "evidence_refs": tuple(explicit_refs) or inferred_refs,
                 "request_id": request.get("request_id")}
+        index = definition.metadata.get("index")
+        if isinstance(index, Mapping) and "components" in index:
+            try:
+                execution = self.run_contract(
+                    verifier_id,
+                    request,
+                    version=version,
+                    timeout=timeout,
+                    run_id=str(request.get("run_id", request.get("request_id", "run"))),
+                    attempt_id=str(request.get("attempt_id", "default")),
+                    submissions=request.get("component_results", request.get("submissions", ())),
+                )
+                return {**execution.to_event_payload(), "request_id": request.get("request_id")}
+            except ContractExecutionError as exc:
+                return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": str(exc)}
         if not definition.entrypoint:
             return {**base, "execution_status": "unchecked", "verdict": "unchecked", "uncertainty_reason": "instruction-only verifier; follow VERIFIER.md manually"}
         execution = run_stdio(definition.path, definition.entrypoint, request, timeout=timeout)
@@ -350,6 +390,33 @@ class FilesystemVerifierRegistry:
         if not isinstance(raw, Mapping):
             return {**base, "execution_status": "error", "verdict": "error", "uncertainty_reason": "invalid verifier JSON: verifier output must be a JSON object"}
         return {**normalize_result(raw, definition.spec, evidence_refs=base["evidence_refs"]).to_dict(), "request_id": request.get("request_id")}
+
+    def run_contract(
+        self,
+        verifier_id: str,
+        request: Mapping[str, Any] | VerificationRequest,
+        *,
+        version: str | None = None,
+        timeout: int = 30,
+        run_id: str = "run",
+        attempt_id: str = "default",
+        submissions: Iterable[Mapping[str, Any]] = (),
+    ) -> "VerifierContractExecution":
+        """Execute a filesystem Pack through the shared component protocol."""
+        definition = self.resolve(verifier_id, version)
+        if isinstance(request, VerificationRequest):
+            request = request.to_dict()
+        if not isinstance(request, Mapping):
+            raise TypeError("verifier request must be an object")
+        report = ContractPackExecutor().execute(
+            definition.contract_pack(),
+            request=request,
+            submissions=submissions,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            timeout=timeout,
+        )
+        return VerifierContractAdapter().adapt(definition.spec, report)
 
 
 class CombinedVerifierRegistry:
@@ -420,6 +487,15 @@ class VerificationResult:
     model_or_engine: str | None = None
     duration_ms: int | None = None
     assurance_tier: str = "deterministic"
+    contract_hash: str | None = None
+    plan_hash: str | None = None
+    component_id: str | None = None
+    component_type: str | None = None
+    component_hash: str | None = None
+    handoff_hash: str | None = None
+    run_id: str | None = None
+    attempt_id: str | None = None
+    executor: Mapping[str, Any] = field(default_factory=dict)
     protocol: str = "bensz-verification-v1"
 
     def __post_init__(self) -> None:
@@ -449,6 +525,111 @@ class GateDecision:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class VerifierContractExecution:
+    """Verifier-specific view over a domain-neutral component execution."""
+
+    aggregate: VerificationResult
+    components: tuple[VerificationResult, ...]
+    gate: GateDecision
+    report: ContractExecutionReport
+
+    def to_event_payload(self) -> dict[str, Any]:
+        return {
+            **self.aggregate.to_dict(),
+            "protocol": "bensz-verification-v2",
+            "contract_hash": self.report.contract_hash,
+            "plan_hash": self.report.plan_hash,
+            "run_id": self.report.run_id,
+            "attempt_id": self.report.attempt_id,
+            "execution_plan": dict(self.report.execution_plan),
+            "component_results": [item.to_dict() for item in self.components],
+            "execution_decision": self.report.decision,
+            "unresolved_components": list(self.report.unresolved),
+        }
+
+
+class VerifierContractAdapter:
+    """Interpret shared component results as a Verifier verdict and Gate."""
+
+    def adapt(self, spec: VerifierSpec, report: ContractExecutionReport) -> VerifierContractExecution:
+        if report.pack_id != spec.verifier_id or report.pack_version != spec.version:
+            raise ValueError("Verifier Contract Pack identity mismatch")
+        components = tuple(
+            VerificationResult(
+                verifier_id=spec.verifier_id,
+                verifier_version=spec.version,
+                execution_status="unchecked" if item.execution_status == "pending" else item.execution_status,
+                verdict=item.verdict,
+                findings=item.findings,
+                facts=item.facts,
+                evidence_refs=item.evidence_refs,
+                uncertainty_reason=item.uncertainty_reason,
+                model_or_engine=str(item.executor.get("model")) if item.executor.get("model") else None,
+                assurance_tier=item.assurance,
+                contract_hash=item.contract_hash,
+                plan_hash=item.plan_hash,
+                component_id=item.component_id,
+                component_type=item.component_type,
+                component_hash=item.component_hash,
+                handoff_hash=item.handoff_hash,
+                run_id=item.run_id,
+                attempt_id=item.attempt_id,
+                executor=dict(item.executor),
+                protocol="bensz-verification-v2",
+            )
+            for item in report.results
+        )
+        if report.decision in {"completed", "completed_with_warnings"}:
+            status, verdict = "completed", "pass"
+        elif report.decision == "reject":
+            status, verdict = "completed", "fail"
+        elif any(item.verdict == "timed_out" for item in report.results):
+            status, verdict = "timed_out", "timed_out"
+        elif any(item.verdict == "error" for item in report.results):
+            status, verdict = "error", "error"
+        elif report.decision == "manual_review":
+            status, verdict = "completed", "uncertain"
+        else:
+            status, verdict = "unchecked", "unchecked"
+        refs = tuple(dict.fromkeys(ref for item in report.results for ref in item.evidence_refs))
+        findings = tuple(finding for item in report.results for finding in item.findings)
+        if len(report.results) == 1:
+            facts: Mapping[str, Any] = dict(report.results[0].facts)
+        else:
+            facts = {item.component_id: dict(item.facts) for item in report.results}
+        aggregate = VerificationResult(
+            verifier_id=spec.verifier_id,
+            verifier_version=spec.version,
+            execution_status=status,
+            verdict=verdict,
+            findings=findings,
+            facts=facts,
+            evidence_refs=refs,
+            uncertainty_reason=("unresolved components: " + ", ".join(report.unresolved)) if report.unresolved else None,
+            assurance_tier=spec.assurance_tier,
+            contract_hash=report.contract_hash,
+            plan_hash=report.plan_hash,
+            run_id=report.run_id,
+            attempt_id=report.attempt_id,
+            protocol="bensz-verification-v2",
+        )
+        decision = {
+            "completed": "allow",
+            "completed_with_warnings": "allow_with_warnings",
+            "reject": "reject",
+            "manual_review": "manual_review",
+            "wait": "wait",
+        }[report.decision]
+        gate = GateDecision(
+            decision,
+            f"Contract components {report.decision}",
+            (f"{spec.verifier_id}@{spec.version}",),
+            report.unresolved,
+        )
+        return VerifierContractExecution(aggregate, components, gate, report)
 
 
 class RuleCallable(Protocol):
@@ -541,7 +722,7 @@ def normalize_result(raw: Mapping[str, Any], spec: VerifierSpec, *, evidence_ref
         if verdict == "timed_out" and execution != "timed_out":
             raise ValueError("timed_out verdict requires timed_out execution")
         refs = tuple(raw.get("evidence_refs", evidence_refs))
-        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"), assurance_tier=str(raw.get("assurance_tier", spec.assurance_tier)))
+        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"), assurance_tier=str(raw.get("assurance_tier", spec.assurance_tier)), contract_hash=raw.get("contract_hash"), plan_hash=raw.get("plan_hash"), component_id=raw.get("component_id"), component_type=raw.get("component_type"), component_hash=raw.get("component_hash"), handoff_hash=raw.get("handoff_hash"), run_id=raw.get("run_id"), attempt_id=raw.get("attempt_id"), executor=dict(raw.get("executor", {})), protocol=str(raw.get("protocol", "bensz-verification-v1")))
     except (KeyError, TypeError, ValueError):
         return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status="unchecked", verdict="unchecked", uncertainty_reason="invalid verifier output", evidence_refs=tuple(evidence_refs))
 
@@ -692,6 +873,12 @@ def summarize_metrics(results: Iterable[VerificationResult], gates: Iterable[Gat
     covered = {item.verifier_id for item in items}
     required = len(required_set)
     passed = sum(item.verdict == "pass" and item.execution_status == "completed" for item in items)
+    components = tuple(item for item in items if item.component_id is not None)
+    bound_components = tuple(
+        item for item in components
+        if item.contract_hash and item.plan_hash and item.component_hash and item.run_id and item.attempt_id
+    )
+    identified_executors = tuple(item for item in components if item.executor.get("id") and item.executor.get("type"))
     return {
         "verifier_count": required,
         "required_coverage": len(required_set & covered) / required if required else 0.0,
@@ -701,4 +888,7 @@ def summarize_metrics(results: Iterable[VerificationResult], gates: Iterable[Gat
         "gate_allow_rate": sum(g.decision in {"allow", "allow_with_warnings"} for g in gate_items) / len(gate_items) if gate_items else 0.0,
         "assurance_tiers": {tier: sum(item.assurance_tier == tier for item in items) for tier in sorted(ASSURANCE_TIERS)},
         "duration_ms": sum(item.duration_ms or 0 for item in items),
+        "component_count": len(components),
+        "bound_component_ratio": len(bound_components) / len(components) if components else 0.0,
+        "executor_identity_ratio": len(identified_executors) / len(components) if components else 0.0,
     }

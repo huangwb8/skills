@@ -43,7 +43,10 @@ def run_atomic(name: str, request: Any, evidence: Mapping[str, Any] | None = Non
         violations = []
         for raw in raw_paths:
             target = Path(raw).expanduser().resolve()
-            if not any(target == root or (root.is_dir() and root in target.parents) for root in allowed):
+            # Scope is lexical after ``resolve()`` and must not depend on an
+            # allowed directory already existing.  Requiring ``is_dir()``
+            # made valid output paths fail before their parent was created.
+            if not any(target == root or root in target.parents for root in allowed):
                 violations.append(str(target))
         return _result(not violations, {"paths": list(raw_paths), "violations": violations}, "path-out-of-scope", violations)
     if name == "schema-conformance":

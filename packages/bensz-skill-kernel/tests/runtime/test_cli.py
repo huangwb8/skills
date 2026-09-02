@@ -105,3 +105,15 @@ def test_directory_verifier_runs_markdown_link_integrity(tmp_path: Path, capsys)
     assert output["results"][0]["verdict"] == "pass"
     assert output["gate"]["decision"] == "allow"
     assert output["summary"]["valid"] == 1
+
+
+def test_semantic_verifier_cli_returns_bound_agent_handoff(tmp_path: Path, capsys):
+    markdown = tmp_path / "claim.md"
+    markdown.write_text("A claim with a citation.\n", encoding="utf-8")
+    assert main(["verifier", "run", "bensz.evidence.citation-truth-fit", "--input", str(markdown), "--run-id", "run-1"]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["gate"]["decision"] == "wait"
+    assert output["handoffs"][0]["component_id"] == "citation-semantics"
+    assert output["handoffs"][0]["run_id"] == "run-1"
+    assert "instructions" in output["handoffs"][0]
+    assert "instructions" not in output["results"][0]

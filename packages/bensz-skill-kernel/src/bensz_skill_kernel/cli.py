@@ -444,12 +444,25 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
     content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
     request_id = args.run_id or f"{definition.verifier_id}:{content_hash[:16]}"
     request_payload = {"request_id": request_id, "subject": {"type": "file", "path": str(target), "content_hash": content_hash}, "context": {"timeout": args.timeout, "blacklist": args.blacklist, "whitelist": args.whitelist}}
-    raw_result = registry.run(args.verifier_id, request_payload, version=args.version, timeout=args.timeout)
+    index = definition.metadata.get("index")
+    contract_execution = None
+    if isinstance(index, Mapping) and "components" in index:
+        contract_execution = registry.run_contract(
+            args.verifier_id,
+            request_payload,
+            version=args.version,
+            timeout=args.timeout,
+            run_id=request_id,
+            attempt_id=args.attempt_id,
+        )
+        raw_result = contract_execution.to_event_payload()
+    else:
+        raw_result = registry.run(args.verifier_id, request_payload, version=args.version, timeout=args.timeout)
     result_payloads = [{**raw_result, "request_id": request_id}]
     normalized = VerificationResult(
         verifier_id=raw_result["verifier_id"], verifier_version=raw_result["verifier_version"], execution_status=raw_result["execution_status"], verdict=raw_result["verdict"], findings=tuple(raw_result.get("findings", ())), facts=dict(raw_result.get("facts", {})), evidence_refs=tuple(raw_result.get("evidence_refs", ())), confidence=raw_result.get("confidence"), uncertainty_reason=raw_result.get("uncertainty_reason"), model_or_engine=raw_result.get("model_or_engine"), duration_ms=raw_result.get("duration_ms"),
     )
-    gate = apply_gate((normalized,))
+    gate = contract_execution.gate if contract_execution is not None else apply_gate((normalized,))
     output: dict[str, Any] = {
         "verifier": _spec_dict(definition.spec),
         "request_id": request_id,
@@ -459,6 +472,11 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         "metrics": summarize_metrics((normalized,), (gate,)),
         "verification": {"request_id": request_id, "results": result_payloads, "gate": gate.to_dict()},
     }
+    if contract_execution is not None and contract_execution.report.handoffs:
+        # Full hand-offs are returned to the invoking Agent but deliberately
+        # kept outside ``results`` so EventLog never persists contract text or
+        # raw subject/context as verification evidence.
+        output["handoffs"] = [item.to_dict() for item in contract_execution.report.handoffs]
     facts = raw_result.get("facts", {})
     if isinstance(facts, Mapping) and "summary" in facts:
         output.update({"summary": facts["summary"], "references": facts.get("references", [])})

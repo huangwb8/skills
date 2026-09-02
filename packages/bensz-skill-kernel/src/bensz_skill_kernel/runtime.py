@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .verifiers import VerificationResult, apply_gate
+from .verifiers import GateDecision, VerificationResult, apply_gate
 
 VALID_STATES = frozenset(
     {"planned", "active", "waiting", "checking", "delivering", "completed", "failed", "cancelled"}
@@ -96,6 +96,161 @@ _SENSITIVE_KEYS = ("token", "secret", "password", "cookie", "api_key", "credenti
 _RAW_KEYS = {"input", "output", "prompt", "content", "response", "stdout", "stderr"}
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 _KERNEL_GATE_TOKEN = object()
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def _component_bound_gate(
+    result: Mapping[str, Any],
+    *,
+    run_id: str | None,
+    attempt_id: str,
+) -> GateDecision | None:
+    """Recompute a v2 Gate from bound component evidence.
+
+    Legacy v1 results return ``None`` and continue through the original
+    verifier-level gate path.  A malformed v2 result is always rejected; the
+    caller's advisory Gate can never turn it into an allow decision.
+    """
+    if result.get("protocol") != "bensz-verification-v2":
+        return None
+    verifier_id = str(result.get("verifier_id", ""))
+    verifier_version = str(result.get("verifier_version", ""))
+    result_ref = (f"{verifier_id}@{verifier_version}",) if verifier_id and verifier_version else ()
+    contract_hash = result.get("contract_hash")
+    plan_hash = result.get("plan_hash")
+    execution_plan = result.get("execution_plan")
+    components = result.get("component_results")
+
+    def reject(reason: str, unresolved: Iterable[str] = ("component_binding",)) -> GateDecision:
+        return GateDecision("reject", reason, result_ref, tuple(str(item) for item in unresolved))
+
+    if not _SHA256_RE.fullmatch(str(contract_hash)) or not _SHA256_RE.fullmatch(str(plan_hash)):
+        return reject("invalid Contract Pack hash binding")
+    if result.get("run_id") != run_id or result.get("attempt_id") != attempt_id:
+        return reject("verification result run identity mismatch")
+    if not isinstance(execution_plan, Mapping):
+        return reject("v2 verification requires an execution plan")
+    plan_components = execution_plan.get("components")
+    if (
+        execution_plan.get("protocol") != "bensz-contract-execution-v1"
+        or execution_plan.get("package_kind") != "verifier"
+        or execution_plan.get("pack_id") != verifier_id
+        or execution_plan.get("version") != verifier_version
+        or execution_plan.get("contract_hash") != contract_hash
+        or execution_plan.get("plan_hash") != plan_hash
+        or not isinstance(plan_components, list)
+        or not plan_components
+    ):
+        return reject("execution plan binding mismatch")
+    plan_core = {
+        "protocol": execution_plan.get("protocol"),
+        "package_kind": execution_plan.get("package_kind"),
+        "pack_id": execution_plan.get("pack_id"),
+        "version": execution_plan.get("version"),
+        "contract_hash": execution_plan.get("contract_hash"),
+        "mode": execution_plan.get("mode"),
+        "assurance_tier": execution_plan.get("assurance_tier"),
+        "components": plan_components,
+    }
+    if "sha256:" + hashlib.sha256(_canonical(plan_core)).hexdigest() != plan_hash:
+        return reject("execution plan hash mismatch")
+    if not isinstance(components, list) or not components:
+        return reject("v2 verification requires component results")
+    plan_by_id: dict[str, Mapping[str, Any]] = {}
+    for raw_plan in plan_components:
+        if not isinstance(raw_plan, Mapping):
+            return reject("execution plan component must be an object")
+        component_id = str(raw_plan.get("id", ""))
+        if not component_id or component_id in plan_by_id or not _SHA256_RE.fullmatch(str(raw_plan.get("component_hash", ""))):
+            return reject("execution plan component identity is invalid")
+        plan_by_id[component_id] = raw_plan
+    seen: set[str] = set()
+    aggregate_evidence_refs = result.get("evidence_refs", ())
+    if not isinstance(aggregate_evidence_refs, (list, tuple)) or not all(isinstance(item, str) for item in aggregate_evidence_refs):
+        return reject("aggregate evidence refs are invalid")
+    known_evidence_refs = set(aggregate_evidence_refs)
+    required_failures: list[str] = []
+    required_unknown: list[str] = []
+    optional_failures: list[str] = []
+    for raw in components:
+        if not isinstance(raw, Mapping):
+            return reject("component result must be an object")
+        component_id = str(raw.get("component_id", ""))
+        if not component_id or component_id in seen:
+            return reject("component result identity is missing or duplicated")
+        seen.add(component_id)
+        declared = plan_by_id.get(component_id)
+        if declared is None:
+            return reject("component result is not declared by execution plan", (component_id,))
+        if (
+            raw.get("protocol") != "bensz-contract-component-result-v1"
+            or raw.get("pack_id") != verifier_id
+            or raw.get("pack_version") != verifier_version
+            or raw.get("package_kind") != "verifier"
+            or raw.get("contract_hash") != contract_hash
+            or raw.get("plan_hash") != plan_hash
+            or raw.get("run_id") != run_id
+            or raw.get("attempt_id") != attempt_id
+            or not _SHA256_RE.fullmatch(str(raw.get("component_hash", "")))
+            or raw.get("component_hash") != declared.get("component_hash")
+            or raw.get("component_type") != declared.get("type")
+            or raw.get("required", True) != declared.get("required", True)
+            or raw.get("assurance") != declared.get("assurance")
+        ):
+            return reject("component result binding mismatch", (component_id,))
+        component_type = raw.get("component_type")
+        if component_type not in {"script", "agent", "human"}:
+            return reject("component executor type is invalid", (component_id,))
+        status = raw.get("execution_status")
+        verdict = raw.get("verdict")
+        if status not in {"completed", "pending", "unchecked", "error", "timed_out", "skipped"} or verdict not in {"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"}:
+            return reject("component result status is invalid", (component_id,))
+        if status != "completed" and verdict == "pass":
+            return reject("non-completed component cannot pass", (component_id,))
+        executor = raw.get("executor", {})
+        if status == "completed":
+            if not isinstance(executor, Mapping) or executor.get("type") != component_type or not executor.get("id"):
+                return reject("completed component lacks bound executor identity", (component_id,))
+            if component_type == "agent" and not executor.get("model"):
+                return reject("agent component lacks model identity", (component_id,))
+            if component_type == "human" and not executor.get("confirmed_at"):
+                return reject("human component lacks confirmation timestamp", (component_id,))
+            if component_type in {"agent", "human"} and not _SHA256_RE.fullmatch(str(raw.get("handoff_hash", ""))):
+                return reject("external component lacks handoff binding", (component_id,))
+        component_evidence_refs = raw.get("evidence_refs", ())
+        if not isinstance(component_evidence_refs, (list, tuple)) or not all(isinstance(item, str) for item in component_evidence_refs):
+            return reject("component evidence refs are invalid", (component_id,))
+        if set(component_evidence_refs) - known_evidence_refs:
+            return reject("component evidence is not bound to aggregate evidence", (component_id,))
+        required = raw.get("required", True)
+        if not isinstance(required, bool):
+            return reject("component required flag must be boolean", (component_id,))
+        if required and verdict == "fail":
+            required_failures.append(component_id)
+        elif required and verdict != "pass":
+            required_unknown.append(component_id)
+        elif not required and verdict != "pass":
+            optional_failures.append(component_id)
+    missing_components = tuple(sorted(set(plan_by_id) - seen))
+    if missing_components:
+        return reject("execution plan components are missing", missing_components)
+    if required_failures:
+        decision = GateDecision("reject", "required component failure", result_ref, tuple(required_failures))
+        expected_verdict = "fail"
+    elif required_unknown:
+        decision = GateDecision("manual_review", "component incomplete or uncertain", result_ref, tuple(required_unknown))
+        expected_verdict = None
+    elif optional_failures:
+        decision = GateDecision("allow_with_warnings", "optional component did not pass", result_ref, tuple(optional_failures))
+        expected_verdict = "pass"
+    else:
+        decision = GateDecision("allow", "all required components passed", result_ref)
+        expected_verdict = "pass"
+    if expected_verdict is not None and result.get("verdict") != expected_verdict:
+        return reject("aggregate verdict conflicts with component results", tuple(seen))
+    if decision.decision == "manual_review" and result.get("verdict") not in {"uncertain", "unchecked", "timed_out", "error"}:
+        return reject("aggregate uncertainty conflicts with component results", tuple(required_unknown))
+    return decision
 
 
 def _event_safe_value(value: Any, *, key: str | None = None, base_dir: Path | None = None) -> Any:
@@ -477,6 +632,14 @@ def _guard_completion(
             raise CompletionError("run_id and attempt_id must be provided together")
         verifications = [item for item in verifications if item.get("_run_id") == run_id and item.get("_attempt_id", "default") == attempt_id]
         gates = [item for item in gates if item.get("_run_id") == run_id and item.get("_attempt_id", "default") == attempt_id]
+    for item in verifications:
+        component_gate = _component_bound_gate(
+            item,
+            run_id=item.get("_run_id"),
+            attempt_id=str(item.get("_attempt_id", "default")),
+        )
+        if component_gate is not None and component_gate.decision not in {"allow", "allow_with_warnings"}:
+            raise CompletionError("Contract Pack components do not allow completion")
     passed_ids = {
         str(item.get("requirement_id") or item.get("id") or item.get("verifier_id"))
         for item in verifications
@@ -755,6 +918,9 @@ class EventLog:
                     duration_ms=result_data.get("duration_ms"), assurance_tier=str(result_data.get("assurance_tier", "deterministic")),
                 )
                 computed = apply_gate((computed_result,), requirements=requirements)
+                component_gate = _component_bound_gate(result_data, run_id=run_id, attempt_id=attempt_id)
+                if component_gate is not None:
+                    computed = component_gate
             except (TypeError, ValueError):
                 computed = None
         if computed is None:
@@ -830,14 +996,27 @@ class EventLog:
                 event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
                 result_events.append(event)
             computed_results: list[VerificationResult] = []
+            component_gates: list[GateDecision] = []
             for item in items:
                 try:
                     from .verifier_ids import validate_verifier_id
                     validate_verifier_id(str(item["verifier_id"]))
                     computed_results.append(VerificationResult(verifier_id=str(item["verifier_id"]), verifier_version=str(item["verifier_version"]), execution_status=str(item.get("execution_status", "completed")), verdict=str(item["verdict"]), evidence_refs=tuple(item.get("evidence_refs", ()))))
+                    component_gate = _component_bound_gate(item, run_id=run_id, attempt_id=attempt_id)
+                    if component_gate is not None:
+                        component_gates.append(component_gate)
                 except (KeyError, TypeError, ValueError):
                     continue
             computed = apply_gate(computed_results, requirements=requirements) if len(computed_results) == len(items) else None
+            blocking_component_gates = [item for item in component_gates if item.decision not in {"allow", "allow_with_warnings"}]
+            if blocking_component_gates:
+                decision = "reject" if any(item.decision == "reject" for item in blocking_component_gates) else "manual_review"
+                computed = GateDecision(
+                    decision,
+                    "one or more Contract Pack component sets did not pass",
+                    tuple(ref for item in blocking_component_gates for ref in item.result_refs),
+                    tuple(dict.fromkeys(value for item in blocking_component_gates for value in item.unresolved)),
+                )
             if gate is None:
                 return result_events[-1], None
             gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})

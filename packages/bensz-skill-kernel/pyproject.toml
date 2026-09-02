@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bensz-skill-kernel"
-version = "0.13.0"
+version = "0.14.0"
 description = "Append-only lifecycle runtime for Bensz Agent Skills"
 requires-python = ">=3.11"
 classifiers = [
@@ -25,6 +25,9 @@ include = ["bensz_skill_kernel*"]
 
 [tool.setuptools.package-data]
 bensz_skill_kernel = ["states/*", "states/**/*", "verifiers/*", "verifiers/**/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__/*", "*.pyc", "**/__pycache__/*", "**/*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
