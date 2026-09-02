@@ -125,6 +125,16 @@
 
 详细字段表和长示例应下沉到 `docs/`；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
 
+### State/Verifier 共用底层与个性化适配
+
+State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设计逻辑：**共享通用底层，保留个性化上层**。
+
+- **应共享的底层能力**：Contract Pack 目录发现、索引与版本/alias 解析、Markdown 契约加载与哈希、`script`/`agent`/`human` 组件执行边界、证据快照、结果归一化、超时/错误/不确定性处理、敏感信息脱敏、运行身份绑定和事件审计。现有 `packs.py` 是这层的基础；后续扩展应优先在共享层增量提炼，不为 State 或 Verifier 各建一套平行执行框架。
+- **必须保留的个性化能力**：State 负责阶段含义、进入/离开条件、状态转移、invariant 和状态快照；Verifier 负责 subject/evidence 命题、组件结果汇总、verdict、required/advisory 与 Gate。共享执行器不得把这些领域语义混入同一个通用结果对象或 Kernel reducer。
+- **自然语言、脚本与混合方式均适用两者**：一个 Pack 可以只有自然语言契约，由 Agent 执行；也可以只有确定性 helper；也可以按功能组合脚本、Agent 和人工复核。选择哪种方式由 Pack 的验证/阶段功能决定，不得因为对象名称是 State 或 Verifier 就预设只能使用某一种执行方式。
+- **新增能力的审查顺序**：先判断能力是否属于 State/Verifier 共用的执行、证据或审计基础设施；若是，提炼到共享 Pack 层；若只表达状态迁移或验证命题，再放入相应适配器。只有独立注册、版本化且跨场景复用的组件才提升为顶层 Pack/Verifier/State。
+- **文档与实现必须同步表达该边界**：`STATE.md`、`VERIFIER.md` 负责个性化契约，`index.json` 和共享运行协议负责机器可读执行元数据；计划、README、教程和测试不得把某一方的实现细节误写成另一方的通用规则。
+
 ## Kernel 包开发
 
 `packages/bensz-skill-kernel/` 是独立 Python 包。包的公开 API、CLI 和目录化 Pack 资产必须同时保持可发现、可重放和向后兼容。

@@ -123,7 +123,7 @@ sequenceDiagram
     participant A as Agent
     participant C as Skill config/STATE.md
     participant K as bsk / StateMachine
-    participant H as State helper（可选）
+    participant X as Contract Pack 执行层
     participant E as EventLog
     participant F as meta-state.json
 
@@ -131,15 +131,17 @@ sequenceDiagram
     A->>E: 写入 verification.result 与 verification.gate
     A->>K: 请求 state transition checking → reported
     K->>K: 检查迁移边与当前状态不变量
-    K->>H: 执行目标状态 entrypoint（如有）
-    H-->>K: JSON-stdio verdict=pass
+    K->>X: 执行 script 或准备 Agent/human handoff
+    X-->>K: 绑定的组件结果与公共合并状态
     K->>F: 生成并暂存新状态快照
     K->>E: 追加 state.transition 事件
     K->>F: 原子发布 meta-state.json
     K-->>A: 返回 bensz-meta-state-v1 回执
 ```
 
-如果没有 `entrypoint`，Kernel 不会猜测或自动执行 `STATE.md` 正文，而是返回 `unchecked`，由 AI 按契约完成 instruction-only 工作。只有显式 helper 成功返回 `verdict=pass`，才会允许该 helper 门禁的迁移落盘。
+旧 Pack 的单一 `entrypoint` 继续按原 JSON-stdio 协议运行。新 Pack 可以在索引中声明有序 `script`、`agent`、`human` 组件：脚本由 Kernel 执行，Agent/人工由外部宿主按 handoff 执行并回传绑定结果。缺失、超时、不确定、旧契约或其它 run/attempt 的结果都不能让 required 阶段条件通过。没有新组件声明的 instruction-only State 继续兼容，但 Kernel 不会把“有正文”当成“已经执行”。
+
+公共执行层只记录组件做了什么；`StateContractAdapter` 才把结果解释为进入/离开条件是否满足。相同组件记录交给 `VerifierContractAdapter` 时解释为 verdict/Gate，因此共享底层不会把状态迁移与验证命题合并成一种对象。
 
 常用命令如下：
 
@@ -199,11 +201,12 @@ verification.gate    # Kernel 对一批结果计算出的门禁决定
 | 代码位置 | 支持的功能 | AI/Skill 如何使用 |
 | --- | --- | --- |
 | [`states/index.json`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/states/index.json) | 内置 State Pack 的目录、canonical ID、版本、alias、分类和标签 | 注册表据此发现和校验内置状态；不要把索引外的目录当成已注册状态 |
-| [`states.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/states.py) | 解析 `STATE.md`、注册表、Skill 状态声明、迁移检查、invariant 检查、可选 helper 执行 | `bsk state list/describe/check/execute/transition` 的主要实现；Skill 通过 `config.yaml.runtime` 声明状态集合 |
+| [`states.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/states.py) | 解析 `STATE.md`、注册表、Skill 状态声明、迁移/invariant 检查和 `StateContractAdapter` | `bsk state list/describe/check/execute/transition` 的主要实现；把公共组件结果解释为阶段条件，不替 Verifier 计算 Gate |
 | [`state_ids.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/state_ids.py) | 校验 `owner.machine.state` canonical ID，解析 legacy alias | 新状态使用 canonical ID；重命名用 alias 兼容旧事件和旧配置 |
 | [`runtime.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/runtime.py) | 任务生命周期 reducer、事件账本、状态投影、完成门禁、事件回放 | 记录 `task.started`、`validation.started`、`delivery.started` 等任务级事实；`bsk rebuild` 从事件重建状态 |
 | [`workspace.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/workspace.py) | 创建并锁定 `.bensz-api/task-*`，解析 Skill 的 `input/output/log` 边界，生成和校验元状态快照 | 先初始化工作区，再让 Skill 通过标准路径读写中间产物；正式交付物仍在项目路径 |
 | [`packs.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/packs.py) | State/Verifier Pack 的索引发现、目录安全检查、入口路径约束、JSON-stdio、超时和输出限制 | 为两类 Pack 提供共同的存储和进程边界，但不决定领域语义 |
+| [`contract_packs.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/contract_packs.py) | 契约/计划/组件哈希、脚本执行、Agent/人工 handoff、证据与 run/attempt 绑定、保守合并 | State 与 Verifier 共用；不决定 transition、invariant、verdict 或 Gate 的领域含义 |
 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py) | Verifier 注册、请求/证据归一化、结果记录、Gate 计算和版本解析 | Skill 声明 required/advisory Verifier；Agent 根据标准结果决定修正、等待或继续 |
 | [`atomic_verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/atomic_verifiers.py) | 通用原子检查，如路径范围、Schema、事件完整性、状态转移、敏感信息和任务完整性 | 只接收通用事实；领域判断仍放在 Skill 自己的 Verifier 或人工复核中 |
 | [`contracts.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/contracts.py) | `Subject`、`Requirement`、`Artifact`、`Effect`、`Authorization`、`Contract` 等交接对象 | Skill/Adapter 用统一形状传递输入、产物、授权和副作用状态，避免各自发明字段 |

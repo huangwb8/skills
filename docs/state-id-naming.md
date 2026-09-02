@@ -44,7 +44,7 @@ Skill 自有状态也应使用 `bensz` 或组织命名空间，例如
 
 状态名优先使用状态性名词、形容词或清晰的持续阶段，例如 `ready`、`checking`、`awaiting-approval`、`reported`、`closed`。不要使用命令式动作，例如 `run-check`、`create-report`、`close-workspace`；动作属于 transition、helper 或事件。
 
-状态 ID、transition/event ID、helper ID、Verifier ID 和单次运行 ID 必须分开。`kind: system|skill` 是状态元数据，不进入 ID；目录名也不决定公开身份。
+状态 ID、transition/event ID、Contract Pack 组件 ID、Verifier ID 和单次运行 ID 必须分开。`kind: system|skill` 是状态元数据，不进入 ID；目录名也不决定公开身份。
 
 ## 状态图引用
 
@@ -67,7 +67,7 @@ Registry 可以接受 legacy alias，但完成解析后：
 
 发布后的 ID 不直接重命名。迁移时把新 ID 设为 canonical，并通过 alias 保留旧 ID：带 `index.json` 的 State Pack 在索引条目的 `aliases` 中声明；没有索引的外部兼容目录才在 `STATE.md` frontmatter 中声明。Alias 必须唯一，不得与任何 canonical ID 冲突。
 
-Kernel 内置 State Pack 使用 `bensz-pack-index-v1` 的 `states/index.json` 作为属性单一来源；索引条目同时记录 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、契约文件和可选入口。`STATE.md` 保留 `description`、入口条件、不变量、迁移边和正文说明。
+Kernel 内置 State Pack 使用 `bensz-pack-index-v1` 的 `states/index.json` 作为属性单一来源；索引条目同时记录 `directory`、canonical `id`、`version`、`kind`、`classification`、`tags`、`aliases`、契约文件、`mode`、`assurance_tier` 和 `components`。内置通用生命周期状态以 `mode: none` 明确表示阶段语义由 reducer/invariant 管理；领域 State 可声明 `script`、`agent` 或 `human` 组件。`STATE.md` 保留 `description`、入口条件、不变量、迁移边和正文说明。
 
 ## 禁止模式
 

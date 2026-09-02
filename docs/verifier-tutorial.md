@@ -154,12 +154,20 @@ verifiers/
 
 各部分职责如下：
 
-- `index.json`：注册目录名、canonical ID、版本、分类、标签、alias、契约路径和入口脚本；索引与实际目录必须一致。
+- `index.json`：注册目录名、canonical ID、版本、分类、标签、alias、契约路径，以及 `mode`、`assurance_tier` 和有序 `components`；索引与实际目录必须一致。
 - `VERIFIER.md`：面向 Agent 和维护者描述验证命题、输入要求、判断边界与人工步骤。
 - `scripts/verify.py`：可选的确定性执行入口；stdin 接收一个 JSON object，stdout 只返回一个 JSON object。
 - 其它脚本或资源：属于该 Verifier 自己的实现；入口路径必须留在 Pack 目录内，脚本读取其它资源仍应遵循最小授权。
 
 目录隔离不是操作系统安全沙箱。`run_stdio` 会收缩环境变量、限制输入输出大小、控制超时，并默认声明不允许副作用，但仍需通过代码审查和实际权限控制保证 Verifier 只读，不能假设一个恶意脚本仅凭目录结构就无法访问其它文件。
+
+## 混合 Pack 怎样执行
+
+新 Pack 在 `index.json` 中把每个检查者声明成 `script`、`agent` 或 `human` 组件，并用 `depends_on` 固定顺序。`ContractPackExecutor` 先运行可用脚本，把脚本产生的受控 facts 交给后续 Agent/人工 handoff；Kernel 本身不调用模型，也不伪造人工确认。
+
+每个 handoff 都绑定 Pack ID/版本、契约哈希、组件哈希、计划哈希、最小 subject/context、证据摘要、run/attempt、允许工具和副作用边界。外部执行者回传时必须原样带回这些绑定，并声明执行者类型、身份，以及 Agent 的模型或人工确认时间。重复组件、旧契约结果、其它 run/attempt 的结果和未知证据引用都会 fail-closed。
+
+混合合并不使用平均分或投票：required 脚本 `fail` 永远阻断；`uncertain`、超时和错误进入 `manual_review`；未返回的 Agent/人工组件进入 `wait`；只有全部 required 组件完成并通过，Verifier 适配器才产生 aggregate `pass` 和 allowing Gate。组件结果与 aggregate 结果分别保留，便于审计和重放。
 
 Skill 专用 Verifier 使用同一契约，但通常由 Skill 自己托管在：
 
@@ -210,6 +218,7 @@ Kernel 可以把内置根目录与 Skill 本地根目录合并成只读注册表
 - `uncertainty_reason`：为什么无法形成确定结论；
 - `assurance_tier`：结果来自确定性规则、混合流程、LLM judge 还是人工；
 - `model_or_engine`、`duration_ms`：语义或外部引擎的执行信息。
+- `contract_hash`、`plan_hash`、组件哈希与 `run_id`/`attempt_id`：绑定这次判断实际使用的契约、执行计划和运行身份。
 
 Kernel 明确禁止“未完成但通过”：只要 `execution_status` 不是 `completed`，结果就不能是 `pass`。格式错误的 provider 输出也不会被猜成成功，而会规范化为 `unchecked`。
 
@@ -249,7 +258,7 @@ Kernel 的公共契约允许四种 `mode`：
 | `hybrid` | 规则筛选后再做语义/人工复核 | 组合多个检查组件 |
 | `human` | 风险高、证据不足或无法自动化的判断 | `VERIFIER.md` 提供人工说明 |
 
-没有 entrypoint 的 instruction-only Verifier 会返回 `unchecked`，并提示按 `VERIFIER.md` 人工执行。Kernel 不会因为契约文档写得很详细，就假装人工或模型判断已经发生。
+显式 `agent`/`human` 组件在没有回传结果时会返回 `unchecked` 并产生 handoff。没有新组件声明的旧 instruction-only Verifier 仍可发现，同时给出应迁移到显式组件元数据的诊断。Kernel 不会因为契约文档写得很详细，就假装人工或模型判断已经发生。
 
 例如内置 `bensz.evidence.citation-truth-fit@1.0.0` 描述了引用真实性与适切性命题，但 Kernel 不捆绑真实语义引擎；在引擎未接入时，它必须保持 `unchecked`，不能冒充已核验引用。
 
@@ -271,7 +280,7 @@ bsk verifier run bensz.document.markdown-link-integrity \
   --timeout 10
 ```
 
-如果同时传入 `--events <task-root>/shared/log/events.ndjson`、`--run-id` 和 `--attempt-id`，CLI 会把结果与 Kernel 计算的 Gate 写入任务事件账本。对于需要自定义 `subject`、`evidence` 或 `context` 的 Verifier，Skill Adapter 通常直接使用 Python API 或构造标准 JSON 请求；CLI 的 `--input` 快捷入口主要服务文件对象。
+如果同时传入 `--events <task-root>/shared/log/events.ndjson`、`--run-id` 和 `--attempt-id`，CLI 会把结果与 Kernel 计算的 Gate 写入任务事件账本。语义/人工组件未完成时，CLI 顶层会输出完整 `handoffs`；它们不会混入可持久化的 `results`。外部宿主完成判断后，Python Adapter 通过 `ComponentHandoff.bind_result()` 生成绑定提交，再调用 `FilesystemVerifierRegistry.run_contract()` 汇总。对于需要自定义 `subject`、`evidence` 或 `context` 的 Verifier，Skill Adapter 通常直接使用 Python API；CLI 的 `--input` 快捷入口主要服务文件对象和 handoff 准备。
 
 `bsk verification` 则用于把一个或多个已有标准结果批量写入事件账本。批量记录在同一账本锁内完成；当调用方同时请求记录 Gate 时，Kernel 只为整批结果计算一个绑定完整 `result_refs` 的 Gate。
 
@@ -284,18 +293,19 @@ bsk verifier run bensz.document.markdown-link-integrity \
 | 定义公共交接对象 | [`contracts.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/contracts.py)：`Subject`、`Requirement`、`Artifact`、`Contract` | 给 Skill、Adapter、Verifier 和 Runtime 提供领域无关的数据形状，避免各自发明不兼容字段 |
 | 校验稳定身份 | [`verifier_ids.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifier_ids.py)：`validate_verifier_id`、`parse_aliases` | 强制 `owner.domain.capability` canonical ID，兼容唯一 alias，但不改写历史身份 |
 | 发现 Pack | [`packs.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/packs.py)：`load_pack_entries`、`resolve_entrypoint` | 校验 `index.json` 协议、目录与索引一致性、契约/入口不越出 Pack 目录 |
+| 编排公共组件 | [`contract_packs.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/contract_packs.py)：`ContractPack`、`ContractPackExecutor`、`ComponentHandoff`、`ComponentResult` | 计算契约/计划/组件哈希，执行脚本，准备 Agent/人工交接，验证提交身份、证据和顺序，并保守合并公共执行状态 |
 | 解析 Verifier 契约 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`VerifierDefinition`、`VerifierSpec` | 从索引和 `VERIFIER.md` 解析 ID、版本、mode、assurance、标签、alias、入口和说明 |
 | 注册和解析版本 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`FilesystemVerifierRegistry`、`CombinedVerifierRegistry`、`PackRegistry` | 发现内置/Skill 本地 Verifier，解析 canonical/alias，按版本定位定义，拒绝重复与冲突 |
 | 建立请求与证据快照 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`Evidence`、`VerificationRequest`、`snapshot_evidence` | 固化证据内容哈希与来源元数据，校验请求协议、subject 和 context 的基本形状 |
 | 安全执行入口 | [`packs.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/packs.py)：`run_stdio` | 使用 JSON-stdio 运行本地入口；限制工作目录、环境变量、输入/输出/错误大小与超时，并终止超时进程组 |
-| 执行目录型 Verifier | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`FilesystemVerifierRegistry.run` | 解析目标版本、验证请求对象、调用 entrypoint，把超时/非法 JSON/脚本错误转换成结构化非通过结果 |
+| 执行目录型 Verifier | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`FilesystemVerifierRegistry.run` / `run_contract` | 解析目标版本；兼容旧单入口，并让新组件 Pack 通过公共执行器运行或生成 handoff |
 | 执行组件型 Pack | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`VerifierRunner.run` | 运行内存注册的 rule/prompt 组件，检查必需证据，把 provider 异常变成结果数据而不是让整个 Runtime 崩溃 |
-| 规范化输出 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`VerificationResult`、`normalize_result` | 限制 execution/verdict 枚举，阻止“未完成却 pass”，保留 facts、findings、证据引用和不确定性 |
+| 规范化输出 | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`VerificationResult`、`VerifierContractAdapter`、`normalize_result` | 保留组件结果与 aggregate 结果的边界，限制 execution/verdict 枚举，阻止“未完成却 pass” |
 | 计算 Gate | [`verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/verifiers.py)：`GateDecision`、`apply_gate`、`normalize_requirements` | 规范化 Skill 的 required/advisory 声明，检查 ID/版本/缺失结果，保守输出 allow、warning、reject、wait 或 manual review |
 | 提供通用规则 | [`atomic_verifiers.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/atomic_verifiers.py)：`run_atomic` | 实现合同字段、路径范围、Schema、diff、脱敏、证据来源、事件完整性、状态迁移和任务完整性等领域无关命题 |
 | 提供内置兼容注册 | [`builtins.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/builtins.py)：`build_builtin_registry` | 为 Python API 保留内存 Pack 注册入口；新目录型调用优先走 filesystem registry |
 | 暴露 CLI | [`cli.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/cli.py)：`_run_verifier_command`、`verification` 分支 | 提供 `bsk verifier list/describe/run` 和批量 `bsk verification`，输出结构化 JSON，可选写入事件账本 |
-| 持久化结果与 Gate | [`runtime.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/runtime.py)：`EventLog.record_verification`、`record_verification_batch` | 在追加式事件账本中记录 `verification.result` / `verification.gate`；批量写入加锁，并由 Kernel 重算 Gate |
+| 持久化结果与 Gate | [`runtime.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/runtime.py)：`EventLog.record_verification`、`record_verification_batch` | 在追加式事件账本中记录结果/Gate；v2 会复核组件哈希、运行身份、执行者、证据和 required 状态，再由 Kernel 重算 Gate |
 | 约束状态迁移 | [`states.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/states.py)：`check_state_invariants`、`SkillStateDeclaration` | 从 Skill runtime 声明解析 Verifier requirements；离开检查态前核对结果/Gate、required pass、运行身份与结果绑定 |
 | 阻止伪完成 | [`runtime.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/runtime.py)：`_guard_completion` | 完成前再次检查 required Verifier、allowing Gate、`computed_by: kernel`、`result_refs`、结果事件 ID、run/attempt 与不确定结果 |
 | 导出公共 API | [`__init__.py`](../packages/bensz-skill-kernel/src/bensz_skill_kernel/__init__.py) | 汇总 Adapter 可稳定导入的 Verifier、State、Contract、Runtime 和 Workspace 类型 |
@@ -313,6 +323,7 @@ Verifier 的失败路径是设计的一部分，不是异常角落：
 - **只有人工说明、没有执行引擎**：`unchecked`；等待人工或接入真实引擎。
 - **optional Verifier 失败**：在没有 required 失败和不确定结果时，可得到 `allow_with_warnings`。
 - **有人伪造 allowing Gate**：完成门禁会重算并检查 `computed_by`、`result_refs` 和结果事件绑定，拒绝不一致记录。
+- **组件漏跑、重复提交、同版本契约漂移或历史运行串台**：组件绑定校验拒绝结果，`verification-v2` 不能形成 allowing Gate。
 
 Agent 收到这些结果后可以修正产物、补证据、进入 `waiting` 或报告失败，但不能修改历史事件来制造通过。
 

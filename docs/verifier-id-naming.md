@@ -42,7 +42,7 @@ bensz.runtime.task-completeness
 
 输入格式属于 Adapter 的职责。只有当不同格式需要不同判断契约时，才把格式写进 capability，例如 `markdown-link-integrity`。如果 Markdown、HTML 和 LaTeX 都提交同一种链接证据，应使用通用的 `link-integrity`，而不是为每种格式复制 verifier。
 
-Verifier Pack 的公开 ID、Pack 内 Rule/Prompt 的组件 ID、输入 Adapter ID 和单次运行 ID 必须分开。组件只有在需要独立注册、版本化和复用时才提升为顶层 verifier。
+Verifier Pack 的公开 ID、Pack 内 `script`/`agent`/`human` 组件 ID、输入 Adapter ID 和单次运行 ID 必须分开。组件 ID 只在所属 Pack 及版本内唯一，并通过组件哈希绑定实现；只有需要独立注册、版本化和跨 Pack 复用时才提升为顶层 verifier。
 
 ## 版本与兼容
 
@@ -54,7 +54,7 @@ Verifier Pack 的公开 ID、Pack 内 Rule/Prompt 的组件 ID、输入 Adapter 
 
 发布后的 ID 不重命名。重命名应把新 ID 设为 canonical，并通过 alias 保留旧 ID：带 `index.json` 的 Verifier Pack 在索引条目的 `aliases` 中声明；没有索引的外部兼容目录才在 `VERIFIER.md` frontmatter 中声明。旧事件记录不迁移、不覆盖；调用旧 alias 时，结果返回 canonical ID，目录/CLI 清单通过 `aliases` 字段暴露兼容旧名。
 
-Kernel 内置 Verifier Pack 使用 `bensz-pack-index-v1` 的 `verifiers/index.json` 作为属性单一来源；索引条目记录 `directory`、canonical `id`、`version`、`classification`、`tags`、契约文件和可选入口。`VERIFIER.md` 保留判断目标、证据边界与执行说明。
+Kernel 内置 Verifier Pack 使用 `bensz-pack-index-v1` 的 `verifiers/index.json` 作为属性单一来源；索引条目记录 `directory`、canonical `id`、`version`、`classification`、`tags`、契约文件、`mode`、`assurance_tier` 和有序 `components`。组件声明包含类型、required、依赖、证据、入口和副作用边界；`VERIFIER.md` 保留判断目标、证据边界与执行说明。
 
 ## 禁止模式
 
