@@ -1,12 +1,27 @@
+<div align="center">
+
 # Bensz Agent Skills
 
-A reusable Skill collection and development pipeline following the [Agent Skills Open Standard](https://agentskills.io). It turns Skill creation, testing, documentation, installation, and release into a repeatable workflow for Claude Code, OpenAI Codex, Cursor, and other compatible hosts.
+**Turn Agent Skills from files into systems.**
 
-[中文](README.md)
+A reusable Skill collection, development pipeline, and verifiable runtime built on the [Agent Skills Open Standard](https://agentskills.io).
 
-> **Turn Skills from files into systems.**
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Open_Standard-7c3aed?style=flat-square)](https://agentskills.io)
+[![Hosts](https://img.shields.io/badge/Hosts-Claude_Code_%C2%B7_Codex_%C2%B7_Cursor-2563eb?style=flat-square)](#compatibility-and-boundaries)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#compatibility-and-boundaries)
+[![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-`huangwb8/skills` is more than a collection of `SKILL.md` files. It is a project for developing, running, and assuring Agent Skills. As Skills become long-lived parts of agent systems, the project asks not only “how do we write a Skill?” but also how to develop, test, run, and verify that it behaves as intended.
+[Quick start](#get-started-in-30-seconds) · [Skill map](#skill-map) · [Kernel](#kernel-state-verifier-and-workspace) · [Development](#development-and-verification) · [中文](README.md)
+
+</div>
+
+![Agent Skills: Build · Test · Run · Know](docs/assets/agent-skills-ecosystem.jpg)
+
+| **BUILD** | **TEST** | **RUN** | **KNOW** |
+| :---: | :---: | :---: | :---: |
+| Create and standardize | Regression and quality gates | Install and run across hosts | State, evidence, and audit |
+
+This is more than a collection of `SKILL.md` files. It connects Skill creation, testing, documentation, installation, and release into a repeatable engineering workflow—and explores how to know that a Skill still behaves as intended once it becomes a long-lived part of an agent system.
 
 ## What the project is building
 

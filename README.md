@@ -1,12 +1,21 @@
+<div align="center">
+
 # Bensz Agent Skills
 
-遵循 [Agent Skills 开放标准](https://agentskills.io) 的可复用 Skill 集合与开发流水线。它把 Skill 的创建、测试、文档、安装和发布整理成一套可复用的工程流程，适合在 Claude Code、OpenAI Codex、Cursor 等宿主中使用。
+**让 Agent Skill 从文件，变成系统。**
 
-[English](README_EN.md)
+一套遵循 [Agent Skills 开放标准](https://agentskills.io) 的可复用 Skill 集合、开发流水线与可验证运行时。
 
-> **让 Agent Skill 从文件，变成系统。**
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Open_Standard-7c3aed?style=flat-square)](https://agentskills.io)
+[![Hosts](https://img.shields.io/badge/Hosts-Claude_Code_%C2%B7_Codex_%C2%B7_Cursor-2563eb?style=flat-square)](#兼容性与边界)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#兼容性与边界)
+[![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-本项目是一个围绕 Agent Skills 的开发、运行与质量保障项目。**当 Agent Skill 成为 Agent 系统的长期组成部分时，人们关注的不只是“怎样写一个 Skill”，还包括怎样开发、测试、运行它，并知道它是否按预期工作**。
+[快速开始](#30-秒开始) · [Skill 导航](#skill-导航) · [Kernel](#kernelstateverifier-与-workspace) · [开发与验证](#开发与验证) · [English](README_EN.md)
+
+</div>
+
+这不只是一个 `SKILL.md` 文件集合。它把 Skill 的创建、测试、文档、安装与发布连成可复用的工程流程，并进一步探索：当 Skill 成为 Agent 系统的长期组成部分时，怎样确认它仍在按预期工作。
 
 ![Agent Skills：Build · Test · Run · Know](docs/assets/agent-skills-ecosystem.jpg)
 
