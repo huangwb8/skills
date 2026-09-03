@@ -8,6 +8,8 @@
 
 本项目是一个围绕 Agent Skills 的开发、运行与质量保障项目。**当 Agent Skill 成为 Agent 系统的长期组成部分时，人们关注的不只是“怎样写一个 Skill”，还包括怎样开发、测试、运行它，并知道它是否按预期工作**。
 
+![Agent Skills：Build · Test · Run · Know](docs/assets/agent-skills-ecosystem.jpg)
+
 ## 项目在做什么
 
 项目由三部分组成：
@@ -65,6 +67,8 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 | 治理 | `bensz-collect-bugs` |
 
 选择 Skill 后，阅读对应目录的 `README.md` 获取触发方式、最小 Prompt、输入输出和 FAQ；维护者同时阅读 `SKILL.md`、`config.yaml` 与 `CHANGELOG.md`。
+
+当然，我觉得最好的方式是：**在你的Codex/Claude Code里把本项目的地址粘贴上，然后开始用ai来探索它！**
 
 ## 安装方式
 

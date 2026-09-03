@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- 新增项目宣传图 `docs/assets/agent-skills-ecosystem.jpg`：以发光的 Skill 核心和 BUILD / TEST / RUN / KNOW 四条轨道，表达 Agent Skills 的开发、测试、运行与可观测质量保障闭环。
+
 ### Changed（变更）
 - 重构仓库根目录中英文 README：按使用任务重新组织安装、Skill 导航、Kernel 入口、开发验证与贡献说明，并同步双语内容。
 - 规划仓库 `v5.0.0` 发布：将 `bensz-skill-kernel` 更新至 `1.0.0`，并同步中英文 README 与当前源码、安装和发布流程。
