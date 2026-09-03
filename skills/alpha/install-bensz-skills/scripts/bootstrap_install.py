@@ -71,7 +71,7 @@ _configure_console_streams()
 
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.6.1"
+FALLBACK_CONFIG_VERSION = "0.6.2"
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 DOWNLOAD_RETRIES = 3
@@ -114,6 +114,9 @@ IGNORE_DIR_NAMES = {
     "__pycache__",
     ".pytest_cache",
     ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".nox",
     "test",
     "tests",
     "plans",

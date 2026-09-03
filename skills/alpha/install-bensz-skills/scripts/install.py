@@ -107,6 +107,9 @@ _IGNORE_DIR_NAMES = {
     "__pycache__",
     ".pytest_cache",
     ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".nox",
     "test",
     "tests",
     "plans",
@@ -181,18 +184,18 @@ def _detect_default_source_roots(script_path: Path, include_legacy: bool = False
     candidates: list[Path] = []
 
     # Production layout: only the canonical alpha channel is selected implicitly.
-    # Historical pipelines paths are never selected implicitly; callers that need
-    # them must opt in explicitly (or pass --source).
-    if include_legacy:
-        candidates_to_check = [
-            cwd / "pipelines" / "skills" / "alpha",
-            cwd / "skills" / "alpha",
-        ]
-    else:
-        candidates_to_check = [cwd / "skills" / "alpha"]
-    for p in candidates_to_check:
-        if _looks_like_skills_root(p):
-            candidates.append(p)
+    # Walk up from cwd so a system-installed installer also works when invoked
+    # from a project subdirectory (or from inside ./skills/alpha). Historical
+    # pipelines paths are considered only with the explicit migration flag.
+    for base in (cwd, *cwd.parents):
+        candidates_to_check = [base / "skills" / "alpha"]
+        if include_legacy:
+            candidates_to_check.insert(0, base / "pipelines" / "skills" / "alpha")
+        for p in candidates_to_check:
+            if _looks_like_skills_root(p):
+                candidates.append(p)
+                break
+        if candidates:
             break
 
     # Fallback to "repo-local" layout when this script lives in the same checkout.

@@ -12,6 +12,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- 修复系统级安装器从项目子目录或 `skills/alpha` 内运行时无法自动识别 `./skills/alpha` 的问题；本地入口现在沿当前目录祖先查找 canonical alpha 源，并将 bootstrap fallback 版本同步至 0.6.2。
+
 ### Changed
 - 将 `write-skill-readme` 加入 `legacy_skill_names` 及 bootstrap fallback；其 Agent Skill README 能力由 beta `write-readme` 统一承接，安装前会清理系统级旧目录。
 

@@ -52,6 +52,53 @@ def test_default_source_prefers_alpha_and_does_not_implicitly_use_pipelines(tmp_
     assert detected == [(tmp_path / "skills" / "alpha").resolve()]
 
 
+def test_default_source_detects_alpha_from_nested_project_directory(tmp_path, monkeypatch):
+    # Arrange: the system-installed installer is invoked from a project subdirectory.
+    alpha_root = tmp_path / "skills" / "alpha"
+    make_skill(alpha_root, "canonical")
+    nested_dir = tmp_path / "packages" / "demo"
+    nested_dir.mkdir(parents=True)
+    monkeypatch.chdir(nested_dir)
+
+    # Act
+    detected = install._detect_default_source_roots(Path("/system/install.py"))
+
+    # Assert
+    assert detected == [alpha_root.resolve()]
+
+
+def test_default_source_detects_alpha_when_cwd_is_inside_alpha(tmp_path, monkeypatch):
+    # Arrange: an agent may run the system installer while focused on ./skills/alpha.
+    alpha_root = tmp_path / "skills" / "alpha"
+    make_skill(alpha_root, "canonical")
+    nested_dir = alpha_root / "canonical"
+    monkeypatch.chdir(nested_dir)
+
+    # Act
+    detected = install._detect_default_source_roots(Path("/system/install.py"))
+
+    # Assert
+    assert detected == [alpha_root.resolve()]
+
+
+def test_remote_general_source_uses_canonical_alpha_path():
+    # Both installation entry points must keep the production channel aligned.
+    config_path = ROOT / "skills/alpha/install-bensz-skills/config.yaml"
+    config = install._load_config(config_path)
+    local_general = next(
+        source
+        for source in config.get("remote_sources", [])
+        if source["id"] == "general"
+    )
+    bootstrap_general = next(
+        source for source in bootstrap.DEFAULT_SOURCES if source["id"] == "general"
+    )
+
+    assert local_general["skills_path"] == "skills/alpha"
+    assert bootstrap_general["skills_path"] == "skills/alpha"
+    assert config["skill_info"]["version"] == bootstrap.FALLBACK_CONFIG_VERSION
+
+
 def test_local_manifest_exposes_shared_core_contract(tmp_path):
     skill_dir = make_skill(tmp_path / "source", "demo")
     target = install.Target("codex", tmp_path / "dest", tmp_path / "legacy")

@@ -3,7 +3,7 @@
 # 技能基本信息
 skill_info:
   name: install-bensz-skills
-  version: 0.6.1
+  version: 0.6.2
   description: "当需要把本仓库 skills/alpha 下的生产 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。默认不安装 skills/beta；只有显式指定 beta 源目录时才处理 beta skill。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装和指定单一目标安装。支持远程安装模式（--remote --check/--auto），远程源会缓存到本地并用浅 fetch 增量更新；配置子目录 skills_path 时优先 Git sparse checkout，且 --skill 会进一步只下载目标 skill 目录；GitHub 传输 reset/timeout 会自动重试，已有可用缓存时会复用 last-known-good 缓存完成本轮安装，缓存不可用时再重建或回退到完整浅克隆。"
   author: "Bensz Conan"
   category: 安装管理
