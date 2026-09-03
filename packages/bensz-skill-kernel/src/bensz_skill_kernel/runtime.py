@@ -170,7 +170,8 @@ def _component_bound_gate(
         return reject("aggregate evidence refs are invalid")
     known_evidence_refs = set(aggregate_evidence_refs)
     required_failures: list[str] = []
-    required_unknown: list[str] = []
+    required_uncertain: list[str] = []
+    required_waiting: list[str] = []
     optional_failures: list[str] = []
     for raw in components:
         if not isinstance(raw, Mapping):
@@ -227,8 +228,10 @@ def _component_bound_gate(
             return reject("component required flag must be boolean", (component_id,))
         if required and verdict == "fail":
             required_failures.append(component_id)
-        elif required and verdict != "pass":
-            required_unknown.append(component_id)
+        elif required and verdict in {"uncertain", "error", "timed_out"}:
+            required_uncertain.append(component_id)
+        elif required and verdict in {"unchecked", "skipped"}:
+            required_waiting.append(component_id)
         elif not required and verdict != "pass":
             optional_failures.append(component_id)
     missing_components = tuple(sorted(set(plan_by_id) - seen))
@@ -237,9 +240,13 @@ def _component_bound_gate(
     if required_failures:
         decision = GateDecision("reject", "required component failure", result_ref, tuple(required_failures))
         expected_verdict = "fail"
-    elif required_unknown:
-        decision = GateDecision("manual_review", "component incomplete or uncertain", result_ref, tuple(required_unknown))
+    elif required_uncertain:
+        unresolved = tuple(dict.fromkeys((*required_uncertain, *required_waiting)))
+        decision = GateDecision("manual_review", "component incomplete or uncertain", result_ref, unresolved)
         expected_verdict = None
+    elif required_waiting:
+        decision = GateDecision("wait", "component result pending", result_ref, tuple(required_waiting))
+        expected_verdict = "unchecked"
     elif optional_failures:
         decision = GateDecision("allow_with_warnings", "optional component did not pass", result_ref, tuple(optional_failures))
         expected_verdict = "pass"
@@ -249,7 +256,7 @@ def _component_bound_gate(
     if expected_verdict is not None and result.get("verdict") != expected_verdict:
         return reject("aggregate verdict conflicts with component results", tuple(seen))
     if decision.decision == "manual_review" and result.get("verdict") not in {"uncertain", "unchecked", "timed_out", "error"}:
-        return reject("aggregate uncertainty conflicts with component results", tuple(required_unknown))
+        return reject("aggregate uncertainty conflicts with component results", tuple(required_uncertain))
     return decision
 
 

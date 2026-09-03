@@ -20,7 +20,7 @@ from .builtins import build_builtin_registry
 from .runtime import EventLog, IntegrityError, KernelError
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
 from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS, state_snapshot_hash
-from .verifiers import Evidence, FilesystemVerifierRegistry, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
+from .verifiers import Evidence, FilesystemVerifierRegistry, GateDecision, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
 from . import __version__
 
 
@@ -483,6 +483,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
     if args.events:
         log = EventLog(args.events)
         persisted = []
+        persisted_gate = None
         for index, result in enumerate(result_payloads):
             verification, gate_event = log.record_verification(
                 result,
@@ -494,6 +495,17 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
                 run_id=request_id,
             )
             persisted.append({"result_event": verification.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
+            if gate_event is not None:
+                persisted_gate = GateDecision(
+                    decision=str(gate_event.payload["decision"]),
+                    reason=str(gate_event.payload["reason"]),
+                    result_refs=tuple(gate_event.payload.get("result_refs", ())),
+                    unresolved=tuple(gate_event.payload.get("unresolved", ())),
+                )
+        if persisted_gate is not None:
+            output["gate"] = persisted_gate.to_dict()
+            output["verification"]["gate"] = persisted_gate.to_dict()
+            output["metrics"] = summarize_metrics((normalized,), (persisted_gate,))
         output["runtime"] = {"recorded": True, "events": persisted}
     _print(output, pretty=True)
     return 0

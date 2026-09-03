@@ -4,20 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bensz-skill-kernel"
-version = "0.14.0"
+version = "0.14.1"
 description = "Append-only lifecycle runtime for Bensz Agent Skills"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {file = "LICENSE"}
+authors = [{name = "Bensz Conan"}]
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = []
+dependencies = [
+    "PyYAML>=6.0,<7",
+]
 
 [project.scripts]
 bsk = "bensz_skill_kernel.runtime:main"
+
+[project.urls]
+Repository = "https://github.com/huangwb8/skills"
 
 [tool.setuptools.packages.find]
 where = ["src"]

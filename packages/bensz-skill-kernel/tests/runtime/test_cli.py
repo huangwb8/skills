@@ -107,12 +107,49 @@ def test_directory_verifier_runs_markdown_link_integrity(tmp_path: Path, capsys)
     assert output["summary"]["valid"] == 1
 
 
+def test_directory_verifier_persists_the_gate_returned_by_cli(tmp_path: Path, capsys):
+    subject = tmp_path / "artifact.txt"
+    subject.write_text("ready\n", encoding="utf-8")
+    events = tmp_path / "events.ndjson"
+
+    assert main([
+        "verifier", "run", "bensz.artifact.file-existence",
+        "--input", str(subject),
+        "--events", str(events),
+        "--run-id", "run-1",
+        "--attempt-id", "attempt-1",
+    ]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    persisted_gate = [
+        event.payload
+        for event in EventLog(events).read()
+        if event.event_type == "verification.gate"
+    ][-1]
+    assert persisted_gate["decision"] == output["gate"]["decision"] == "allow"
+    assert persisted_gate["reason"] == output["gate"]["reason"]
+    assert persisted_gate["result_refs"] == output["gate"]["result_refs"]
+
+
 def test_semantic_verifier_cli_returns_bound_agent_handoff(tmp_path: Path, capsys):
     markdown = tmp_path / "claim.md"
+    events = tmp_path / "events.ndjson"
     markdown.write_text("A claim with a citation.\n", encoding="utf-8")
-    assert main(["verifier", "run", "bensz.evidence.citation-truth-fit", "--input", str(markdown), "--run-id", "run-1"]) == 0
+    assert main([
+        "verifier", "run", "bensz.evidence.citation-truth-fit",
+        "--input", str(markdown),
+        "--events", str(events),
+        "--run-id", "run-1",
+    ]) == 0
     output = json.loads(capsys.readouterr().out)
     assert output["gate"]["decision"] == "wait"
+    persisted_gate = [
+        event.payload
+        for event in EventLog(events).read()
+        if event.event_type == "verification.gate"
+    ][-1]
+    assert persisted_gate["decision"] == output["gate"]["decision"]
+    assert persisted_gate["reason"] == output["gate"]["reason"]
     assert output["handoffs"][0]["component_id"] == "citation-semantics"
     assert output["handoffs"][0]["run_id"] == "run-1"
     assert "instructions" in output["handoffs"][0]

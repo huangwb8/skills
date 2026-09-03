@@ -1,4 +1,5 @@
 import json
+import tomllib
 from datetime import datetime
 from pathlib import Path
 
@@ -16,7 +17,15 @@ from bensz_skill_kernel import (
     workspace_path,
     validate_state_id,
 )
+from bensz_skill_kernel import __version__ as kernel_version
 from bensz_skill_kernel.cli import main
+
+
+def test_distribution_declares_pyyaml_runtime_dependency() -> None:
+    pyproject = Path(__file__).parents[2] / "pyproject.toml"
+    metadata = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    dependencies = metadata["project"]["dependencies"]
+    assert any(item.lower().startswith("pyyaml") for item in dependencies)
 
 
 def test_builtin_state_catalog_is_discoverable():
@@ -156,9 +165,17 @@ def test_skill_declaration_reads_runtime_config_yaml_and_rejects_undeclared_stat
     state.parent.mkdir(parents=True)
     (skill / "config.yaml").write_text(
         "runtime:\n"
+        "  kernel:\n"
+        "    name: bensz-skill-kernel\n"
+        f"    version: {kernel_version}\n"
         "  state_roots: [references/states]\n"
         "  initial_state: bensz.workspace.ready\n"
-        "  states: [test.demo.collect]\n",
+        "  states:\n"
+        "    - test.demo.collect\n"
+        "  verifiers:\n"
+        "    - id: bensz.artifact.file-existence\n"
+        "      version: 1.0.0\n"
+        "      required: true\n",
         encoding="utf-8",
     )
     state.write_text(
@@ -174,6 +191,9 @@ def test_skill_declaration_reads_runtime_config_yaml_and_rejects_undeclared_stat
     assert declaration.source.name == "config.yaml"
     assert declaration.state_roots == (state.parents[1],)
     assert declaration.registry().resolve("test.demo.collect").id == "test.demo.collect"
+    assert declaration.verifier_requirements() == (
+        {"id": "bensz.artifact.file-existence", "version": "1.0.0", "required": True},
+    )
 
 
 def test_projection_keeps_effect_status_as_an_orthogonal_field(tmp_path: Path):

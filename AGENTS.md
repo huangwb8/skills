@@ -139,7 +139,7 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 
 `packages/bensz-skill-kernel/` 是独立 Python 包。包的公开 API、CLI 和目录化 Pack 资产必须同时保持可发现、可重放和向后兼容。
 
-- Python 版本、包版本、依赖和入口以 `packages/bensz-skill-kernel/pyproject.toml` 为准；运行时继续保持零第三方依赖，测试依赖不得进入运行时依赖。
+- Python 版本、包版本、依赖和入口以 `packages/bensz-skill-kernel/pyproject.toml` 为准；运行时仅引入读取 Skill `config.yaml` 所需的 PyYAML，其余能力保持标准库实现，测试依赖不得进入运行时依赖。
 - 修改公开 API、CLI 参数、JSON 协议、事件字段、错误类型或退出码时，先判断兼容性，再同步 README、`docs/`、示例和 CHANGELOG；不得只修改实现而留下过时契约。
 - 如本次修改涉及 `states/**`、`verifiers/**` 等包内 Markdown、JSON 或脚本资产，必须将其纳入 `pyproject.toml` 的 package data，并用安装后环境验证仍可发现。
 - 如本次修改涉及状态或验证运行时，事件和状态投影必须可重放；时间、哈希和 JSON 序列化保持确定性。错误处理应提供稳定的错误类别或状态，不以异常文本作为调用方契约。

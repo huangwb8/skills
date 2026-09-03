@@ -8,9 +8,12 @@ state is a directory containing ``STATE.md`` and optional helper scripts.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+
+import yaml
 
 from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio
@@ -190,36 +193,6 @@ def _as_tuple(value: Any) -> tuple[str, ...]:
     if isinstance(value, Iterable):
         return tuple(str(item) for item in value)
     raise StateDefinitionError("state list metadata must be a string or list")
-
-
-def _minimal_yaml(text: str) -> dict[str, Any]:
-    """Parse the tiny runtime subset when PyYAML is not installed.
-
-    This fallback intentionally accepts only ``runtime`` scalar/list keys; a
-    malformed or richer document fails closed instead of silently guessing.
-    """
-    runtime: dict[str, Any] = {}
-    in_runtime = False
-    for raw_line in text.splitlines():
-        line = raw_line.split("#", 1)[0].rstrip()
-        if not line.strip():
-            continue
-        if line.strip() == "runtime:":
-            in_runtime = True
-            continue
-        if not in_runtime:
-            continue
-        if len(line) - len(line.lstrip()) < 2:
-            in_runtime = False
-            continue
-        if ":" not in line:
-            raise ValueError(f"invalid runtime config line: {raw_line}")
-        key, value = (part.strip() for part in line.split(":", 1))
-        if value.startswith("[") and value.endswith("]"):
-            runtime[key] = [item.strip().strip("'\"") for item in value[1:-1].split(",") if item.strip()]
-        else:
-            runtime[key] = value.strip("'\"")
-    return {"runtime": runtime}
 
 
 @dataclass(frozen=True)
@@ -457,12 +430,8 @@ class SkillStateDeclaration:
         raw: Mapping[str, Any] | None = None
         if source.is_file():
             try:
-                try:
-                    import yaml  # type: ignore
-                    loaded = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
-                except ImportError:
-                    loaded = _minimal_yaml(source.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as exc:
+                loaded = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+            except (OSError, yaml.YAMLError) as exc:
                 raise StateDefinitionError(f"invalid Skill config: {exc}") from exc
             if isinstance(loaded, Mapping) and isinstance(loaded.get("runtime"), Mapping):
                 raw = loaded["runtime"]

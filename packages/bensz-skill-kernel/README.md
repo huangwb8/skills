@@ -1,6 +1,6 @@
 # bensz-skill-kernel
 
-无第三方运行时依赖的 Agent Skill 状态、工作区与 verifier 生命周期内核。
+轻量的 Agent Skill 状态、工作区与 verifier 生命周期内核。
 
 ## Python 支持
 
@@ -8,7 +8,7 @@
 - 已验证测试矩阵：Python 3.11、3.12、3.13。
 - 推荐运行版本：Python 3.12。
 
-内核运行时仅依赖 Python 标准库；新 Python 版本会在测试矩阵验证后纳入官方支持范围。
+内核运行时除 PyYAML（用于读取 Skill 的 `config.yaml`）外仅依赖 Python 标准库；新 Python 版本会在测试矩阵验证后纳入官方支持范围。
 
 State 与 Verifier 都采用目录化 Contract Pack：一个 Markdown 契约、索引元数据和零个或多个执行组件。`contract_packs.py` 在 `packs.py` 的发现与 JSON-stdio 边界之上统一描述并编排 `script`、`agent`、`human` 组件，绑定契约/计划/组件哈希、证据、依赖顺序、run/attempt 和执行者。State 仍由状态图/迁移适配器解释组件结果，Verifier 仍由 verdict/Gate 适配器解释组件结果，二者不会因共享执行层而混淆语义。
 
@@ -106,3 +106,14 @@ bsk verifier run bensz.document.markdown-link-integrity --input README.md
 Pack helper 默认以受信本地进程运行，但内核会限制输入、stdout/stderr 体积、环境变量和执行时长，并在超时后终止整个进程组；调用不可信 Pack 时应显式传入 `trusted=False`，此时会 fail-closed。该边界是进程级资源与路径约束，不等同于容器或操作系统沙箱。
 
 事件账本除状态投影外还保留可选的运行契约快照、授权链和执行审计轨迹；`reduce_events()` 仅用于离线状态投影重放，不会重新调用模型或工具。`verification-v2` 结果会在记录和完成门禁处复核组件唯一性、哈希、证据引用、run/attempt、执行者/模型及人工确认，调用方自报的 aggregate pass 不能覆盖 required 失败或漏跑。`summarize_metrics()` 额外汇总组件绑定率和执行者身份覆盖率。
+
+## 发布到 PyPI
+
+仓库根目录的发布助手默认只构建 wheel/sdist 并运行 `twine check`；只有显式增加 `--upload` 才会使用 Twine 的标准本机鉴权上传到正式 PyPI：
+
+```bash
+python3 tests/publish_bsk_pypi.py
+python3 tests/publish_bsk_pypi.py --upload
+```
+
+构建产物保存在 `tmp/bsk-pypi/`，脚本不会读取、复制或记录 PyPI 凭据。

@@ -1,0 +1,5 @@
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude .DS_Store
+prune .pytest_cache
+prune .ruff_cache

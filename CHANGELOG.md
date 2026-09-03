@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed（修复）
+- **Kernel 发布前主链路修复**：`bensz-skill-kernel` 更新至 `0.14.1` 并发布到 PyPI；将 PyYAML 声明为正式运行时依赖并移除不完整的 YAML fallback，使真实 Skill 的多行 State/Verifier 声明可稳定加载；同时保留 Contract 原始组件绑定字段进入事件账本，确保 `bsk verifier run --events` 返回的 Gate 与 Kernel 持久化 Gate 一致。
+- **Kernel 依赖约束同步**：更新 `AGENTS.md` 的 Kernel 依赖边界，将 PyYAML 明确为读取 Skill `config.yaml` 的唯一第三方运行时依赖，避免治理约束与发布元数据冲突。
+
 ### Changed（变更）
+- **Kernel PyPI 元数据补全**：为 `bensz-skill-kernel` 声明 README、MIT License、作者与仓库地址，并通过 `MANIFEST.in` 排除 sdist 中的 Python 缓存和系统文件。
 - **补充 Verifier 教程的端到端示例**：在“一次实际验证怎样流过系统”小节加入报告缺字段、Gate 拒绝、修正重试到允许交付的逐步案例，帮助读者把流程图映射到具体输入、结果和状态变化。
 - **Verifier 教程与最新 Kernel 行为对齐**：修正文档对默认只读/显式副作用授权、v1/v2 运行身份绑定、`error`/`unchecked` 错误分流、required/optional 组件 Gate、legacy Pack 诊断和 CLI 示例结果的描述，避免教程将兼容路径或示例命令误写成统一行为。
 - **Kernel Contract Pack 混合执行层**：`bensz-skill-kernel` 更新至 `0.14.0`，新增 State/Verifier 共用的版本化组件描述、契约/计划哈希、`script`/`agent`/`human` 交接、依赖顺序、证据约束和保守合并；State 与 Verifier 继续通过独立适配器解释阶段条件及 verdict/Gate，旧单入口 Pack 保持兼容。
@@ -15,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **恢复 `prompt-programming` 的轻量执行模式**：移除该 Skill 的状态机、Verifier Pack、运行时门禁及相关说明，恢复至接入这些运行时能力之前的 `0.2.1` 配置与 Prompt Program 翻译流程。
 
 ### Added（新增）
+- **BSK PyPI 发布助手**：新增 `tests/publish_bsk_pypi.py`，默认执行隔离构建、归档清洁度检查与 `twine check`，仅在显式 `--upload` 时使用本机标准鉴权上传，且发布产物统一写入 `tmp/bsk-pypi/`。
 - **State/Verifier 共用 Contract Pack 执行层优化计划**：新增 `docs/plans/2026-09-01-verifier混合执行优化计划.md`，规划共享契约发现、脚本/Agent/人工执行、混合编排、证据审计和 State/Verifier 个性化适配路径。
 - **版本绑定验证与错误完成文献记录**：新增 `docs/版本绑定验证与错误完成_经典研究文献.md`，整理 API/依赖兼容性、软件供应链证明、自动化偏信、目标错配、LLM verifier 与 Agent 任务完成评测等经典研究，并提出证据约束的完成声明框架。
 - **Verifier 直观教程**：新增 `docs/verifier-tutorial.md`，通过真实请求/结果示例、Mermaid 执行图、Gate 分支和 Kernel 函数级代码地图，说明 Verifier 从发现、隔离执行到事件持久化与完成门禁的完整工作过程。

@@ -545,7 +545,9 @@ class VerifierContractExecution:
             "run_id": self.report.run_id,
             "attempt_id": self.report.attempt_id,
             "execution_plan": dict(self.report.execution_plan),
-            "component_results": [item.to_dict() for item in self.components],
+            # Persist the shared Contract component shape so the runtime can
+            # independently verify every binding before it records a Gate.
+            "component_results": [item.to_dict() for item in self.report.results],
             "execution_decision": self.report.decision,
             "unresolved_components": list(self.report.unresolved),
         }
