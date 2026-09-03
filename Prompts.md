@@ -3,11 +3,13 @@
 - 更新
 
 ```
-version = 4.3.8
-请你：
-- 根据源代码的实际变化写 ./CHANGELOG.md 、 优化 README 或 优化 @install 里的脚本。
-- 创建新的tag v{version}。 用 git-commit skill 提交commit，commit信息里要带版本号。
-- 用 git-publish-release skill 发布新的release。
+repo-version = 5.0.0
+bsk-version = 1.0.0
+请您：
+- 将 packages/bensz-skill-kernel 的版本更新至 {bsk-version} 。 packages/bensz-skill-kernel的 README 要对源代码对齐（基于 write-readme skill进行优化）。然后，将python包更新到 pypi ，本机已经配置好权限。
+- 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
+- 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。
+- 用 git-publish-release skill 发布新的 release。
 ```
 
 - 更新本地测试环境为最新状态
@@ -57,6 +59,10 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 ```
 
 # 日常
+
+---
+
+packages/bensz-skill-kernel 和 本项目skills开发时，其实有一些概念可以有更好的抽象。 最重要的概念就是硬编码（写死的程序，过程和结果一般是唯一）和ai自主规划（一般是面向开放性任务）。后来，我发现其实大家有一种更加专业的说法： hard / soft / mix （2者兼之）。 因此，我希望在类型上引入这个抽象。 我觉得是有好处，至少我有一个显式的声明提醒ai应该如何强调任务（比如，看到是 hard就知道更多地依赖测试代码； 看到是 soft 就知道更多约束prompt； 如果是mix就是兼而有之）。 至少目前，这方面的设计还是比较粗糙，有很大的改进空间。 你觉得呢？
 
 ---
 
