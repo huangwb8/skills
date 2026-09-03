@@ -1,232 +1,169 @@
-<div align="center">
+# Bensz Agent Skills
 
-# Skills Development Pipeline
+A reusable Skill collection and development pipeline following the [Agent Skills Open Standard](https://agentskills.io). It turns Skill creation, testing, documentation, installation, and release into a repeatable workflow for Claude Code, OpenAI Codex, Cursor, and other compatible hosts.
 
-[![Version](https://img.shields.io/github/v/tag/huangwb8/skills?label=version&sort=semver)](https://github.com/huangwb8/skills/releases)
-[![Standard](https://img.shields.io/badge/Agent%20Skills-Standard%20v1.0-blue.svg)](https://agentskills.io)
-[![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#platform-compatibility)
-[![Built with](https://img.shields.io/badge/built%20with-Python%203.10%2B-orange.svg)](https://www.python.org/)
+[中文](README.md)
 
-[中文](README.md) | [English](README_EN.md)
+> **Turn Skills from files into systems.**
 
-<strong>Reusable Agent Skills library and development pipeline built on the Agent Skills Open Standard</strong>
+`huangwb8/skills` is more than a collection of `SKILL.md` files. It is a project for developing, running, and assuring Agent Skills. As Skills become long-lived parts of agent systems, the project asks not only “how do we write a Skill?” but also how to develop, test, run, and verify that it behaves as intended.
 
-</div>
+## What the project is building
 
-This repository is a skills library and development pipeline built around the Agent Skills Open Standard. It covers skill creation, testing, documentation, installation, release, and bug reporting. The repo contains both reusable production skills and the instructions, scripts, and workflows used to maintain them.
+The repository has three parts:
 
-## 🎯 Who This Repository Is For
+- **Reusable general Skills**: automated testing, multi-agent collaboration, parallel workspaces, prompt optimization, research plotting, Git operations, installation, documentation, and bug feedback.
+- **A Skill development and maintenance pipeline**: a shared lifecycle from development → testing → documentation → installation → use → feedback → iteration.
+- **Skill Runtime**: `bensz-skill-kernel` is evolving support for State, Verifier, Gate, Contract Pack, workspaces, evidence, event ledgers, audit, and replay.
 
-- People who want to install a set of skills system-wide and trigger them from any project
-- Maintainers who want to build, refine, test, and publish their own skills
-- Teams who want to reuse the engineering rules, documentation conventions, and quality workflow in this repo
-- Anyone building on the Agent Skills standard across Claude Code, Codex, Cursor, and related platforms
+The Runtime does not try to turn Skills into traditional programs. It makes important states, checks, and evidence in complex agent workflows explicit and traceable.
 
-## 💡 Recommended Development Environment
+## Why this project exists
 
-### 🧰 VS Code + Claude Code / Codex Extension
+As Skill collections and workflows grow, a longer `SKILL.md` cannot by itself answer whether a Skill triggered correctly, skipped a step, regressed after a change, remained traceable during collaboration, recorded the right checks, or clearly located a failure. This project therefore moves from Skill authoring toward broader **Skill engineering**.
 
-We recommend using VS Code together with the Claude Code or Codex extension for skill development, testing, and maintenance.
+## Design principles
 
-| Benefit | Description |
-|---------|-------------|
-| Native skill integration | Loads installed skills directly from system-level skill directories |
-| Real-time validation | Test skill triggering and execution with natural language prompts |
-| Context-aware editing | Lets the AI understand relationships across skills, scripts, and docs |
-| Integrated workflow | Edit, test, install, and iterate in one place |
-| Documentation maintenance | Makes it easier to keep `SKILL.md`, `README.md`, `config.yaml`, and `CHANGELOG.md` in sync |
+- Open standards first, without binding the project to one platform.
+- Separate Skill and Runtime: domain workflows stay in Skills; shared execution stays in the Kernel.
+- Explicit state over implicit guesses, checking over default trust, and replayability over opacity.
+- Progressive enhancement: keep ordinary Skills simple and use stronger runtime capabilities only when needed.
 
-📺 [Watch Demo Video (Bilibili)](https://www.bilibili.com/video/BV1tpcezbERB)
+## Get started in 30 seconds
 
-## ⚡ AI Compute
-
-For background on AI compute and the broader setup around this repository, see:
-
-📺 [Watch AI Compute Overview (Bilibili)](https://www.bilibili.com/video/BV1a7ZLBuE5z)
-
-## 🧩 Core Skills
-
-`skills/alpha/` contains publishable skills; `skills/beta/` contains immature candidates and is never installed by default:
-
-| Skill | Primary purpose | Typical use case |
-|-------|------------------|------------------|
-| `init-project` | Initialize project instruction files | Generate `AGENTS.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, `.gitignore`, plus `docs/` and `docs/plans/` |
-| `install-bensz-skills` | Install skills system-wide | Copy this repo's skills into `~/.codex/skills/` and `~/.claude/skills/` |
-| `write-readme` | Generate bilingual project docs | Produce fact-checked, aligned `README.md` and `README_EN.md` |
-| `auto-test-skill` | Skill-level critical testing | Evaluate a skill's workflow, output quality, and robustness |
-| `auto-test-project` | Project-level critical testing | Review an entire project through repeated finding, fixing, and verification rounds |
-| `better-prompt` | Prompt optimization | Rewrite rough prompts into clearer, more executable versions |
-| `awesome-code` | Multi-agent collaborative development | Break down work, classify agents into three dispatch levels, enforce required-agent gates, and coordinate parallel execution |
-| `parallel-vibe` | Multi-workspace parallel exploration | Run the same instruction across isolated workspaces to compare solutions |
-| `git-commit` | Git commit automation | Generate conventional commits and optionally push automatically |
-| `git-pr-review` | Read-only GitHub PR review | Decide whether a PR is worth merging and generate a structured report |
-| `git-publish-release` | GitHub release publishing | Generate release notes and create GitHub releases |
-| `bensz-collect-bugs` | Collect and report skill-design bugs | Record skill design issues and, when explicitly requested, report them via `gh` |
-
-For detailed usage, open the corresponding `README.md` and `SKILL.md` inside each skill directory.
-
-## ✨ Repository Capabilities
-
-- A standardized way to build Agent Skills for multiple platforms
-- A set of reusable general-purpose skills
-- A full maintenance chain covering creation, testing, documentation, installation, release, and bug reporting
-- A system-level installation model that improves discoverability across projects
-- Long-term engineering guardrails built around KISS, YAGNI, DRY, Single Source of Truth, and organic updates
-
-## 🗂️ Directory Structure
-
-```text
-skills/alpha/      # Publishable, default-installed skills
-skills/beta/       # Candidate skills; opt in with an explicit source
-packages/          # Independently configured runtime packages
-docs/              # Project documentation; plans live in docs/plans/
-tests/             # Repository smoke and integration tests
-tmp/               # Temporary test outputs and reports
-```
-
-## 🗂️ Task Workspaces
-
-Skills that need to write files keep their process artifacts under `.bensz-api/task-{yyyymmdd-hhmm}-{short-description}/`, so plans, logs, and temporary output do not spill into the project root. A single-skill task creates only that skill's boundary; `shared/` is used only when several skills collaborate.
-
-```text
-.bensz-api/task-20260717-1432-optimize-skill-workspace/
-├── shared/                 # Shared inputs and provenance for multi-skill tasks only
-└── {skill-name}/
-    ├── input/              # Inputs, parameter snapshots, and upstream references
-    ├── output/             # Drafts and intermediate results for later stages
-    └── log/                # Commands, validation, errors, and decision summaries
-```
-
-Final deliverables, user-requested files, project documentation, and source changes still follow the project's normal directory conventions; they are not written to this hidden workspace by default. Older hidden directories are only for explicitly requested compatibility reads, migrations, or cleanup.
-
-## 🧾 Contribution Records
-
-This repository uses the `bensz-auto-contribution` BAC ledger at `docs/contribution.bac`. Record requirements, generated content, tool results, human confirmations, file changes, and verification evidence with `bac`.
+Install production Skills from `skills/alpha` without cloning (Python 3.8+ and network access required):
 
 ```bash
-bac --root . --bac-file docs/contribution.bac inspect
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
 ```
 
-Do not disable BAC when regenerating project instructions with `init-project`. The ledger stores collaboration evidence, not secrets, full private prompts, or unrelated personal data.
+For local development after cloning:
 
-## 🌐 Platform Compatibility
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
+```
 
-Based on this repository's conventions and the surrounding Agent Skills ecosystem, the primary compatible platforms include:
+The installer copies Skills to `~/.codex/skills/` and `~/.claude/skills/` by default. Add `--skill git-commit` to install one Skill. `skills/beta/` is processed only with an explicit `--source`.
 
-| Platform | Status | Common skill directory |
-|----------|--------|------------------------|
-| [Claude Code](https://code.anthropic.com) | Verified | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com/index/introducing-codex/) | Verified | `~/.codex/skills/` |
-| Cursor | Compatible | `~/.cursor/skills/` |
-| GitHub | Compatible | `.github/skills/` |
-| VS Code | Compatible | `.vscode/skills/` |
-| Amp | Compatible | Platform-specific |
-| Letta | Compatible | Platform-specific |
-| Goose | Compatible | Platform-specific |
+## What this repository provides
 
-## 🚀 Quick Start
+- **Installable Skills**: `skills/alpha/`; each directory has a user-facing `README.md` and an AI-facing `SKILL.md`.
+- **Development pipeline**: initialization, prompt optimization, documentation, critical testing, multi-agent work, Git release, and bug reporting.
+- **Lifecycle kernel**: `packages/bensz-skill-kernel/` provides the `bsk` CLI plus replayable State, Verifier, Workspace, event-ledger, and Gate runtime.
+- **Auditable collaboration**: task artifacts live under `.bensz-api/`; contribution records live in `docs/contribution.bac`.
 
-### ⚡ Recommended: One-Line Remote Installation
+## Skill map
 
-Install directly to system-level skill directories with the standard-library bootstrap bundled inside `install-bensz-skills`, without cloning the repo first. It downloads GitHub zip archives, skips unchanged skills by MD5, and writes install manifests. The repository's `general` source is fixed to `skills/alpha`.
+The current `skills/alpha/` source contains 15 production Skills:
 
-| Platform | Command |
-|----------|---------|
-| All platforms with Python | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
-| macOS / Linux fallback | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
+| Area | Skills |
+| --- | --- |
+| Initialization and docs | `init-project` · `write-readme` |
+| Testing and collaboration | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
+| Prompts and creation | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
+| Installation and release | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
+| Governance | `bensz-collect-bugs` |
 
-Support matrix: repository development and the full local installer use Python 3.10+; the dependency-free bootstrap requires Python 3.8+ and uses only the standard library.
+Read a Skill's `README.md` for triggers, minimal prompts, inputs/outputs, and FAQ. Maintainers should also read `SKILL.md`, `config.yaml`, and `CHANGELOG.md`.
 
-Default remote sources:
+## Installation
 
-- `general`: general-purpose skills from `huangwb8/skills`
-- `research`: research skills from `huangwb8/ChineseResearchLaTeX`
-- `anthropic-docs`: document-processing skills from `anthropics/skills`
+### Remote bootstrap
 
-Default install locations:
+`bootstrap_install.py` uses only the Python standard library and supports Python 3.8+. Its default sources are defined in `skills/alpha/install-bensz-skills/config.yaml`:
 
-- `~/.claude/skills/`
-- `~/.codex/skills/`
+| Source | Contents |
+| --- | --- |
+| `general` | This repository's `skills/alpha` |
+| `research` | Research Skills from `huangwb8/ChineseResearchLaTeX` |
+| `anthropic-docs` | Document Skills from `anthropics/skills` |
 
 Common options:
 
 ```bash
-# Install only the general skills from this repository
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
+# Preview without writing files
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
-# Install only to Codex or Claude Code
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
-
-# Preview actions without writing files
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
-
-# Print installer output in Chinese
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --lang zh
+# Install to Codex or Claude Code only
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
 ```
 
-### 🛠️ Local Development Installation
+### Local installation and development
 
-If you have cloned this repository, or you are actively developing these skills, use the local installer. It auto-detects `skills/alpha/` only; `skills/beta/` requires an explicit `--source`.
+The full local installer follows the repository's Python 3.10+ development matrix and supports `--source`, `--skill`, `--force`, and `--legacy-source`:
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
 python3 skills/alpha/install-bensz-skills/scripts/install.py
+python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readme
 ```
 
-If you only want one target platform:
+Install manifests, MD5 records, and remote caches live under `~/.bensz-skills/installation/`. Beta Skills are never mixed into the default source.
+
+## Kernel: State, Verifier, and Workspace
+
+`bensz-skill-kernel` requires Python 3.11+ and uses PyYAML plus the standard library at runtime. It is independent from Skill installation.
 
 ```bash
-python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
-python3 skills/alpha/install-bensz-skills/scripts/install.py --claude
+python3 -m venv .bensz-api/.venv
+.bensz-api/.venv/bin/python -m pip install -e packages/bensz-skill-kernel
+.bensz-api/.venv/bin/bsk --version
+.bensz-api/.venv/bin/bsk verifier list
 ```
 
-If the installer skill is already installed system-wide, you can also call it from another project and point it at a local source directory:
+Common entry points:
 
 ```bash
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
-python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
-
-# Only when explicitly installing beta skills
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/beta
-
-# Only for an explicit migration from the historical pipelines layout
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
+bsk state list
+bsk verifier list --tag citation
+bsk workspace init . --description citation-review
+bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
-### 🤖 Ask the AI to Run the Installer Skill
+States use `owner.machine.state` canonical IDs; Verifiers use `owner.domain.capability`, with legacy IDs resolved through aliases. Pack indexes and contracts are documented in [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md).
 
-After opening this repository in Claude Code or Codex, you can say:
+## Layout and workspaces
 
 ```text
-Please use the install-bensz-skills skill to install the skills in this repository into the system-level skills directories so they can be discovered from any project.
+skills/alpha/                  # Publishable, default-installed Skills
+skills/beta/                   # Candidate Skills; explicit source required
+packages/bensz-skill-kernel/   # Independent Python kernel package
+docs/                          # Current docs, tutorials, and design records
+tests/                         # Repository entry-point and cross-package tests
+tmp/                           # Test reports and temporary artifacts
+.bensz-api/                    # AI task workspaces and tool caches
 ```
 
-This is useful if you want installation itself to stay inside a natural-language workflow.
+Each logical task that writes files uses one `.bensz-api/task-{yyyymmdd-hhmm}-{description}/`. Final READMEs, source, and plans remain in their normal project locations.
 
-## 📘 Development Rules and Core Docs
+## Development and verification
 
-- [AGENTS.md](AGENTS.md): Cross-platform project instructions and the single source of truth for repository-level rules
-- [CLAUDE.md](CLAUDE.md): Claude Code specific adaptation notes
-- [CHANGELOG.md](CHANGELOG.md): All important updates should be recorded under `Unreleased` first
+```bash
+# Root tests (cache is written to .bensz-api)
+python3 -m pytest
 
-If you plan to change project instructions, workflow, or the README files, start with `AGENTS.md`. This repository expects documentation updates to stay aligned with engineering rules and to be recorded in `CHANGELOG.md`.
+# Check bilingual README headings, fences, links, and command tokens
+python3 skills/alpha/write-readme/scripts/check_readme_pair.py README.md README_EN.md
 
-## 🤝 Contribution Notes
+# Inspect the BAC contribution ledger
+bac --root . --bac-file docs/contribution.bac inspect
+```
 
-- Prefer improving existing assets over rewriting them from scratch
-- When changing a skill, check whether `SKILL.md`, `README.md`, and `config.yaml` still match
-- Record important repository-level updates in `CHANGELOG.md`
-- Validate system-level discoverability, not just behavior inside this repository
+When changing a Skill, keep `SKILL.md`, `config.yaml`, README, and CHANGELOG aligned. Record important repository changes under `[Unreleased]` in `CHANGELOG.md` first.
 
-## How to Contribute?
+## Compatibility and boundaries
 
-This project does not currently accept ordinary pull requests. Please consult [huangwb8](https://github.com/huangwb8) before contributing.
+- Skill files follow the open standard; actual triggering depends on host support for Skill directories.
+- The local installer supports Python 3.10+; remote bootstrap requires Python 3.8+; the Kernel requires Python 3.11+.
+- Kernel process timeouts, I/O limits, and fail-closed options are not a container or OS sandbox. Run untrusted code in an isolated environment.
+- Remote installation requires GitHub access. On network failure, use the local installer or an existing cache and check the exit status.
 
-## 🔗 Resources
+## Contributing and license
 
-- [Agent Skills Open Standard](https://agentskills.io)
-- [AGENTS.md](AGENTS.md)
-- [CLAUDE.md](CLAUDE.md)
-- [install-bensz-skills User Guide](skills/alpha/install-bensz-skills/README.md)
+Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) first. Ordinary pull requests are not currently accepted without prior discussion; contact [huangwb8](https://github.com/huangwb8) before contributing.
+
+This project is licensed under MIT; see [`LICENSE`](LICENSE).
+
+More entry points: [`CHANGELOG.md`](CHANGELOG.md) · [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md) · [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md) · [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md)

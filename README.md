@@ -1,233 +1,169 @@
-<div align="center">
+# Bensz Agent Skills
 
-# Skills 开发流水线
+遵循 [Agent Skills 开放标准](https://agentskills.io) 的可复用 Skill 集合与开发流水线。它把 Skill 的创建、测试、文档、安装和发布整理成一套可复用的工程流程，适合在 Claude Code、OpenAI Codex、Cursor 等宿主中使用。
 
-[![Version](https://img.shields.io/github/v/tag/huangwb8/skills?label=version&sort=semver)](https://github.com/huangwb8/skills/releases)
-[![Standard](https://img.shields.io/badge/Agent%20Skills-Standard%20v1.0-blue.svg)](https://agentskills.io)
-[![Platforms](https://img.shields.io/badge/platform-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-lightgrey.svg)](#平台兼容性)
-[![Built with](https://img.shields.io/badge/built%20with-Python%203.10%2B-orange.svg)](https://www.python.org/)
+[English](README_EN.md)
 
-[中文](README.md) | [English](README_EN.md)
+> **让 Agent Skill 从文件，变成系统。**
 
-<strong>遵循 Agent Skills 开放标准的可复用 AI 技能库与技能开发流水线</strong>
+本项目是一个围绕 Agent Skills 的开发、运行与质量保障项目。**当 Agent Skill 成为 Agent 系统的长期组成部分时，人们关注的不只是“怎样写一个 Skill”，还包括怎样开发、测试、运行它，并知道它是否按预期工作**。
 
-</div>
+## 项目在做什么
 
-这是一个遵循 Agent Skills 开放标准的技能库与开发流水线，覆盖 skills 的创建、测试、文档化、安装、发布和缺陷反馈。仓库内既包含可直接安装使用的通用 skills，也包含维护这些 skills 所需的约束、脚本和协作流程。
+项目由三部分组成：
 
-## 🎯 这个仓库适合谁
+- **可直接使用的通用 Skills**：覆盖自动测试、多 Agent 协作、并行工作区、Prompt 优化、科研绘图、Git 操作、安装、文档和缺陷反馈。
+- **Skills 开发与维护流水线**：用统一约定串起开发 → 测试 → 文档化 → 安装 → 使用 → 反馈 → 迭代。
+- **Skill Runtime**：`bensz-skill-kernel` 逐步提供 State、Verifier、Gate、Contract Pack、工作区、证据记录、事件账本、审计与重放。
 
-- 想把一组 skills 复制安装到系统级目录，在任意项目里都能触发的人
-- 想开发、优化、测试、发布自己 skills 的维护者
-- 想复用本仓库里的工程约束、文档约束和质量流程的人
-- 想基于 Agent Skills 标准，兼容 Claude Code、Codex、Cursor 等平台的人
+Runtime 不试图把 Skill 变成传统程序，而是让复杂 Agent 工作流中的关键状态、检查和证据更明确、更可追踪。
 
-## 💡 推荐开发环境
+## 为什么做这个项目
 
-### 🧰 VS Code + Claude Code / Codex 插件
+当 Skill 数量和流程复杂度增长，仅靠更长的 `SKILL.md` 很难回答：Skill 是否正确触发、是否遗漏步骤、修改后是否退化、协作过程是否可追踪、结果经过了哪些检查，以及失败发生在哪里。本项目因此尝试把关注点从 Skill authoring 推进到更完整的 **Skill engineering**。
 
-推荐使用 VS Code 配合 Claude Code 或 Codex 插件进行技能开发、测试和维护。
+## 设计原则
 
-| 优势 | 说明 |
-|------|------|
-| 原生技能集成 | 自动从系统级 skills 目录加载已安装技能 |
-| 实时验证 | 直接用自然语言测试技能触发与执行效果 |
-| 上下文感知编辑 | AI 能结合项目结构理解技能、脚本和文档之间的关系 |
-| 集成工作流 | 编辑、测试、安装、迭代可以在同一环境中完成 |
-| 文档协同维护 | 便于同步维护 `SKILL.md`、`README.md`、`config.yaml` 与 `CHANGELOG.md` |
+- 开放标准优先，尽量不绑定单一平台。
+- Skill 与 Runtime 分离：领域工作流留在 Skill，通用运行机制放在 Kernel。
+- 显式状态优于隐式猜测，检查优于默认信任，可重放优于不可追踪。
+- 渐进增强：普通 Skill 保持简单，仅在需要时使用更强的运行时能力。
 
-📺 [观看演示视频（Bilibili）](https://www.bilibili.com/video/BV1tpcezbERB)
+## 30 秒开始
 
-## ⚡ AI 算力
-
-仓库相关的 AI 算力说明与使用背景，可参考下面的视频：
-
-📺 [观看 AI 算力介绍视频（Bilibili）](https://www.bilibili.com/video/BV1a7ZLBuE5z)
-
-## 🧩 核心技能
-
-`skills/alpha/` 提供可发布的核心技能；`skills/beta/` 保存尚未成熟、默认不安装的候选技能：
-
-| 技能 | 主要用途 | 适用场景 |
-|------|----------|----------|
-| `init-project` | 初始化项目指令文件 | 为新项目生成 `AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`，并补齐 `docs/` 与 `docs/plans/` |
-| `install-bensz-skills` | 系统级安装 skills | 把本仓库 skills 复制到 `~/.codex/skills/`、`~/.claude/skills/` |
-| `write-readme` | 生成双语项目文档 | 基于仓库事实产出对齐的 `README.md` 与 `README_EN.md` |
-| `auto-test-skill` | skill 级批判性测试 | 测试某个 skill 的流程设计、输出质量和鲁棒性 |
-| `auto-test-project` | 项目级批判性测试 | 对整个项目做多轮问题发现、修复和复验 |
-| `better-prompt` | Prompt 优化 | 把简陋 prompt 重写成更清晰、可执行的版本 |
-| `auto-draw-plot` | 模式化科研绘图 | 根据需求生成通用图、技术路线图或机制图，并支持参考图保真迭代 |
-| `awesome-code` | 多代理协作开发 | 任务拆解、三层代理分派、required agent 门禁与并行推进 |
-| `parallel-vibe` | 多工作区并行尝试 | 同一指令开多个独立工作区并行探索方案 |
-| `git-commit` | Git 提交自动化 | 生成 conventional commit，按需自动 push |
-| `git-pr-review` | GitHub PR 只读审查 | 判断某个 PR 是否值得 merge，输出结构化报告 |
-| `git-publish-release` | GitHub Release 发布 | 生成 release notes 并创建 release |
-| `bensz-collect-bugs` | 收集并公开上报 skill 设计缺陷 | 规范化记录 bug，并在用户明确要求时用 `gh` 公开上报 |
-
-想看每个 skill 的详细用法，可以直接进入对应目录阅读其 `README.md` 和 `SKILL.md`。
-
-## ✨ 仓库能力
-
-- 一套面向多平台的 Agent Skills 标准化开发方式
-- 一组可直接使用的通用 skills
-- 一条完整维护链路：创建、测试、文档化、安装、发布、缺陷反馈
-- 面向系统级可发现性的安装机制
-- 面向长期演进的工程约束：KISS、YAGNI、DRY、Single Source of Truth、有机更新
-
-## 🗂️ 目录结构
-
-```text
-skills/alpha/      # 可发布、默认安装的成熟 Skill
-skills/beta/       # 候选 Skill，需显式指定源目录
-packages/          # 独立运行时包及其测试
-docs/              # 项目文档；计划统一放在 docs/plans/
-tests/             # 根级 smoke/integration 测试脚本
-tmp/               # 测试运行过程产物
-```
-
-## 🗂️ 任务工作区
-
-需要落盘的 skill 任务默认把过程材料集中到项目内的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`，避免把计划、日志和临时输出散落到项目根目录。单 skill 任务只创建该 skill 的边界；多 skill 协作时才使用 `shared/` 传递任务级材料。
-
-```text
-.bensz-api/task-20260717-1432-优化-skill-工作区/
-├── shared/                 # 仅多 skill 任务的共享输入与来源说明
-└── {skill-name}/
-    ├── input/              # 输入、参数快照、上游引用
-    ├── output/             # 草案和供后续阶段消费的中间结果
-    └── log/                # 命令、验证、错误与决策摘要
-```
-
-正式交付物、用户要求保存的文件、项目文档和源代码仍按项目原有目录约定存放，不会默认写入该隐藏工作区。历史隐藏目录只用于显式兼容读取、迁移或清理。
-
-## 🧾 贡献记录
-
-本仓库已启用 `bensz-auto-contribution` 的 BAC 账本，默认文件位置为 `docs/contribution.bac`。项目协作应使用 `bac` 客观记录需求来源、AI 生成内容、工具执行结果、人工确认、文件改动与验证证据。
+无需克隆仓库即可安装 `skills/alpha` 中的生产 Skill（需要 Python 3.8+ 与网络）：
 
 ```bash
-bac --root . --bac-file docs/contribution.bac inspect
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
 ```
 
-如需重新生成或同步项目指令，应使用 `init-project` 的默认启用模式，不要传入 `--disable-bac`。贡献记录只保存协作过程与验证证据，不记录密钥、完整私有 Prompt 或无关个人隐私，也不替代最终署名、责任或合规判断。
+已克隆仓库、需要本地开发时：
 
-## 🌐 平台兼容性
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
+```
 
-根据本仓库约定与 Agent Skills 生态，当前重点兼容平台包括：
+安装器默认把 Skill 复制到 `~/.codex/skills/` 和 `~/.claude/skills/`；只安装某个 Skill 可追加 `--skill git-commit`。`skills/beta/` 仅在显式传入 `--source` 时处理。
 
-| 平台 | 状态 | 常见技能目录 |
-|------|------|--------------|
-| [Claude Code](https://code.anthropic.com) | 已验证 | `~/.claude/skills/` |
-| [OpenAI Codex](https://openai.com/index/introducing-codex/) | 已验证 | `~/.codex/skills/` |
-| Cursor | 兼容 | `~/.cursor/skills/` |
-| GitHub | 兼容 | `.github/skills/` |
-| VS Code | 兼容 | `.vscode/skills/` |
-| Amp | 兼容 | 依平台约定 |
-| Letta | 兼容 | 依平台约定 |
-| Goose | 兼容 | 依平台约定 |
+## 这个仓库提供什么
 
-## 🚀 快速开始
+- **可直接安装的 Skill**：位于 `skills/alpha/`，每个目录都有面向使用者的 `README.md` 和面向 AI 的 `SKILL.md`。
+- **开发流水线**：覆盖初始化、Prompt 优化、文档生成、批判性测试、多代理协作、Git 发布和缺陷反馈。
+- **生命周期内核**：`packages/bensz-skill-kernel/` 提供 `bsk` CLI，以及 State、Verifier、Workspace、事件账本和 Gate 的可重放运行时。
+- **可审计协作**：任务过程材料进入 `.bensz-api/`，贡献记录进入 `docs/contribution.bac`。
 
-### ⚡ 推荐：一行远程安装
+## Skill 导航
 
-无需先克隆仓库，直接运行 `install-bensz-skills` 内置的标准库 bootstrap 脚本。它会从 GitHub zip 包下载远程源，遇到临时网络错误会自动重试，按 MD5 跳过未变化的 skill，并写入安装清单；本仓库的 `general` 源固定只包含 `skills/alpha`。
+当前 `skills/alpha/` 包含 15 个生产 Skill：
 
-| 平台 | 命令 |
-|------|------|
-| 全平台（Python） | `python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
-| macOS / Linux 备用 | `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())"` |
+| 方向 | Skill |
+| --- | --- |
+| 初始化与文档 | `init-project` · `write-readme` |
+| 测试与协作 | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
+| Prompt 与创作 | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
+| 安装与版本 | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
+| 治理 | `bensz-collect-bugs` |
 
-支持矩阵：仓库开发与本地完整安装使用 Python 3.10+；无第三方依赖的 bootstrap 入口最低支持 Python 3.8，并只使用标准库。
+选择 Skill 后，阅读对应目录的 `README.md` 获取触发方式、最小 Prompt、输入输出和 FAQ；维护者同时阅读 `SKILL.md`、`config.yaml` 与 `CHANGELOG.md`。
 
-默认安装的远程源：
+## 安装方式
 
-- `general`：`huangwb8/skills` 通用技能
-- `research`：`huangwb8/ChineseResearchLaTeX` 科研技能
-- `anthropic-docs`：`anthropics/skills` 官方文档处理技能
+### 远程引导安装
 
-默认安装位置：
+`bootstrap_install.py` 只依赖 Python 标准库，最低 Python 3.8；默认远程源由 `skills/alpha/install-bensz-skills/config.yaml` 定义：
 
-- `~/.claude/skills/`
-- `~/.codex/skills/`
+| 源 | 内容 |
+| --- | --- |
+| `general` | 本仓库 `skills/alpha` |
+| `research` | `huangwb8/ChineseResearchLaTeX` 的科研 Skill |
+| `anthropic-docs` | `anthropics/skills` 的文档处理 Skill |
 
 常用参数：
 
 ```bash
-# 只安装本仓库通用技能
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --source general
+# 预览，不写入文件
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
 # 只安装到 Codex 或 Claude Code
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
-
-# 预览安装动作，不写入文件
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
-
-# 使用中文安装输出
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --lang zh
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
 ```
 
-### 🛠️ 本地开发安装
+### 本地安装与开发
 
-如果你已经克隆仓库，或正在开发本仓库里的 skills，可以使用本地安装脚本。它默认只识别 `skills/alpha/`；`skills/beta/` 必须通过 `--source` 显式指定。
+本地完整安装器按仓库开发矩阵使用 Python 3.10+，支持 `--source`、`--skill`、`--force` 和 `--legacy-source` 等参数：
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
 cd skills
 python3 skills/alpha/install-bensz-skills/scripts/install.py
+python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readme
 ```
 
-如果你只想装到某一个平台：
+安装记录、MD5 清单和远程缓存位于用户目录的 `~/.bensz-skills/installation/`；安装器不会把 beta Skill 混入默认源。
+
+## Kernel：State、Verifier 与 Workspace
+
+`bensz-skill-kernel` 要求 Python 3.11+，运行时依赖 PyYAML 和标准库。它是独立包，不是安装 Skill 的前置依赖。
 
 ```bash
-python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
-python3 skills/alpha/install-bensz-skills/scripts/install.py --claude
+python3 -m venv .bensz-api/.venv
+.bensz-api/.venv/bin/python -m pip install -e packages/bensz-skill-kernel
+.bensz-api/.venv/bin/bsk --version
+.bensz-api/.venv/bin/bsk verifier list
 ```
 
-如果安装器已经系统级安装，也可以在其它项目中直接调用已安装脚本，并显式指定源目录：
+常用入口：
 
 ```bash
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
-python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
-
-# beta 仅在明确需要时安装
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/beta
-
-# 迁移旧仓库时才显式启用历史 pipelines/skills/alpha
-python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
+bsk state list
+bsk verifier list --tag citation
+bsk workspace init . --description citation-review
+bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
-### 🤖 让 AI 调用安装 skill
+State 使用 `owner.machine.state` canonical ID；Verifier 使用 `owner.domain.capability`，旧 ID 通过 alias 兼容解析。目录化 Pack 的索引、契约和组件说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 
-在 Claude Code 或 Codex 中打开本仓库后，可以直接说：
+## 目录与工作区
 
 ```text
-请使用 install-bensz-skills skill 将当前仓库中的 skills 安装到系统级目录，确保它们在任意项目中可被发现。
+skills/alpha/                  # 可发布、默认安装的 Skill
+skills/beta/                   # 候选 Skill，必须显式指定源
+packages/bensz-skill-kernel/   # 独立 Python 内核包
+docs/                          # 现行文档、教程与设计记录
+tests/                         # 仓库公开入口与跨包测试
+tmp/                           # 测试报告和临时产物
+.bensz-api/                    # AI 任务工作区与工具缓存
 ```
 
-这适合你想把“安装动作”也放进自然语言工作流里时使用。
+每个需要落盘的逻辑任务使用一个 `.bensz-api/task-{yyyymmdd-hhmm}-{描述}/`；正式 README、源代码和计划仍写入项目约定目录，不放入隐藏工作区。
 
-## 📘 开发规则与核心文档
+## 开发与验证
 
-- [AGENTS.md](AGENTS.md)：跨平台项目指令与仓库级规则的唯一来源
-- [CLAUDE.md](CLAUDE.md)：Claude Code 专用适配说明
-- [CHANGELOG.md](CHANGELOG.md)：所有重要更新先记录到 `Unreleased`
+```bash
+# 根级测试（缓存写入 .bensz-api）
+python3 -m pytest
 
-如果要修改项目指令、工作流或 README，请先阅读 `AGENTS.md`。本仓库要求文档与工程规则保持同步，并在 `CHANGELOG.md` 留下记录。
+# 检查中英文 README 标题、代码块、链接和命令 token 是否对齐
+python3 skills/alpha/write-readme/scripts/check_readme_pair.py README.md README_EN.md
 
-## 🤝 贡献说明
+# 查看 BAC 贡献账本
+bac --root . --bac-file docs/contribution.bac inspect
+```
 
-- 优先增量改进现有资产，避免无必要的重写
-- 修改 Skill 时检查 `SKILL.md`、`README.md` 与 `config.yaml` 是否一致
-- 在 `CHANGELOG.md` 记录重要的仓库级更新
-- 同时验证系统级可发现性，而不只是在本仓库内验证行为
+修改 Skill 时保持 `SKILL.md`、`config.yaml`、README 和 CHANGELOG 同步；重要仓库变更先记录到 `CHANGELOG.md` 的 `[Unreleased]`。
 
-## 如何贡献？
+## 兼容性与边界
 
-本项目暂时不支持常规pr。如果确有需求，需要请示 [huangwb8](https://github.com/huangwb8)。
+- Agent Skills 文件格式遵循开放标准；实际触发能力取决于宿主对 Skill 目录的支持。
+- 本地安装器支持 Python 3.10+；远程 bootstrap 最低 Python 3.8；Kernel 最低 Python 3.11。
+- Kernel 的进程级超时、输入输出限制和 fail-closed 选项不是容器或操作系统沙箱；不可信代码仍应在独立环境运行。
+- 远程安装需要访问 GitHub；网络失败时可改用本地安装器或已有缓存，并检查安装退出码。
 
-## 🔗 相关资源
+## 贡献与许可证
 
-- [Agent Skills 开放标准](https://agentskills.io)
-- [AGENTS.md](AGENTS.md)
-- [CLAUDE.md](CLAUDE.md)
-- [install-bensz-skills 用户指南](skills/alpha/install-bensz-skills/README.md)
+请先阅读 [`AGENTS.md`](AGENTS.md) 和 [`CLAUDE.md`](CLAUDE.md)。本项目暂不接受未经沟通的普通 PR；如需贡献，请先联系 [huangwb8](https://github.com/huangwb8)。
+
+项目采用 MIT License，见 [`LICENSE`](LICENSE)。
+
+更多入口：[`CHANGELOG.md`](CHANGELOG.md) · [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md) · [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md) · [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md)

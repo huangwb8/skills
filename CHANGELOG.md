@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- 重构仓库根目录中英文 README：按使用任务重新组织安装、Skill 导航、Kernel 入口、开发验证与贡献说明，并同步双语内容。
 - 规划仓库 `v5.0.0` 发布：将 `bensz-skill-kernel` 更新至 `1.0.0`，并同步中英文 README 与当前源码、安装和发布流程。
 - State 契约复用 Contract Pack 的 `mode: rule | prompt | hybrid | human` 字段，并在解析、序列化和执行描述中保持一致；旧 Markdown State 按是否有 entrypoint 兼容推断，历史索引的 `none` 保留兼容。
 
