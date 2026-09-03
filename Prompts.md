@@ -60,6 +60,25 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+我打个比方。 比如，在一个流程中，我要做一个verifier验证一个开放任务的完成度： 目标是否具有科学创新性。 这是我的一些判断：
+
+- 首先，假设真的可以有很多人类专家供我使用。 那么，统计上来说，一定可以获得“目标是否具有科学创新性“的明确判断（比如p值、显著性之类的）
+- 其次， 科学创新性确实是一种开放任务，不可能由任何一种精确规则来求解
+
+基于 bsk 的 verfier 大致是这样工作：
+
+- 用户提出某些需求，ai开始干活
+- 其中一个环节，就是需要ai判断“目标是否具有科学创新性”
+- 由于某些约定，ai必须使用一个设计好的verifier
+- ai开始通过bsk框架获得“这个verifier究竟约定了什么“。显然，这一步是由代码严格执行的； 就算ai在任何地方做任何多次该任务，全程都是一样的； 因为这就是写死的代码。 
+- 神奇的地方来了：ai了解了这个verfifier究竟约定了什么，然后就根据自己对verifier的理解开始干活。 这里包含了ai的智能。而且，更神奇的是：以后， 开发者完全可以根据喜好、经验等调整这个verifier，就像优化agent skill一样。
+- 假设，该verifier在100万个科学家里都被使用过，所以大家知道它在哪些情况下表现不太好（精确地说，就是和大部分人类科学家的“审美”不太对齐）。然后，我们就可以通过类似RL的方式来优化这个verifier
+- 最后， 人类/ai终于得到：一个统计上完美的关于“目标是否具有科学创新性”这个开放性任务的完美verifier
+
+目前，bsk的机制允许支持上述业务吗？如果支持，为什么？如果不支持，为什么、有哪些需要改进？
+
+---
+
 基于 docs/plans/2026-09-01-verifier混合执行优化计划.md 优化本项目的源代码。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
 ---
@@ -261,3 +280,21 @@ skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述�
 
 SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}`加入状态机和验证器。 docs/events/2026-08-27-全生态-verifier与state设计报告.md 里有一些关于`{SKILL}`的改造建议，你可以重点参考。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
+# Skill开发
+
+## write-readme
+
+在 skills/beta 里新建一个skill，名为`write-readme`，它的作用是：为任何项目写好的 readme 文件。 请你：
+
+- 总结社区里关于如何写好一个github readme的经验
+- 找到github trending 里的优秀项目，调查它们的readme是怎么写的，总结经验
+- 运用你的智慧，想一下： 一般原则是什么？具体技巧是什么？如何把它们有机结合在一起？ 不同类型的项目要不要分化为不同的模板（比如， 在 skill 的 references 里托管不同的模板、性质）
+- 目前的 skills/alpha/write-skill-readme 的功能应该作为这个新skill的一部分； 即专门为agent skill写readme。skills/alpha/write-skill-readme这个skill可以legacy了，不再需要了； 按本项目的约定，你需要调整 skills/alpha/install-bensz-skills 里的部分内容，表明 write-skill-readme 这个skill不再被需要。
+- readme应该有2个语种： README.md 是中文，README_EN.md 是英文。2者是完全对齐的，只是语种不同
+- 其它你觉得好的特性或结构，也可以加。你自己定
+
+skill的源代码demo出来后，使用 auto-test-skill skill 迭代优化1次。 使用 compact-bensz-skills skill 压缩skill。 
+
+然后，你可以为 packages/bensz-skill-kernel 写readme 作为测试。 可以用多agent设计测试，完成“出品 - 评价 - 优化源代码”的多轮循环优化，最多不超过20轮； 如果出口已经足够好了也可以停止优化。
+
+最后，使用 auto-test-skill skill 迭代优化1次。 使用 compact-bensz-skills skill 压缩skill。 
