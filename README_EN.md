@@ -52,7 +52,7 @@ For background on AI compute and the broader setup around this repository, see:
 |-------|------------------|------------------|
 | `init-project` | Initialize project instruction files | Generate `AGENTS.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, `.gitignore`, plus `docs/` and `docs/plans/` |
 | `install-bensz-skills` | Install skills system-wide | Copy this repo's skills into `~/.codex/skills/` and `~/.claude/skills/` |
-| `write-skill-readme` | Generate user-facing skill docs | Produce a `README.md` for a skill |
+| `write-readme` | Generate bilingual project docs | Produce fact-checked, aligned `README.md` and `README_EN.md` |
 | `auto-test-skill` | Skill-level critical testing | Evaluate a skill's workflow, output quality, and robustness |
 | `auto-test-project` | Project-level critical testing | Review an entire project through repeated finding, fixing, and verification rounds |
 | `better-prompt` | Prompt optimization | Rewrite rough prompts into clearer, more executable versions |
@@ -73,6 +73,17 @@ For detailed usage, open the corresponding `README.md` and `SKILL.md` inside eac
 - A system-level installation model that improves discoverability across projects
 - Long-term engineering guardrails built around KISS, YAGNI, DRY, Single Source of Truth, and organic updates
 
+## 🗂️ Directory Structure
+
+```text
+skills/alpha/      # Publishable, default-installed skills
+skills/beta/       # Candidate skills; opt in with an explicit source
+packages/          # Independently configured runtime packages
+docs/              # Project documentation; plans live in docs/plans/
+tests/             # Repository smoke and integration tests
+tmp/               # Temporary test outputs and reports
+```
+
 ## 🗂️ Task Workspaces
 
 Skills that need to write files keep their process artifacts under `.bensz-api/task-{yyyymmdd-hhmm}-{short-description}/`, so plans, logs, and temporary output do not spill into the project root. A single-skill task creates only that skill's boundary; `shared/` is used only when several skills collaborate.
@@ -87,6 +98,16 @@ Skills that need to write files keep their process artifacts under `.bensz-api/t
 ```
 
 Final deliverables, user-requested files, project documentation, and source changes still follow the project's normal directory conventions; they are not written to this hidden workspace by default. Older hidden directories are only for explicitly requested compatibility reads, migrations, or cleanup.
+
+## 🧾 Contribution Records
+
+This repository uses the `bensz-auto-contribution` BAC ledger at `docs/contribution.bac`. Record requirements, generated content, tool results, human confirmations, file changes, and verification evidence with `bac`.
+
+```bash
+bac --root . --bac-file docs/contribution.bac inspect
+```
+
+Do not disable BAC when regenerating project instructions with `init-project`. The ledger stores collaboration evidence, not secrets, full private prompts, or unrelated personal data.
 
 ## 🌐 Platform Compatibility
 
@@ -167,6 +188,9 @@ If the installer skill is already installed system-wide, you can also call it fr
 python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
 python3 ~/.claude/skills/install-bensz-skills/scripts/install.py --source ./skills/alpha
 
+# Only when explicitly installing beta skills
+python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --source ./skills/beta
+
 # Only for an explicit migration from the historical pipelines layout
 python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
 ```
@@ -195,6 +219,10 @@ If you plan to change project instructions, workflow, or the README files, start
 - When changing a skill, check whether `SKILL.md`, `README.md`, and `config.yaml` still match
 - Record important repository-level updates in `CHANGELOG.md`
 - Validate system-level discoverability, not just behavior inside this repository
+
+## How to Contribute?
+
+This project does not currently accept ordinary pull requests. Please consult [huangwb8](https://github.com/huangwb8) before contributing.
 
 ## 🔗 Resources
 

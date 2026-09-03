@@ -52,7 +52,7 @@
 |------|----------|----------|
 | `init-project` | 初始化项目指令文件 | 为新项目生成 `AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`，并补齐 `docs/` 与 `docs/plans/` |
 | `install-bensz-skills` | 系统级安装 skills | 把本仓库 skills 复制到 `~/.codex/skills/`、`~/.claude/skills/` |
-| `write-skill-readme` | 生成技能用户文档 | 为单个 skill 产出面向使用者的 `README.md` |
+| `write-readme` | 生成双语项目文档 | 基于仓库事实产出对齐的 `README.md` 与 `README_EN.md` |
 | `auto-test-skill` | skill 级批判性测试 | 测试某个 skill 的流程设计、输出质量和鲁棒性 |
 | `auto-test-project` | 项目级批判性测试 | 对整个项目做多轮问题发现、修复和复验 |
 | `better-prompt` | Prompt 优化 | 把简陋 prompt 重写成更清晰、可执行的版本 |
@@ -205,6 +205,21 @@ python3 ~/.codex/skills/install-bensz-skills/scripts/install.py --legacy-source
 ```
 
 这适合你想把“安装动作”也放进自然语言工作流里时使用。
+
+## 📘 开发规则与核心文档
+
+- [AGENTS.md](AGENTS.md)：跨平台项目指令与仓库级规则的唯一来源
+- [CLAUDE.md](CLAUDE.md)：Claude Code 专用适配说明
+- [CHANGELOG.md](CHANGELOG.md)：所有重要更新先记录到 `Unreleased`
+
+如果要修改项目指令、工作流或 README，请先阅读 `AGENTS.md`。本仓库要求文档与工程规则保持同步，并在 `CHANGELOG.md` 留下记录。
+
+## 🤝 贡献说明
+
+- 优先增量改进现有资产，避免无必要的重写
+- 修改 Skill 时检查 `SKILL.md`、`README.md` 与 `config.yaml` 是否一致
+- 在 `CHANGELOG.md` 记录重要的仓库级更新
+- 同时验证系统级可发现性，而不只是在本仓库内验证行为
 
 ## 如何贡献？
 

@@ -24,7 +24,7 @@ python3 -m venv .bensz-api/.venv
 .bensz-api/.venv/bin/bsk verifier list
 ```
 
-预期：第一条命令输出 `0.14.1`，第二条列出内置 Verifier。只想安装已发布版本时，可改用 `python3 -m pip install bensz-skill-kernel`；版本与依赖以 `pyproject.toml` 为准。
+预期：第一条命令输出 `1.0.0`，第二条列出内置 Verifier。只想安装已发布版本时，可改用 `python3 -m pip install bensz-skill-kernel`；版本与依赖以 `pyproject.toml` 为准。
 
 ## Python 支持与依赖
 

@@ -24,7 +24,7 @@ python3 -m venv .bensz-api/.venv
 .bensz-api/.venv/bin/bsk verifier list
 ```
 
-Expected: the first command prints `0.14.1`; the second lists built-in Verifiers. To install a published release, use `python3 -m pip install bensz-skill-kernel` instead. Version and dependencies are defined by `pyproject.toml`.
+Expected: the first command prints `1.0.0`; the second lists built-in Verifiers. To install a published release, use `python3 -m pip install bensz-skill-kernel` instead. Version and dependencies are defined by `pyproject.toml`.
 
 ## Python support and dependencies
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- 规划仓库 `v5.0.0` 发布：将 `bensz-skill-kernel` 更新至 `1.0.0`，并同步中英文 README 与当前源码、安装和发布流程。
+
+## [5.0.0] - 2026-09-03
+
+### Changed（变更）
+- 发布 `bensz-skill-kernel` `1.0.0`，同步包元数据及 PyPI 安装说明。
+- 依据 `write-readme` 规范更新仓库与 Kernel 的中英文 README，补齐目录、BAC 和当前 Skill 清单。
+
 ### Added（新增）
 - 新增 beta `write-readme`：基于仓库事实按项目类型生成对齐的中文 `README.md` 与英文 `README_EN.md`，内置库/CLI 服务/Web 应用/数据 ML/Agent Skill 模板、调研来源和双语结构检查脚本。
 
