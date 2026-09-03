@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- **补充 Verifier 教程的端到端示例**：在“一次实际验证怎样流过系统”小节加入报告缺字段、Gate 拒绝、修正重试到允许交付的逐步案例，帮助读者把流程图映射到具体输入、结果和状态变化。
+- **Verifier 教程与最新 Kernel 行为对齐**：修正文档对默认只读/显式副作用授权、v1/v2 运行身份绑定、`error`/`unchecked` 错误分流、required/optional 组件 Gate、legacy Pack 诊断和 CLI 示例结果的描述，避免教程将兼容路径或示例命令误写成统一行为。
 - **Kernel Contract Pack 混合执行层**：`bensz-skill-kernel` 更新至 `0.14.0`，新增 State/Verifier 共用的版本化组件描述、契约/计划哈希、`script`/`agent`/`human` 交接、依赖顺序、证据约束和保守合并；State 与 Verifier 继续通过独立适配器解释阶段条件及 verdict/Gate，旧单入口 Pack 保持兼容。
 - **固化 State/Verifier 共用底层设计原则**：更新 `AGENTS.md`，明确 State 与 Verifier 共享 Contract Pack 的发现、执行、证据和审计基础设施，同时保留各自的状态迁移/invariant 与 verdict/Gate 语义适配，避免后续开发形成两套平行框架。
 - **恢复 `prompt-programming` 的轻量执行模式**：移除该 Skill 的状态机、Verifier Pack、运行时门禁及相关说明，恢复至接入这些运行时能力之前的 `0.2.1` 配置与 Prompt Program 翻译流程。
