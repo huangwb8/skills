@@ -17,7 +17,7 @@
 
 这不只是一个 `SKILL.md` 文件集合。它把 Skill 的创建、测试、文档、安装与发布连成可复用的工程流程，并进一步探索：当 Skill 成为 Agent 系统的长期组成部分时，怎样确认它仍在按预期工作。
 
-![Agent Skills：Build · Test · Run · Know](docs/assets/agent-skills-ecosystem.jpg)
+![Agent Skills：Build · Test · Run · Know](docs/assets/agent-skills-ecosystem-v5.jpg)
 
 ## 项目在做什么
 

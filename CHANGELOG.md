@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Added（新增）
 - 新增项目宣传图 `docs/assets/agent-skills-ecosystem.jpg`：以发光的 Skill 核心和 BUILD / TEST / RUN / KNOW 四条轨道，表达 Agent Skills 的开发、测试、运行与可观测质量保障闭环。
+- 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v3.jpg`：以午夜蓝空间、银灰玻璃模块和发光智能核心重构 Agent Skills 生态关系图，强化高端科技感与神秘氛围。
+- 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v4.jpg`：围绕 `SKILL.md`、BUILD → TEST → RUN → KNOW 闭环、Kernel、State/Verifier/Gate、跨平台与可审计工作区重构视觉叙事，突出仓库自身特色。
+- 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v5.jpg`：将左上角目录树改为 `SKILL MANIFEST` 文档卡片，右上角版本方块改为 `RELEASE PIPELINE` 演进轨道，提升项目语义与视觉一致性。
 
 ### Changed（变更）
+- 新增 `docs/assets/agent-skills-ecosystem-v2.jpg`：在保留原构图与文字的基础上提升亮度、色彩层次和蓝紫环境光，强化高端科技感；原图保持不变。
 - 优化仓库根目录中英文 README 首屏设计：引入居中 Hero、事实型徽章、任务导航与四阶段能力概览，改善语言入口、信息层级和项目辨识度。
 - 重构仓库根目录中英文 README：按使用任务重新组织安装、Skill 导航、Kernel 入口、开发验证与贡献说明，并同步双语内容。
 - 规划仓库 `v5.0.0` 发布：将 `bensz-skill-kernel` 更新至 `1.0.0`，并同步中英文 README 与当前源码、安装和发布流程。

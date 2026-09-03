@@ -15,7 +15,7 @@ A reusable Skill collection, development pipeline, and verifiable runtime built 
 
 </div>
 
-![Agent Skills: Build · Test · Run · Know](docs/assets/agent-skills-ecosystem.jpg)
+![Agent Skills: Build · Test · Run · Know](docs/assets/agent-skills-ecosystem-v5.jpg)
 
 | **BUILD** | **TEST** | **RUN** | **KNOW** |
 | :---: | :---: | :---: | :---: |
