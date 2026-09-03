@@ -135,6 +135,7 @@ by_type:
     - ".manifest"
     # 测试和覆盖率
     - ".pytest_cache/"
+    - ".ruff_cache/"
     - ".coverage"
     - "htmlcov/"
     - ".tox/"

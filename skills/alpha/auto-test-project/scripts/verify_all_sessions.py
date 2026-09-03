@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -100,12 +101,17 @@ def _run_verify(
     if require_plan:
         cmd.append("--require-plan")
     cmd.append(str(session_dir))
+    env = os.environ.copy()
+    artifact_root = project_root.resolve() / ".bensz-api"
+    env.setdefault("PYTHONPYCACHEPREFIX", str(artifact_root / "__pycache__"))
+    env.setdefault("RUFF_CACHE_DIR", str(artifact_root / ".ruff_cache"))
     return subprocess.run(
         cmd,
         cwd=str(project_root),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
 
 

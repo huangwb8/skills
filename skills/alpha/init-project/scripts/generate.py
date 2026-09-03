@@ -1367,9 +1367,9 @@ class ProjectInitGenerator:
 
         # 根据项目类型生成安装步骤
         install_templates = {
-            "Python 项目": "```bash\n# 创建虚拟环境\npython -m venv .venv\nsource .venv/bin/activate  # Windows: .venv\\Scripts\\activate\n\n# 安装依赖\npip install -r requirements.txt\n```",
+            "Python 项目": "```bash\n# 创建虚拟环境（统一放入 BenszAPI 运行产物目录）\npython -m venv .bensz-api/.venv\nsource .bensz-api/.venv/bin/activate  # Windows: .bensz-api\\.venv\\Scripts\\activate\n\n# 安装依赖\npip install -r requirements.txt\n```",
             "Web 项目": "```bash\n# 安装依赖\nnpm install\n# 或使用 pnpm\npnpm install\n```",
-            "数据科学项目": "```bash\n# 创建虚拟环境\npython -m venv .venv\nsource .venv/bin/activate\n\n# 安装依赖\npip install -r requirements.txt\n```",
+            "数据科学项目": "```bash\n# 创建虚拟环境（统一放入 BenszAPI 运行产物目录）\npython -m venv .bensz-api/.venv\nsource .bensz-api/.venv/bin/activate\n\n# 安装依赖\npip install -r requirements.txt\n```",
             "Rust 项目": "```bash\n# 构建项目\ncargo build\n\n# 运行测试\ncargo test\n```",
             "Go 项目": "```bash\n# 下载依赖\ngo mod download\n\n# 构建项目\ngo build ./...\n```",
             "Java 项目": "```bash\n# Maven 构建\nmvn clean install\n\n# 或 Gradle 构建\n./gradlew build\n```",

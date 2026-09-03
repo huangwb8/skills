@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -44,12 +45,17 @@ def _check_required_files(skill_root: Path) -> list[str]:
 
 
 def _run(cmd: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    artifact_root = cwd.resolve() / ".bensz-api"
+    env.setdefault("PYTHONPYCACHEPREFIX", str(artifact_root / "__pycache__"))
+    env.setdefault("RUFF_CACHE_DIR", str(artifact_root / ".ruff_cache"))
     return subprocess.run(
         cmd,
         cwd=str(cwd),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
 
 

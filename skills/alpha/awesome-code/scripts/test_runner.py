@@ -9,13 +9,14 @@ Awesome Code - TDD 测试运行器
 - TDD 循环支持（Red-Green-Refactor）
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List
 
 
 class TestRunner:
@@ -34,6 +35,16 @@ class TestRunner:
         self.watch = watch
         self.fail_fast = fail_fast
         self.framework = framework
+
+    @staticmethod
+    def _subprocess_env() -> dict[str, str]:
+        """Route Python tool caches to the current project's Bensz workspace."""
+        project_root = Path.cwd().resolve()
+        artifact_root = project_root / ".bensz-api"
+        env = os.environ.copy()
+        env.setdefault("PYTHONPYCACHEPREFIX", str(artifact_root / "__pycache__"))
+        env.setdefault("RUFF_CACHE_DIR", str(artifact_root / ".ruff_cache"))
+        return env
 
     def detect_framework(self) -> str:
         """自动检测测试框架"""
@@ -97,14 +108,14 @@ class TestRunner:
         cmd.append(str(self.test_path))
 
         print(f"🧪 运行测试: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=False)
+        result = subprocess.run(cmd, capture_output=False, env=self._subprocess_env())
         return result.returncode
 
     def run_unittest(self) -> int:
         """运行 unittest 测试"""
         cmd = [sys.executable, "-m", "unittest", "discover", "-s", str(self.test_path)]
         print(f"🧪 运行测试: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=False)
+        result = subprocess.run(cmd, capture_output=False, env=self._subprocess_env())
         return result.returncode
 
     def run_jest(self) -> int:
@@ -118,7 +129,7 @@ class TestRunner:
             cmd.append("--bail")
 
         print(f"🧪 运行测试: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=False)
+        result = subprocess.run(cmd, capture_output=False, env=self._subprocess_env())
         return result.returncode
 
     def run_tests(self) -> int:
@@ -149,6 +160,7 @@ class TestRunner:
             "venv",
             "node_modules",
             ".pytest_cache",
+            ".ruff_cache",
             ".bensz-api",
             ".awesome-code",
             "dist",

@@ -1,0 +1,2 @@
+# Keep Ruff's incremental state out of the source tree.
+cache-dir = ".bensz-api/.ruff_cache"

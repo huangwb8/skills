@@ -88,6 +88,7 @@ addopts = [
     "--strict-config",
     "--showlocals",
 ]
+cache_dir = "../../../.bensz-api/.pytest_cache"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
@@ -136,6 +137,7 @@ directory = "htmlcov"
 target-version = "py310"
 line-length = 100
 indent-width = 4
+cache-dir = "../../../.bensz-api/.ruff_cache"
 
 # Exclude directories
 exclude = [

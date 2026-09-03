@@ -16,13 +16,21 @@
 - `packages/<project>/`：独立运行时包边界，拥有自己的项目配置、版本、依赖和测试；不得在包内放置领域 Skill 流程。
 - `docs/plans/`：正式计划、迁移说明和治理文档；不得在 Skill 目录内新建 `plans/`。
 - `tests/`：面向 `packages/` Python 包核心公开 API 及仓库级公开入口（如安装器）的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
-- `tmp/`：测试脚本运行过程的临时承载目录，可包含测试计划、报告、artifacts、fixture、日志和缓存；这些内容不得回写到 `tests/`。
+- `tmp/`：测试脚本运行过程的临时承载目录，可包含测试计划、报告、artifacts、fixture 和日志；Python/pytest/Ruff 等运行缓存统一写入 `.bensz-api/`，不得回写到 `tests/` 或 `tmp/`。
 - `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：本轮任务的输入、过程产物、日志和验证证据；正式交付物不写入其中。
 
 **目录职责规则**：
 - 包内单元测试放在对应 `packages/<project>/tests/`；跨包或仓库公开入口测试脚本放在根级 `tests/`；测试运行产物统一写入根级 `tmp/`。
 - Skill 目录内不得新建历史计划、测试夹具或运行缓存目录。
 - AI 任务级中间材料遵循下方 `.bensz-api` 工作区协议。
+
+### Python 与工具运行产物归档
+
+- Python、pytest、Ruff、mypy、coverage、tox/nox、构建工具和新建/临时虚拟环境产生的运行产物必须集中放在当前项目的 `.bensz-api/` 下，不得在仓库根目录或 `packages/<project>/` 留下同类目录。
+- 重点包括但不限于：`.ruff_cache/`、`.pytest_cache/`、`.mypy_cache/`、`__pycache__/`、`.tox/`、`.nox/`、`.coverage`、`coverage.xml`、`htmlcov/`、`*.egg-info/`、临时 `build/`/`dist/`、`.venv/` 和 `venv/`。其中可复用的正式构建交付物仍按项目发布约定保存；已有且可能被用户维护的虚拟环境不得未经确认直接迁移，后续新环境统一使用 `.bensz-api/.venv`。
+- 仓库级 pytest 使用 `.bensz-api/.pytest_cache`；Ruff 使用 `.bensz-api/.ruff_cache`；包级配置不得回退到 `packages/<project>/.pytest_cache` 或 `packages/<project>/.ruff_cache`。
+- 脚本不得把上述路径硬编码到源码树；优先从项目根目录推导 `.bensz-api`，通过工具原生配置或子进程环境变量（如 `RUFF_CACHE_DIR`、`PYTHONPYCACHEPREFIX`）指定路径，并允许用户显式环境变量覆盖。
+- 已有历史缓存可安全清理或迁移；验证时应检查运行前后仓库源码目录没有新生成的缓存目录。
 
 ## AI 任务中间文件与 Skill 协作工作区
 

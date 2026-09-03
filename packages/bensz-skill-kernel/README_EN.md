@@ -16,12 +16,12 @@ Python 3.11+ is required. From the repository root:
 
 ```bash
 # Install the current package in an isolated environment
-python3 -m venv .venv
-.venv/bin/python -m pip install -e packages/bensz-skill-kernel
+python3 -m venv .bensz-api/.venv
+.bensz-api/.venv/bin/python -m pip install -e packages/bensz-skill-kernel
 
 # Confirm the CLI and built-in Packs are discoverable
-.venv/bin/bsk --version
-.venv/bin/bsk verifier list
+.bensz-api/.venv/bin/bsk --version
+.bensz-api/.venv/bin/bsk verifier list
 ```
 
 Expected: the first command prints `0.14.1`; the second lists built-in Verifiers. To install a published release, use `python3 -m pip install bensz-skill-kernel` instead. Version and dependencies are defined by `pyproject.toml`.

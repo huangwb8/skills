@@ -16,12 +16,12 @@
 
 ```bash
 # 建议在隔离环境安装当前包
-python3 -m venv .venv
-.venv/bin/python -m pip install -e packages/bensz-skill-kernel
+python3 -m venv .bensz-api/.venv
+.bensz-api/.venv/bin/python -m pip install -e packages/bensz-skill-kernel
 
 # 确认 CLI 与内置 Pack 已可发现
-.venv/bin/bsk --version
-.venv/bin/bsk verifier list
+.bensz-api/.venv/bin/bsk --version
+.bensz-api/.venv/bin/bsk verifier list
 ```
 
 预期：第一条命令输出 `0.14.1`，第二条列出内置 Verifier。只想安装已发布版本时，可改用 `python3 -m pip install bensz-skill-kernel`；版本与依赖以 `pyproject.toml` 为准。

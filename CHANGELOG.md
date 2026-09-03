@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 新增 beta `write-readme`：基于仓库事实按项目类型生成对齐的中文 `README.md` 与英文 `README_EN.md`，内置库/CLI 服务/Web 应用/数据 ML/Agent Skill 模板、调研来源和双语结构检查脚本。
 
 ### Changed（变更）
-- `write-skill-readme` 转为 legacy：其 Agent Skill README 能力由 `write-readme` 承接；`install-bensz-skills` 的本地与 bootstrap legacy 清理名单同步更新至 0.6.1。
+- **Python 运行产物归档规则收敛**：在 `AGENTS.md` 中明确要求 pytest、Ruff、mypy、coverage、Python 字节码及临时虚拟环境统一归档到 `.bensz-api/`，并同步将 Ruff/Kernel 包级 pytest 配置及测试运行器指向该目录，避免根目录和包目录生成缓存。
+- **Python 环境脚本路径收敛**：初始化模板与 Kernel README 的虚拟环境示例改为 `.bensz-api/.venv`，避免安装依赖时在项目根目录产生 `.venv`。
+- `write-skill-readme` 转为 legacy：其 Agent Skill README 能力由 `write-readme` 承接；`install-bensz-skills` 的本地与 bootstrap legacy 清理名单同步更新至 0.6.2。
 - `packages/bensz-skill-kernel` README 改为中英文对齐的面向使用者指南：补充安装闭环、State/Verifier/Workspace 导航、开发测试入口、Python API 与 CLI 边界及完整性/兼容性语义。
 
 ### Fixed（修复）
+- 修复 `install-bensz-skills` 本地安装器从项目子目录运行时无法自动识别 `./skills/alpha` 的问题：改为沿当前目录祖先查找 canonical alpha 源，并同步 bootstrap fallback 版本至 0.6.2；远程 general 源继续固定为 `skills/alpha`。
 - **Kernel 发布前主链路修复**：`bensz-skill-kernel` 更新至 `0.14.1` 并发布到 PyPI；将 PyYAML 声明为正式运行时依赖并移除不完整的 YAML fallback，使真实 Skill 的多行 State/Verifier 声明可稳定加载；同时保留 Contract 原始组件绑定字段进入事件账本，确保 `bsk verifier run --events` 返回的 Gate 与 Kernel 持久化 Gate 一致。
 - **Kernel 依赖约束同步**：更新 `AGENTS.md` 的 Kernel 依赖边界，将 PyYAML 明确为读取 Skill `config.yaml` 的唯一第三方运行时依赖，避免治理约束与发布元数据冲突。
 
