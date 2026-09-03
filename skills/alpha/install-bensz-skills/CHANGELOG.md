@@ -13,6 +13,9 @@
 ## [Unreleased]
 
 ### Changed
+- 将 `write-skill-readme` 加入 `legacy_skill_names` 及 bootstrap fallback；其 Agent Skill README 能力由 beta `write-readme` 统一承接，安装前会清理系统级旧目录。
+
+### Changed
 - `config.yaml` 版本号更新至 0.6.0，并增强默认 research 源远程更新的缓存兜底与失败状态传播：当浅 fetch / sparse checkout 因 GitHub reset、low-speed 或 ref listing 错误失败时，若本地远程缓存仍包含可安装 skills，安装器会复用 last-known-good 缓存继续完成本轮对比/安装，不再立即删除缓存并触发更慢的完整重克隆；下载失败或复用旧缓存会以非零退出码结束，避免远程更新假成功。同步更新 `SKILL.md`、README、i18n 文案与测试。
 - `config.yaml` 版本号更新至 0.5.9，并增强远程 GitHub 下载链路稳定性：clone/fetch/sparse checkout 统一通过带重试的 Git 命令包装执行，遇到 `Recv failure: Connection reset by peer`、timeout 等临时传输失败会自动重试；Git HTTP low-speed 卡死会提前失败并进入重试；sparse checkout 持续失败时会清理半成品缓存并回退到完整浅克隆。同步更新 `SKILL.md`、README 与测试。
 - `config.yaml` 版本号更新至 0.5.8，并新增远程仓库持久缓存：远程源 repo 缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过 `git fetch --depth 1 --no-tags` 增量更新，避免每次从零 clone；clone/fetch 均禁用 tag 拉取，缓存损坏或 Git 更新失败时自动删除并重建。同步更新 `SKILL.md`、README 与测试，进一步缩短重复远程更新等待时间。

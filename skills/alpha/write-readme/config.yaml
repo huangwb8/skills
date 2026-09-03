@@ -1,0 +1,26 @@
+skill_info:
+  name: write-readme
+  version: 0.1.1
+  description: "为任意 GitHub 项目生成中文 README.md 与英文 README_EN.md；按项目类型选择模板，基于仓库事实组织 Quick Start、示例、配置、限制、安全、贡献和许可证，并校验双语结构与链接。"
+  author: Bensz Conan
+  category: normal
+
+output:
+  chinese_filename: README.md
+  english_filename: README_EN.md
+  language_contract: aligned-structure
+
+validation:
+  checker: scripts/check_readme_pair.py
+  check_relative_links: true
+  check_heading_tree: true
+  check_code_fences: true
+  check_tokens: true
+
+templates:
+  general: references/templates/general.md
+  library: references/templates/library.md
+  cli_service: references/templates/cli-service.md
+  web_app: references/templates/web-app.md
+  data_ml: references/templates/data-ml.md
+  agent_skill: references/templates/agent-skill.md

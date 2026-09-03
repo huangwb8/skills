@@ -244,7 +244,7 @@ python3 "$INSTALLER" --remote --auto --anthropic-docs --claude
 
 安装前会自动读取 `config.yaml` 中的 `legacy_skill_names` 并清理旧名。你也可以单独运行清理脚本：
 
-当前清理名单包含若干历史命名，例如 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`，以及已弃用的 `nsfc-roadmap`、`nsfc-schematic`。这些旧名由新的 `research-*` skills 在 prompt 层兼容，不再保留系统级 wrapper 目录。
+当前清理名单包含若干历史命名，例如 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`，已弃用的 `nsfc-roadmap`、`nsfc-schematic`，以及已由 `write-readme` 吸收的 `write-skill-readme`。这些旧名不再保留系统级目录。
 
 ```bash
 # 同时清理 Codex 和 Claude Code
