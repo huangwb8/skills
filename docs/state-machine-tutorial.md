@@ -114,6 +114,8 @@ transitions: bensz.example.review.reported
 
 正文再用自然语言告诉 AI：这一阶段已经成立什么事实、应该执行什么工作、需要保留什么证据，以及什么情况下只能等待或失败。`STATE.md` 的完整阶段模板见仓库的 [`AGENTS.md`](../AGENTS.md) 和现有示例 [`validate-md-ref` 状态契约](../skills/beta/validate-md-ref/references/states/checking/STATE.md)。
 
+State 也可以在 frontmatter 或索引中声明与 Contract Pack 共用的 `mode: rule | prompt | hybrid | human`。它描述阶段条件的主要执行方式：有 `entrypoint` 的旧 State 在未显式声明时兼容推断为 `rule`，无入口的 instruction-only State 默认 `human`；历史索引中的 `none` 继续保留兼容。该字段用于执行提示和审计，不替代组件结果、证据与迁移门禁。
+
 ## AI 实际执行一次迁移时发生什么
 
 以从 `checking` 进入 `reported` 为例，AI 的操作顺序可以画成：

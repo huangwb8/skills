@@ -95,6 +95,30 @@ def test_custom_state_definition_supports_metadata_and_scripts(tmp_path: Path):
     assert definition.invariants == ("no-secrets",)
 
 
+def test_custom_state_definition_supports_shared_execution_mode(tmp_path: Path):
+    state = tmp_path / "custom" / "STATE.md"
+    state.parent.mkdir()
+    state.write_text(
+        "---\n"
+        "id: test.demo.review\n"
+        "version: 1.0.0\n"
+        "mode: hybrid\n"
+        "---\n\n# Review\n",
+        encoding="utf-8",
+    )
+    definition = FilesystemStateRegistry(tmp_path).resolve("test.demo.review")
+    assert definition.mode == "hybrid"
+    assert definition.to_dict()["mode"] == "hybrid"
+    assert definition.contract_pack().mode == "hybrid"
+
+
+def test_state_definition_rejects_unknown_execution_mode():
+    from bensz_skill_kernel import StateDefinition
+
+    with pytest.raises(StateDefinitionError, match="unsupported state mode"):
+        StateDefinition(id="test.demo.review", mode="unknown")
+
+
 def test_workspace_is_locked_and_skill_paths_are_scoped(tmp_path: Path):
     workspace = TaskWorkspace.open(tmp_path, description="引用 核验", now=datetime(2026, 8, 26, 20, 20))
     paths = workspace.paths("validate-md-ref")

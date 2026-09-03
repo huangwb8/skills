@@ -26,6 +26,11 @@ COMPONENT_STATUSES = frozenset({"completed", "pending", "unchecked", "error", "t
 ASSURANCE_TIERS = frozenset({"deterministic", "mixed", "llm_judge", "human", "none"})
 PACK_KINDS = frozenset({"state", "verifier"})
 PACK_MODES = frozenset({"rule", "prompt", "hybrid", "human", "none"})
+# Public component/contract modes. ``none`` is reserved for empty legacy packs.
+EXECUTION_MODES = frozenset(PACK_MODES - {"none"})
+# ``none`` is retained for legacy index entries that have no executable
+# components; it is not a user-facing execution style for new contracts.
+STATE_MODES = frozenset((*EXECUTION_MODES, "none"))
 SIDE_EFFECT_POLICIES = frozenset({"none", "read_only", "local_write", "remote_write"})
 _COMPONENT_ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 _SENSITIVE_KEYS = ("token", "secret", "password", "cookie", "api_key", "credential")

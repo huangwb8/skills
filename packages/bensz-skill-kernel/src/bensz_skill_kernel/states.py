@@ -15,7 +15,7 @@ from typing import Any
 
 import yaml
 
-from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor
+from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor, STATE_MODES
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio
 from .state_ids import parse_state_aliases, validate_state_id
 
@@ -211,6 +211,7 @@ class StateDefinition:
     aliases: tuple[str, ...] = ()
     classification: str = "domain"
     tags: tuple[str, ...] = ()
+    mode: str = "human"
 
     def __post_init__(self) -> None:
         try:
@@ -219,6 +220,8 @@ class StateDefinition:
             raise StateDefinitionError(f"canonical state ID required: {self.id!r}") from exc
         if not self.version:
             raise StateDefinitionError("state version cannot be empty")
+        if self.mode not in STATE_MODES:
+            raise StateDefinitionError(f"unsupported state mode: {self.mode}")
         if self.id in self.aliases or len(set(self.aliases)) != len(self.aliases):
             raise StateDefinitionError("state aliases must be unique and differ from the canonical ID")
         for reference in (*self.entry_conditions, *self.transitions):
@@ -240,7 +243,7 @@ class StateDefinition:
         state_id = metadata.get("id")
         if not state_id:
             raise StateDefinitionError(f"state definition missing id: {target}")
-        known = {"id", "version", "description", "kind", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint", "aliases"}
+        known = {"id", "version", "description", "kind", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint", "aliases", "mode"}
         extra = {key: value for key, value in metadata.items() if key not in known}
         return cls(
             id=str(state_id),
@@ -255,6 +258,7 @@ class StateDefinition:
             source=str(target),
             metadata=extra,
             aliases=parse_state_aliases(metadata.get("aliases")),
+            mode=str(metadata.get("mode", "rule" if metadata.get("entrypoint") else "human")),
         )
 
     @classmethod
@@ -263,7 +267,7 @@ class StateDefinition:
         if target.name != "STATE.md" or not target.is_file():
             raise StateDefinitionError(f"state definition does not exist: {target}")
         metadata, instructions = _frontmatter(target.read_text(encoding="utf-8"))
-        known = {"description", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint"}
+        known = {"description", "entry", "entry_conditions", "invariants", "transitions", "next_states", "entrypoint", "mode"}
         extra = {key: value for key, value in metadata.items() if key not in known}
         entrypoint = resolve_entrypoint(
             target.parent,
@@ -286,6 +290,7 @@ class StateDefinition:
             aliases=parse_state_aliases(entry.get("aliases")),
             classification=str(entry.get("classification", "domain")),
             tags=_as_tuple(entry.get("tags")),
+            mode=str(entry.get("mode", metadata.get("mode", "rule" if entrypoint else "human"))),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -304,6 +309,7 @@ class StateDefinition:
             "aliases": list(self.aliases),
             "classification": self.classification,
             "tags": list(self.tags),
+            "mode": self.mode,
         }
 
     def contract_pack(self) -> ContractPack:
@@ -316,7 +322,7 @@ class StateDefinition:
             "version": self.version,
             "contract": "STATE.md",
             "entrypoint": self.entrypoint,
-            "mode": "rule" if self.entrypoint else "human",
+            "mode": self.mode,
             "assurance_tier": "deterministic" if self.entrypoint else "human",
             "aliases": list(self.aliases),
         }

@@ -16,13 +16,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
-from .contract_packs import ContractExecutionError, ContractExecutionReport, ContractPack, ContractPackExecutor
+from .contract_packs import ContractExecutionError, ContractExecutionReport, ContractPack, ContractPackExecutor, EXECUTION_MODES
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio, version_key as _version_key
 from .verifier_ids import parse_aliases, validate_verifier_id
 
 VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 EXECUTION_STATUSES = frozenset({"completed", "unchecked", "error", "timed_out", "skipped"})
-MODES = frozenset({"rule", "prompt", "hybrid", "human"})
+MODES = EXECUTION_MODES
 ASSURANCE_TIERS = frozenset({"deterministic", "mixed", "llm_judge", "human"})
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
