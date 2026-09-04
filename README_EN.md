@@ -4,14 +4,14 @@
 
 **Turn Agent Skills from files into systems.**
 
-A reusable Skill collection, development pipeline, and verifiable runtime built on the [Agent Skills Open Standard](https://agentskills.io).
+A reusable Skill collection, development pipeline, and tools for checking and tracing Skill execution, built on the [Agent Skills Open Standard](https://agentskills.io).
 
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Open_Standard-7c3aed?style=flat-square)](https://agentskills.io)
 [![Hosts](https://img.shields.io/badge/Hosts-Claude_Code_%C2%B7_Codex_%C2%B7_Cursor-2563eb?style=flat-square)](#compatibility-and-boundaries)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#compatibility-and-boundaries)
 [![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-[Quick start](#get-started-in-30-seconds) · [Skill map](#skill-map) · [Kernel](#kernel-state-verifier-and-workspace) · [Development](#development-and-verification) · [中文](README.md)
+[Quick start](#get-started-in-30-seconds) · [Skill map](#skill-map) · [Kernel](#kernel) · [Development](#development-and-verification) · [中文](README.md)
 
 </div>
 
@@ -29,20 +29,20 @@ The repository has three parts:
 
 - **Reusable general Skills**: automated testing, multi-agent collaboration, parallel workspaces, prompt optimization, research plotting, Git operations, installation, documentation, and bug feedback.
 - **A Skill development and maintenance pipeline**: a shared lifecycle from development → testing → documentation → installation → use → feedback → iteration.
-- **Skill Runtime**: `bensz-skill-kernel` is evolving support for State, Verifier, Gate, Contract Pack, workspaces, evidence, event ledgers, audit, and replay.
+- **Skill execution and checking tools**: `bensz-skill-kernel` is evolving support for task stages, automated checks, workspaces, evidence, event ledgers, audit, and replayable execution records.
 
-The Runtime does not try to turn Skills into traditional programs. It makes important states, checks, and evidence in complex agent workflows explicit and traceable.
+These tools do not try to turn Skills into traditional programs. They make important stages, checks, and evidence in complex agent workflows explicit and easier to trace.
 
 ## Why this project exists
 
-As Skill collections and workflows grow, a longer `SKILL.md` cannot by itself answer whether a Skill triggered correctly, skipped a step, regressed after a change, remained traceable during collaboration, recorded the right checks, or clearly located a failure. This project therefore moves from Skill authoring toward broader **Skill engineering**.
+As Skill collections and workflows grow, a longer `SKILL.md` cannot by itself answer whether a Skill triggered correctly, skipped a step, regressed after a change, remained traceable during collaboration, recorded the right checks, or clearly located a failure. This project therefore moves from writing individual Skills toward building and maintaining them as a system.
 
 ## Design principles
 
 - Open standards first, without binding the project to one platform.
-- Separate Skill and Runtime: domain workflows stay in Skills; shared execution stays in the Kernel.
+- Separate Skills and shared tools: domain workflows stay in Skills; shared execution, checking, and record-keeping stay in the Kernel.
 - Explicit state over implicit guesses, checking over default trust, and replayability over opacity.
-- Progressive enhancement: keep ordinary Skills simple and use stronger runtime capabilities only when needed.
+- Progressive enhancement: keep ordinary Skills simple and use stronger execution and checking features only when needed.
 
 ## Get started in 30 seconds
 
@@ -64,7 +64,7 @@ The installer copies Skills to `~/.codex/skills/` and `~/.claude/skills/` by def
 
 - **Installable Skills**: `skills/alpha/`; each directory has a user-facing `README.md` and an AI-facing `SKILL.md`.
 - **Development pipeline**: initialization, prompt optimization, documentation, critical testing, multi-agent work, Git release, and bug reporting.
-- **Lifecycle kernel**: `packages/bensz-skill-kernel/` provides the `bsk` CLI plus replayable State, Verifier, Workspace, event-ledger, and Gate runtime.
+- **Task execution kernel**: `packages/bensz-skill-kernel/` provides the `bsk` CLI to manage task stages, run checks, save evidence, record events, and replay execution records.
 - **Auditable collaboration**: task artifacts live under `.bensz-api/`; contribution records live in `docs/contribution.bac`.
 
 ## Skill map
@@ -117,9 +117,11 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 Install manifests, MD5 records, and remote caches live under `~/.bensz-skills/installation/`. Beta Skills are never mixed into the default source.
 
-## Kernel: State, Verifier, and Workspace
+## Kernel
 
-`bensz-skill-kernel` requires Python 3.11+ and uses PyYAML plus the standard library at runtime. It is independent from Skill installation.
+`bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation.
+
+It provides the `bsk` command for managing task stages, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
 
 ```bash
 python3 -m venv .bensz-api/.venv
@@ -136,8 +138,6 @@ bsk verifier list --tag citation
 bsk workspace init . --description citation-review
 bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
-
-States use `owner.machine.state` canonical IDs; Verifiers use `owner.domain.capability`, with legacy IDs resolved through aliases. Pack indexes and contracts are documented in [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md).
 
 ## Layout and workspaces
 

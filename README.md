@@ -4,14 +4,14 @@
 
 **让 Agent Skill 从文件，变成系统。**
 
-一套遵循 [Agent Skills 开放标准](https://agentskills.io) 的可复用 Skill 集合、开发流水线与可验证运行时。
+一套遵循 [Agent Skills 开放标准](https://agentskills.io) 的可复用 Skill 集合、开发流水线，以及帮助检查和追踪 Skill 执行过程的工具。
 
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Open_Standard-7c3aed?style=flat-square)](https://agentskills.io)
 [![Hosts](https://img.shields.io/badge/Hosts-Claude_Code_%C2%B7_Codex_%C2%B7_Cursor-2563eb?style=flat-square)](#兼容性与边界)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#兼容性与边界)
 [![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-[快速开始](#30-秒开始) · [Skill 导航](#skill-导航) · [Kernel](#kernelstateverifier-与-workspace) · [开发与验证](#开发与验证) · [English](README_EN.md)
+[快速开始](#30-秒开始) · [Skill 导航](#skill-导航) · [Kernel](#kernel) · [开发与验证](#开发与验证) · [English](README_EN.md)
 
 </div>
 
@@ -25,20 +25,20 @@
 
 - **可直接使用的通用 Skills**：覆盖自动测试、多 Agent 协作、并行工作区、Prompt 优化、科研绘图、Git 操作、安装、文档和缺陷反馈。
 - **Skills 开发与维护流水线**：用统一约定串起开发 → 测试 → 文档化 → 安装 → 使用 → 反馈 → 迭代。
-- **Skill Runtime**：`bensz-skill-kernel` 逐步提供 State、Verifier、Gate、Contract Pack、工作区、证据记录、事件账本、审计与重放。
+- **Skill 执行与检查工具**：`bensz-skill-kernel` 正在提供任务阶段管理、自动检查、工作区、证据记录、事件账本、审计和执行记录重放。
 
-Runtime 不试图把 Skill 变成传统程序，而是让复杂 Agent 工作流中的关键状态、检查和证据更明确、更可追踪。
+这些工具不试图把 Skill 变成传统程序，而是让复杂 Agent 工作流中的关键阶段、检查和证据更明确、更容易追踪。
 
 ## 为什么做这个项目
 
-当 Skill 数量和流程复杂度增长，仅靠更长的 `SKILL.md` 很难回答：Skill 是否正确触发、是否遗漏步骤、修改后是否退化、协作过程是否可追踪、结果经过了哪些检查，以及失败发生在哪里。本项目因此尝试把关注点从 Skill authoring 推进到更完整的 **Skill engineering**。
+当 Skill 数量和流程复杂度增长，仅靠更长的 `SKILL.md` 很难回答：Skill 是否正确触发、是否遗漏步骤、修改后是否退化、协作过程是否可追踪、结果经过了哪些检查，以及失败发生在哪里。本项目因此尝试把关注点从“编写单个 Skill”推进到更完整的 **系统化建设 Skill**。
 
 ## 设计原则
 
 - 开放标准优先，尽量不绑定单一平台。
-- Skill 与 Runtime 分离：领域工作流留在 Skill，通用运行机制放在 Kernel。
+- Skill 与通用工具分离：具体工作流程留在 Skill，通用的执行、检查和记录功能放在 Kernel。
 - 显式状态优于隐式猜测，检查优于默认信任，可重放优于不可追踪。
-- 渐进增强：普通 Skill 保持简单，仅在需要时使用更强的运行时能力。
+- 渐进增强：普通 Skill 保持简单，仅在需要时使用更强的执行和检查功能。
 
 ## 30 秒开始
 
@@ -60,7 +60,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 - **可直接安装的 Skill**：位于 `skills/alpha/`，每个目录都有面向使用者的 `README.md` 和面向 AI 的 `SKILL.md`。
 - **开发流水线**：覆盖初始化、Prompt 优化、文档生成、批判性测试、多代理协作、Git 发布和缺陷反馈。
-- **生命周期内核**：`packages/bensz-skill-kernel/` 提供 `bsk` CLI，以及 State、Verifier、Workspace、事件账本和 Gate 的可重放运行时。
+- **任务执行内核**：`packages/bensz-skill-kernel/` 提供 `bsk` CLI，用来管理任务阶段、执行检查、保存证据、记录事件，并重放执行记录。
 - **可审计协作**：任务过程材料进入 `.bensz-api/`，贡献记录进入 `docs/contribution.bac`。
 
 ## Skill 导航
@@ -115,9 +115,11 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 安装记录、MD5 清单和远程缓存位于用户目录的 `~/.bensz-skills/installation/`；安装器不会把 beta Skill 混入默认源。
 
-## Kernel：State、Verifier 与 Workspace
+## Kernel
 
-`bensz-skill-kernel` 要求 Python 3.11+，运行时依赖 PyYAML 和标准库。它是独立包，不是安装 Skill 的前置依赖。
+`bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖。
+
+它提供 `bsk` 命令，帮助你管理任务阶段、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 
 ```bash
 python3 -m venv .bensz-api/.venv
@@ -134,8 +136,6 @@ bsk verifier list --tag citation
 bsk workspace init . --description citation-review
 bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
-
-State 使用 `owner.machine.state` canonical ID；Verifier 使用 `owner.domain.capability`，旧 ID 通过 alias 兼容解析。目录化 Pack 的索引、契约和组件说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 
 ## 目录与工作区
 
