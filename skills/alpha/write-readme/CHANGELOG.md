@@ -1,5 +1,12 @@
 # write-readme 变更记录
 
+## [0.2.0] - 2026-09-04
+
+### Added（新增）
+
+- 新增可选 Kernel runtime 声明、五个领域 State 和 `readme-pair-alignment` JSON-stdio Verifier Pack；结构检查仍复用原 CLI，语义与不确定性保留给 AI/人工复核。
+- 新增 Evidence Contract、required Gate 和运行身份说明，明确路径、脱敏、来源追溯与 fail-closed 边界。
+
 ## [0.1.1] - 2026-09-03
 
 ### Added（新增）

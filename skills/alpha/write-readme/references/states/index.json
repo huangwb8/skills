@@ -1,0 +1,11 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "state",
+  "entries": [
+    {"directory": "input-ready", "id": "bensz.write-readme.input-ready", "version": "1.0.0", "classification": "domain", "kind": "skill", "tags": ["write-readme", "input"], "aliases": ["write-readme.input-ready"], "contract": "STATE.md", "mode": "none", "assurance_tier": "none", "components": []},
+    {"directory": "facts-collected", "id": "bensz.write-readme.facts-collected", "version": "1.0.0", "classification": "domain", "kind": "skill", "tags": ["write-readme", "evidence"], "aliases": ["write-readme.facts-collected"], "contract": "STATE.md", "mode": "none", "assurance_tier": "none", "components": []},
+    {"directory": "bilingual-draft-ready", "id": "bensz.write-readme.bilingual-draft-ready", "version": "1.0.0", "classification": "domain", "kind": "skill", "tags": ["write-readme", "draft"], "aliases": ["write-readme.bilingual-draft-ready"], "contract": "STATE.md", "mode": "none", "assurance_tier": "none", "components": []},
+    {"directory": "delivery-ready", "id": "bensz.write-readme.delivery-ready", "version": "1.0.0", "classification": "domain", "kind": "skill", "tags": ["write-readme", "delivery"], "aliases": ["write-readme.delivery-ready"], "contract": "STATE.md", "mode": "none", "assurance_tier": "none", "components": []},
+    {"directory": "reported", "id": "bensz.write-readme.reported", "version": "1.0.0", "classification": "domain", "kind": "skill", "tags": ["write-readme", "terminal"], "aliases": ["write-readme.reported"], "contract": "STATE.md", "mode": "none", "assurance_tier": "none", "components": []}
+  ]
+}

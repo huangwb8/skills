@@ -47,6 +47,18 @@ python3 /path/to/write-readme/scripts/check_readme_pair.py README.md README_EN.m
 
 The script checks file presence, heading trees, code fences, relative links, and command/environment-token drift. It does not replace a human review of semantic accuracy.
 
+## Optional runtime verification
+
+When `bensz-skill-kernel` is available, the host can read `config.yaml.runtime`
+and record the domain phases `input-ready → facts-collected →
+bilingual-draft-ready → delivery-ready → reported`. The
+`bensz.document.readme-pair-alignment` Pack performs deterministic bilingual
+structure checks, while path scope, file existence, Markdown links, redaction,
+and provenance reuse kernel atomic Verifiers. Structural, scope, or secret
+findings block delivery; token drift, unobservable network checks, and semantic
+fact gaps remain uncertain and require human review. Without the Kernel, the
+script above is still useful, but it must not be presented as a runtime Gate.
+
 ## FAQ
 
 ### Why always produce two READMEs?
@@ -72,3 +84,4 @@ Its Agent Skill README capability is now part of this Skill. The old directory r
 - `references/research-notes.md`: sources and sample notes
 - `references/templates/`: section skeletons by project type
 - `scripts/check_readme_pair.py`: bilingual README structure checker
+- `references/states/` and `references/verifiers/`: optional Kernel phase and verification contracts

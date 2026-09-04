@@ -1,0 +1,28 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "verifier",
+  "entries": [
+    {
+      "directory": "readme-pair-alignment",
+      "id": "bensz.document.readme-pair-alignment",
+      "version": "1.0.0",
+      "classification": "domain",
+      "tags": ["markdown", "bilingual", "readme", "deterministic"],
+      "aliases": ["document.readme-pair"],
+      "contract": "VERIFIER.md",
+      "entrypoint": "scripts/verify.py",
+      "mode": "rule",
+      "assurance_tier": "deterministic",
+      "components": [
+        {
+          "id": "pair-check",
+          "type": "script",
+          "entrypoint": "scripts/verify.py",
+          "required": true,
+          "assurance": "deterministic",
+          "side_effects": "read_only"
+        }
+      ]
+    }
+  ]
+}

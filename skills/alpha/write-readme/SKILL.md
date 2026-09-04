@@ -33,6 +33,27 @@ metadata:
 
 仅在用户授权的项目范围内写入上述 README 文件；不覆盖其它文档，不把密钥、令牌、个人信息或完整私有提示词写入 README。
 
+### Runtime Contract Pack（可选）
+
+当宿主提供 `bensz-skill-kernel` 时，使用 `config.yaml.runtime` 声明的
+State/Verifier 子集记录阶段和验证证据；没有 Kernel 时仍按本文普通流程执行，
+不得声称已自动完成验证。领域阶段按以下稳定节点推进：
+
+`input-ready` → `facts-collected` → `bilingual-draft-ready` →
+`delivery-ready` → `reported`。
+
+运行身份必须绑定 `run_id` 与 `attempt_id`。Pair Verifier
+`bensz.document.readme-pair-alignment@1.0.0` 复用确定性结构检查；路径范围、文件存在、
+Markdown 链接、敏感信息脱敏和证据来源优先复用 Kernel 原子 Verifier。结构错误、越界或
+敏感信息命中应 fail-closed；token 漂移、网络不可观测或事实语义不足只能标为
+`uncertain`/`unchecked` 并转人工复核，不能把模型自评当作通过。
+
+事实清单和交付摘要遵循最小 Evidence Contract：项目/双语产物使用授权的相对路径，
+每条关键事实保留来源、内容哈希、来源类型和 `verified`/`user-provided`/`inferred`/
+`unresolved` 状态；日志不得保存凭据、完整 Prompt 或无关原始上下文。交付前 required
+Verifier 结果及 Kernel Gate 必须覆盖当前运行，否则停在检查/等待阶段或失败，不写入最终
+README。
+
 ## 核心原则
 
 1. **先回答“这是什么、为何有用、如何开始”**：首屏给出项目名、具体价值主张和最短成功路径。

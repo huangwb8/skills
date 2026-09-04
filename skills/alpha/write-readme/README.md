@@ -47,6 +47,15 @@ python3 /path/to/write-readme/scripts/check_readme_pair.py README.md README_EN.m
 
 脚本检查文件、标题树、代码围栏、相对链接和命令/环境变量 token 漂移；它不代替人工判断语义是否准确。
 
+## 可选的运行时验证
+
+安装 `bensz-skill-kernel` 的宿主可读取 `config.yaml.runtime`，按
+`input-ready → facts-collected → bilingual-draft-ready → delivery-ready → reported`
+记录领域阶段。`bensz.document.readme-pair-alignment` 负责确定性双语结构检查，路径范围、
+文件存在、Markdown 链接、脱敏和证据来源复用 Kernel 原子 Verifier。结构错误、越界或敏感
+信息命中会阻止交付；token 漂移、网络不可观测和事实语义缺口保留为不确定项并转人工复核。
+没有 Kernel 时仍可运行上面的脚本，但不能声称已完成运行时 Gate。
+
 ## 常见问题
 
 ### 为什么一定有两个 README？
@@ -72,3 +81,4 @@ python3 /path/to/write-readme/scripts/check_readme_pair.py README.md README_EN.m
 - `references/research-notes.md`：来源和样本记录
 - `references/templates/`：不同项目类型的章节骨架
 - `scripts/check_readme_pair.py`：双语 README 结构检查
+- `references/states/` 与 `references/verifiers/`：可选 Kernel 阶段和验证契约

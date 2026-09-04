@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
 from pathlib import Path
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
@@ -58,47 +57,87 @@ def tokens(text: str) -> dict[str, set[str]]:
     return {name: {m.group(0).strip() for m in pattern.finditer(text)} for name, pattern in TOKEN_PATTERNS.items()}
 
 
+def check_pair(chinese: Path, english: Path) -> dict[str, object]:
+    """Return the deterministic README-pair result used by the CLI and Pack.
+
+    The function intentionally reports token drift as a warning.  It is a
+    useful signal for semantic review, but does not claim that translated
+    prose is equivalent.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not chinese.is_file():
+        errors.append("missing chinese README")
+    if not english.is_file():
+        errors.append("missing english README")
+    if errors:
+        return {"errors": errors, "warnings": warnings, "facts": {"heading_count": 0, "code_fences": 0}}
+
+    zh = chinese.read_text(encoding="utf-8")
+    en = english.read_text(encoding="utf-8")
+    zh_head, en_head = headings(zh), headings(en)
+    if zh_head != en_head:
+        errors.append("heading tree differs (keep identical heading levels and order; translate heading text freely)")
+    zh_fences, en_fences = fence_count(zh), fence_count(en)
+    if zh_fences % 2 or en_fences % 2:
+        errors.append("unbalanced Markdown code fence")
+    if zh_fences != en_fences:
+        errors.append(f"code fence count differs: zh={zh_fences}, en={en_fences}")
+    for label, text in (("zh", zh), ("en", en)):
+        path = chinese if label == "zh" else english
+        for target in relative_links(text):
+            if not (path.parent / target).resolve().exists():
+                errors.append(f"{label} relative link target missing: {target}")
+        for target in relative_images(text):
+            if not (path.parent / target).resolve().exists():
+                errors.append(f"{label} image target missing: {target}")
+    zh_tokens, en_tokens = tokens(zh), tokens(en)
+    token_drift: dict[str, dict[str, list[str]]] = {}
+    for name in TOKEN_PATTERNS:
+        missing = sorted(zh_tokens[name] - en_tokens[name])
+        extra = sorted(en_tokens[name] - zh_tokens[name])
+        if missing or extra:
+            warning = f"{name} token drift: missing_in_en={missing[:8]}, extra_in_en={extra[:8]}"
+            warnings.append(warning)
+            token_drift[name] = {"missing_in_en": missing, "extra_in_en": extra}
+    return {
+        "errors": errors,
+        "warnings": warnings,
+        "facts": {
+            "heading_count": len(zh_head),
+            "code_fences": zh_fences,
+            "relative_links": len(relative_links(zh)),
+            "relative_images": len(relative_images(zh)),
+            "token_drift": token_drift,
+        },
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check aligned README.md and README_EN.md")
     parser.add_argument("chinese", type=Path)
     parser.add_argument("english", type=Path)
     args = parser.parse_args(argv)
-    errors: list[str] = []
-    warnings: list[str] = []
-    if not args.chinese.is_file():
-        errors.append(f"missing file: {args.chinese}")
-    if not args.english.is_file():
-        errors.append(f"missing file: {args.english}")
+    result = check_pair(args.chinese, args.english)
+    errors = list(result["errors"])
+    warnings = list(result["warnings"])
+    if errors and not args.chinese.is_file() and not args.english.is_file():
+        print("ERROR")
+        print(f"- missing file: {args.chinese}")
+        print(f"- missing file: {args.english}")
+        return 1
     if errors:
+        # Preserve the historical detailed CLI wording for existing callers.
+        if not args.chinese.is_file():
+            errors[0] = f"missing file: {args.chinese}"
+        if not args.english.is_file():
+            errors[-1] = f"missing file: {args.english}"
         print("ERROR")
         print("\n".join(f"- {item}" for item in errors))
         return 1
-    zh = args.chinese.read_text(encoding="utf-8")
-    en = args.english.read_text(encoding="utf-8")
-    zh_head, en_head = headings(zh), headings(en)
-    if zh_head != en_head:
-        errors.append("heading tree differs (keep identical heading levels and order; translate heading text freely)")
-    if fence_count(zh) % 2 or fence_count(en) % 2:
-        errors.append("unbalanced Markdown code fence")
-    if fence_count(zh) != fence_count(en):
-        errors.append(f"code fence count differs: zh={fence_count(zh)}, en={fence_count(en)}")
-    for label, path in (("zh", args.chinese), ("en", args.english)):
-        for target in relative_links(path.read_text(encoding="utf-8")):
-            candidate = (path.parent / target).resolve()
-            if not candidate.exists():
-                errors.append(f"{label} relative link target missing: {target}")
-        for target in relative_images(path.read_text(encoding="utf-8")):
-            candidate = (path.parent / target).resolve()
-            if not candidate.exists():
-                errors.append(f"{label} image target missing: {target}")
-    zh_tokens, en_tokens = tokens(zh), tokens(en)
-    for name in TOKEN_PATTERNS:
-        missing = zh_tokens[name] - en_tokens[name]
-        extra = en_tokens[name] - zh_tokens[name]
-        if missing or extra:
-            warnings.append(f"{name} token drift: missing_in_en={sorted(missing)[:8]}, extra_in_en={sorted(extra)[:8]}")
     print(f"README pair: {args.chinese} <-> {args.english}")
-    print(f"headings={len(zh_head)}, code_fences={fence_count(zh)}, relative_links={len(relative_links(zh))}, relative_images={len(relative_images(zh))}")
+    facts = result["facts"]
+    print(f"headings={facts['heading_count']}, code_fences={facts['code_fences']}, relative_links={facts['relative_links']}, relative_images={facts['relative_images']}")
     for item in warnings:
         print(f"WARN - {item}")
     if errors:
