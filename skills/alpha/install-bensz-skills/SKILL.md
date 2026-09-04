@@ -51,9 +51,11 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 
 ## 你要做的事（触发后必须执行）
 
-执行时不要检查当前项目目录下是否存在 `./install-bensz-skills/scripts/install.py`，也不要把本地脚本作为优先入口。触发本 skill 后，直接从系统级已安装位置查找安装器脚本：优先 `~/.codex/skills/install-bensz-skills/scripts/install.py`，其次 `~/.claude/skills/install-bensz-skills/scripts/install.py`。安装源目录默认从当前工作目录及其祖先目录自动识别当前项目的 `./skills/alpha/`，因此可从项目子目录运行；`./skills/beta/` 永不自动选中，只有用户明确传入 `--source ./skills/beta`（或其它 beta 根目录）时才允许安装 beta。
+执行前先确认 `python3` 版本。Python 3.11+ 才能使用本地完整安装器；不要检查当前项目目录下是否存在 `./install-bensz-skills/scripts/install.py`，也不要把本地脚本作为优先入口，而应直接从系统级已安装位置查找：优先 `~/.codex/skills/install-bensz-skills/scripts/install.py`，其次 `~/.claude/skills/install-bensz-skills/scripts/install.py`。安装源目录默认从当前工作目录及其祖先目录自动识别当前项目的 `./skills/alpha/`，因此可从项目子目录运行；`./skills/beta/` 永不自动选中，只有用户明确传入 `--source ./skills/beta`（或其它 beta 根目录）时才允许安装 beta。
 
-本地安装器默认不会扫描历史 `pipelines/skills/alpha/`；仅迁移旧仓库时可显式传入 `--legacy-source`。bootstrap 最低支持 Python 3.8，仓库开发包按根 README 的 Python 3.10+ 矩阵执行。两入口写入同一 manifest 核心契约：`schema_version`、`source`、`target`、`target_root`、`skills[]`（名称、MD5、状态、原因）和运行时间；本地入口可附加实现细节。
+Python 3.8–3.10 只能使用标准库 bootstrap 进行远程首次/应急安装，不得调用本地完整安装器；若任务要求安装本地源码、显式 beta 目录或运行 Kernel，应说明必须升级到 Python 3.11+。Python 3.8 以下不受支持。
+
+本地安装器默认不会扫描历史 `pipelines/skills/alpha/`；仅迁移旧仓库时可显式传入 `--legacy-source`。bootstrap 最低支持 Python 3.8，仓库开发、本地完整安装器和 Kernel 统一要求 Python 3.11+。两入口写入同一 manifest 核心契约：`schema_version`、`source`、`target`、`target_root`、`skills[]`（名称、MD5、状态、原因）和运行时间；本地入口可附加实现细节。
 
 ### 本地安装
 

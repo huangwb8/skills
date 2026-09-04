@@ -83,7 +83,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 ### 远程引导安装
 
-`bootstrap_install.py` 只依赖 Python 标准库，最低 Python 3.8；默认远程源由 `skills/alpha/install-bensz-skills/config.yaml` 定义：
+`bootstrap_install.py` 只依赖 Python 标准库，最低 Python 3.8；它是仓库唯一兼容 Python 3.8、3.9 和 3.10 的首次/应急入口，该兼容范围不代表本地完整安装器或 Kernel 支持这些版本。默认远程源由 `skills/alpha/install-bensz-skills/config.yaml` 定义：
 
 | 源 | 内容 |
 | --- | --- |
@@ -104,7 +104,7 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 
 ### 本地安装与开发
 
-本地完整安装器按仓库开发矩阵使用 Python 3.10+，支持 `--source`、`--skill`、`--force` 和 `--legacy-source` 等参数：
+本地完整安装器与仓库标准开发环境统一使用 Python 3.11+，支持 `--source`、`--skill`、`--force` 和 `--legacy-source` 等参数：
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
@@ -169,7 +169,7 @@ bac --root . --bac-file docs/contribution.bac inspect
 ## 兼容性与边界
 
 - Agent Skills 文件格式遵循开放标准；实际触发能力取决于宿主对 Skill 目录的支持。
-- 本地安装器支持 Python 3.10+；远程 bootstrap 最低 Python 3.8；Kernel 最低 Python 3.11。
+- 仓库开发、本地完整安装器和 Kernel 统一要求 Python 3.11+；仅远程 bootstrap 为首次/应急安装保留 Python 3.8+ 兼容。
 - Kernel 的进程级超时、输入输出限制和 fail-closed 选项不是容器或操作系统沙箱；不可信代码仍应在独立环境运行。
 - 远程安装需要访问 GitHub；网络失败时可改用本地安装器或已有缓存，并检查安装退出码。
 

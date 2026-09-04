@@ -1,9 +1,13 @@
+import ast
 import importlib.util
 import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +31,39 @@ bootstrap = load_module(
     "bootstrap_install",
     "skills/alpha/install-bensz-skills/scripts/bootstrap_install.py",
 )
+
+
+def test_python_support_boundaries_match_project_contract():
+    pyproject = tomllib.loads(
+        (ROOT / "packages/bensz-skill-kernel/pyproject.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert install.MIN_PYTHON == (3, 11)
+    assert bootstrap.MIN_PYTHON == (3, 8)
+    assert pyproject["project"]["requires-python"] == ">=3.11"
+
+
+def test_local_installer_rejects_python_below_311(monkeypatch):
+    monkeypatch.setattr(install.sys, "version_info", (3, 10, 14))
+
+    with pytest.raises(SystemExit, match=r"requires Python 3\.11\+"):
+        install.ensure_python()
+
+
+def test_bootstrap_keeps_python_38_compatible_syntax_and_runtime_gate(monkeypatch):
+    source = (
+        ROOT / "skills/alpha/install-bensz-skills/scripts/bootstrap_install.py"
+    ).read_text(encoding="utf-8")
+    ast.parse(source, feature_version=(3, 8))
+
+    monkeypatch.setattr(bootstrap.sys, "version_info", (3, 8, 0))
+    bootstrap.ensure_python("en")
+
+    monkeypatch.setattr(bootstrap.sys, "version_info", (3, 7, 17))
+    with pytest.raises(SystemExit, match=r"use Python 3\.8 or newer"):
+        bootstrap.ensure_python("en")
 
 
 def make_skill(root: Path, name: str, body: str = "content") -> Path:

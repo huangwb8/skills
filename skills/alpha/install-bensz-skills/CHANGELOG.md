@@ -13,9 +13,10 @@
 ## [Unreleased]
 
 ### Fixed
-- 修复系统级安装器从项目子目录或 `skills/alpha` 内运行时无法自动识别 `./skills/alpha` 的问题；本地入口现在沿当前目录祖先查找 canonical alpha 源，并将 bootstrap fallback 版本同步至 0.6.2。
+- 修复系统级安装器从项目子目录或 `skills/alpha` 内运行时无法自动识别 `./skills/alpha` 的问题；本地入口现在沿当前目录祖先查找 canonical alpha 源，并将 bootstrap fallback 版本同步至当前 `config.yaml` 的 0.6.3。
 
 ### Changed
+- `config.yaml` 版本号更新至 0.6.3；仓库开发与本地完整安装器统一要求 Python 3.11+，本地入口新增显式运行时版本门禁，标准库 bootstrap 继续保留 Python 3.8+ 首次/应急安装兼容，并由根级回归测试锁定两类边界。
 - 将 `write-skill-readme` 加入 `legacy_skill_names` 及 bootstrap fallback；其 Agent Skill README 能力由 beta `write-readme` 统一承接，安装前会清理系统级旧目录。
 
 ### Changed

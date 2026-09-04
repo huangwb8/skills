@@ -26,6 +26,8 @@
 
 ### Python 与工具运行产物归档
 
+本仓库的标准开发与完整运行环境统一为 Python 3.11+；本地完整安装器和 `bensz-skill-kernel` 均不得声明或暗示支持更低版本。`skills/alpha/install-bensz-skills/scripts/bootstrap_install.py` 是唯一例外：它作为只依赖标准库的首次/应急远程引导入口，最低支持 Python 3.8，但这一兼容范围不扩展到本地完整安装器、Kernel 或仓库开发流程。Python 3.8–3.10 环境只能使用 bootstrap 安装生产 Skill；需要本地源码安装、开发或 Kernel 时必须升级到 Python 3.11+。
+
 - Python、pytest、Ruff、mypy、coverage、tox/nox、构建工具和新建/临时虚拟环境产生的运行产物必须集中放在当前项目的 `.bensz-api/` 下，不得在仓库根目录或 `packages/<project>/` 留下同类目录。
 - 重点包括但不限于：`.ruff_cache/`、`.pytest_cache/`、`.mypy_cache/`、`__pycache__/`、`.tox/`、`.nox/`、`.coverage`、`coverage.xml`、`htmlcov/`、`*.egg-info/`、临时 `build/`/`dist/`、`.venv/` 和 `venv/`。其中可复用的正式构建交付物仍按项目发布约定保存；已有且可能被用户维护的虚拟环境不得未经确认直接迁移，后续新环境统一使用 `.bensz-api/.venv`。
 - 仓库级 pytest 使用 `.bensz-api/.pytest_cache`；Ruff 使用 `.bensz-api/.ruff_cache`；包级配置不得回退到 `packages/<project>/.pytest_cache` 或 `packages/<project>/.ruff_cache`。

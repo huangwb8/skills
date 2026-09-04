@@ -85,7 +85,7 @@ Read a Skill's `README.md` for triggers, minimal prompts, inputs/outputs, and FA
 
 ### Remote bootstrap
 
-`bootstrap_install.py` uses only the Python standard library and supports Python 3.8+. Its default sources are defined in `skills/alpha/install-bensz-skills/config.yaml`:
+`bootstrap_install.py` uses only the Python standard library and supports Python 3.8+. It is the repository's only bootstrap/emergency entry point compatible with Python 3.8, 3.9, and 3.10; this compatibility does not extend to the full local installer or the Kernel. Its default sources are defined in `skills/alpha/install-bensz-skills/config.yaml`:
 
 | Source | Contents |
 | --- | --- |
@@ -106,7 +106,7 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 
 ### Local installation and development
 
-The full local installer follows the repository's Python 3.10+ development matrix and supports `--source`, `--skill`, `--force`, and `--legacy-source`:
+The full local installer and the repository's standard development environment require Python 3.11+. It supports `--source`, `--skill`, `--force`, and `--legacy-source`:
 
 ```bash
 git clone https://github.com/huangwb8/skills.git
@@ -171,7 +171,7 @@ When changing a Skill, keep `SKILL.md`, `config.yaml`, README, and CHANGELOG ali
 ## Compatibility and boundaries
 
 - Skill files follow the open standard; actual triggering depends on host support for Skill directories.
-- The local installer supports Python 3.10+; remote bootstrap requires Python 3.8+; the Kernel requires Python 3.11+.
+- Repository development, the full local installer, and the Kernel require Python 3.11+; only the remote bootstrap retains Python 3.8+ compatibility for bootstrap/emergency installation.
 - Kernel process timeouts, I/O limits, and fail-closed options are not a container or OS sandbox. Run untrusted code in an isolated environment.
 - Remote installation requires GitHub access. On network failure, use the local installer or an existing cache and check the exit status.
 

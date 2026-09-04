@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v5.jpg`：将左上角目录树改为 `SKILL MANIFEST` 文档卡片，右上角版本方块改为 `RELEASE PIPELINE` 演进轨道，提升项目语义与视觉一致性。
 
 ### Changed（变更）
+- **Python 主线版本统一**：将仓库开发环境与本地完整安装器统一为 Python 3.11+，保留仅依赖标准库的远程 bootstrap 对 Python 3.8+ 的兼容；同步增加本地安装器运行时版本门禁、边界测试及中英文使用说明。
 - 进一步完善中英文 README 的“更多入口”：明确每个链接对应的文档类型、适用场景和阅读引导，帮助首次访问者判断是否进入。
 - 将中英文 README 的“更多入口”改为独立小节，并为每个文档链接补充用途说明，方便首次访问的读者判断是否值得打开。
 - 面向大众改写根目录中英文 README：减少 `Runtime`、State、Verifier 等行业术语，改用任务执行、检查、证据和执行记录等更直白的表述，并保留维护者深入文档入口。

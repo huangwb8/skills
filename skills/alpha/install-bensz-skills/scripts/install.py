@@ -14,6 +14,23 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+MIN_PYTHON = (3, 11)
+
+
+def ensure_python() -> None:
+    """Fail early when the full installer runs outside its support range."""
+    if sys.version_info < MIN_PYTHON:
+        current = ".".join(str(part) for part in sys.version_info[:3])
+        required = ".".join(str(part) for part in MIN_PYTHON)
+        raise SystemExit(
+            f"The full local installer requires Python {required}+ "
+            f"(current: {current}). On Python 3.8-3.10, use bootstrap_install.py."
+        )
+
+
+ensure_python()
+
+
 # 设置 UTF-8 编码，解决 Windows GBK 环境下的 emoji 显示问题
 if sys.platform == 'win32':
     import codecs

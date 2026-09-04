@@ -29,7 +29,7 @@
 
 `install-bensz-skills` 会把当前仓库 `skills/alpha/` 或远程生产源中的 skill **复制安装**到系统级目录，让这些 skill 在任意项目/对话中都更容易被发现和触发。`skills/beta/` 是未成熟技能区，默认不会扫描；只有显式 `--source` 才会安装。
 
-本地安装器隐式发现的唯一生产源是当前项目（会从当前工作目录及其祖先目录查找）中的 `./skills/alpha/`，因此从项目子目录或 `skills/alpha` 内运行也能定位源。历史 `pipelines/skills/alpha/` 不会被默认扫描；迁移旧仓库时可显式使用 `--legacy-source`，或直接传入 `--source`。bootstrap 的最低 Python 版本为 3.8；仓库开发与本地完整安装按根 README 的 Python 3.10+ 开发环境执行。
+本地安装器隐式发现的唯一生产源是当前项目（会从当前工作目录及其祖先目录查找）中的 `./skills/alpha/`，因此从项目子目录或 `skills/alpha` 内运行也能定位源。历史 `pipelines/skills/alpha/` 不会被默认扫描；迁移旧仓库时可显式使用 `--legacy-source`，或直接传入 `--source`。仓库开发与本地完整安装统一要求 Python 3.11+；bootstrap 作为唯一的首次/应急远程入口，最低支持 Python 3.8。Python 3.8–3.10 用户可继续使用 bootstrap 安装生产 Skill，但不能运行本地完整安装器或 Kernel。
 
 | 你的需求 | 推荐方式 | 说明 |
 |---------|----------|------|
