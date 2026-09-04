@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
-- 新增 `AGENTS.md` 与 Skill 正文规范化优化计划 `docs/plans/2026-09-04-AGENTS-SKILL规范化优化计划.md`：规划固定 `目标`、`流程`、可选 `控制`、`约束` 骨架，并明确与 `docs/` 专题文档、公共模板、静态检查和渐进迁移的协作边界；本次仅制定计划，不直接修改 `AGENTS.md`。
+- 落实 `docs/plans/2026-09-04-AGENTS-SKILL规范化优化计划.md`：新增 `docs/templates/skill-body.md` 与 `skill-common-constraints.md` 公共模板、`check_skill_structure.py` 报告/严格检查器，并迁移 `auto-test-project` 到四段式正文骨架；同步更新 `AGENTS.md`、中英文 README 与 Skill 自检入口。
+- 新增 `AGENTS.md` 与 Skill 正文规范化优化计划 `docs/plans/2026-09-04-AGENTS-SKILL规范化优化计划.md`：规划固定 `目标`、`流程`、可选 `控制`、`约束` 骨架，并明确与 `docs/` 专题文档、公共模板、静态检查和渐进迁移的协作边界；本轮已按该计划完成首批实现。
 - 新增 `write-readme` 的 Verifier/State 设计计划 `docs/plans/2026-09-04-write-readme-verifier-state-design.md`：定义双语配对检查、Kernel 原子 Verifier 复用、五阶段领域状态、Evidence Contract、Gate 和回归验收边界；本次仅设计，不实现 Pack 或 Kernel。
 - 新增项目宣传图 `docs/assets/agent-skills-ecosystem.jpg`：以发光的 Skill 核心和 BUILD / TEST / RUN / KNOW 四条轨道，表达 Agent Skills 的开发、测试、运行与可观测质量保障闭环。
 - 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v3.jpg`：以午夜蓝空间、银灰玻璃模块和发光智能核心重构 Agent Skills 生态关系图，强化高端科技感与神秘氛围。

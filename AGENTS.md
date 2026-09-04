@@ -195,7 +195,7 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 **质量检查**：通过"六项质量原则"验证，运行静态自检清单。
 
 **生成用户文档**：
-- 使用 write-skill-readme skill 生成用户友好的 README.md：README.md 面向使用者说明如何触发和使用技能，SKILL.md 面向 AI 定义执行规范和工作流
+- 使用 `write-readme` skill 生成用户友好的 README.md：README.md 面向使用者说明如何触发和使用技能，SKILL.md 面向 AI 定义执行规范和工作流
 - 首次生成时，使用 which-model skill 为 README.md 添加 WHICHMODEL 章节，记录模型选择最佳实践
 
 **测试验证**：按"目录职责规则"在对应 `packages/<project>/tests/` 编写或运行包内测试；仅仓库公开入口和跨包集成测试放在根级 `tests/`。
@@ -220,6 +220,42 @@ metadata:
 ```
 
 `SKILL.md` 的 description 负责触发边界，正文负责执行契约；详细参数以 `config.yaml` 为单一真相来源，不在文档中复制易变默认值。脚本必须基于 `Path(__file__).resolve()` 定位自身资产，不能依赖用户当前工作目录。
+
+#### 正文固定骨架（新建或修改 Skill 必须遵守）
+
+正文一级章节按以下顺序组织：
+
+```markdown
+## 目标
+## 流程
+### 输入
+### 执行步骤
+### 输出
+### 输出管理
+### 校验
+### 失败与恢复
+## 控制（按需）
+## 约束
+```
+
+- `目标` 必须说明用途、触发边界和不负责的范围。
+- `流程` 必须包含上述六个三级（`###`）章节，分别说明输入、执行、输出、产物管理、校验和失败恢复。
+- `控制` 仅在 `config.yaml` 显式声明 State、Verifier、Gate、Pack 或其它治理组件时出现，并说明组件、调用时机、证据、通过条件和人工介入；普通 Skill 不得因存在 `references/` 目录而被误判为需要控制组件。
+- `约束` 必须保留 `.bensz-api`、BAC、隐私、文件边界和 `bensz-collect-bugs` 的最小摘要，详细版本引用 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md)。
+- 四段式正文模板见 [`docs/templates/skill-body.md`](docs/templates/skill-body.md)。模板是维护入口；Skill `references/` 副本须记录 `Template-ID` 和 `Source-Hash`，由结构检查器验证同步关系。
+
+#### 结构检查与渐进迁移
+
+使用 `skills/alpha/auto-test-project/scripts/check_skill_structure.py` 扫描 `skills/alpha/` 和 `skills/beta/`。默认 `--mode report` 只生成缺项清单，适合历史 Skill；新建或已迁移 Skill 使用 `--mode strict` 作为发布门禁。检查器至少验证 frontmatter、章节顺序、流程子章节、公共约束摘要、引用存在性和模板副本哈希。迁移应先报告、再按高频/基础 Skill 小范围调整，保持领域语义不变；报告稳定后再将 strict 接入 CI 或安装前门禁。
+
+#### 专题文档入口
+
+| Skill 场景 | 规范入口 | `AGENTS.md` 职责 |
+| --- | --- | --- |
+| 中间文件、任务目录、证据和日志 | [`docs/bensz-api-workspace.md`](docs/bensz-api-workspace.md) | 要求统一任务根与敏感信息边界 |
+| State、Verifier、Gate 协作 | [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md)、[`docs/verifier-tutorial.md`](docs/verifier-tutorial.md) | 仅在显式采用时启用，并保持 State/Verifier 分层 |
+| State ID / Verifier ID | [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) | 采用控制组件时执行 canonical/alias 门禁 |
+| 公共 Skill 约束 | [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) | 规定模板来源、摘要和同步检查 |
 
 ### 系统级安装
 

@@ -160,6 +160,9 @@ python3 -m pytest
 # 检查中英文 README 标题、代码块、链接和命令 token 是否对齐
 python3 skills/alpha/write-readme/scripts/check_readme_pair.py README.md README_EN.md
 
+# 报告所有 alpha/beta Skill 的正文规范缺项；迁移后的 Skill 可加 --mode strict
+python3 skills/alpha/auto-test-project/scripts/check_skill_structure.py --mode report
+
 # 查看 BAC 贡献账本
 bac --root . --bac-file docs/contribution.bac inspect
 ```
@@ -187,3 +190,5 @@ bac --root . --bac-file docs/contribution.bac inspect
 - [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md)：这是一份结果检查教程，用完整示例说明系统如何检查结果、处理失败并记录证据；想看一次检查具体怎样完成，可以从这里开始。
 - [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md)：这是一份任务阶段教程，说明任务如何流转，以及系统如何保存和恢复执行进度；想理解任务是怎样一步步推进的，可以阅读这份文档。
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md)：这是 Skill 安装器的使用指南，介绍安装方式、参数和常见用法；准备安装 Skill 时，可以按这份指南操作。
+- [`docs/templates/skill-body.md`](docs/templates/skill-body.md)：这是新建或修改 Skill 时使用的四段式正文骨架。
+- [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md)：这是工作区、BAC、隐私和缺陷协作的公共约束长版本。
