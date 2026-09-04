@@ -16,8 +16,14 @@ def main() -> None:
     parser.add_argument("--wrapped-prompt", default="")
     args = parser.parse_args()
 
+    run_dir = Path(args.run_dir).expanduser().resolve()
+    if not run_dir.exists():
+        run_dir.mkdir(parents=True, exist_ok=True)
+    if not run_dir.is_dir():
+        raise ValueError(f"--run-dir 不是目录: {run_dir}")
+
     request_text = read_text(Path(args.request_file))
-    round_dir = ensure_dir(Path.cwd() / f"round-{int(args.round):02d}")
+    round_dir = ensure_dir(run_dir / f"round-{int(args.round):02d}")
     prompt_path = round_dir / "prompt.txt"
     eval_req = round_dir / "evaluation-request.md"
     prompt_body = "\n".join(
@@ -34,8 +40,13 @@ def main() -> None:
         eval_req,
         "本文件由 parallel-vibe worker 生成，用于提示下一阶段做视觉评估。\n",
     )
+    result_path = (run_dir / args.result_file).resolve()
+    try:
+        result_path.relative_to(run_dir)
+    except ValueError as exc:
+        raise ValueError("--result-file 必须位于 --run-dir 内") from exc
     write_text(
-        Path.cwd() / args.result_file,
+        result_path,
         "\n".join(
             [
                 "# auto-draw-plot parallel round",
