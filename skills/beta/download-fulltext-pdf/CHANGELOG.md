@@ -6,6 +6,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Unpaywall 轮询状态文件增加符号链接越界校验；默认配置不再包含个人邮箱，可通过 `UNPAYWALL_EMAILS` 提供速率限制邮箱。
+
 ### Added
 - 自动安装缺失依赖机制（scihub 库）
 - 路径遍历安全检查（防止恶意输入访问系统文件）

@@ -7,6 +7,7 @@ import re
 import json
 import hashlib
 import random
+import os
 import requests
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
@@ -88,7 +89,14 @@ class PDFDownloader:
         if any(part == ".." for part in p.parts):
             raise ValueError(f"state_file 不允许包含 '..': {relpath}")
 
-        return (Path.cwd().resolve() / p).resolve()
+        cwd = Path.cwd().resolve()
+        resolved = (cwd / p).resolve()
+        try:
+            resolved.relative_to(cwd)
+        except ValueError as exc:
+            raise ValueError(f"state_file 不能通过符号链接越出当前工作目录: {relpath}") from exc
+        return resolved
+
 
     def _normalize_emails(self) -> List[str]:
         """从配置读取邮箱列表（兼容 emails / email 两种字段），并去重保序。"""
@@ -101,6 +109,11 @@ class PDFDownloader:
         legacy = str(self.unpaywall_config.get("email", "")).strip()
         if legacy and not emails:
             emails.append(legacy)
+
+        # 允许通过环境变量提供速率限制邮箱，避免在发布配置中固化个人地址。
+        if not emails:
+            env_emails = os.environ.get("UNPAYWALL_EMAILS", "")
+            emails.extend(item.strip() for item in env_emails.split(",") if item.strip())
 
         # 去重（保序）
         seen = set()

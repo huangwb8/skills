@@ -34,8 +34,8 @@ download:
     # - emails：推荐使用（可配置多个邮箱）
     # - email：兼容旧字段；当 emails 为空时才会使用
     emails:
-      - "hwb2012@qq.com"
-      - "huangwb886@gmail.com"
+      []
+    # 也可通过 UNPAYWALL_EMAILS=user@example.org,team@example.org 提供。
     email_strategy: "round_robin"  # round_robin | hash_doi | random
     state_file: ".bensz-api/skills/download-fulltext-pdf/state/unpaywall_email_state.json"  # round_robin 的状态文件（相对 cwd）
     email: ""  # 兼容旧字段（可选）
