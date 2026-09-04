@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed（修复）
+- 修复 `auto-draw-plot` 并行轮次 worker 忽略 `--run-dir`、将产物写入当前目录的问题；结果路径现在严格限制在指定运行目录内。
+- 修复 `download-fulltext-pdf` Unpaywall 轮询状态文件可通过符号链接越界写入的问题，并移除默认配置中的个人邮箱；可通过 `UNPAYWALL_EMAILS` 环境变量按需提供邮箱。
+- 统一多个 Skill 脚本使用 `Path(__file__).resolve()` 定位自身配置/模板，并修复 `md-to-word` 类型注解的静态未定义名称。
+
 ### Added（新增）
 - 落实 `docs/plans/2026-09-04-AGENTS-SKILL规范化优化计划.md`：新增 `docs/templates/skill-body.md` 与 `skill-common-constraints.md` 公共模板、`check_skill_structure.py` 报告/严格检查器，并迁移 `auto-test-project` 到四段式正文骨架；同步更新 `AGENTS.md`、中英文 README 与 Skill 自检入口。
 - 新增 `AGENTS.md` 与 Skill 正文规范化优化计划 `docs/plans/2026-09-04-AGENTS-SKILL规范化优化计划.md`：规划固定 `目标`、`流程`、可选 `控制`、`约束` 骨架，并明确与 `docs/` 专题文档、公共模板、静态检查和渐进迁移的协作边界；本轮已按该计划完成首批实现。
