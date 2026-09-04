@@ -214,7 +214,7 @@ def load_config(config_path: Path = None) -> Dict[str, Any]:
     """加载配置文件"""
     if config_path is None:
         # 默认使用 which-model 技能目录下的 config.yaml
-        script_dir = Path(__file__).parent.parent
+        script_dir = Path(__file__).resolve().parents[1]
         config_path = script_dir / 'config.yaml'
 
     if not config_path.exists():

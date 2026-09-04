@@ -179,7 +179,7 @@ def generate_whichmodel_section(
 
     # 加载模板
     if template_path is None:
-        template_path = Path(__file__).parent.parent / 'references' / 'WHICHMODEL_template.md'
+        template_path = Path(__file__).resolve().parents[1] / 'references' / 'WHICHMODEL_template.md'
 
     template = load_template(template_path)
 

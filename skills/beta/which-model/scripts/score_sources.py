@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 def load_config(config_path: Path = None) -> Dict[str, Any]:
     """加载配置文件"""
     if config_path is None:
-        config_path = Path(__file__).parent.parent / 'config.yaml'
+        config_path = Path(__file__).resolve().parents[1] / 'config.yaml'
 
     if not config_path.exists():
         return {}

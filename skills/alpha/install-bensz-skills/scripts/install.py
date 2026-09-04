@@ -38,7 +38,7 @@ if sys.platform == 'win32':
     sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 # 添加 scripts 目录到 Python 路径，以便导入 i18n
-_scripts_dir = Path(__file__).parent
+_scripts_dir = Path(__file__).resolve().parent
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
@@ -1359,7 +1359,7 @@ def _remote_install_main(
         return 1
 
     # 加载配置
-    config_path = Path(__file__).parents[1] / "config.yaml"
+    config_path = Path(__file__).resolve().parents[1] / "config.yaml"
     try:
         config = _load_config(config_path)
     except FileNotFoundError:
@@ -1948,7 +1948,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--auto", action="store_true", help=t.get("arg_help_auto"))
 
     # 加载配置以获取可用的源 ID（用于动态添加 --<id> 参数）
-    config_path = Path(__file__).parents[1] / "config.yaml"
+    config_path = Path(__file__).resolve().parents[1] / "config.yaml"
     available_source_ids: list[str] = []
     legacy_skill_names: list[str] = []
     if config_path.exists():

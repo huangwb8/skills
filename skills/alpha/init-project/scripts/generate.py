@@ -304,7 +304,7 @@ class ProjectInitGenerator:
             config_path: 配置文件路径（默认使用项目内 config.yaml）
         """
         # 获取脚本所在目录
-        script_dir = Path(__file__).parent.parent
+        script_dir = Path(__file__).resolve().parents[1]
         self.config_path = config_path or script_dir / "config.yaml"
         self.template_dir = script_dir / "templates"
 

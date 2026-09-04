@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 
 FALLBACK_TEMPLATES = {
@@ -55,7 +55,7 @@ class EffectiveConfig:
     templates: dict[str, Path] = field(default_factory=lambda: dict(FALLBACK_TEMPLATES))
 
 
-def _die(message: str, code: int = 2) -> "NoReturn":  # type: ignore[name-defined]
+def _die(message: str, code: int = 2) -> NoReturn:
     raise SystemExit(message)
 
 
@@ -68,7 +68,7 @@ def _check_pillow_available() -> bool:
         return False
 
 
-def _apply_exif_orientation(img: "Image.Image") -> "Image.Image":
+def _apply_exif_orientation(img: Any) -> Any:
     """
     应用 EXIF 方向信息到图片。
 

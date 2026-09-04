@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 # 添加 scripts 目录到路径
-scripts_dir = Path(__file__).parent.parent / 'scripts'
+scripts_dir = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(scripts_dir))
 
 from research_models import generate_search_queries, load_config
@@ -78,7 +78,7 @@ def test_config_loading():
     """测试从 config.yaml 加载配置"""
     print("\n测试 3: 从 config.yaml 加载配置")
 
-    config_path = Path(__file__).parent.parent / 'config.yaml'
+    config_path = Path(__file__).resolve().parents[1] / 'config.yaml'
     config = load_config(config_path)
 
     target_vendors = config.get('research', {}).get('target_vendors', [])

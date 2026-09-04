@@ -6,13 +6,14 @@ import shutil
 import sys
 import zipfile
 from pathlib import Path
+from typing import NoReturn
 from xml.etree import ElementTree as ET
 
 
 NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 
 
-def _die(message: str) -> "NoReturn":  # type: ignore[name-defined]
+def _die(message: str) -> NoReturn:
     raise SystemExit(message)
 
 

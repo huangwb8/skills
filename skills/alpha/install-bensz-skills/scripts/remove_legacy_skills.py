@@ -79,7 +79,7 @@ def remove_legacy_skills(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="删除 Codex/Claude Code 中已弃用的 legacy skills。")
-    parser.add_argument("--config", type=Path, default=Path(__file__).parents[1] / "config.yaml", help="legacy skill 配置文件路径")
+    parser.add_argument("--config", type=Path, default=Path(__file__).resolve().parents[1] / "config.yaml", help="legacy skill 配置文件路径")
     parser.add_argument("--codex", action="store_true", help="仅清理 Codex")
     parser.add_argument("--claude", action="store_true", help="仅清理 Claude Code")
     parser.add_argument("--dry-run", action="store_true", help="仅预览，不实际删除")

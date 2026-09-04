@@ -28,7 +28,7 @@ except ImportError as e:
 
 
 # 加载配置
-CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.yaml"
 
 
 def load_config() -> Dict[str, Any]:
