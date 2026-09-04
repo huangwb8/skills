@@ -13,6 +13,8 @@
 
 ### Changed（变更）
 
+- 版本升级：`1.3.2 → 1.4.0`；新增 `scripts/check_skill_structure.py`，支持 alpha/beta Skill 结构报告与 strict 门禁，并将 `auto-test-project` 自身迁移到四段式正文骨架。
+
 - 版本升级：`1.3.1 → 1.3.2`；`config.yaml:directories` 只保留 task-local 相对后缀，并同步更新 SKILL、README、FAQ、严格模式示例、模板与 CLI help。
 - 版本升级：1.3.0 → 1.3.1；将计划与测试会话默认目录从项目根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-project/output/plans/` 与 `.bensz-api/skills/auto-test-project/output/tests/`，同步更新 `SKILL.md`、README、references 与验证脚本的路径口径。
 

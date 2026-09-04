@@ -22,6 +22,40 @@ metadata:
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
+## 目标
+
+为具备明确目录和可执行入口的完整项目提供可追溯的 A 轮问题发现、修复验证与 B 轮质量检查。仅当用户明确要求项目级测试时触发；单个 Skill 的测试使用 `auto-test-skill`。本 Skill 不替代领域业务判断，不默认修改远程系统，也不把报告模式误当成发布阻断。
+
+## 流程
+
+### 输入
+
+接收项目根目录、用户指定的测试/优化范围、已有配置和可执行测试入口；排除历史任务产物、缓存、依赖目录及敏感信息。
+
+### 执行步骤
+
+按配置创建唯一 `.bensz-api` 任务工作区，执行 A 轮检查与修复，再执行 B 轮质量检查；脚本负责确定性路径、模板和会话验证，AI 负责问题判断与最小修改。
+
+### 输出
+
+输出问题计划、测试计划、测试报告和可复现命令；正式代码、文档和 `CHANGELOG.md` 按项目目录保存，任务证据留在任务工作区。
+
+### 输出管理
+
+所有中间输入、草案、日志和验证证据写入任务根的 `shared/` 或本 Skill 子目录；不覆盖用户已有文件，不把缓存或测试产物写入源码目录。
+
+### 校验
+
+运行 `scripts/verify_test_session.py`、`scripts/verify_all_sessions.py` 及 `scripts/check_skill_structure.py --skill-root . --mode strict`；通过标准是无模板占位符、会话证据完整、结构检查无发现且相关测试成功。
+
+### 失败与恢复
+
+保留失败命令和输出，区分输入缺失、脚本错误、测试失败和不确定结果；可在同一任务根重试未完成阶段，禁止伪造通过或删除失败证据。外部依赖不可用时安全停止并给出复现命令。
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录密钥、令牌、Cookie、凭据、私有 Prompt 或用户隐私；文件路径限制在项目范围内。仅将 Skill/模板自身设计缺陷交给 `bensz-collect-bugs`，先本地脱敏记录，不直接修改用户已安装 Skill。
+
 ## Quick Start（最快路径）
 
 1. 使用宿主已公开并锁定的任务根创建本轮会话骨架：
@@ -50,10 +84,6 @@ python3 auto-test-project/scripts/verify_test_session.py \
 ```
 
 5. 重复 A 轮 N 次后，进入 B 轮质量检查与验证。
-
-## 目标
-
-为完整项目（包括技能项目、工作流项目、或其他具有 `CLAUDE.md` 或类似指令文件的项目）提供系统性的测试驱动优化能力，通过多轮迭代实现持续改进。
 
 ## 项目定义
 
@@ -384,6 +414,7 @@ python3 auto-test-project/scripts/verify_all_sessions.py \
   - `scripts/verify_test_session.py`：验证测试会话完整性（包含计划-执行一致性检查）
   - `scripts/verify_all_sessions.py`：批量验证 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-project/output/tests/` 下的所有会话（可选严格模式）
   - `scripts/verify_skill.py`：一键自检本 skill（必需文件、脚本可用、模板关键占位符自动填充）
+  - `scripts/check_skill_structure.py`：报告或严格检查 Skill frontmatter、四段式正文骨架、流程子章节、公共约束摘要、引用和模板副本哈希
 
 ## 常见问题与最佳实践
 
