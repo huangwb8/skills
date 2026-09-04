@@ -290,13 +290,17 @@ SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}
 
 ## write-readme
 
+为 skills/alpha/write-readme 这个skill，
+
+---
+
 在 skills/beta 里新建一个skill，名为`write-readme`，它的作用是：为任何项目写好的 readme 文件。 请你：
 
 - 总结社区里关于如何写好一个github readme的经验
 - 找到github trending 里的优秀项目，调查它们的readme是怎么写的，总结经验
 - 运用你的智慧，想一下： 一般原则是什么？具体技巧是什么？如何把它们有机结合在一起？ 不同类型的项目要不要分化为不同的模板（比如， 在 skill 的 references 里托管不同的模板、性质）
 - 目前的 skills/alpha/write-skill-readme 的功能应该作为这个新skill的一部分； 即专门为agent skill写readme。skills/alpha/write-skill-readme这个skill可以legacy了，不再需要了； 按本项目的约定，你需要调整 skills/alpha/install-bensz-skills 里的部分内容，表明 write-skill-readme 这个skill不再被需要。
-- readme应该有2个语种： README.md 是中文，README_EN.md 是英文。2者是完全对齐的，只是语种不同
+- readme应该有2个语种： `README.md` 是中文，`README_EN.md` 是英文。2者是完全对齐的，只是语种不同
 - 其它你觉得好的特性或结构，也可以加。你自己定
 
 skill的源代码demo出来后，使用 auto-test-skill skill 迭代优化1次。 使用 compact-bensz-skills skill 压缩skill。 
