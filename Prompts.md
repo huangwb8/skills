@@ -62,6 +62,21 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+有一个小问题：假设我在本项目开发一个skill。当然，ai会帮我做出来； 但是，也许地形式大致上可能不太一样，具有一定的随机性； 似乎目前这方面的约束不是很明确、具体。 我希望SKILL.md的正文内容在格式上更确定一些，比如应该包括：
+
+- `## 目标`（必选）：描述skill主要是干啥的
+- `## 流程`（必选）：描述skill具体怎么做，包括但不限于：
+  - 输入是什么
+  - 如何step-by-step做事情
+  - 输出是什么，如何管理输出，如何校验输出
+  - 其它重要内容
+- `## 控制`（可选）：约定 bsk的 verifier/state/gate等组件如何在skill工作时进行协作的
+- `## 约束`（必选）：一些强制性的默认设置，包括但不限于 `.bensz-api`中间文件目录、BAC贡献、bensz-collect-bugs 的协作约定等。 这部分几乎对每个skill都是一样的，因此完全可以在项目的 ./docs/templates 里搞一个固定的md，每个skill建议，都直接copy到它的references文件夹里，然后 SKILL.md 直接引用就行
+
+大致是这4大类。我觉得这是非常清晰的，至少人类可读性会好一些，ai也不会太过随意发挥。如果为了完备地设计一个skill你还有其它大类补充，也可以讨论一下。总之，把一些东西约定好后，我觉得把规则写死入 AGENTS.md 里，以后开发的skill将会更加规范。你觉得如何？先说你的想法，不要改代码。 
+
+---
+
 packages/bensz-skill-kernel 和 本项目skills开发时，其实有一些概念可以有更好的抽象。 最重要的概念就是硬编码（写死的程序，过程和结果一般是唯一）和ai自主规划（一般是面向开放性任务）。后来，我发现其实大家有一种更加专业的说法： hard / soft / mix （2者兼之）。 因此，我希望在类型上引入这个抽象。 我觉得是有好处，至少我有一个显式的声明提醒ai应该如何强调任务（比如，看到是 hard就知道更多地依赖测试代码； 看到是 soft 就知道更多约束prompt； 如果是mix就是兼而有之）。 至少目前，这方面的设计还是比较粗糙，有很大的改进空间。 你觉得呢？
 
 ---
@@ -290,7 +305,7 @@ SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}
 
 ## write-readme
 
-为 skills/alpha/write-readme 这个skill，
+使用  verifier-state-architect  skill 为 skills/alpha/write-readme 这个skill设计状态机和验证器。
 
 ---
 
