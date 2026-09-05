@@ -13,15 +13,6 @@ metadata:
 
 开始前，简要说明正在使用 `writing-plans` 来整理实施计划。
 
-## BenszAPI 任务工作区
-
-本 Skill 产生的中间材料统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/writing-plans/input|output|log/`。正式计划保存到项目的 `docs/plans/`，不要写入中间目录；只有多 Skill 协作时才创建 `shared/`。
-
-## 与 bensz-collect-bugs 的协作约定
-
-- 因本 Skill 的设计缺陷导致的问题，先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`；不要直接修改用户本地已安装的 Skill 副本。
-- 只有用户明确要求公开上报时，才使用本地 `gh` 上传脱敏后的新记录；不要拉取或克隆整个 bug 仓库。
-
 ## 工作原则
 
 - 以本次读取到的 `SKILL.md` 为当前规则来源。会话里更早出现的计划模板和现有旧计划只作为事实材料，不自动继承其结构。
@@ -149,3 +140,24 @@ metadata:
 - 计划深度是否与风险相称？
 
 完成后说明计划的保存位置，并询问用户是否希望据此执行；不要预设执行模式或强制切换到其它 skill。
+
+## 约束
+
+<!-- BEGIN COMMON CONSTRAINTS -->
+<!-- Source-Hash: sha256:dc839829c43968168dc291914ff849bc8a9bfd63ae4a9e569115a97df24e095e -->
+<!-- Template-ID: skill-common-constraints; Template-Version: 1; Sync-Policy: exact-block -->
+
+### 公共硬约束
+
+本块由 `docs/templates/skill-common-constraints.md` 统一维护；每个 `SKILL.md` 的 `## 约束` 必须逐字同步本块，不得在副本中改写公共规则。
+
+- 任务需要落盘时，使用唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/` 根目录；共享材料放入 `shared/`，Skill 专属材料放入该 Skill 的 `input/`、`output/`、`log/`。
+- 正式交付物、源代码和正式计划按项目约定保存，不写入任务工作区；未经授权不覆盖、删除、迁移或远程写入。
+- 项目维护变更检查 BAC 可用性并记录需求、AI 产出、工具结果、文件改动和验证摘要；BAC 只做过程审计，不替代署名、责任或合规判断。
+- 不记录 API Key、访问令牌、密码、Cookie、环境/凭据文件、私有 Prompt、身份信息、本地用户名、主机名或不必要的大体积原始数据。
+- 文件路径必须规范化并限制在授权项目范围内；外部 URL、子进程和网络访问遵循最小权限，防止路径遍历、SSRF 和命令注入。
+- Skill 版本唯一记录在自身 `config.yaml:skill_info.version`；公开 API、协议、目录或配置变更同步文档与 `CHANGELOG.md`。
+- 仅将 Skill 或 Bensz 基础设施本身的设计缺陷交给 `bensz-collect-bugs`；先脱敏写入 `~/.bensz-skills/bugs/`，当前任务不中断，只有用户明确要求才公开上报，禁止直接修改用户已安装的 Skill 源码。
+
+<!-- End of canonical common constraints. -->
+<!-- END COMMON CONSTRAINTS -->

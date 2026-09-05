@@ -21,19 +21,6 @@ metadata:
 
 # Multi-Agent Coordinator - 多代理协调专家
 
-## BenszAPI 任务工作区
-
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
-
-## 与 bensz-collect-bugs 的协作约定
-
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-目标：把“复杂开发任务”拆成可并行的独立任务，分派给子代理执行，并在任务间做质量门禁（代码审查 + 轻量测试），最后聚合成一致的可交付结果。
-
-为满足社区推荐的 `SKILL.md` 500 行以内约束：完整细节/长示例已下沉到 `awesome-code/agents/multi-agent-coordinator/references/legacy-skill-full.md`。
-
 ## 核心原则（Subagent-Driven Development）
 
 - 任务拆分要原子：每个任务有明确输入/输出/验收标准
@@ -102,3 +89,24 @@ metadata:
 - [ ] 每个任务是否经过最小审查与验证？
 - [ ] 聚合后是否统一了术语与接口风格？
 - [ ] `required_agents` 是否都在 `dispatch_manifest` 中出现并拿到 receipt？
+
+## 约束
+
+<!-- BEGIN COMMON CONSTRAINTS -->
+<!-- Source-Hash: sha256:dc839829c43968168dc291914ff849bc8a9bfd63ae4a9e569115a97df24e095e -->
+<!-- Template-ID: skill-common-constraints; Template-Version: 1; Sync-Policy: exact-block -->
+
+### 公共硬约束
+
+本块由 `docs/templates/skill-common-constraints.md` 统一维护；每个 `SKILL.md` 的 `## 约束` 必须逐字同步本块，不得在副本中改写公共规则。
+
+- 任务需要落盘时，使用唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/` 根目录；共享材料放入 `shared/`，Skill 专属材料放入该 Skill 的 `input/`、`output/`、`log/`。
+- 正式交付物、源代码和正式计划按项目约定保存，不写入任务工作区；未经授权不覆盖、删除、迁移或远程写入。
+- 项目维护变更检查 BAC 可用性并记录需求、AI 产出、工具结果、文件改动和验证摘要；BAC 只做过程审计，不替代署名、责任或合规判断。
+- 不记录 API Key、访问令牌、密码、Cookie、环境/凭据文件、私有 Prompt、身份信息、本地用户名、主机名或不必要的大体积原始数据。
+- 文件路径必须规范化并限制在授权项目范围内；外部 URL、子进程和网络访问遵循最小权限，防止路径遍历、SSRF 和命令注入。
+- Skill 版本唯一记录在自身 `config.yaml:skill_info.version`；公开 API、协议、目录或配置变更同步文档与 `CHANGELOG.md`。
+- 仅将 Skill 或 Bensz 基础设施本身的设计缺陷交给 `bensz-collect-bugs`；先脱敏写入 `~/.bensz-skills/bugs/`，当前任务不中断，只有用户明确要求才公开上报，禁止直接修改用户已安装的 Skill 源码。
+
+<!-- End of canonical common constraints. -->
+<!-- END COMMON CONSTRAINTS -->
