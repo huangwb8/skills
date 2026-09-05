@@ -67,6 +67,15 @@ class SkillStructureCheckerTest(unittest.TestCase):
             findings = checker.check_skill(skill)
         self.assertTrue(any(item.code == "control-missing" for item in findings))
 
+    def test_headings_inside_fenced_examples_are_ignored(self) -> None:
+        body = BODY.replace(
+            "## 约束\n",
+            "```markdown\n## 示例标题\n### 示例子标题\n```\n\n## 约束\n",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = checker.check_skill(self._write_skill(Path(tmp), body))
+        self.assertEqual(findings, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,7 +23,7 @@ metadata:
 
 ### 输入
 
-沿用原正文定义的输入、触发条件和适用范围。
+输入为需要独立 Agent/thread 并行评估或执行的用户任务；可选输入包括线程数、智能/代码模式、`plan-file`、`project-id`/`resume`、runner 参数和源目录。普通 shell/测试并发、下载任务及高度敏感数据不使用本 Skill。
 
 ### 执行步骤
 
@@ -189,7 +189,7 @@ rm -rf .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe
 
 ### 输出
 
-沿用原正文和配置定义的输出格式与交付物。
+输出包括共享运行目录、`@main/plan.json`/`plan.md`/`summary.md`、每个 thread 的 `workspace/RESULT.md`、`runner.log`、`done.json` 和 `exit_code.txt`；智能模式仍须提供线程角色、结论汇总、分歧与验证步骤，代码模式还须保留可复跑的退出码和 runner 记录。
 
 ### 输出管理
 
@@ -199,11 +199,11 @@ rm -rf .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+校验每个 thread 使用独立 workspace 且结果文件、退出码和日志齐全，`@main` 汇总覆盖全部有效结果；检查 plan/project ID、symlink 策略、线程数范围和路径边界符合配置/命令约束。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+thread 失败、runner 无法启动、结果缺失或 resume 状态不一致时，保留已有 workspace、日志和退出码，汇总中标记未完成并报告；可用同一 `project-id`/`--resume` 重跑，不能用空结果冒充成功。无法启动独立 subagent 时按路由切换代码模式。
 
 
 ## 约束

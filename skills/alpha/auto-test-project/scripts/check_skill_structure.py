@@ -77,7 +77,7 @@ def _headings(body: str) -> tuple[list[str], dict[str, list[str]]]:
     top: list[str] = []
     flow: list[str] = []
     in_flow = False
-    for line in body.splitlines():
+    for _line_no, line in _unfenced_lines(body):
         top_match = HEADING_RE.match(line)
         if top_match:
             heading = top_match.group(1).strip()
@@ -89,6 +89,25 @@ def _headings(body: str) -> tuple[list[str], dict[str, list[str]]]:
             if sub_match:
                 flow.append(sub_match.group(1).strip())
     return top, {"流程": flow}
+
+
+def _unfenced_lines(body: str):
+    """Yield ``(line_number, line)`` for Markdown lines outside fenced blocks.
+
+    Skill examples commonly contain their own ``##`` headings.  Those headings
+    are part of a copyable example, not the Skill's section tree, so structure
+    checks must ignore them.  The checker already treats backtick fences as the
+    Markdown code-block boundary elsewhere; keep the same intentionally small
+    parser here and use it consistently for section discovery and slicing.
+    """
+
+    in_fence = False
+    for line_number, line in enumerate(body.splitlines()):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            yield line_number, line
 
 
 def _expects_control(skill_dir: Path) -> bool:
@@ -186,7 +205,7 @@ def check_skill(skill_dir: Path, *, template_root: Path | None = None) -> list[F
     if constraint_start is not None:
         # Re-slice by source lines to preserve arbitrary body text.
         lines = body.splitlines()
-        starts = [i for i, line in enumerate(lines) if HEADING_RE.match(line)]
+        starts = [i for i, line in _unfenced_lines(body) if HEADING_RE.match(line)]
         start_line = starts[constraint_start]
         end_line = starts[constraint_start + 1] if constraint_start + 1 < len(starts) else len(lines)
         constraint_text = "\n".join(lines[start_line:end_line])

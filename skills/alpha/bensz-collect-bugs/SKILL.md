@@ -218,7 +218,7 @@ python3 bensz-collect-bugs/scripts/resolve_bug.py \
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+提交本地记录或公开上报前，校验 `BUG_REPORT.md`/`bug-context.json` 的必需字段、最小复现与影响范围、路径模式和敏感信息脱敏；只有提供修复版本与可复核验证证据时才允许追加 `RESOLUTION.md` 或标记 resolved。网络/`gh` 失败时保留本地记录并报告阻塞。
 
 ### 失败与恢复
 

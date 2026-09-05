@@ -93,24 +93,6 @@ metadata:
 
 给出最小状态图（初始、主要阶段、终止/失败、可选回退）和 Verifier 清单；每项写“为什么不可删除”，否则删除或降级为普通说明。
 
-#### 业务流程与风险地图
-
-#### Verifier 设计矩阵
-
-#### State 设计矩阵与最小状态图
-
-#### AI/确定性分工与 Evidence Contract
-
-#### Kernel 对接、Gate、重放与资源边界
-
-#### Kernel 复用与元 Verifier/State 提炼决策
-
-#### 实施顺序（P0/P1/P2）
-
-#### 已知不确定性、回退方案和不在范围内的事项
-
-```
-
 “Kernel 复用与元 Verifier/State 提炼决策”必须包含：
 
 - **现有 Kernel 能力盘点**：实际读取的索引/契约及其对应候选。
@@ -134,12 +116,26 @@ metadata:
 
 ```markdown
 # Verifier/State 设计计划：<skill>
-
-#### 结论摘要
+## 结论摘要
+## 业务流程与风险地图
+## 删除影响测试（含“不接入”结论）
+## Verifier 设计矩阵
+## State 设计矩阵与最小状态图
+## AI/确定性分工与 Evidence Contract
+## Kernel 对接、Gate、重放与资源边界
+## Kernel 复用与元 Verifier/State 提炼决策
+## 实施顺序（P0/P1/P2）
+## 验收与回归测试
+## 已知不确定性、回退方案和不在范围内的事项
+```
 
 ### 输出管理
 
-正式交付物、临时产物和日志继续遵循原有路径及覆盖边界；任务级中间文件使用当前会话声明的 `.bensz-api` 工作区。
+#### 计划与证据边界
+
+- 正式计划优先写入 `docs/plans/` 或用户指定路径；未指定时使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`。
+- 读取清单、决策依据、机器可读摘要和日志写入当前会话已声明任务根目录的 `verifier-state-architect/input|output|log/`；不把正式计划藏在任务目录中。
+- 本 Skill 只交付设计计划和证据摘要，不写 `VERIFIER.md`、`STATE.md`、Pack 脚本或 Kernel 源码。
 
 ### 校验
 
@@ -162,8 +158,9 @@ metadata:
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
-
+- Kernel 索引、Pack 契约或目标 Skill 资料不可读取时，停止相关判断，保留已读取清单和错误摘要，并将计划标记为“待确认”。
+- 证据不足、组件结果为 `uncertain/unchecked` 或网络不可观测时，不把不确定结论写成 `pass`；记录缺口并指定人工复核或后续验证动作。
+- 计划生成失败时保留部分草稿和日志，可在同一任务根目录重试；本 Skill 不因失败而修改目标 Skill、Pack 或 Kernel。
 
 ## 约束
 

@@ -1,12 +1,12 @@
 # GitHub Release 发布
 
-智能分析项目历史变化，自动生成吸引人的 Release Notes 并发布到 GitHub。
+智能分析项目历史变化并生成吸引人的 Release Notes；明确要求发布/创建 Release 时发布到 GitHub，单独请求 notes 或历史总结时仅生成预览，除非随后确认发布。
 
 ## ✨ 特性
 
 - 🤖 **智能分析**：AI 驱动的 commit 历史分析，自动提炼核心价值
 - 📝 **专业模板**：生成简洁、有效、有煽动性的 Release Notes
-- 🚀 **一键发布**：自动创建 GitHub Release，无需手动操作
+- 🚀 **一键发布**：明确要求发布/创建 Release 时自动创建 GitHub Release
 - 🎯 **分类清晰**：自动分类新功能、Bug 修复、性能优化等
 - 🌐 **联网验证**：与 GitHub API 集成，获取最新 release 信息
 
@@ -39,12 +39,14 @@
 "我要 release v4.0.0-beta.1"
 ```
 
-技能会自动：
+明确要求发布/创建 Release 时，技能会自动：
 1. 确认项目路径和 tag
 2. 获取最新 release 信息
 3. 分析历史变化
 4. 生成专业的 Release Notes
 5. 发布到 GitHub
+
+如果只要求生成 Release Notes 或总结历史变化，技能只输出文案预览，不调用 `gh release create`；需要发布时再明确确认。
 
 ## 📖 使用示例
 

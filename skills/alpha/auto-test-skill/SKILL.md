@@ -21,7 +21,7 @@ metadata:
 
 ### 输入
 
-沿用原正文定义的输入、触发条件和适用范围。
+输入为待测试的 Agent Skill 根目录；可选输入包括测试提示、A/B 轮次数、运行 ID、`config.yaml` 参数和输出路径。测试前确认目标 `SKILL.md`、配置、脚本、模板与必要 references 可读，且不把测试产物写回被测 Skill 源目录。
 
 ### 执行步骤
 
@@ -234,7 +234,7 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 
 ### 输出
 
-沿用原正文和配置定义的输出格式与交付物。
+每轮必须交付可追溯文件：A 轮计划 `output/plans/vYYYYMMDDHHMM.md`、A 轮会话 `output/tests/vYYYYMMDDHHMM/`，B 轮报告 `output/plans/B轮-vYYYYMMDDHHMM.md` 和 B 轮会话 `output/tests/B轮-vYYYYMMDDHHMM/`；各会话至少包含 `TEST_PLAN.md` 与 `TEST_REPORT.md`，具体目录以 `config.yaml:directories` 为准。
 
 ### 输出管理
 
@@ -265,7 +265,7 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+脚本、目标 Skill 读取或测试执行失败时，保留当前会话的计划、日志和测试报告，明确区分输入缺失、环境错误与行为失败，并给出复现命令；可在同一任务工作区重试未完成阶段。证据不足时不得臆测通过，A 轮与 B 轮的强制环节不得静默跳过。
 
 
 ## 约束

@@ -13,13 +13,15 @@ metadata:
 
 Knit/render R Markdown (.Rmd) to HTML reliably in this repo (auto-bootstrap pandoc, set correct knit_root_dir, and run rmarkdown::render via a Python wrapper).
 
+当用户说"knit 出 html / render Rmd / 生成 HTML 报告"时使用本 skill。
+
 版本由 `config.yaml:skill_info.version` 统一管理。
 
 ## 流程
 
 ### 输入
 
-沿用原正文定义的输入、触发条件和适用范围。
+输入为待渲染的 `.Rmd` 路径；可选输入包括项目根目录、输出文件路径、Pandoc 版本/下载选项和 `rmarkdown::render` 参数。渲染前需确认项目 `knit_root_dir`、R 和必要模板资源可用。
 
 ### 执行步骤
 
@@ -57,7 +59,7 @@ Knit/render R Markdown (.Rmd) to HTML reliably in this repo (auto-bootstrap pand
 
 ### 输出
 
-沿用原正文和配置定义的输出格式与交付物。
+成功时在同级目录生成与 Rmd 同名的 HTML，或写入由 `-o` 指定的输出文件路径；同时保留渲染日志、Pandoc/依赖诊断和任务工作区中的临时产物，不改变输入 Rmd。
 
 ### 输出管理
 
@@ -67,11 +69,11 @@ Knit/render R Markdown (.Rmd) to HTML reliably in this repo (auto-bootstrap pand
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+校验 Rmd 路径和项目根目录、Pandoc/R 依赖、`knit_root_dir` 与输出 HTML 存在性；渲染退出码为 0 且 HTML 可读取时才报告成功。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+Pandoc/R 缺失、引导下载失败、路径越界、渲染超时或 `rmarkdown::render` 返回非零时，保留日志和诊断输出并报告可复现命令；若产生部分输出，由用户按需清理或隔离后再修复依赖/参数重试。
 
 
 ## 约束
@@ -82,5 +84,3 @@ Knit/render R Markdown (.Rmd) to HTML reliably in this repo (auto-bootstrap pand
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-当用户说"knit 出 html / render Rmd / 生成 HTML 报告"时使用本 skill。

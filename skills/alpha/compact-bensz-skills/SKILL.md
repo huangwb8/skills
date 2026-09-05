@@ -180,11 +180,11 @@ python3 compact-bensz-skills/scripts/validate_compaction.py --skill-root /path/t
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+至少检查 frontmatter、`metadata.author`、技能关键词、相对链接、关键命令/路径/失败条件和触发语义均保留；压缩后的 Markdown 总量应低于压缩前，且 `validate_compaction.py` 与引用检查通过。不能证明语义等价时不得交付压缩版本。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+快照、统计、链接或语义校验失败时保留 `snapshots/before/`、报告和错误日志，停止写回正式 Skill；可在同一 run 目录修正后重试，若收益或保真无法满足阈值则恢复基线并报告原因。
 
 
 ## 约束

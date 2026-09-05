@@ -14,11 +14,29 @@ metadata:
 
 当需要把本仓库 skills/alpha 下的生产 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。默认不安装 skills/beta；只有显式指定 beta 源目录时才处理 beta skill。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。
 
+目的：把当前仓库 `skills/alpha/` 中的生产 skills（**包括 install-bensz-skills 自身**）**复制安装**到：
+
+- Codex：`~/.codex/skills/`
+- Claude Code：`~/.claude/skills/`
+
+从而让这些 skills 在**任意项目**里都能被发现与触发（不依赖当前 workdir，也不使用软链接）。
+
 ## 流程
 
 ### 输入
 
+#### 输入参数
+
+- **源目录**：默认从当前项目或祖先目录发现 `./skills/alpha/`；beta 仅在显式传入 `--source` 时使用。
+- **目标平台**：默认 Codex 与 Claude Code；可用 `--codex` 或 `--claude` 限定单一目标。
+- **安装选择**：可选 `--skill`、`--force`、`--dry-run`、`--source`，以及远程模式的 `--remote --check/--auto` 与源过滤参数。
+- **运行环境**：本地完整安装器要求 Python 3.11+；Python 3.8–3.10 仅支持标准库 bootstrap 的远程首次/应急安装。
+
+### 执行步骤
+
 #### 你要做的事（触发后必须执行）
+
+用户明确选择 `--remote --check` 仅授权下载、缓存和对比预览；安装/更新前仍按流程询问确认。用户明确选择 `--remote --auto` 才授权无确认的系统级安装/更新。未明确授权远程模式时，不进行远程下载或远程写入；本地模式仍按用户明确的安装请求执行本地源检查及系统级安装、更新或 legacy 清理。
 
 执行前先确认 `python3` 版本。Python 3.11+ 才能使用本地完整安装器；不要检查当前项目目录下是否存在 `./install-bensz-skills/scripts/install.py`，也不要把本地脚本作为优先入口，而应直接从系统级已安装位置查找：优先 `~/.codex/skills/install-bensz-skills/scripts/install.py`，其次 `~/.claude/skills/install-bensz-skills/scripts/install.py`。安装源目录默认从当前工作目录及其祖先目录自动识别当前项目的 `./skills/alpha/`，因此可从项目子目录运行；`./skills/beta/` 永不自动选中，只有用户明确传入 `--source ./skills/beta`（或其它 beta 根目录）时才允许安装 beta。
 
@@ -154,8 +172,6 @@ python3 "${INSTALLER%install.py}remove_legacy_skills.py" --claude --dry-run
 ```bash
 codex exec "列出所有可用的技能"
 ```
-
-### 执行步骤
 
 #### 安装模式
 
@@ -324,7 +340,7 @@ legacy_skill_names:
 
 ### 输出
 
-沿用原正文和配置定义的输出格式与交付物。
+输出为目标平台安装/更新结果及 manifest（包含源、目标、Skill 名称、MD5、状态、原因和运行时间）；远程模式另保留远程仓库缓存并输出更新/安装报告。`--dry-run` 只报告计划不写入，默认仅处理 `skills/alpha`，beta 必须由 `--source` 显式指定。
 
 ### 输出管理
 
@@ -334,7 +350,7 @@ legacy_skill_names:
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+安装前校验 Python 版本、安装器来源、源目录和目标平台；安装后核对 manifest、MD5 状态、目标 `SKILL.md`/资源可发现性、legacy 清理结果以及 bootstrap 与本地入口的核心契约一致。失败或跳过项必须出现在报告中。
 
 ### 失败与恢复
 
@@ -365,10 +381,3 @@ legacy_skill_names:
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-目的：把当前仓库 `skills/alpha/` 中的生产 skills（**包括 install-bensz-skills 自身**）**复制安装**到：
-
-- Codex：`~/.codex/skills/`
-- Claude Code：`~/.claude/skills/`
-
-从而让这些 skills 在**任意项目**里都能被发现与触发（不依赖当前 workdir，也不使用软链接）。

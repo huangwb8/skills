@@ -25,7 +25,7 @@ metadata:
 
 ### 输入
 
-沿用原正文定义的输入、触发条件和适用范围。
+输入为用户的复杂开发任务、项目根目录和可用 Agent 配置；可选输入包括 `config.yaml` 的 required route、脚本路径和已有任务工作区。仅在用户明确要求多代理/并行协调时触发；复杂开发任务可在获得该授权后由本 Skill 编排，单一角色的局部任务不走本 Skill。
 
 ### 执行步骤
 
@@ -49,7 +49,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 
 - 脚本做确定性操作：路径发现、`agents/*/SKILL.md` frontmatter 摘要提取、配置加载、Agent 缺失检查
 - AI 做语义判断：理解任务、选择 Agent、决定 single-pass / focused-agent / parallel / sequential 策略
-- 少分派优先：小而明确的任务直接完成；只有专业风险、跨模块依赖或用户明确要求协作时才升级
+- 少分派优先：小而明确的任务直接完成；在用户已明确授权使用本 Skill 后，只有专业风险、跨模块依赖或用户明确要求协作时才升级
 - 歧义先拦截：目标、边界或验收标准不清楚的高风险/宽泛任务，由 AI 主动澄清或显式记录保守假设
 - 外科手术式修改：每轮遵守 `dispatch_guidance.minimal_change_scope_default`
 - 目标驱动验证：执行前先决定怎样证明完成，执行后报告验证结果
@@ -184,11 +184,11 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+校验 `get_path.py` 与 `agent_coordinator.py` 的输出是否包含 `available_agents`、`agent_count`、required routes 和 `dispatch_gate` 字段；确认所选策略与任务风险匹配、实际调用的 required agent 有 `dispatch_receipts`，并且结果与验证计划可追溯。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+路径发现、配置读取或 required route 检查失败时保留脚本输出并阻塞后续分派，明确缺失 Agent 或阻塞原因；代理执行失败时保留已产生的结果及宿主提供的 workspace 证据，由主 Agent 决定安全重试或回退，不把未执行的代理工作标记为完成。
 
 
 ## 约束

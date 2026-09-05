@@ -1,10 +1,10 @@
 ---
 name: git-publish-release
-description: 当用户明确要求"发布项目到 GitHub"、"创建 GitHub Release"或"生成 Release Notes"时使用。智能分析 tag 间历史变化，生成专业且吸引人的 Release Notes，自动创建 GitHub Release。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
+description: 当用户明确要求"发布项目到 GitHub"、"创建 GitHub Release"或"生成 Release Notes"时使用。智能分析 tag 间历史变化并生成专业的 Release Notes；明确发布/创建请求时自动创建 GitHub Release，单独的 notes/历史总结请求仅生成预览，除非用户随后确认发布。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
 
 metadata:
   author: Bensz Conan
-  short-description: GitHub Release 自动发布与 Release Notes 生成
+  short-description: GitHub Release 发布与 Release Notes 生成（按请求区分预览/发布）
   keywords:
     - git-publish-release
     - GitHub Release
@@ -16,7 +16,7 @@ metadata:
 
 ## 目标
 
-当用户明确要求"发布项目到 GitHub"、"创建 GitHub Release"或"生成 Release Notes"时使用。智能分析 tag 间历史变化，生成专业且吸引人的 Release Notes，自动创建 GitHub Release。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
+当用户明确要求"发布项目到 GitHub"、"创建 GitHub Release"或"生成 Release Notes"时使用。智能分析 tag 间历史变化并生成专业的 Release Notes；明确发布/创建请求时自动创建 GitHub Release，单独的 notes/历史总结请求仅生成预览，除非用户随后确认发布。支持首次发布、常规版本、预发布版本（alpha/beta/rc），自动识别 prerelease 标记。
 
 ## 流程
 
@@ -36,7 +36,12 @@ metadata:
    - 如未指定，列出最近 tags 供选择
 2. **项目路径**（可选，默认当前工作目录）
 
+3. **任务输出目录**（宿主可设置 `TASK_OUTPUT_DIR`，指向本轮已声明的
+   `./.bensz-api/task-.../git-publish-release/output/`；未设置时临时 notes 使用 OS 临时目录并立即清理）
+
 > 认证通过 `gh auth login` 管理，无需手动配置 token。
+
+明确要求“发布项目到 GitHub”或“创建 GitHub Release”时，按配置执行远程发布；仅要求“生成 Release Notes”或“总结版本间的历史变化”时只生成文案/预览，不调用 `gh release create`，除非用户随后明确确认发布。`release.require_confirmation` 的含义是：明确发布/创建请求可作为本次授权，覆盖已有 Release 仍按下方错误处理规则询问；不得把文案生成请求视为远程发布授权。
 
 ### 执行步骤
 
@@ -136,11 +141,18 @@ git log ${TARGET_TAG} --pretty=format:"%h|%s|%an|%ad" --date=short
 - 包含 `alpha`, `beta`, `rc`, `pre` 等标识 → `prerelease: true`
 - 否则 → `prerelease: false`
 
-##### 创建 GitHub Release
+##### 按授权创建 GitHub Release
+
+仅在用户明确要求发布/创建 Release，或在预览后明确确认发布时执行以下命令；单独的 Release Notes/历史总结请求不得执行此步骤。
 
 ```bash
 # 将 Release Notes 写入临时文件（避免 shell 转义问题）
-NOTES_FILE=$(mktemp /tmp/release-notes-XXXXXX.md)
+# TASK_OUTPUT_DIR 可由宿主设置为本次任务已声明的
+# ./.bensz-api/task-.../git-publish-release/output/ 目录；未注入时仅使用
+# 一次性的 OS 临时目录，并在流程结束后清理，不把它当作任务产物。
+NOTES_DIR="${TASK_OUTPUT_DIR:-${TMPDIR:-/tmp}}"
+mkdir -p "$NOTES_DIR"
+NOTES_FILE=$(mktemp "$NOTES_DIR/release-notes-XXXXXX.md")
 cat > "$NOTES_FILE" << 'NOTES_EOF'
 [生成的 Release Notes 内容]
 NOTES_EOF
@@ -182,6 +194,8 @@ rm -f "$NOTES_FILE"
 📝 Release Notes 预览：
 [生成的前 10 行 notes]
 ```
+
+如果用户只要求 Release Notes 或历史总结，输出文案预览及对应的历史范围，不报告 Release URL，也不宣称已发布。
 
 ### 输出管理
 
@@ -234,5 +248,3 @@ gh auth login
 
 - 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
 - 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
-
-智能分析项目历史变化，自动生成吸引人的 Release Notes 并发布到 GitHub。

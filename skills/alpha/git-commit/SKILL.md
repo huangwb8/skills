@@ -326,11 +326,11 @@ git commit -m "docs(auth): update authentication documentation
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+交付前校验仓库位于 Git 工作树、无未处理 rebase/merge 冲突，提交信息符合 Conventional Commits（主题不超过 72 字符；正文项目原则上建议不超过 3 项，超出时说明原因），并确认 hook、commit 和（未使用 `--no-push` 时）push 的实际结果；无改动时明确返回无需提交。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+检测到 rebase/merge 冲突时，保留仓库现状和命令错误，先按上方指导处理后再重试；检测到 detached HEAD 时先提示风险并等待用户确认，用户不确认则停止，确认后才继续；hook 失败、提交失败或 push 被拒时停止后续步骤并给出可复现的处理命令。不要覆盖或丢弃未提交改动。误暂存/未推送误提交按上方安全回滚说明恢复，已推送提交使用 `git revert`，不强制改写远程历史。
 
 
 ## 约束
@@ -349,5 +349,6 @@ git commit -m "docs(auth): update authentication documentation
 - **仅使用 Git**：不调用任何包管理器/构建命令
 - **尊重钩子**：默认执行本地 Git 钩子；使用 `--no-verify` 可跳过
 - **默认推送**：提交成功后默认自动 push；使用 `--no-push` 可跳过
+- 用户明确请求本 Skill 即授权其配置中声明的提交流程；默认模式且未传入 `--no-push` 时按配置直接执行 push，审核模式按流程在提交后询问；传入 `--no-push` 时明确跳过 push，不再询问
 - **不改源码内容**：命令只读写 `.git/COMMIT_EDITMSG` 与暂存区
 - **安全提示**：在 rebase/merge 冲突、detached HEAD 等状态下会先提示处理/确认再继续

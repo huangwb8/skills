@@ -70,7 +70,7 @@ python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml
 
 ### 输出
 
-沿用原正文和配置定义的输出格式与交付物。
+输出结构化引用检查结果、可定位证据和报告：记录每条引用的来源、URL/锚点状态、错误或不确定原因，以及供后续真实性/适切性判断使用的 Evidence 快照；不修改源 Markdown。
 
 ### 输出管理
 
@@ -80,11 +80,11 @@ python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml
 
 ### 校验
 
-沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+校验输入路径位于允许的 `base_dir`、拒绝越界/symlink 逃逸和敏感路径，按配置检查 URL/锚点、重定向、域名白黑名单和超时；required 链接完整性通过后才可放行，advisory 真实性判断仅作提示并保留人工复核。
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+文件不可读、路径越界、URL/锚点检查超时或外部站点不可用时，保留已收集的 Evidence、错误分类和日志，按 required/advisory 规则阻断或标记 `uncertain/unchecked`；修复输入或网络后可在同一任务工作区重试，不把缺失证据视为通过。
 
 
 ## 控制

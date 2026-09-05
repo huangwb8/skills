@@ -198,12 +198,11 @@ manager.add_skill(
 每个 skill 包含：
 
 ```markdown
-
-#### N. {Skill Name}
+## N. {Skill Name}
 
 **GitHub**: [项目地址](https://github.com/xxx/xxx)
 
-##### 推荐理由
+### 推荐理由
 
 **社区评价**：
 - ⭐ {Stars} | 🍴 {Forks} | 📅 {最后更新}
@@ -214,7 +213,7 @@ manager.add_skill(
 - {工作流设计亮点}
 - {与需求匹配度}
 
-##### 局限性
+### 局限性
 
 - {潜在短板}
 - {适用场景限制}
@@ -260,11 +259,11 @@ python scripts/get_skill_info.py "repo1,repo2,repo3"
 ```markdown
 基于您的需求 "测试驱动开发（TDD）"，我为您推荐以下 skills：
 
-#### 1. test-driven-development
+## 1. test-driven-development
 
 **GitHub**: [obra/test-driven-development](https://github.com/VoltAgent/awesome-claude-skills)
 
-##### 推荐理由
+### 推荐理由
 
 **社区评价**：
 - ⭐ 1.2k+ | 🍴 150+ | 📅 2周前更新
@@ -275,16 +274,16 @@ python scripts/get_skill_info.py "repo1,repo2,repo3"
 - 支持多种测试框架
 - 渐进式加载设计，性能优秀
 
-##### 局限性
+### 局限性
 
 - 对测试框架有预设（可能不支持您使用的框架）
 - 初次使用需要适应其严格的流程要求
 
-#### 2. tdd-workflow
+## 2. tdd-workflow
 
 **GitHub**: [anthropics/tdd-workflow](https://github.com/anthropics/skills)
 
-##### 推荐理由
+### 推荐理由
 
 **社区评价**：
 - ⭐ 官方维护 | 📅 持续更新
@@ -295,7 +294,7 @@ python scripts/get_skill_info.py "repo1,repo2,repo3"
 - 简洁的工作流设计
 - 灵活的测试适配
 
-##### 局限性
+### 局限性
 
 - 功能相对基础，高级特性较少
 - 专注于 Claude Code 生态
@@ -377,7 +376,12 @@ python scripts/get_skill_info.py "repo1,repo2,repo3"
 
 ### 失败与恢复
 
-遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+#### 搜索、缓存与候选失败
+
+- `get-review-theme` 未安装时直接从用户需求提取主题和关键词，不把可选依赖故障当作任务失败。
+- 本地缓存无命中时进入联网搜索；联网来源不可用或部分失败时，明确标记失败来源并使用仍可验证的缓存/搜索结果，不虚构 Stars、更新时间、链接或社区评价。
+- 候选缺少 GitHub 链接、有效 `SKILL.md`、明确功能描述，或命中排除条件时剔除并在数量不足时说明原因，不用低质量结果填充数量。
+- 缓存写入、辅助脚本或单个平台失败时保留已收集的结果和错误信息；只有满足来源可追溯、排序和数量约束的候选才进入最终推荐报告。
 
 
 ## 约束
