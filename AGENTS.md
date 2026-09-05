@@ -242,7 +242,7 @@ metadata:
 - `目标` 必须说明用途、触发边界和不负责的范围。
 - `流程` 必须包含上述六个三级（`###`）章节，分别说明输入、执行、输出、产物管理、校验和失败恢复。
 - `控制` 仅在 `config.yaml` 显式声明 State、Verifier、Gate、Pack 或其它治理组件时出现，并说明组件、调用时机、证据、通过条件和人工介入；普通 Skill 不得因存在 `references/` 目录而被误判为需要控制组件。
-- `约束` 必须保留 `.bensz-api`、BAC、隐私、文件边界和 `bensz-collect-bugs` 的最小摘要，详细版本引用 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md)。
+- `约束` 必须直接包含由 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) 生成的 `BEGIN/END COMMON CONSTRAINTS` 公共块；不得手工改写块内内容。使用 [`sync_skill_constraints.py`](skills/alpha/auto-test-project/scripts/sync_skill_constraints.py) 批量同步，使用结构检查器校验哈希；Skill 专属限制放在块后的 `### Skill 专属约束`。
 - 四段式正文模板见 [`docs/templates/skill-body.md`](docs/templates/skill-body.md)。模板是维护入口；Skill `references/` 副本须记录 `Template-ID` 和 `Source-Hash`，由结构检查器验证同步关系。
 
 #### 正文规范化的语义重构门禁

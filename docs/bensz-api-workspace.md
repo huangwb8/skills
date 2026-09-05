@@ -25,4 +25,4 @@ Kernel 同时在任务根目录写入 `.workspace.json`，协议为 `bensz-api-t
 
 显式传入的工作目录参数可用于读取或续跑历史任务，但不会成为新任务的默认值。历史 `.bensz-api/skills/`、`.nsfc-*`、`.parallel-*` 等目录仅按需兼容读取、迁移或清理；新写入不得再创建这些目录。
 
-工作区创建前，先向用户说明将调用的 Skill 与具体工作；不得归档密钥、令牌、Cookie、环境文件、私有指令、隐私或不必要的大体积原始数据。
+工作区创建前，先向用户说明将调用的 Skill 与具体工作；不得归档密钥、令牌、Cookie、环境文件、私有指令、隐私或不必要的大体积原始数据。Skill 的公共硬约束不在各自正文中手工维护，统一来自 `docs/templates/skill-common-constraints.md`，通过同步器写入 `SKILL.md`。
