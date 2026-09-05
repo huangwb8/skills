@@ -1,6 +1,6 @@
 ---
 name: bensz-collect-bugs
-description: 当 Bensz 系列 skills 在真实用户环境中因 skill 设计缺陷而出现 bug，或用户明确说“我想 report bensz skills bugs”“帮我公开上报 bensz skills 的 bug”时使用。该 skill 负责把 bug 规范化记录到 `~/.bensz-skills/bugs/`，并在用户明确要求公开报告时通过本地 `gh` 轻量上传到 `huangwb8/bensz-bugs`，全程严禁修改用户本地 Claude Code/Codex 中已安装 skills 的源代码。
+description: 这是一个用于 Bensz Agent Skill 与基础设施设计缺陷留痕和按需上报的 Agent Skill。当 Bensz Agent Skill 在真实用户环境中因设计缺陷而出现 bug，或用户明确说“我想 report bensz skills bugs”“帮我公开上报 bensz skills 的 bug”时使用。该 Skill 负责把 bug 规范化记录到 `~/.bensz-skills/bugs/`，并在用户明确要求公开报告时通过本地 `gh` 轻量上传到 `huangwb8/bensz-bugs`，全程严禁修改用户本地 Claude Code/Codex 中已安装 Skills 的源代码。
 metadata:
   author: Bensz Conan
   short-description: 收集并公开上报 Bensz 系列 skills 的设计缺陷类 bug
@@ -16,7 +16,7 @@ metadata:
 
 ## 目标
 
-当 Bensz 系列 skills 在真实用户环境中因 skill 设计缺陷而出现 bug，或用户明确说“我想 report bensz skills bugs”“帮我公开上报 bensz skills 的 bug”时使用。该 skill 负责把 bug 规范化记录到 `~/.bensz-skills/bugs/`，并在用户明确要求公开报告时通过本地 `gh` 轻量上传到 `huangwb8/bensz-bugs`，全程严禁修改用户本地 Claude Code/Codex 中已安装 skills 的源代码。
+这是一个用于 Bensz Agent Skill 与基础设施设计缺陷留痕和按需上报的 Agent Skill。当 Bensz Agent Skill 在真实用户环境中因设计缺陷而出现 bug，或用户明确说“我想 report bensz skills bugs”“帮我公开上报 bensz skills 的 bug”时使用。该 Skill 负责把 bug 规范化记录到 `~/.bensz-skills/bugs/`，并在用户明确要求公开报告时通过本地 `gh` 轻量上传到 `huangwb8/bensz-bugs`，全程严禁修改用户本地 Claude Code/Codex 中已安装 Skills 的源代码。
 
 用于“先本地留痕，再按需公开上报”的 bug 管理 skill。
 
@@ -48,7 +48,7 @@ metadata:
 
 只处理这类 bug：
 
-- 由于 **skill 设计缺陷** 导致 skill 无法完美工作
+- 由于 **Bensz Agent Skill 或 Bensz 基础设施的设计缺陷** 导致其无法按契约工作
 - 典型表现包括：流程漏判、输入契约不完整、环境假设错误、脚本/模板设计不健壮、输出规范不一致
 
 不要把下列情况记为本 skill 的 bug：
@@ -237,7 +237,7 @@ python3 bensz-collect-bugs/scripts/resolve_bug.py \
 ## 约束
 
 <!-- BEGIN COMMON CONSTRAINTS -->
-<!-- Source-Hash: sha256:dc839829c43968168dc291914ff849bc8a9bfd63ae4a9e569115a97df24e095e -->
+<!-- Source-Hash: sha256:15120201e9e0c7569517261d57ecefb63ac279c26ed13876f8e95b6dc35854d3 -->
 <!-- Template-ID: skill-common-constraints; Template-Version: 1; Sync-Policy: exact-block -->
 
 ### 公共硬约束
@@ -250,7 +250,7 @@ python3 bensz-collect-bugs/scripts/resolve_bug.py \
 - 不记录 API Key、访问令牌、密码、Cookie、环境/凭据文件、私有 Prompt、身份信息、本地用户名、主机名或不必要的大体积原始数据。
 - 文件路径必须规范化并限制在授权项目范围内；外部 URL、子进程和网络访问遵循最小权限，防止路径遍历、SSRF 和命令注入。
 - Skill 版本唯一记录在自身 `config.yaml:skill_info.version`；公开 API、协议、目录或配置变更同步文档与 `CHANGELOG.md`。
-- 仅将 Skill 或 Bensz 基础设施本身的设计缺陷交给 `bensz-collect-bugs`；先脱敏写入 `~/.bensz-skills/bugs/`，当前任务不中断，只有用户明确要求才公开上报，禁止直接修改用户已安装的 Skill 源码。
+- `bensz-collect-bugs` 是一个 Agent Skill；仅将 Bensz Agent Skill 或 Bensz 基础设施本身的设计缺陷交给它。先脱敏写入 `~/.bensz-skills/bugs/`，当前任务不中断，只有用户明确要求才公开上报，禁止直接修改用户已安装的 Skill 源码。
 
 <!-- End of canonical common constraints. -->
 <!-- END COMMON CONSTRAINTS -->
