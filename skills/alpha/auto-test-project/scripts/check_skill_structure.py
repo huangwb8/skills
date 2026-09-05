@@ -21,6 +21,8 @@ REQUIRED_TOP_LEVEL = ("目标", "流程", "约束")
 REQUIRED_FLOW_HEADINGS = ("输入", "执行步骤", "输出", "输出管理", "校验", "失败与恢复")
 CONTROL_KEYS = ("state_roots", "initial_state", "states", "verifiers", "gates", "packs", "control_components")
 COMMON_CONSTRAINT_TOKENS = (".bensz-api", "BAC", "隐私", "bensz-collect-bugs")
+COMMON_BEGIN = "<!-- BEGIN COMMON CONSTRAINTS -->"
+COMMON_END = "<!-- END COMMON CONSTRAINTS -->"
 FORBIDDEN_MIGRATION_MARKERS = (
     "## 附录：原有详细规范",
     "迁移前的完整规范",
@@ -160,6 +162,25 @@ def _check_template_copy(
             findings.append(Finding(name, "P1", "template-out-of-sync", f"{path}: Source-Hash 与 docs/templates 不一致"))
 
 
+def _check_common_block(skill_dir: Path, findings: list[Finding], name: str, template_root: Path | None) -> None:
+    path = skill_dir / "SKILL.md"
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if template_root is None:
+        return
+    source = template_root / "skill-common-constraints.md"
+    if not source.is_file():
+        return
+    template = source.read_text(encoding="utf-8").strip() + "\n"
+    expected_hash = hashlib.sha256(template.encode("utf-8")).hexdigest()
+    pattern = re.compile(re.escape(COMMON_BEGIN) + r"\n<!-- Source-Hash: sha256:([0-9a-f]{64}) -->\n(.*?)" + re.escape(COMMON_END), re.S)
+    match = pattern.search(text)
+    if not match:
+        findings.append(Finding(name, "P1", "common-block-missing", "缺少由 docs/templates/skill-common-constraints.md 同步的公共约束块"))
+        return
+    if match.group(1) != expected_hash or match.group(2) != template:
+        findings.append(Finding(name, "P1", "common-block-out-of-sync", "公共约束块与 docs/templates/skill-common-constraints.md 不一致"))
+
+
 def check_skill(skill_dir: Path, *, template_root: Path | None = None) -> list[Finding]:
     name = skill_dir.name
     path = skill_dir / "SKILL.md"
@@ -186,6 +207,14 @@ def check_skill(skill_dir: Path, *, template_root: Path | None = None) -> list[F
         findings.append(Finding(name, "P0", "author-invalid", "metadata.author 必须为 Bensz Conan"))
 
     top, sections = _headings(body)
+    # Agent profiles under awesome-code are reusable role cards rather than
+    # standalone domain Skills; they still require the canonical public block
+    # but are not forced into the full domain Skill body skeleton.
+    role_card = skill_dir.parent.parent.name == "awesome-code" and skill_dir.parent.name == "agents"
+    if role_card:
+        _check_common_block(skill_dir, findings, name, template_root)
+        _check_template_copy(skill_dir, findings, name, template_root)
+        return findings
     positions: list[int] = []
     for required in REQUIRED_TOP_LEVEL:
         if required not in top:
@@ -209,9 +238,7 @@ def check_skill(skill_dir: Path, *, template_root: Path | None = None) -> list[F
         start_line = starts[constraint_start]
         end_line = starts[constraint_start + 1] if constraint_start + 1 < len(starts) else len(lines)
         constraint_text = "\n".join(lines[start_line:end_line])
-    for token in COMMON_CONSTRAINT_TOKENS:
-        if token not in constraint_text:
-            findings.append(Finding(name, "P1", "constraint-token", f"## 约束缺少公共约束摘要：{token}"))
+    _check_common_block(skill_dir, findings, name, template_root)
 
     expects_control = _expects_control(skill_dir)
     has_control = "控制" in top or any(item.startswith("控制") for item in top)
@@ -236,7 +263,7 @@ def discover(project_root: Path, sources: list[str]) -> list[Path]:
     for root in roots:
         if not root.is_dir():
             continue
-        result.extend(sorted(path.parent for path in root.glob("*/SKILL.md")))
+        result.extend(sorted(path.parent for path in root.rglob("SKILL.md")))
     return result
 
 

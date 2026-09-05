@@ -4,6 +4,7 @@ import importlib.util
 import sys
 import tempfile
 import unittest
+import hashlib
 from pathlib import Path
 
 
@@ -50,8 +51,15 @@ class SkillStructureCheckerTest(unittest.TestCase):
         return skill
 
     def test_normalized_skill_passes(self) -> None:
+        template = Path(__file__).parents[1] / "docs/templates/skill-common-constraints.md"
+        canonical = template.read_text(encoding="utf-8").strip() + "\n"
+        block = (
+            "<!-- BEGIN COMMON CONSTRAINTS -->\n"
+            f"<!-- Source-Hash: sha256:{hashlib.sha256(canonical.encode()).hexdigest()} -->\n"
+            f"{canonical}<!-- END COMMON CONSTRAINTS -->\n"
+        )
         with tempfile.TemporaryDirectory() as tmp:
-            findings = checker.check_skill(self._write_skill(Path(tmp)))
+            findings = checker.check_skill(self._write_skill(Path(tmp), BODY.replace("遵守 .bensz-api、BAC、隐私和 bensz-collect-bugs。", block)))
         self.assertEqual(findings, [])
 
     def test_missing_flow_heading_is_reported(self) -> None:
@@ -75,6 +83,17 @@ class SkillStructureCheckerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             findings = checker.check_skill(self._write_skill(Path(tmp), body))
         self.assertEqual(findings, [])
+
+    def test_recursive_discovery_includes_nested_role_cards(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "skills" / "alpha" / "awesome-code" / "agents" / "demo"
+            root.mkdir(parents=True)
+            (root / "SKILL.md").write_text(
+                "---\nname: demo\ndescription: demo\nmetadata:\n  author: Bensz Conan\n---\n"
+                "# Demo\n\n## 约束\n\n<!-- BEGIN COMMON CONSTRAINTS -->\n",
+                encoding="utf-8",
+            )
+            self.assertIn(root, checker.discover(Path(tmp), ["alpha"]))
 
 
 if __name__ == "__main__":
