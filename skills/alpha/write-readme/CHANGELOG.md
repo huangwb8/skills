@@ -1,5 +1,10 @@
 # write-readme 变更记录
 
+## [Unreleased]
+
+### Changed（变更）
+- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；write-readme 的既有功能语义保持不变。
+
 ## [0.2.0] - 2026-09-04
 
 ### Added（新增）

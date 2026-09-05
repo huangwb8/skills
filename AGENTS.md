@@ -13,6 +13,7 @@
 
 - `skills/alpha/<skill-name>/`：可发布、默认安装的成熟 Skill；以自身 `SKILL.md` 为识别边界，可包含专属的 `scripts/`、`references/`、`templates/` 和资源文件。
 - `skills/beta/<skill-name>/`：尚未成熟的候选 Skill；不进入默认安装源，仅当用户显式指定 beta 源目录时才处理。
+- `skills/alpha/auto-draw-plot/`：该 Skill 属于 Sub2API 生态，在 Sub2API 源仓库的 `skills/auto-draw-plot/` 协同开发。本项目不承担其功能开发、测试计划或日常维护，仅托管从外部开发源同步的最新可发布源代码，供公开发布与安装发现；发现问题时应回到 Sub2API 源仓库处理后再同步。
 - `packages/<project>/`：独立运行时包边界，拥有自己的项目配置、版本、依赖和测试；不得在包内放置领域 Skill 流程。
 - `docs/plans/`：正式计划、迁移说明和治理文档；不得在 Skill 目录内新建 `plans/`。
 - `tests/`：面向 `packages/` Python 包核心公开 API 及仓库级公开入口（如安装器）的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
@@ -113,7 +114,7 @@
 - 不得遗留已知缺陷，不得以无关重构扩大变更范围，不得破坏既有功能。
 - 修改代码后运行与风险匹配的构建、静态检查或测试，并把验证证据写入变更记录。
 - 默认只修改 `skills/alpha/`、`skills/beta/` 与其配套的 `packages/`、`docs/`、`tests/`；`AGENTS.md`、`CLAUDE.md`、`CHANGELOG.md` 和 `docs/contribution.bac` 属于项目治理文件，可在遵守本文件变更记录与 BAC 规则的前提下修改；扩展到其它范围需用户明确授权。
-- 修改技能时，优先优化而非重写，保留用户自定义内容。
+- 修改技能时，优先做语义重排和最小增量修改，保留用户自定义内容；当用户明确要求规范化正文时，允许重构标题和段落位置，但不得用模板壳包裹旧正文，也不得把旧正文整体移到附录来规避重排。
 
 ## 核心工作流
 
@@ -243,6 +244,16 @@ metadata:
 - `控制` 仅在 `config.yaml` 显式声明 State、Verifier、Gate、Pack 或其它治理组件时出现，并说明组件、调用时机、证据、通过条件和人工介入；普通 Skill 不得因存在 `references/` 目录而被误判为需要控制组件。
 - `约束` 必须保留 `.bensz-api`、BAC、隐私、文件边界和 `bensz-collect-bugs` 的最小摘要，详细版本引用 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md)。
 - 四段式正文模板见 [`docs/templates/skill-body.md`](docs/templates/skill-body.md)。模板是维护入口；Skill `references/` 副本须记录 `Template-ID` 和 `Source-Hash`，由结构检查器验证同步关系。
+
+#### 正文规范化的语义重构门禁
+
+正文规范化不是“加壳过检查”，而是把既有契约重新编排到目标章节。执行迁移时必须遵守：
+
+- 先从迁移前版本建立逐 Skill 内容清单/章节映射，再修改正文；每个原有实质规则、命令、参数、示例、边界和失败处理都必须能在新正文中找到对应位置。
+- `docs/templates/skill-body.md` 只提供章节接口和写作提示，不能整段复制为 Skill 正文；模板中的 `{Skill 标题}`、“说明 Skill 的用途”等占位说明必须被真实、Skill 专属内容替换。
+- 禁止使用 `## 附录：原有详细规范`、`迁移前的完整规范`、`原文见附录` 或同类章节，把未重排的旧正文整体托管在末尾。历史内容必须拆分到 `目标`、`流程`、`控制（按需）`、`约束` 及其三级章节中。
+- 固定章节下的内容必须回答该 Skill 的真实问题，不能用“沿用原正文”“按现有规则执行”“输出由配置决定”等空泛句子代替已有契约；若原文确实没有该信息，应明确写“本 Skill 不产生该类产物/不支持该路径”，而不是填充模板话术。
+- 完成后必须逐 Skill 阅读 diff，至少核对 frontmatter、触发边界、脚本/CLI、配置键、输出路径、State/Verifier ID、安全限制和失败恢复；结构检查通过不能替代语义复核。发现语义遗漏时，回退该 Skill 的迁移，不以“检查器通过”为完成条件。
 
 #### 结构检查与渐进迁移
 

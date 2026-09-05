@@ -1,5 +1,12 @@
 <!-- Template-ID: skill-body; Sync-Policy: copy-and-hash -->
 
+<!--
+This file defines the section interface only. Do not copy its explanatory
+sentences into a Skill as filler, and do not place the pre-migration body in
+an appendix. During normalization, move the existing Skill-specific rules
+into the matching sections and replace every placeholder with real content.
+-->
+
 # {Skill 标题}
 
 ## 目标

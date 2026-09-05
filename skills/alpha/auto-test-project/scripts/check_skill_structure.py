@@ -21,6 +21,18 @@ REQUIRED_TOP_LEVEL = ("目标", "流程", "约束")
 REQUIRED_FLOW_HEADINGS = ("输入", "执行步骤", "输出", "输出管理", "校验", "失败与恢复")
 CONTROL_KEYS = ("state_roots", "initial_state", "states", "verifiers", "gates", "packs", "control_components")
 COMMON_CONSTRAINT_TOKENS = (".bensz-api", "BAC", "隐私", "bensz-collect-bugs")
+FORBIDDEN_MIGRATION_MARKERS = (
+    "## 附录：原有详细规范",
+    "迁移前的完整规范",
+    "以下内容来自迁移前正文",
+    "原文见附录",
+)
+TEMPLATE_PLACEHOLDERS = (
+    "{Skill 标题}",
+    "说明 Skill 的用途、触发边界",
+    "列出必需输入、可选输入",
+    "按依赖顺序描述 Agent、脚本或人工执行的步骤",
+)
 HEADING_RE = re.compile(r"^##\s+(.+?)\s*$")
 SUBHEADING_RE = re.compile(r"^###\s+(.+?)\s*$")
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
@@ -136,6 +148,12 @@ def check_skill(skill_dir: Path, *, template_root: Path | None = None) -> list[F
     if not path.is_file():
         return [Finding(name, "P0", "missing-skill", "缺少 SKILL.md")]
     text = path.read_text(encoding="utf-8", errors="replace")
+    for marker in FORBIDDEN_MIGRATION_MARKERS:
+        if marker in text:
+            findings.append(Finding(name, "P1", "appendix-migration", f"正文包含禁止的附录托管标记：{marker}"))
+    for marker in TEMPLATE_PLACEHOLDERS:
+        if marker in text:
+            findings.append(Finding(name, "P1", "template-placeholder", f"正文保留模板占位说明：{marker}"))
     frontmatter, body = _frontmatter(text)
     if not frontmatter:
         findings.append(Finding(name, "P0", "frontmatter-missing", "YAML frontmatter 缺失或未闭合"))

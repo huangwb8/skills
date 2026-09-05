@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+- 收紧 Skill 正文规范化门禁：明确模板仅提供章节接口，禁止用模板壳包裹旧正文或以附录托管原有规范；结构检查器新增附录迁移标记与模板占位符检测，并要求逐 Skill 语义 diff 复核。
+- 按 `docs/plans/2026-09-05-skills规范化优化计划.md` 完成 alpha/beta 全部 25 个顶层 Skill 的 `SKILL.md` 正文骨架迁移，补齐公共约束摘要、运行时控制说明与治理文件；保留原有触发语义、脚本参数、配置键、输出格式和安全边界不变。
+- 为 `git-publish-release` 新增 `config.yaml` 与 `CHANGELOG.md`，为 `which-model` 新增 `CHANGELOG.md`，使 Skill 版本与变更记录可发现。
+
+### Added（新增）
+- 新增 `docs/plans/2026-09-05-skills规范化优化计划.md`：为 alpha/beta 全部顶层 Skill 规划统一 `SKILL.md` 正文骨架、逐 Skill 迁移映射、State/Verifier 控制边界与分批验收，保持现有功能语义不变。
+
 ### Fixed（修复）
 - 修复 `auto-draw-plot` 并行轮次 worker 忽略 `--run-dir`、将产物写入当前目录的问题；结果路径现在严格限制在指定运行目录内。
 - 修复 `download-fulltext-pdf` Unpaywall 轮询状态文件可通过符号链接越界写入的问题，并移除默认配置中的个人邮箱；可通过 `UNPAYWALL_EMAILS` 环境变量按需提供邮箱。
@@ -22,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 新增项目宣传图 `docs/assets/agent-skills-ecosystem-v5.jpg`：将左上角目录树改为 `SKILL MANIFEST` 文档卡片，右上角版本方块改为 `RELEASE PIPELINE` 演进轨道，提升项目语义与视觉一致性。
 
 ### Changed（变更）
+- 明确 `auto-draw-plot` 的外部开发归属：该 Skill 在 Sub2API 生态中协同开发，本仓库仅托管其最新可发布源代码用于公开发布，不在此处进行功能开发或测试计划维护。
 - **Python 主线版本统一**：将仓库开发环境与本地完整安装器统一为 Python 3.11+，保留仅依赖标准库的远程 bootstrap 对 Python 3.8+ 的兼容；同步增加本地安装器运行时版本门禁、边界测试及中英文使用说明。
 - 进一步完善中英文 README 的“更多入口”：明确每个链接对应的文档类型、适用场景和阅读引导，帮助首次访问者判断是否进入。
 - 将中英文 README 的“更多入口”改为独立小节，并为每个文档链接补充用途说明，方便首次访问的读者判断是否值得打开。

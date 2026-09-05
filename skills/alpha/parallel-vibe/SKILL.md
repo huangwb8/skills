@@ -15,16 +15,19 @@ metadata:
 
 # parallel-vibe
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-## 模式选择
+沿用原正文定义的输入、触发条件和适用范围。
+
+### 执行步骤
+
+#### 模式选择
 
 `parallel-vibe` 有两种模式：
 
@@ -57,7 +60,7 @@ metadata:
 
 `config.yaml` 中的 `defaults.mode`、`modes.smart`、`modes.code` 只表达模式口径，不要求宿主一定能以代码读取；真正执行仍以本节路由和用户意图为准。
 
-## 智能模式工作流
+#### 智能模式工作流
 
 适用场景：方案探索、代码审查、风险评估、文档优化、研究假设打磨，以及“让多个独立 agent 给意见再汇总”的任务。
 
@@ -84,7 +87,7 @@ metadata:
 
 重要边界：共享目录契约不等于强安全隔离。智能模式的独立性来自宿主 subagent / 独立上下文；代码模式的独立性来自 CLI runner + `cwd=workspace/`。实现型任务必须确保每个执行单元只写自己的 `workspace/`，否则让 subagent 输出方案或 patch 建议，由主 agent 选择并落地。
 
-## 代码模式工作流
+#### 代码模式工作流
 
 适用场景：需要脚本 runner、`--plan-file`、`--resume`、`--dry-run`、失败日志、真实退出码、跨 `codex` / `claude` / `shell` runner，或被 `git-pr-review`、`research-idea`、`auto-draw-plot` 等下游 skill 作为稳定批处理接口调用。
 
@@ -138,7 +141,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" --parallel --max-parallel 3
 ```
 
-## 代码模式软护栏
+#### 代码模式软护栏
 
 代码模式提供的是工程隔离，不是容器或沙箱级强安全隔离。当 runner 在某个 thread 的 `workspace/` 内工作时：
 
@@ -149,7 +152,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 
 默认拒绝 `--src-dir` 中的 symlink（可用 `--symlink-policy` 覆盖，但存在越界风险）；不要把包含敏感文件（如 `.env`、SSH key）的目录作为 `--src-dir`。
 
-## 自定义 thread（代码模式）
+#### 自定义 thread（代码模式）
 
 如需精确控制每个 thread 的 `runner/profile/model/prompt`，可直接编辑：
 
@@ -159,7 +162,7 @@ python3 parallel-vibe/scripts/parallel_vibe.py --prompt "<用户指令原文>" -
 
 如计划中使用 `runner.type=shell`，它会执行任意命令模板（仅对受信任的 plan 使用）；shell/工具本身可能读写用户全局缓存目录或访问绝对路径，因此不应理解为安全沙箱。
 
-## Runner 命令形态（代码模式）
+#### Runner 命令形态（代码模式）
 
 代码模式假设“一条命令 = 一次独立执行”：
 
@@ -176,10 +179,38 @@ claude --model <model_id> --effort <effort> -p "你的指令内容"
 - `runner.args`：全局参数，放在子命令前；适合 `codex -c ...`、`claude --effort ...`
 - `runner.sub_args`：子命令参数，放在子命令后、prompt 前；适合 `codex exec --some-flag ...`
 
-## 清理方式
+#### 清理方式
 
 在触发目录执行：
 
 ```bash
 rm -rf .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe
 ```
+
+### 输出
+
+沿用原正文和配置定义的输出格式与交付物。
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。

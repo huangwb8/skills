@@ -19,16 +19,19 @@ metadata:
 
 # md-to-word（Markdown 转 Word）
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+将一个或多个 Markdown 文档转换为格式优美的 Word（.docx），基于 Pandoc + 内置 reference.docx 模板（可选自定义模板），并确保不修改任何原始 Markdown 文件。内置模板已修复命名空间兼容性问题，支持 RGBA 图片自动转换。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-## 你要解决的问题
+沿用原正文定义的输入、触发条件和适用范围。
+
+### 执行步骤
+
+#### 你要解决的问题
 
 用户给你一个或多个标准 Markdown 文档，希望把它们转换成**排版美观、可审查、可交付**的 Word（`.docx`），并且能在不同项目里复用同一套转换流程与样式模板。
 
@@ -37,31 +40,14 @@ metadata:
 - **图片路径问题**：脚本自动处理相对路径资源引用
 - **中文排版问题**：使用 `--template cn-modern` 获得更好的中文样式
 
-## 安全约束
-
-- 你**只能读取**用户提供的 Markdown 文件及其引用资源（如图片）。
-- 你**绝不能修改/覆盖/重命名/删除**任何输入 Markdown 文件或其同目录已有文件。
-- 默认**不覆盖**任何已存在的输出 `.docx`；除非用户明确要求覆盖，才可使用 `--overwrite`。
-- 输出文件只能是**新生成的** `.docx`（以及测试目录中的中间产物）。
-
-## 输入输出
-
-**输入**
-- `md_files`：一个或多个 Markdown 文件路径（建议 `.md` / `.markdown`）
-- 可选：`template`（内置模板名）或 `reference_doc`（自定义 reference.docx 路径）
-- 可选：`output_dir`（输出目录）
-
-**输出**
-- 对每个输入 Markdown，生成一个同名 `.docx`（默认输出到输入文件同目录；也可输出到 `output_dir`）
-
-## 内置模板（Pandoc reference.docx）
+#### 内置模板（Pandoc reference.docx）
 
 内置模板文件位于 `assets/`：
 - `default`：`assets/reference-default.docx`
 - `cn-modern`：`assets/reference-cn-modern.docx`（中文更友好字体/样式）
 - `compact`：`assets/reference-compact.docx`（更紧凑段落间距）
 
-## 推荐执行方式
+#### 推荐执行方式
 
 优先运行确定性脚本 `scripts/md_to_word.py`，避免 AI 手写 Pandoc 命令导致参数缺失或误覆盖。
 
@@ -79,9 +65,9 @@ python3 md-to-word/scripts/md_to_word.py \
 - 需要用同一份 Markdown 生成多套风格时，使用 `--output-suffix` 避免覆盖（默认不覆盖）。
 - 用户不确定模板可选项时，先运行 `python3 md-to-word/scripts/md_to_word.py --list-templates`。
 
-## 核心工作流
+#### 核心工作流
 
-### 步骤 0：预检查（不写任何输出前）
+##### 步骤 0：预检查（不写任何输出前）
 
 1. 校验 `md_files` 均存在且为文件。
    - 默认仅接受 `.md/.markdown`；如用户确实给了其他扩展名，必须显式使用 `--allow-any-extension`。
@@ -95,7 +81,7 @@ python3 md-to-word/scripts/md_to_word.py \
    - 指定 `--output-dir`：`{output_dir}/{basename}.docx`
    - 若输出已存在：默认报错并停止（除非用户明确要求 `--overwrite`）。
 
-### 步骤 1：逐文件转换（必须覆盖全部输入）
+##### 步骤 1：逐文件转换（必须覆盖全部输入）
 
 对每个 Markdown 文件：
 - **图片处理**（可选，`--fix-images`）：
@@ -108,16 +94,40 @@ python3 md-to-word/scripts/md_to_word.py \
 - 生成 `.docx` 到目标输出路径。
 - 可选：使用 `--clean` 转换后清理 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/md-to-word/{yyyy-mm-dd-hh-mm}/` 工作目录（默认保留便于增量转换）
 
-### 步骤 2：轻量自检（输出后必须做）
+##### 步骤 2：轻量自检（输出后必须做）
 
 - [ ] 输入 Markdown 文件的内容未被修改（可选：对关键输入做 hash 前后对比）
 - [ ] 输出 `.docx` 均成功生成且路径符合预期
 - [ ] 未发生意外覆盖（除非用户明确要求）
 - [ ] 如存在图片/链接，Word 中渲染正常（无法验证时说明原因与建议）
 
-## Word 兼容性问题与解决方案
+### 输出
 
-### 问题 1：Word 打开时提示"发现无法读取的内容"（模板命名空间问题）
+#### 输入输出
+
+**输入**
+- `md_files`：一个或多个 Markdown 文件路径（建议 `.md` / `.markdown`）
+- 可选：`template`（内置模板名）或 `reference_doc`（自定义 reference.docx 路径）
+- 可选：`output_dir`（输出目录）
+
+**输出**
+- 对每个输入 Markdown，生成一个同名 `.docx`（默认输出到输入文件同目录；也可输出到 `output_dir`）
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+#### Word 兼容性问题与解决方案
+
+##### 问题 1：Word 打开时提示"发现无法读取的内容"（模板命名空间问题）
 
 **原因**：自定义 Word 模板使用了非标准的 XML 命名空间前缀（`ns0:`），与 Pandoc 的 `--reference-doc` 参数结合时可能导致 Word 兼容性问题。
 
@@ -134,7 +144,7 @@ python3 md-to-word/scripts/fix_template_namespace.py \
   --verify
 ```
 
-### 问题 2：RGBA PNG 图片导致 Word 警告
+##### 问题 2：RGBA PNG 图片导致 Word 警告
 
 **原因**：Markdown 中引用的 PNG 图片使用 RGBA 模式（带透明通道），这种格式在嵌入 Word 文档时可能导致兼容性问题。
 
@@ -179,3 +189,20 @@ your-doc.docx
 - 默认保留 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/md-to-word/{yyyy-mm-dd-hh-mm}/` 工作目录，便于后续增量转换
 - 使用 `--clean` 转换后自动清理工作目录
 - 手动清理：`rm -rf /path/to/md/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/md-to-word`
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+#### 安全约束
+
+- 你**只能读取**用户提供的 Markdown 文件及其引用资源（如图片）。
+- 你**绝不能修改/覆盖/重命名/删除**任何输入 Markdown 文件或其同目录已有文件。
+- 默认**不覆盖**任何已存在的输出 `.docx`；除非用户明确要求覆盖，才可使用 `--overwrite`。
+- 输出文件只能是**新生成的** `.docx`（以及测试目录中的中间产物）。

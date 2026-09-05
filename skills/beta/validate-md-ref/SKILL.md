@@ -8,7 +8,17 @@ metadata:
     - validate-md-ref
 ---
 
-## 范围与边界
+# validate-md-ref
+
+## 目标
+
+检查 Markdown 文档中的引用是否可定位、URL 或锚点是否可访问，并整理供后续判断引用真实性与适切性的结构化证据。当用户要求核查引用、检查文档链接，或确认引用是否支持正文论断时使用。
+
+## 流程
+
+### 输入
+
+#### 范围与边界
 
 - 输入：一个 Markdown 文件，可选一个 YAML 配置文件。
 - 检查：Markdown 行内链接、HTML `<a href>` 链接、当前文档内的 `#anchor`，以及外部 HTTP(S) 链接的可达性。
@@ -16,7 +26,9 @@ metadata:
 - 不做：不修改原文；URL 可达性不等于来源支持论断；不代替用户决定修复方式。
 - 运行时能力：使用 `bensz.document.markdown-link-integrity` 检查链接事实，并保留 `bensz.evidence.citation-truth-fit` 的语义复核状态；两者版本独立记录，旧 ID 仅作兼容 alias。
 
-## 强制运行门禁
+### 执行步骤
+
+#### 强制运行门禁
 
 每次执行必须经过 Bensz Skill Kernel 状态机并调用指定版本的链接完整性 Verifier。任一环节不可用或失败，任务即未完成并须说明原因；不得降级为普通脚本或手工检查。
 
@@ -27,7 +39,7 @@ AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转�
 - [`references/state-machine.md`](references/state-machine.md)
 - [`references/verifiers.md`](references/verifiers.md)
 
-## 流程
+#### 流程
 
 1. 确认 Markdown 存在并只读处理；需限制网络请求时加载默认或指定 YAML。
 2. 提取并分类检查：站内锚点在当前文档定位；HTTP(S) 按安全策略验证可达性；白/黑名单命中则跳过。
@@ -40,11 +52,7 @@ AI 应使用本 Skill 的执行器或封装入口，不得手工模拟状态转�
 `facts.summary` 与 `facts.references` 为唯一链接事实来源；不要将旧兼容函数的本地
 探测结果与 Verifier 结果合并或互相覆盖。
 
-## 文件边界
-
-需落盘时，将本 Skill 的输入、临时结果和日志写入当前会话声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/{input,output,log}/`；多 Skill 共享材料放任务根目录 `shared/`。正式交付物、用户指定文件和源 Markdown 留在项目约定位置。不得写入密钥、令牌、Cookie、私有指令、隐私或不必要的大体积原始数据；纯文本答复无需建目录。
-
-## 工具
+#### 工具
 
 - `scripts/validate_links.py`：读取 Markdown 及可选 YAML，输出结构化结果。
 - `config.yaml`：提供默认超时、域名白名单和黑名单，并在 `runtime` 节声明状态包与 Verifier 选择。
@@ -60,7 +68,34 @@ python3 scripts/validate_links.py DOCUMENT.md CONFIG.yaml
 
 输出字段和配置字段的完整说明见 [`references/formats.md`](references/formats.md) 与 [`references/tools.md`](references/tools.md)。
 
-## 疑似 Skill 设计问题
+### 输出
+
+沿用原正文和配置定义的输出格式与交付物。
+
+### 输出管理
+
+#### 文件边界
+
+需落盘时，将本 Skill 的输入、临时结果和日志写入当前会话声明的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/validate-md-ref/{input,output,log}/`；多 Skill 共享材料放任务根目录 `shared/`。正式交付物、用户指定文件和源 Markdown 留在项目约定位置。不得写入密钥、令牌、Cookie、私有指令、隐私或不必要的大体积原始数据；纯文本答复无需建目录。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 控制
+
+运行时由 `bensz-skill-kernel` 按 `config.yaml.runtime` 管理 State、Verifier 与 Gate；链接完整性为 required，语义真实性为 advisory，失败或不确定时保留证据并转人工复核。
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 疑似 Skill 设计问题
 
 - **适用范围**：仅记录流程漏判、输入约定不完整、环境假设错误等 Skill 设计缺陷；用户数据错误、第三方波动和偶发模型输出除外。
 - **隐私保护**：不得记录密钥、密码、身份信息、邮箱、私密路径、用户名、主机名或工作目录；公开前须脱敏。

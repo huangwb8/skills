@@ -2,6 +2,11 @@
 
 本文档记录 `md-to-word` 技能的重要变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased]
+
+### Changed（变更）
+- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；md-to-word 的既有功能语义保持不变。
+
 ## [0.4.0] - 2026-01-13
 
 ### Added（新增）

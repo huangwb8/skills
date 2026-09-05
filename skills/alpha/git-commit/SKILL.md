@@ -14,18 +14,24 @@ category: normal
 
 # Git Commit
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"提交 Git 改动"、"生成 commit 信息"或"创建 git commit"时使用。仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过），提交后默认自动 push（可 --no-push 跳过）。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过），提交后默认自动 push（可 --no-push 跳过）。
+#### 触发场景
 
-## 工作模式
+- 用户要提交代码改动
+- 需要生成符合规范的提交信息
+- 需要判断是否应该拆分提交
+- 需要包含 emoji 的提交信息
+
+### 执行步骤
+
+#### 工作模式
 
 本技能支持两种工作模式：
 
@@ -36,16 +42,9 @@ category: normal
 
 **默认使用自动模式**，因为大多数情况下 commit 的顺利提交比内容本身更重要；如不满意可直接回退。
 
-## 触发场景
+#### 工作流程
 
-- 用户要提交代码改动
-- 需要生成符合规范的提交信息
-- 需要判断是否应该拆分提交
-- 需要包含 emoji 的提交信息
-
-## 工作流程
-
-### 1. 仓库/分支校验
+##### 1. 仓库/分支校验
 
 - 通过 `git rev-parse --is-inside-work-tree` 判断是否位于 Git 仓库
   - **如不在 Git 仓库**：提示 `git init` 初始化仓库后继续
@@ -63,7 +62,7 @@ category: normal
     - 或跳过当前提交：`git rebase --skip`
     - 或中止 rebase/merge：`git rebase --abort` / `git merge --abort`
 
-### 2. 改动检测
+##### 2. 改动检测
 
 - 用 `git status --porcelain` 与 `git diff` 获取已暂存与未暂存的改动
   - **如无改动**：提示 "当前无改动，无需提交"，退出
@@ -86,7 +85,7 @@ category: normal
   - **自动模式**：自动执行 `git add -A`（除非传入 `--no-all` 跳过）
   - **审核模式**：提示用户选择暂存方式（同上）
 
-### 3. 拆分建议
+##### 3. 拆分建议
 
 按以下决策树判断是否需要拆分提交：
 
@@ -109,9 +108,9 @@ category: normal
 - **自动模式**：按分组自动执行多次提交（不询问）
 - **审核模式**：给出每一组的 pathspec 拆分建议，询问是否接受
 
-### 4. 提交信息生成
+##### 4. 提交信息生成
 
-#### 格式规范
+###### 格式规范
 
 遵循 Conventional Commits 规范：
 
@@ -123,15 +122,15 @@ category: normal
 <footer>
 ```
 
-#### 类型（type）
+###### 类型（type）
 
 详见 config.yaml 中的 `commit_types` 定义。
 
-#### Emoji 映射（使用 --emoji 时）
+###### Emoji 映射（使用 --emoji 时）
 
 详见 config.yaml 中的 `emoji_map` 定义。
 
-#### 自动识别 type 和 scope
+###### 自动识别 type 和 scope
 
 **type 自动识别**：根据改动内容自动识别（如新增功能 → feat，修复缺陷 → fix）
 
@@ -140,7 +139,7 @@ category: normal
 - 如跨越多个模块，省略 scope（如 `feat: add user feature`）
 - 用户可通过 `--scope` 参数覆盖自动识别的 scope
 
-#### 内容要求
+###### 内容要求
 
 - **主题行**：首行 ≤ 72 字符，祈使语气，使用动词开头
 - **正文**：
@@ -154,7 +153,7 @@ category: normal
   - 破坏性变更：`BREAKING CHANGE: <description>`
   - 其它采用 git trailer 格式（如 `Closes #123`）
 
-#### 破坏性变更检测与处理
+###### 破坏性变更检测与处理
 
 **检测规则**（满足任一条件即为破坏性变更）：
 - 删除了公开 API（函数、类、方法）
@@ -168,7 +167,7 @@ category: normal
 - 在脚注中说明 `BREAKING CHANGE: <description>`
 - 建议将破坏性变更拆分为独立提交（如与修复混在同一提交）
 
-#### 语言选择
+###### 语言选择
 
 按以下优先级**动态检测**提交信息语言：
 
@@ -191,7 +190,7 @@ git log -n 5 --pretty=%s
 echo $LANG  # 例如：zh_CN.UTF-8 → 中文；en_US.UTF-8 → 英文
 ```
 
-### 5. 执行提交
+##### 5. 执行提交
 
 - **自动模式**：
   - 单提交场景：直接执行 `git commit [-S] [--no-verify] [-s] -F .git/COMMIT_EDITMSG`
@@ -200,7 +199,7 @@ echo $LANG  # 例如：zh_CN.UTF-8 → 中文；en_US.UTF-8 → 英文
   - 单提交场景：显示生成的 commit message，询问是否确认后再提交
   - 多提交场景：给出每一组的 `git add <paths> && git commit ...` 指令，询问是否执行
 
-### 6. 自动推送
+##### 6. 自动推送
 
 提交成功后，默认自动执行 push：
 
@@ -214,9 +213,9 @@ echo $LANG  # 例如：zh_CN.UTF-8 → 中文；en_US.UTF-8 → 英文
   - 如推送被拒绝（远程有新提交）：提示用户先拉取（`git pull --rebase`）后再推送
   - 如无推送权限：提示用户检查远程仓库配置
 
-### 7. 安全回滚
+##### 7. 安全回滚
 
-### 7. 安全回滚
+##### 7. 安全回滚
 
 如误暂存，可用 `git restore --staged <paths>` 撤回暂存（命令会给出指令）
 
@@ -224,31 +223,33 @@ echo $LANG  # 例如：zh_CN.UTF-8 → 中文；en_US.UTF-8 → 英文
 
 如已推送，需使用 `git revert` 创建反向提交（避免强制推送）
 
-## 使用参数
+#### 使用参数
 
-### 模式控制
+##### 模式控制
 
 - `--review`：启用审核模式（在关键决策点暂停，等待用户确认）
 - `--no-all`：在自动模式下跳过自动暂存（包括自动 `git add -A` 与自动补齐未跟踪文件）
 - `--no-untracked`：在自动/审核模式下不自动处理未跟踪文件（避免把“新文件”自动加入暂存区）
 
-### 提交控制
+##### 提交控制
 
 - `--no-verify`：跳过本地 Git 钩子
 - `--no-push`：提交后不自动推送（仅本地提交）
 - `--amend`：修补上一次提交（⚠️ 危险操作：仅在未推送的本地分支使用，已推送的分支使用会导致历史不一致）
 - `--signoff`：附加 `Signed-off-by` 行
 
-### 内容控制
+##### 内容控制
 
 - `--emoji`：在提交信息中包含 emoji 前缀
 - `--scope <scope>`：指定提交作用域
 - `--type <type>`：强制提交类型
 - `--lang <zh|en>`：临时指定提交信息语言（覆盖自动检测）
 
-## 输出示例
+### 输出
 
-### 使用 emoji
+#### 输出示例
+
+##### 使用 emoji
 
 ```
 ✨ feat(ui): add user authentication flow
@@ -260,7 +261,7 @@ echo $LANG  # 例如：zh_CN.UTF-8 → 中文；en_US.UTF-8 → 英文
 Closes #42
 ```
 
-### 不使用 emoji
+##### 不使用 emoji
 
 ```
 feat(auth): add OAuth2 login flow
@@ -270,7 +271,7 @@ feat(auth): add OAuth2 login flow
 - improve login state persistence logic
 ```
 
-### 包含破坏性变更
+##### 包含破坏性变更
 
 ```
 feat(api)!: redesign authentication API
@@ -282,13 +283,13 @@ feat(api)!: redesign authentication API
 BREAKING CHANGE: authentication API has been completely redesigned, all clients must update their integration
 ```
 
-### 拆分提交示例
+##### 拆分提交示例
 
 **自动模式**：自动执行以下三个提交（不询问）
 
 **审核模式**：检测到多组独立变更，建议拆分为以下提交：
 
-#### 提交 1：feat(ui): add user authentication flow
+###### 提交 1：feat(ui): add user authentication flow
 ```bash
 git add src/components/LoginForm.tsx src/hooks/useAuth.ts
 git commit -m "feat(ui): add user authentication flow
@@ -299,7 +300,7 @@ git commit -m "feat(ui): add user authentication flow
 Closes #42"
 ```
 
-#### 提交 2：fix(api): resolve token validation error
+###### 提交 2：fix(api): resolve token validation error
 ```bash
 git add src/api/auth.ts
 git commit -m "fix(api): resolve token validation error
@@ -308,7 +309,7 @@ git commit -m "fix(api): resolve token validation error
 - update token refresh logic"
 ```
 
-#### 提交 3：docs(auth): update authentication documentation
+###### 提交 3：docs(auth): update authentication documentation
 ```bash
 git add docs/auth-guide.md
 git commit -m "docs(auth): update authentication documentation
@@ -317,7 +318,33 @@ git commit -m "docs(auth): update authentication documentation
 - update troubleshooting section"
 ```
 
-## 重要约束
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+仅用 Git 分析改动并自动生成 conventional commit 信息（可选 emoji）；必要时建议拆分提交，默认运行本地 Git 钩子（可 --no-verify 跳过），提交后默认自动 push（可 --no-push 跳过）。
+
+#### 重要约束
 
 - **仅使用 Git**：不调用任何包管理器/构建命令
 - **尊重钩子**：默认执行本地 Git 钩子；使用 `--no-verify` 可跳过

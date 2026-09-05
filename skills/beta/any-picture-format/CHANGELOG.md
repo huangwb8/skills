@@ -1,5 +1,10 @@
 # Any Picture Format 变更记录
 
+## [Unreleased]
+
+### Changed（变更）
+- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；any-picture-format 的既有功能语义保持不变。
+
 ## [0.2.0] - 2026-01-21
 
 ### Fixed（修复）
@@ -34,4 +39,3 @@
 - 可配置质量参数、输出策略、文件命名规则
 - 提供Python脚本接口（scripts/convert.py）
 - 添加验证功能（validate子命令）
-

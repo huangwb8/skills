@@ -15,18 +15,15 @@ metadata:
 
 # compact-bensz-skills
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求“压缩/瘦身/精简某个 Agent Skill 的 Markdown 文档”“在不改变功能前提下降低 skill 上下文开销”时使用。先理解目标 skill 的真实能力与安全边界，再在忽略 `tests/`、`plans/` 以及目标 skill 的 `README.md`、`CHANGELOG.md` 的前提下，压缩 `SKILL.md`、`references/*.md` 等工作型 Markdown，并把中间产物隔离到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/`。⚠️ 不适用：用户主要想新增功能、修复脚本逻辑、批量改代码、或只想压缩非 skill 文档。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-面向“**压缩某个 Agent Skill 的工作型 Markdown 文档，但不破坏其原有功能**”的维护型 skill。
-
-## 输入
+#### 输入
 
 1. `skill_root`（必需）
    - 目标 Agent Skill 根目录
@@ -38,7 +35,9 @@ metadata:
 4. `test_dir`（可选）
    - 默认 `<skill_root>/tests/compact-bensz-skills/`
 
-## 核心原则
+### 执行步骤
+
+#### 核心原则
 
 - **先理解，再压缩**：先读 `SKILL.md`、`config.yaml`、`scripts/` 和必要的 `references/`，再判断哪些 Markdown 可以缩短。
 - **不改行为，只改表达**：压缩的是文档体积，不是功能边界；不得擅自新增、删除或扭曲目标 skill 的能力。
@@ -50,9 +49,9 @@ metadata:
 - **按轮次隔离**：每次运行都应在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/` 内工作，避免多次压缩会话互相覆盖。
 - **链接不能越界**：压缩后保留的本地 Markdown 链接必须仍位于目标 skill 根目录内，不能借相对路径跳到 skill 外部。
 
-## 标准工作流
+#### 标准工作流
 
-### 1. 初始化隐藏工作区
+##### 1. 初始化隐藏工作区
 
 优先使用确定性脚本创建工作区、快照和 Markdown 清单：
 
@@ -69,7 +68,7 @@ python3 compact-bensz-skills/scripts/init_workspace.py --skill-root /path/to/tar
 - 生成 `analysis/compaction-plan.md`
 - 记录压缩前统计到 `reports/size-before.json`
 
-### 2. 理解目标 skill 的真实功能
+##### 2. 理解目标 skill 的真实功能
 
 最低阅读范围：
 - `SKILL.md`
@@ -85,7 +84,7 @@ python3 compact-bensz-skills/scripts/init_workspace.py --skill-root /path/to/tar
 - 安全边界与只读/只写限制
 - 任何“必须执行”“不得省略”的步骤
 
-### 3. 执行 Markdown 压缩
+##### 3. 执行 Markdown 压缩
 
 优先顺序：
 1. 删重复：移除跨文件、跨章节重复解释
@@ -114,7 +113,7 @@ python3 compact-bensz-skills/scripts/init_workspace.py --skill-root /path/to/tar
 - 删除唯一的命令示例或唯一的输出说明
 - 只为了省字而制造歧义
 
-### 4. 复测压缩收益
+##### 4. 复测压缩收益
 
 完成文档修改后重新统计：
 
@@ -135,7 +134,7 @@ python3 compact-bensz-skills/scripts/measure_markdown.py \
 - `reports/size-after.json`
 - `reports/size-delta.md`
 
-### 5. 校验压缩后仍可用
+##### 5. 校验压缩后仍可用
 
 ```bash
 python3 compact-bensz-skills/scripts/validate_compaction.py --skill-root /path/to/target-skill
@@ -151,13 +150,15 @@ python3 compact-bensz-skills/scripts/validate_compaction.py --skill-root /path/t
 - 压缩后的总字数是否低于压缩前
 - 若 `description` 有改动，确认只是等价压缩而非改坏触发语义
 
-## 何时读取参考文档
+#### 何时读取参考文档
 
 - 需要决定“哪些内容必须保留”时，读 `references/preservation-checklist.md`
 - 需要具体压缩手法时，读 `references/compaction-playbook.md`
 - 做收尾校验时，读 `references/validation-checklist.md`
 
-## 输出
+### 输出
+
+#### 输出
 
 对用户的主要交付：
 - 更新后的目标 skill 工作型 Markdown 源文件
@@ -170,3 +171,29 @@ python3 compact-bensz-skills/scripts/validate_compaction.py --skill-root /path/t
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-after.json`
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/size-delta.md`
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/{yyyy-mm-dd-hh-mm}/reports/validation.json`
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+面向“**压缩某个 Agent Skill 的工作型 Markdown 文档，但不破坏其原有功能**”的维护型 skill。

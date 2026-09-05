@@ -9,20 +9,21 @@ metadata:
 
 # 下载文献全文 PDF
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"下载文献全文"或"获取论文PDF"时使用。通过 DOI 号下载学术论文全文 PDF，支持 arXiv、Sci-Hub、Unpaywall、期刊官网等多源策略。⚠️ 不适用：用户只是想解析或处理已有的 PDF 文件（应使用 pdf skill）、只是想搜索论文信息而无需下载全文、没有提供 DOI/标题/BibTeX 任何标识符。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-通过 DOI 号或其他标识符下载学术论文全文 PDF，确保"一定要获得文献PDF"。
+沿用原正文定义的输入、触发条件和适用范围。
 
-## 核心工作流
+### 执行步骤
 
-### 1. 输入验证与规范化
+#### 核心工作流
+
+##### 1. 输入验证与规范化
 
 **必需参数**：
 - `doi`: DOI 号（如 `10.1038/nature09492`）
@@ -40,7 +41,7 @@ metadata:
 - 至少提供一种标识符（DOI/title/bibtex）
 ```
 
-### 2. 多源下载策略
+##### 2. 多源下载策略
 
 **优先级顺序**（按成功率和速度排序）：
 
@@ -60,7 +61,7 @@ metadata:
 4. 尝试 DOI 落地页并猜测常见 PDF 路径（期刊官网兜底）
 ```
 
-### 3. 下载后验证
+##### 3. 下载后验证
 
 **必需检查**（由 `scripts/verify_pdf.py` 处理）：
 - [ ] 文件大小 > 0 且非 HTML 页面
@@ -71,7 +72,7 @@ metadata:
 - 验证失败 → 记录错误 → 尝试下一个数据源
 - 所有源失败 → 返回详细错误报告
 
-### 4. 输出格式
+##### 4. 输出格式
 
 **成功时**：
 ```markdown
@@ -99,7 +100,7 @@ metadata:
 3. 尝试通过期刊官网获取
 ```
 
-## AI 动态判断
+#### AI 动态判断
 
 AI 需要动态处理的场景：
 
@@ -111,9 +112,9 @@ AI 需要动态处理的场景：
 | **文件损坏** | 删除已下载文件，尝试下一个源 |
 | **arXiv 检测** | DOI 中包含 arXiv ID → 优先使用 arXiv 源 |
 
-## 硬编码操作（scripts/）
+#### 硬编码操作（scripts/）
 
-### scripts/validate_input.py
+##### scripts/validate_input.py
 
 输入验证与规范化脚本：
 
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### scripts/download_pdf.py
+##### scripts/download_pdf.py
 
 核心下载逻辑（多源策略）：
 
@@ -286,7 +287,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### scripts/verify_pdf.py
+##### scripts/verify_pdf.py
 
 PDF 验证脚本：
 
@@ -339,7 +340,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## 配置参数（config.yaml）
+#### 配置参数（config.yaml）
 
 ```yaml
 # 下载策略配置
@@ -377,7 +378,7 @@ output:
   overwrite: false  # 是否覆盖已存在文件
 ```
 
-## 依赖说明
+#### 依赖说明
 
 **必需依赖**：
 - `requests`（网络请求）
@@ -386,7 +387,7 @@ output:
 - `scihub`（Sci-Hub 支持，**首次使用时自动安装**）
 - `PyPDF2`（PDF 验证，推荐安装）
 
-### 自动安装机制
+##### 自动安装机制
 
 当 AI 执行下载任务时，`scripts/download_pdf.py` 会：
 1. 检测缺失的可选依赖
@@ -396,7 +397,7 @@ output:
 
 用户无需手动安装，skill 会"开箱即用"。
 
-### 手动安装（可选）
+##### 手动安装（可选）
 
 如果自动安装失败，用户可以手动安装：
 
@@ -404,7 +405,7 @@ output:
 pip install requests scihub PyPDF2
 ```
 
-## 使用示例
+#### 使用示例
 
 **示例 1：使用 DOI 下载**
 ```bash
@@ -421,7 +422,29 @@ pip install requests scihub PyPDF2
 /skill download-fulltext-pdf --bibtex references.bib ./downloads/
 ```
 
-## 错误处理
+### 输出
+
+沿用原正文和配置定义的输出格式与交付物。
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+#### 质量检查清单
+
+- [ ] DOI 格式正确（以 `10.` 开头）
+- [ ] 输出路径可写
+- [ ] 至少一种数据源可用
+- [ ] 下载后 PDF 验证通过
+- [ ] 错误消息清晰可操作
+
+### 失败与恢复
+
+#### 错误处理
 
 | 错误类型 | 表现 | 处理方式 |
 |---------|------|----------|
@@ -430,17 +453,21 @@ pip install requests scihub PyPDF2
 | **超时** | 请求超时 | 重试（最多 3 次） |
 | **文件损坏** | PDF 头无效 | 删除并重新下载 |
 
-## 质量检查清单
-
-- [ ] DOI 格式正确（以 `10.` 开头）
-- [ ] 输出路径可写
-- [ ] 至少一种数据源可用
-- [ ] 下载后 PDF 验证通过
-- [ ] 错误消息清晰可操作
-
-## 注意事项
+#### 注意事项
 
 1. **版权合规**：仅用于学术研究，遵守当地版权法律
 2. **Sci-Hub 可用性**：Sci-Hub 域名可能变化，需要定期更新
 3. **网络环境**：某些地区可能需要代理才能访问 Sci-Hub
 4. **CAPTCHA 处理**：遇到 CAPTCHA 时，建议手动完成验证
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+通过 DOI 号或其他标识符下载学术论文全文 PDF，确保"一定要获得文献PDF"。

@@ -13,16 +13,19 @@ metadata:
 
 # auto-test-skill（批判性思维驱动的测试优化技能）
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。通过多轮 A 轮批判性测试 + B 轮质量原则检查，系统化发现、记录、修复问题，并沉淀可追溯的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 文档。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问技能问题（应直接回答）、没有明确"测试"意图。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-## 你要产出的东西
+沿用原正文定义的输入、触发条件和适用范围。
+
+### 执行步骤
+
+#### 你要产出的东西
 
 本 skill 的交付不是“口头建议”，而是一组可追溯的文件：
 
@@ -33,16 +36,9 @@ metadata:
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/B轮-vYYYYMMDDHHMM.md`：B 轮质量原则检查报告（维度以 `config.yaml:b_round_check.dimensions` 为准）
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM/`：B 轮验证会话目录（包含 `TEST_PLAN.md` + `TEST_REPORT.md`）
 
-## 目录与命名规范
+#### 工作流程
 
-- 测试会话 ID：`vYYYYMMDDHHMM`（分钟级时间戳）
-- 规划文档：默认放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`（以 `config.yaml:directories.plans` 为准）
-- 测试会话：默认放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`（以 `config.yaml:directories.tests` 为准）
-- B 轮统一加前缀：`B轮-`
-
-## 工作流程
-
-### 概览
+##### 概览
 
 ```
 用户输入
@@ -54,9 +50,9 @@ B轮：质量原则检查 → 针对性优化 → 轻量验证
 完成（文档齐全 + 问题闭环）
 ```
 
-### A 轮测试（可重复 N 次）
+##### A 轮测试（可重复 N 次）
 
-#### A.1 初始化会话（生成测试 ID + 目录）
+###### A.1 初始化会话（生成测试 ID + 目录）
 
 目标：创建本轮的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 骨架。
 
@@ -80,7 +76,7 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 可选增强（推荐）：
 - 使用 `--create-plan` 自动生成 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/vYYYYMMDDHHMM.md` 的骨架（默认不覆盖）
 
-#### A.2 批判性分析与计划生成（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`）
+###### A.2 批判性分析与计划生成（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`）
 
 目标：使用**批判性思维**发现系统性问题，写成可执行计划，按 P0/P1/P2 排序。
 
@@ -126,7 +122,7 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 - `references/CONSTRUCTIVE_SUGGESTION_GUIDELINES.md` 建设性建议标准
 - `references/ANTI_PATTERNS_LIBRARY.md` 反例库（快速识别常见问题）
 
-#### A.3 执行优化与轻量测试（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`）
+###### A.3 执行优化与轻量测试（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`）
 
 目标：按计划逐项修复，并用轻量测试验证。
 
@@ -143,7 +139,7 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/vYYYYMMDDHHMM
 ```
 
-#### A.4 是否进入下一轮
+###### A.4 是否进入下一轮
 
 ⚠️ **强制检查**（必须满足才能进入下一轮）：
 - [ ] 本轮已提出至少 10 个问题（P0 + P1 + P2 总和）
@@ -157,11 +153,11 @@ python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api
 
 **重要**：A 轮结束后（无论多少轮），必须进入 B 轮质量检查，不得跳过。
 
-### B 轮质量原则检查（当前 8 项）
+##### B 轮质量原则检查（当前 8 项）
 
 ⚠️ **强制执行**：B 轮质量检查是自动测试流程的强制性环节，除非用户明确要求跳过，否则不得省略。
 
-#### B.1 产出质量检查报告（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`）
+###### B.1 产出质量检查报告（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`）
 
 目标：对 A 轮后的最新状态做系统性质量检查。
 
@@ -179,7 +175,7 @@ python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api
 
 模板：`templates/B_ROUND_CHECK_TEMPLATE.md`
 
-#### B.2 B 轮优化与验证（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`）
+###### B.2 B 轮优化与验证（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`）
 
 ⚠️ **强制修复要求**：
 - B 轮发现的 **所有 P0-P2 问题都必须处理**（修复或明确说明不修复理由）
@@ -216,19 +212,7 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
 
 输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`
 
-## 完成条件（验收）
-
-- [ ] 用户指定的 A 轮次数已完成（或明确说明提前结束原因）
-- [ ] B 轮质量检查已完成并形成报告（⚠️ 强制要求，参考 `config.yaml` 的 `b_round_check.mandatory`）
-- [ ] 每轮 A 轮平均问题数量 ≥ 10 个（P0 + P1 + P2 总和）
-- [ ] **每轮 P0 + P1 占比 ≥ 60%**（确保问题有价值）
-- [ ] **每轮系统性问题 ≥ 3 个**（架构/过度设计/一致/安全）
-- [ ] 关键问题（P0/P1）已闭环：计划 → 修复 → 证据 → 结论
-- [ ] B 轮 P0 问题修复率 = 100%，P1 问题修复率 = 100%（或在报告中逐条说明不修复理由）
-- [ ] `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 结构完整且可追溯
-- [ ] 目标 skill 的 `CHANGELOG.md` 已更新
-
-## 可复用资源
+#### 可复用资源
 
 - 配置：`config.yaml`
 - 模板：`templates/`
@@ -247,3 +231,48 @@ python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . -
   - 反例库：`references/ANTI_PATTERNS_LIBRARY.md`
 - 辅助脚本：`scripts/create_test_session.py`
 - 辅助脚本：`scripts/verify_test_session.py`
+
+### 输出
+
+沿用原正文和配置定义的输出格式与交付物。
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+#### 目录与命名规范
+
+- 测试会话 ID：`vYYYYMMDDHHMM`（分钟级时间戳）
+- 规划文档：默认放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/`（以 `config.yaml:directories.plans` 为准）
+- 测试会话：默认放在 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/`（以 `config.yaml:directories.tests` 为准）
+- B 轮统一加前缀：`B轮-`
+
+### 校验
+
+#### 完成条件（验收）
+
+- [ ] 用户指定的 A 轮次数已完成（或明确说明提前结束原因）
+- [ ] B 轮质量检查已完成并形成报告（⚠️ 强制要求，参考 `config.yaml` 的 `b_round_check.mandatory`）
+- [ ] 每轮 A 轮平均问题数量 ≥ 10 个（P0 + P1 + P2 总和）
+- [ ] **每轮 P0 + P1 占比 ≥ 60%**（确保问题有价值）
+- [ ] **每轮系统性问题 ≥ 3 个**（架构/过度设计/一致/安全）
+- [ ] 关键问题（P0/P1）已闭环：计划 → 修复 → 证据 → 结论
+- [ ] B 轮 P0 问题修复率 = 100%，P1 问题修复率 = 100%（或在报告中逐条说明不修复理由）
+- [ ] `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 结构完整且可追溯
+- [ ] 目标 skill 的 `CHANGELOG.md` 已更新
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。

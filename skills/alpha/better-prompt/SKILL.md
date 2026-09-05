@@ -12,24 +12,27 @@ metadata:
 
 # Better Prompt - Prompt 优化器
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"优化 prompt"、"改进提示词"、"润色指令"或"将简陋 prompt 转换为最佳实践版本"时使用。基于 OpenAI 和 Anthropic 官方最佳实践，对用户提供的简陋 prompt 进行结构化优化，输出符合社区标准的高质量版本。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-将简陋的 prompt 优化为符合社区最佳实践的高质量版本。
+#### 输入要求
 
-## 版本与兼容性
+用户提供一个待优化的原始 prompt（可以是任意形式的简陋版本）。
+
+### 执行步骤
+
+#### 版本与兼容性
 
 - **适用于**：Claude 3.x/4.x、GPT-4/5、Gemini 等主流 LLM
 - **最佳实践来源**：OpenAI/Anthropic 官方文档（2026-02）
 - **更新策略**：官方文档重大更新时同步修订
 
-## 不适用场景
+#### 不适用场景
 
 以下情况不建议使用本技能：
 
@@ -38,11 +41,7 @@ metadata:
 - 超长 prompt（>10000 字）需要专业拆分
 - 用户明确要求保持原始风格
 
-## 输入要求
-
-用户提供一个待优化的原始 prompt（可以是任意形式的简陋版本）。
-
-## 优化框架
+#### 优化框架
 
 基于 **OpenAI** 和 **Anthropic** 官方最佳实践，采用五维度优化框架：
 
@@ -56,9 +55,9 @@ metadata:
 
 > **注意**：上表的 P0/P1/P2 表示"优化维度的重要性优先级"，与 config.yaml 中的 `dimensions` 数值（1-5）含义相同：P0=5（最高优先级）、P1=4、P2=3。
 
-## 优化工作流
+#### 优化工作流
 
-### Step 0: 输入验证（前置检查）
+##### Step 0: 输入验证（前置检查）
 
 验证用户输入的有效性：
 
@@ -69,14 +68,14 @@ metadata:
 | **已完善** | 评分 ≥ 8/10 | 提示"prompt 已足够完善，是否仍需优化？"，等待用户确认 |
 | **有效** | 通过验证 | 继续 Step 1 |
 
-### Step 1: 分析原始 prompt
+##### Step 1: 分析原始 prompt
 
 识别 prompt 的：
 - **核心任务**：用户想让 AI 做什么？
 - **缺失要素**：哪些关键信息缺失？
 - **改进空间**：哪些地方可以优化？
 
-### Step 2: 确定模型类型适配
+##### Step 2: 确定模型类型适配
 
 根据任务特性判断目标模型类型：
 
@@ -87,7 +86,7 @@ metadata:
 
 如果用户未指定，默认按 GPT 模型优化策略处理（更精确）。
 
-### Step 3: 应用优化模板
+##### Step 3: 应用优化模板
 
 以下是优化后 prompt 的标准结构模板：
 
@@ -116,7 +115,7 @@ metadata:
 > - 对于简单任务，Examples 可以省略
 > - 如原始 prompt 已有示例，优化时应保留或增强
 
-### Step 4: 输出优化结果
+##### Step 4: 输出优化结果
 
 输出包含三个部分（默认全部包含，可通过 config.yaml 调整）：
 
@@ -124,10 +123,7 @@ metadata:
 2. **优化后的 prompt**：符合最佳实践的高质量版本
 3. **使用建议**：针对特定场景的调整建议
 
-## 输出格式
-
-```markdown
-## 优化分析
+#### 优化分析
 
 | 维度 | 原始状态 | 优化措施 |
 |------|---------|---------|
@@ -137,7 +133,7 @@ metadata:
 | 示例性 | ... | ... |
 | 约束性 | ... | ... |
 
-## 优化后的 Prompt
+#### 优化后的 Prompt
 
 # Identity
 ...
@@ -151,13 +147,13 @@ metadata:
 # Context（如适用）
 ...
 
-## 使用建议
+#### 使用建议
 
 - 适用于：[模型类型/场景]
 - 调整建议：[如需针对特定场景调整的建议]
 ```
 
-## 优化效果评估
+#### 优化效果评估
 
 对优化前后的 prompt 进行对比评估：
 
@@ -172,7 +168,67 @@ metadata:
 
 > **评分标准**：1=很差、2=较差、3=一般、4=良好、5=优秀
 
-## 质量标准
+#### 特殊场景处理
+
+根据 config.yaml 中的 `templates` 配置，针对不同场景有特定的优化重点：
+
+##### 代码生成类 prompt
+
+**配置引用**：`config.yaml:templates.code_generation.focus_areas`
+
+额外关注：
+- 明确编程语言和框架
+- 指定代码风格规范
+- 说明错误处理要求
+- 提供边界条件示例
+
+##### 文本分析类 prompt
+
+**配置引用**：`config.yaml:templates.text_analysis.focus_areas`
+
+额外关注：
+- 明确输出格式（JSON/表格/摘要）
+- 定义分析维度和标准
+- 提供分类/评估示例
+
+##### 创意写作类 prompt
+
+**配置引用**：`config.yaml:templates.creative_writing.focus_areas`
+
+额外关注：
+- 定义风格和语调
+- 说明目标受众
+- 提供参考示例
+- 设置长度约束
+
+##### 多轮对话类 prompt
+
+**配置引用**：`config.yaml:templates.multi_turn_conversation.focus_areas`
+
+额外关注：
+- 定义对话角色和边界
+- 说明状态管理要求
+- 提供异常处理规则
+
+#### 参考资料
+
+更多详细的最佳实践，参考 [references/prompt-engineering-best-practices.md](references/prompt-engineering-best-practices.md)
+
+### 输出
+
+#### 输出格式
+
+```markdown
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+#### 质量标准
 
 优化后的 prompt 必须满足：
 
@@ -184,48 +240,18 @@ metadata:
 | **结构化** | 使用 Markdown/XML 清晰组织 |
 | **可测试性** | 能判断输出是否符合预期 |
 
-## 特殊场景处理
+### 失败与恢复
 
-根据 config.yaml 中的 `templates` 配置，针对不同场景有特定的优化重点：
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
 
-### 代码生成类 prompt
 
-**配置引用**：`config.yaml:templates.code_generation.focus_areas`
+## 约束
 
-额外关注：
-- 明确编程语言和框架
-- 指定代码风格规范
-- 说明错误处理要求
-- 提供边界条件示例
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
 
-### 文本分析类 prompt
+#### 与 bensz-collect-bugs 的协作约定
 
-**配置引用**：`config.yaml:templates.text_analysis.focus_areas`
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
-额外关注：
-- 明确输出格式（JSON/表格/摘要）
-- 定义分析维度和标准
-- 提供分类/评估示例
-
-### 创意写作类 prompt
-
-**配置引用**：`config.yaml:templates.creative_writing.focus_areas`
-
-额外关注：
-- 定义风格和语调
-- 说明目标受众
-- 提供参考示例
-- 设置长度约束
-
-### 多轮对话类 prompt
-
-**配置引用**：`config.yaml:templates.multi_turn_conversation.focus_areas`
-
-额外关注：
-- 定义对话角色和边界
-- 说明状态管理要求
-- 提供异常处理规则
-
-## 参考资料
-
-更多详细的最佳实践，参考 [references/prompt-engineering-best-practices.md](references/prompt-engineering-best-practices.md)
+将简陋的 prompt 优化为符合社区最佳实践的高质量版本。

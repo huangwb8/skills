@@ -422,3 +422,5 @@ python3 auto-test-project/scripts/verify_all_sessions.py \
 
 - `references/FAQ.md`
 - `references/PROJECT_TESTING_BEST_PRACTICES.md`
+
+> 公共约束长版本：[`docs/templates/skill-common-constraints.md`](../../../docs/templates/skill-common-constraints.md)。

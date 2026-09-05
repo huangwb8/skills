@@ -1,0 +1,11 @@
+skill_info:
+  name: git-publish-release
+  version: "0.1.0"
+  description: "当用户明确要求发布项目到 GitHub、创建 GitHub Release 或生成 Release Notes 时使用。"
+  author: "Bensz Conan"
+  category: 发布管理
+
+release:
+  default_prerelease: false
+  require_confirmation: true
+  notes_reference: references/release-notes-strategy.md

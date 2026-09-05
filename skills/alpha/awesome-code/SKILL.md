@@ -17,18 +17,19 @@ metadata:
 
 # Awesome Code - AI 自主规划多代理软件开发协调系统
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"使用 awesome-code / 多代理协作 / 并行协调开发"时使用。通过脚本收集可用 Agent 摘要、配置约束与 `dispatch_gate`，再由 AI 自主判断 single-pass / focused-agent / parallel / sequential 策略并选择子代理；当配置中的 required route agent 缺失时必须阻塞继续执行。⚠️ 不适用：用户仅需单一角色的简单修改或咨询、用户未明确表达多代理协作意图、用户只是了解技能概念。
 
-本技能用于“复杂开发任务”的多代理编排：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成。
+## 流程
 
-## 与 bensz-collect-bugs 的协作约定
+### 输入
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+沿用原正文定义的输入、触发条件和适用范围。
 
-## 执行前置：动态发现技能安装路径（硬编码部分）
+### 执行步骤
+
+#### 执行前置：动态发现技能安装路径（硬编码部分）
 
 在调用任何脚本之前，必须先运行 `scripts/get_path.py` 动态发现真实安装路径，并使用返回的绝对路径执行后续命令（避免硬编码 `~/.claude/skills/` / `.claude/skills/`）。
 
@@ -44,7 +45,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - `skill_root`
 - `executable_scripts.*`（例如 `executable_scripts.agent_coordinator`）
 
-## 核心理念
+#### 核心理念
 
 - 脚本做确定性操作：路径发现、`agents/*/SKILL.md` frontmatter 摘要提取、配置加载、Agent 缺失检查
 - AI 做语义判断：理解任务、选择 Agent、决定 single-pass / focused-agent / parallel / sequential 策略
@@ -57,7 +58,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - 专业化分工：每个子代理专注一个领域，降低单模型的认知负担
 - 渐进式信息披露：只在需要时加载对应子代理的 `SKILL.md`
 
-## 代理团队
+#### 代理团队
 
 | role | 领域 |
 |------|------|
@@ -76,7 +77,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 | writing-plans | 实施计划与任务拆解 |
 | multi-agent-coordinator | 多代理协调 |
 
-## 核心工作流
+#### 核心工作流
 
 1. 运行 `get_path.py`，拿到 `executable_scripts.agent_coordinator` 的绝对路径。
 2. 调用 `agent_coordinator.py` 收集规划上下文，读取 `available_agents`、`config_constraints`、`dispatch_guidance` 与 `dispatch_gate`。
@@ -102,22 +103,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
    - 为实际调用的 required agent 回填 `dispatch_receipts`
    - 对照自定验收标准与验证计划给出结果
 
-## 自主规划输出
-
-`agent_coordinator.py` 不再输出 `recommended_agents`、`confidence` 或 `execution_plan`。这些属于 AI 的语义规划职责。
-
-脚本输出至少包含：
-
-- `planning_mode`
-- `available_agents`
-- `agent_count`
-- `config_constraints.required_routes`
-- `dispatch_gate.can_proceed`
-- `dispatch_gate.blocking_reason`
-- `dispatch_gate.missing_agents`
-- `dispatch_guidance`
-
-## Agent 选择指导
+#### Agent 选择指导
 
 - Bug、测试失败和异常优先考虑 `systematic-debugging`；先根因，后修复。
 - test-first、回归测试和覆盖率任务优先考虑 `tdd-workflow`。
@@ -135,7 +121,7 @@ python3 ~/.claude/skills/awesome-code/scripts/get_path.py
 python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 ```
 
-## 常用脚本
+#### 常用脚本
 
 注意：脚本路径以 `get_path.py` 输出为准。
 
@@ -148,7 +134,7 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 - `scripts/code_analyzer.py`：静态分析与质量检查
 - `scripts/performance_benchmark.py`：基准测试与报告
 
-## Single Source of Truth
+#### Single Source of Truth
 
 - 版本号仅在 `awesome-code/config.yaml:skill_info.version` 维护；`SKILL.md` 不记录版本历史。
 - 代理启用状态：`awesome-code/config.yaml:multi_agent.enabled_agents`
@@ -156,7 +142,7 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 - 质量阈值/开关：`awesome-code/config.yaml:tdd`、`awesome-code/config.yaml:code_review` 等
 - 变更记录：`awesome-code/CHANGELOG.md`
 
-## 参考资料（仅一层深度；需要时按需加载）
+#### 参考资料（仅一层深度；需要时按需加载）
 
 - TDD：`awesome-code/references/tdd-best-practices.md`
 - 系统化调试：`awesome-code/references/debugging-systematic.md`
@@ -170,3 +156,46 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 - 问题挖掘技巧：`awesome-code/references/ISSUE_DISCOVERY_TECHNIQUES.md`
 - 反例库：`awesome-code/references/ANTI_PATTERNS_LIBRARY.md`
 - 脚本调用策略：`awesome-code/references/SCRIPT_PATH_STRATEGY.md`
+
+### 输出
+
+#### 自主规划输出
+
+`agent_coordinator.py` 不再输出 `recommended_agents`、`confidence` 或 `execution_plan`。这些属于 AI 的语义规划职责。
+
+脚本输出至少包含：
+
+- `planning_mode`
+- `available_agents`
+- `agent_count`
+- `config_constraints.required_routes`
+- `dispatch_gate.can_proceed`
+- `dispatch_gate.blocking_reason`
+- `dispatch_gate.missing_agents`
+- `dispatch_guidance`
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+本技能用于“复杂开发任务”的多代理编排：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。

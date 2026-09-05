@@ -9,18 +9,15 @@ metadata:
 
 # Find Best Skill
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"搜索技能"、"寻找 Agent Skill"、"查找某个领域的 skill"、"推荐最佳 skill"时使用。支持多平台搜索（GitHub、SkillsMP、Reddit）和社区/AI 双维度评价，推荐数量可根据用户指令动态调整（默认 5-10 个，支持 3-20 个）。⚠️ 不适用：用户只是询问"有没有某个技能"（应直接回答）、只是想了解技能列表（应直接列举）、没有明确"搜索/寻找/查找/推荐"意图。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-辅助用户搜索和评估 Agent Skills。
-
-## 使用场景
+#### 使用场景
 
 当用户需要：
 - 寻找特定功能的 Agent Skill
@@ -28,15 +25,17 @@ metadata:
 - 对比不同技能的优劣
 - 发现已有技能的替代方案
 
-## 依赖关系
+#### 依赖关系
 
 **可选依赖**：
 - **get-review-theme** skill：用于需求解构（第 1 步）
   - 如果用户未安装该 skill，可直接分析用户需求提取主题和关键词
 
-## 核心工作流
+### 执行步骤
 
-### 1. 需求解构
+#### 核心工作流
+
+##### 1. 需求解构
 
 分析用户需求，提取核心主题和关键词：
 
@@ -47,7 +46,7 @@ metadata:
 
 **如未安装**：直接分析用户需求，从用户输入中提取核心主题、关键词、具体问题。
 
-### 2. 缓存查询
+##### 2. 缓存查询
 
 **优先检查本地缓存**，快速匹配历史技能：
 
@@ -78,7 +77,7 @@ python scripts/cache_manager.py --search "关键词1" "关键词2" --limit 10
 - 回复"否"或"直接使用"直接输出以上结果
 ```
 
-### 3. 社区调研
+##### 3. 社区调研
 
 基于解构结果，使用 **WebSearch 类工具**或**搜索类 MCP 工具**（如 SearXNG、Tavily）进行多平台搜索。
 
@@ -115,7 +114,7 @@ site:reddit.com/r/ClaudeCode TDD skill
 python scripts/get_skill_info.py "repo1,repo2,repo3"
 ```
 
-### 4. 结果合并与缓存更新
+##### 4. 结果合并与缓存更新
 
 **如果联网搜索**：将本地缓存结果与联网搜索结果合并：
 
@@ -145,7 +144,7 @@ manager.add_skill(
 )
 ```
 
-### 5. 社区舆情分析
+##### 5. 社区舆情分析
 
 对每个候选 skill，收集以下信息：
 
@@ -162,7 +161,7 @@ manager.add_skill(
 - 文档完整性
 - 代码质量
 
-### 6. AI 评价
+##### 6. AI 评价
 
 从 AI 视角评估每个 skill：
 
@@ -178,7 +177,7 @@ manager.add_skill(
 - 扩展性
 - 维护活跃度
 
-### 7. 生成推荐报告
+##### 7. 生成推荐报告
 
 按最合适至最不合适排序，推荐 skills。
 
@@ -199,11 +198,12 @@ manager.add_skill(
 每个 skill 包含：
 
 ```markdown
-## N. {Skill Name}
+
+#### N. {Skill Name}
 
 **GitHub**: [项目地址](https://github.com/xxx/xxx)
 
-### 推荐理由
+##### 推荐理由
 
 **社区评价**：
 - ⭐ {Stars} | 🍴 {Forks} | 📅 {最后更新}
@@ -214,16 +214,100 @@ manager.add_skill(
 - {工作流设计亮点}
 - {与需求匹配度}
 
-### 局限性
+##### 局限性
 
 - {潜在短板}
 - {适用场景限制}
 - {依赖或平台要求}
 ```
 
-## 输出规范
+#### 辅助脚本
 
-### 推荐数量
+##### 缓存管理
+
+```bash
+# 查看缓存统计
+python scripts/cache_manager.py --stats
+
+# 搜索缓存中的技能
+python scripts/cache_manager.py --search "关键词1" "关键词2" --limit 10
+
+# 清理特定技能缓存
+python scripts/cache_manager.py --clear "skill-name"
+
+# 清理所有缓存
+python scripts/cache_manager.py --clear
+```
+
+##### 批量获取技能信息
+
+```bash
+# 生成研究检查清单模板
+python scripts/get_skill_info.py "repo1,repo2,repo3"
+```
+
+#### 参考资源
+
+- [Agent Skills 调研报告](references/agent-skills-research.md)
+- [SkillsMP 搜索指南](references/skillsmp-guide.md)
+
+#### 示例
+
+**用户输入**：`找一个能做 TDD 的 skill`
+
+**输出示例**：
+
+```markdown
+基于您的需求 "测试驱动开发（TDD）"，我为您推荐以下 skills：
+
+#### 1. test-driven-development
+
+**GitHub**: [obra/test-driven-development](https://github.com/VoltAgent/awesome-claude-skills)
+
+##### 推荐理由
+
+**社区评价**：
+- ⭐ 1.2k+ | 🍴 150+ | 📅 2周前更新
+- 被多个团队采用，社区活跃讨论
+
+**AI 评价**：
+- 强制 Red-Green-Refactor 循环，确保 TDD 严格执行
+- 支持多种测试框架
+- 渐进式加载设计，性能优秀
+
+##### 局限性
+
+- 对测试框架有预设（可能不支持您使用的框架）
+- 初次使用需要适应其严格的流程要求
+
+#### 2. tdd-workflow
+
+**GitHub**: [anthropics/tdd-workflow](https://github.com/anthropics/skills)
+
+##### 推荐理由
+
+**社区评价**：
+- ⭐ 官方维护 | 📅 持续更新
+- Anthropic 官方最佳实践
+
+**AI 评价**：
+- 与 Claude Code 深度集成
+- 简洁的工作流设计
+- 灵活的测试适配
+
+##### 局限性
+
+- 功能相对基础，高级特性较少
+- 专注于 Claude Code 生态
+
+[... 继续推荐 3-8 个 skills]
+```
+
+### 输出
+
+#### 输出规范
+
+##### 推荐数量
 
 **动态确定规则**：
 
@@ -241,7 +325,7 @@ manager.add_skill(
 
 **排序**：按推荐度降序排列
 
-### 筛选标准
+##### 筛选标准
 
 **必须满足**：
 - 有 GitHub 仓库地址
@@ -260,7 +344,7 @@ manager.add_skill(
 - 超过 1 年未更新
 - 文档严重缺失
 
-### 数量解析示例
+##### 数量解析示例
 
 | 用户指令 | 解析结果 | 说明 |
 |---------|---------|------|
@@ -270,37 +354,15 @@ manager.add_skill(
 | `"只要最好的一个"` | 1 个 | 少于最少边界，但用户意图明确 |
 | `"列出所有相关的"` | 5-10 个 | 无明确数量，使用默认 |
 
-## 辅助脚本
+### 输出管理
 
-### 缓存管理
+#### BenszAPI 任务工作区
 
-```bash
-# 查看缓存统计
-python scripts/cache_manager.py --stats
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
 
-# 搜索缓存中的技能
-python scripts/cache_manager.py --search "关键词1" "关键词2" --limit 10
+### 校验
 
-# 清理特定技能缓存
-python scripts/cache_manager.py --clear "skill-name"
-
-# 清理所有缓存
-python scripts/cache_manager.py --clear
-```
-
-### 批量获取技能信息
-
-```bash
-# 生成研究检查清单模板
-python scripts/get_skill_info.py "repo1,repo2,repo3"
-```
-
-## 参考资源
-
-- [Agent Skills 调研报告](references/agent-skills-research.md)
-- [SkillsMP 搜索指南](references/skillsmp-guide.md)
-
-## 质量检查清单
+#### 质量检查清单
 
 **触发验证**（执行前）：
 - [ ] 用户明确要求"搜索/寻找/查找/推荐"技能
@@ -313,54 +375,18 @@ python scripts/get_skill_info.py "repo1,repo2,repo3"
 - [ ] 排序逻辑清晰可解释
 - [ ] 总数符合"输出规范"的约束（见上文"推荐数量规则"）
 
-## 示例
+### 失败与恢复
 
-**用户输入**：`找一个能做 TDD 的 skill`
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
 
-**输出示例**：
 
-```markdown
-基于您的需求 "测试驱动开发（TDD）"，我为您推荐以下 skills：
+## 约束
 
-## 1. test-driven-development
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
 
-**GitHub**: [obra/test-driven-development](https://github.com/VoltAgent/awesome-claude-skills)
+#### 与 bensz-collect-bugs 的协作约定
 
-### 推荐理由
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
 
-**社区评价**：
-- ⭐ 1.2k+ | 🍴 150+ | 📅 2周前更新
-- 被多个团队采用，社区活跃讨论
-
-**AI 评价**：
-- 强制 Red-Green-Refactor 循环，确保 TDD 严格执行
-- 支持多种测试框架
-- 渐进式加载设计，性能优秀
-
-### 局限性
-
-- 对测试框架有预设（可能不支持您使用的框架）
-- 初次使用需要适应其严格的流程要求
-
-## 2. tdd-workflow
-
-**GitHub**: [anthropics/tdd-workflow](https://github.com/anthropics/skills)
-
-### 推荐理由
-
-**社区评价**：
-- ⭐ 官方维护 | 📅 持续更新
-- Anthropic 官方最佳实践
-
-**AI 评价**：
-- 与 Claude Code 深度集成
-- 简洁的工作流设计
-- 灵活的测试适配
-
-### 局限性
-
-- 功能相对基础，高级特性较少
-- 专注于 Claude Code 生态
-
-[... 继续推荐 3-8 个 skills]
-```
+辅助用户搜索和评估 Agent Skills。

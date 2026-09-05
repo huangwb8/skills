@@ -14,27 +14,15 @@ metadata:
 
 # Git PR Review
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求“review 某个 GitHub PR”“评估某个 pull request 是否值得 merge”“帮我判断这个 PR 怎么处理”时使用。基于用户提供的 GitHub 仓库地址、PR 编号/链接和补充说明，进行只读、证据驱动的 PR 审查：理解 PR 解决的问题、评估方案优劣与局限、默认优先使用内置“好 PR”标准并在必要时联网补充、识别恶意或高风险改动，并输出是否建议 merge 的 Markdown 决策报告。⚠️ 不适用：用户要你直接修改 PR 代码、直接 merge PR、或在本地执行 PR 分支中的不可信代码。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-面向“**帮助用户决策如何处理某个 GitHub PR**”的只读评审技能。
-
-## 核心原则
-
-- **只读优先**：默认只能读取 GitHub 页面、API 返回、diff、评论、CI 状态、相关 issue/文档；不要修改源代码。
-- **绝不主动 merge**：除非用户明确要求，否则不要执行 merge、rebase、squash、approve、request review 等操作。
-- **绝不执行不可信 PR 代码**：不要 `gh pr checkout`、不要运行 PR 分支脚本、不要安装 PR 引入的依赖、不要触发可疑 CI/CD。
-- **中间文件隔离**：所有中间文件必须保存在工作目录下的隐藏目录 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`；若用户另有指定，才使用用户指定目录。
-- **证据驱动**：所有结论都要回到证据，明确引用 diff、评论、CI、issue、社区资料或官方文档。
-- **合规不忽略**：如果 PR 触及依赖、vendored 代码、复制粘贴第三方内容、资源资产或许可证文件，必须显式审查 license 风险与兼容性。
-
-## 你需要确认的输入
+#### 你需要确认的输入
 
 1. `github_repo`（必需）
    - GitHub 仓库根地址或 `owner/repo`，例如 `https://github.com/owner/repo`
@@ -51,9 +39,20 @@ metadata:
 6. `report_dir`（可选）
    - 默认当前工作目录（项目根）
 
-## 标准工作流
+### 执行步骤
 
-### 1. 初始化隔离工作区
+#### 核心原则
+
+- **只读优先**：默认只能读取 GitHub 页面、API 返回、diff、评论、CI 状态、相关 issue/文档；不要修改源代码。
+- **绝不主动 merge**：除非用户明确要求，否则不要执行 merge、rebase、squash、approve、request review 等操作。
+- **绝不执行不可信 PR 代码**：不要 `gh pr checkout`、不要运行 PR 分支脚本、不要安装 PR 引入的依赖、不要触发可疑 CI/CD。
+- **中间文件隔离**：所有中间文件必须保存在工作目录下的隐藏目录 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/`；若用户另有指定，才使用用户指定目录。
+- **证据驱动**：所有结论都要回到证据，明确引用 diff、评论、CI、issue、社区资料或官方文档。
+- **合规不忽略**：如果 PR 触及依赖、vendored 代码、复制粘贴第三方内容、资源资产或许可证文件，必须显式审查 license 风险与兼容性。
+
+#### 标准工作流
+
+##### 1. 初始化隔离工作区
 
 优先使用确定性脚本创建本次评审目录与建议输出文件名：
 
@@ -77,7 +76,7 @@ python3 git-pr-review/scripts/prepare_review_job.py \
 
 从这一步开始，所有抓取到的原始材料、分析笔记、临时摘要、命令输出都写入该工作区。
 
-### 2. 只读获取 PR 证据
+##### 2. 只读获取 PR 证据
 
 优先选择**不会修改仓库状态**的方式读取 PR：
 
@@ -98,7 +97,7 @@ python3 git-pr-review/scripts/prepare_review_job.py \
 
 如果某项拿不到，要在工作区里记录“未获取原因”以及它对结论的影响，而不是静默跳过。
 
-### 3. 基于 parallel-vibe 做 N 次独立评审（默认 5 次）
+##### 3. 基于 parallel-vibe 做 N 次独立评审（默认 5 次）
 
 目标：
 - 使用 `parallel-vibe` 在多个独立 workspace 中做 **N 次彼此独立的 PR 审查**
@@ -154,7 +153,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 - 每个 thread 的 `RESULT.md` 必须至少包含 recommendation / risk / evidence gaps
 - 最终主报告必须明确综合独立评审的共识与分歧
 
-### 4. 理解这个 PR 在解决什么
+##### 4. 理解这个 PR 在解决什么
 
 至少回答清楚：
 
@@ -166,7 +165,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 
 如果 PR 描述模糊，必须从 diff、关联 issue、评论线程中补足上下文。
 
-### 5. 恶意 / 高风险 PR 审查
+##### 5. 恶意 / 高风险 PR 审查
 
 必须显式判断该 PR 是否存在恶意或高风险特征，并给出风险等级：
 `Low` / `Medium` / `High` / `Critical`
@@ -185,7 +184,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 - `不要 merge`
 - `建议人工安全复核 / 维护者升级处理`
 
-### 6. License / 合规审查
+##### 6. License / 合规审查
 
 这是强制步骤之一。即使用户没有主动提到 license，只要 PR 涉及下列内容，就必须显式检查：
 
@@ -207,7 +206,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 
 参考：`references/license-checklist.md`
 
-### 7. 使用内置“好 PR”标准（默认不实时联网）
+##### 7. 使用内置“好 PR”标准（默认不实时联网）
 
 这里的默认做法**不是每次执行都实时联网**。
 
@@ -234,7 +233,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 - 哪些维度不符合
 - 不符合之处是“小瑕疵”还是“阻断 merge 的问题”
 
-### 8. 输出决策报告
+##### 8. 输出决策报告
 
 将最终结论写成 Markdown，默认放在项目根目录，文件名格式：
 
@@ -265,7 +264,7 @@ python3 git-pr-review/scripts/aggregate_parallel_reviews.py \
 - `parallel_review/independent_review_summary.md`
 - 如有必要，`parallel_review/parallel_runs/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/<project_id>/@main/summary.md`
 
-### 9. 完成前自检
+##### 9. 完成前自检
 
 在交付前运行校验脚本，确认：
 - 工作区结构完整
@@ -280,23 +279,7 @@ python3 git-pr-review/scripts/validate_review_artifacts.py \
   --report /abs/path/to/Git-PR-Review_<...>.md
 ```
 
-## 输出要求
-
-- 最终交付物：1 份 Markdown 报告
-- 报告用语要明确，不要模棱两可
-- 结论必须给出处理建议，不要只给“分析但不表态”
-- 如果证据不足，要明确说明不足项，以及这如何影响你的建议
-
-## 明确禁止事项
-
-- 不要修改目标仓库代码
-- 不要 merge PR
-- 不要 approve PR
-- 不要 checkout PR 分支并执行代码
-- 不要把 API token、cookie、认证信息写入工作区
-- 不要把中间文件写到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/` 之外（除最终 Markdown 报告）
-
-## 可读参考
+#### 可读参考
 
 - `references/report-template.md`：最终报告模板
 - `references/security-checklist.md`：恶意/高风险 PR 审查清单
@@ -304,3 +287,47 @@ python3 git-pr-review/scripts/validate_review_artifacts.py \
 - `references/community-research-playbook.md`：如何搜索“好 PR”社区标准
 - `references/parallel-review-result-template.md`：独立评审 thread 的 `RESULT.md` 结构
 - `references/parallel-vibe-integration.md`：`parallel-vibe` 集成方式与关键产物
+
+### 输出
+
+#### 输出要求
+
+- 最终交付物：1 份 Markdown 报告
+- 报告用语要明确，不要模棱两可
+- 结论必须给出处理建议，不要只给“分析但不表态”
+- 如果证据不足，要明确说明不足项，以及这如何影响你的建议
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+### 校验
+
+沿用原正文中的检查要求；未覆盖的判断不得被推断为已通过。
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+
+面向“**帮助用户决策如何处理某个 GitHub PR**”的只读评审技能。
+
+#### 明确禁止事项
+
+- 不要修改目标仓库代码
+- 不要 merge PR
+- 不要 approve PR
+- 不要 checkout PR 分支并执行代码
+- 不要把 API token、cookie、认证信息写入工作区
+- 不要把中间文件写到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/git-pr-review/` 之外（除最终 Markdown 报告）

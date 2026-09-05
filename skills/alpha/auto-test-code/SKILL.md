@@ -16,48 +16,28 @@ metadata:
 
 # auto-test-code（批判性思维驱动的代码自审查技能）
 
-## BenszAPI 任务工作区
+## 目标
 
-本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+当用户明确要求"测试代码"、"运行代码审查"或"进行代码自检"时使用。通过多轮 A 轮批判性代码审查 + B 轮代码质量原则检查，系统化发现、记录、修复程序代码中的问题，并将计划/过程/结果统一沉淀到目标代码根目录的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 隔离工作区。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问代码问题（应直接回答）、没有明确"测试代码"意图。
 
-## 与 bensz-collect-bugs 的协作约定
+## 流程
 
-- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
-- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
+### 输入
 
-## 交付物
+沿用原正文定义的输入、触发条件和适用范围。
 
-本技能的审查结论和验证证据必须落盘到目标代码项目的隔离工作区中，形成可追溯、可复核、后续可接续的会话文件。
+### 执行步骤
 
-默认交付根目录为 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`；实际目录以 `config.yaml` 中的 `directories.tmp` 和 `directories.tests` 为准。
+#### 工作流程
 
-每个 A 轮或 B 轮会话目录都必须包含同一组文件：
-
-- `REVIEW.md`：审查报告。A 轮记录批判性代码审查的问题清单与改进计划；B 轮记录代码质量原则检查结果。
-- `TEST_PLAN.md`：测试计划，说明本轮要验证的修复点、核心路径和预期证据。
-- `TEST_RUN.md`：测试过程记录，包含实际执行的命令、关键输出摘录和关键决策。
-- `TEST_REPORT.md`：测试结果报告，包含结论、证据、遗留问题和后续建议。
-- `_artifacts/`：中间产物目录，用于保存命令输出、日志、截图、对比结果等证据。
-
-## 目录与命名规范
-
-- 运行工作区：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/`，同一次技能执行的所有 A/B 轮必须复用同一个 `run_id`。
-- 会话 ID：`vYYYYMMDDHHMM`，使用分钟级时间戳。
-- A 轮会话目录：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/vYYYYMMDDHHMM/`。
-- B 轮会话目录：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-vYYYYMMDDHHMM/`，即在同类会话 ID 前增加 `b-` 前缀。
-- 兼容旧目录：`verify_session.py` 可识别历史目录名 `tests/B轮-vYYYYMMDDHHMM/`；新建目录必须使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-vYYYYMMDDHHMM/`。
-- 废弃目录：`reviews/` 不再创建、不再写入；如目标项目中存在旧的 `reviews/`，只视为历史遗留并在审查时排除。
-
-## 工作流程
-
-### 隔离工作区硬规则
+##### 隔离工作区硬规则
 
 - 每次 skill 执行开始时，必须先在目标项目根目录创建当次专用工作区：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/`。
 - 所有由 skill 生成的计划、报告、日志、辅助脚本与中间产物，**只能**写入当前 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/` 工作区内。
 - 运行可能产生缓存或临时文件的命令时，优先将工作目录、`TMPDIR`、`XDG_CACHE_HOME`、`PYTHONPYCACHEPREFIX` 等重定向到当前 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/` 工作区。
 - 除了用户明确要求的源码修复外，不得把 skill 相关文件写到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/` 之外的位置，以免污染源软件项目。
 
-### 概览
+##### 概览
 
 ```
 用户输入（目标代码路径）
@@ -69,9 +49,9 @@ B轮：代码质量原则检查 → 针对性优化 → 轻量验证
 完成（文档齐全 + 问题闭环）
 ```
 
-### A 轮代码审查（可重复 N 次）
+##### A 轮代码审查（可重复 N 次）
 
-#### A.1 初始化会话（生成测试 ID + 目录）
+###### A.1 初始化会话（生成测试 ID + 目录）
 
 目标：创建本轮的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话骨架（计划/过程/结果都在同一目录）。
 
@@ -90,7 +70,7 @@ python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . 
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 存在
 - `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/vYYYYMMDDHHMM/REVIEW.md`、`TEST_PLAN.md`、`TEST_RUN.md`、`TEST_REPORT.md` 和 `_artifacts/` 存在
 
-#### A.2 批判性分析与计划生成（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话目录）
+###### A.2 批判性分析与计划生成（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话目录）
 
 目标：使用**批判性思维**发现代码中的系统性问题，写成可执行计划，按 P0/P1/P2 排序。
 
@@ -138,7 +118,7 @@ python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . 
 - `references/SECURITY_TAXONOMY.md` 安全漏洞分类审查体系（必须用于安全维度）
 - `references/DESIGN_ANTI_PATTERNS.md` 设计反模式识别指南
 
-#### A.3 执行优化与轻量测试（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`）
+###### A.3 执行优化与轻量测试（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`）
 
 目标：按计划逐项修复，并用轻量测试验证。
 
@@ -161,7 +141,7 @@ python3 ~/.claude/skills/auto-test-code/scripts/verify_session.py --require-revi
 
 说明：`verify_session.py --strict` 仅用于你已将会话文档中的模板占位符全部替换后的最终自检；新建骨架默认会失败（属于预期行为）。
 
-#### A.4 是否进入下一轮
+###### A.4 是否进入下一轮
 
 ⚠️ **强制检查**：
 - [ ] 本轮已提出至少 10 个问题（P0 + P1 + P2 总和）
@@ -172,11 +152,11 @@ python3 ~/.claude/skills/auto-test-code/scripts/verify_session.py --require-revi
 
 **重要**：A 轮结束后，必须进入 B 轮代码质量检查。
 
-### B 轮代码质量检查
+##### B 轮代码质量检查
 
 ⚠️ **强制执行**：B 轮代码质量检查是自动测试流程的强制性环节。
 
-#### B.1 产出质量检查报告（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话目录）
+###### B.1 产出质量检查报告（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话目录）
 
 目标：对 A 轮后的最新代码做系统性质量检查。
 
@@ -206,7 +186,7 @@ python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . 
 
 模板：`templates/B_ROUND_CODE_QUALITY_TEMPLATE.md`
 
-#### B.2 B 轮优化与验证（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`）
+###### B.2 B 轮优化与验证（写入 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`）
 
 ⚠️ **强制修复要求**：
 - B 轮发现的 **所有 P0-P2 问题都必须处理**
@@ -219,17 +199,7 @@ python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . 
 - [ ] P1 问题修复率 ≥ 80%
 - [ ] 所有修复都有可复现证据
 
-## 完成条件（验收）
-
-- [ ] 用户指定的 A 轮次数已完成
-- [ ] B 轮代码质量检查已完成
-- [ ] 每轮 A 轮平均问题数量 ≥ 10 个
-- [ ] **每轮 P0 + P1 占比 ≥ 60%**
-- [ ] **每轮系统性问题 ≥ 3 个**（算法/边界/并发/内存/安全/设计）
-- [ ] 关键问题（P0/P1）已闭环
-- [ ] `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话结构完整且可追溯（每轮都有 `REVIEW.md`、`TEST_PLAN.md`、`TEST_RUN.md`、`TEST_REPORT.md` 和 `_artifacts/`）
-
-## 可复用资源
+#### 可复用资源
 
 - 配置：`config.yaml`
 - 模板：`templates/`
@@ -248,3 +218,60 @@ python3 ~/.claude/skills/auto-test-code/scripts/create_session.py --code-root . 
   - 设计反模式识别：`references/DESIGN_ANTI_PATTERNS.md`
 - 辅助脚本：`scripts/create_session.py`
 - 辅助脚本：`scripts/verify_session.py`
+
+### 输出
+
+#### 交付物
+
+本技能的审查结论和验证证据必须落盘到目标代码项目的隔离工作区中，形成可追溯、可复核、后续可接续的会话文件。
+
+默认交付根目录为 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/`；实际目录以 `config.yaml` 中的 `directories.tmp` 和 `directories.tests` 为准。
+
+每个 A 轮或 B 轮会话目录都必须包含同一组文件：
+
+- `REVIEW.md`：审查报告。A 轮记录批判性代码审查的问题清单与改进计划；B 轮记录代码质量原则检查结果。
+- `TEST_PLAN.md`：测试计划，说明本轮要验证的修复点、核心路径和预期证据。
+- `TEST_RUN.md`：测试过程记录，包含实际执行的命令、关键输出摘录和关键决策。
+- `TEST_REPORT.md`：测试结果报告，包含结论、证据、遗留问题和后续建议。
+- `_artifacts/`：中间产物目录，用于保存命令输出、日志、截图、对比结果等证据。
+
+### 输出管理
+
+#### BenszAPI 任务工作区
+
+本 Skill 的新任务中间文件统一写入 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/{skill名}/input|output|log/`。同一任务复用一个任务根目录；多 Skill 协作才创建 `shared/`。正式交付物不写入该目录，历史隐藏目录只允许显式兼容读取、迁移或清理。
+
+#### 目录与命名规范
+
+- 运行工作区：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/`，同一次技能执行的所有 A/B 轮必须复用同一个 `run_id`。
+- 会话 ID：`vYYYYMMDDHHMM`，使用分钟级时间戳。
+- A 轮会话目录：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/vYYYYMMDDHHMM/`。
+- B 轮会话目录：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-vYYYYMMDDHHMM/`，即在同类会话 ID 前增加 `b-` 前缀。
+- 兼容旧目录：`verify_session.py` 可识别历史目录名 `tests/B轮-vYYYYMMDDHHMM/`；新建目录必须使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/b-vYYYYMMDDHHMM/`。
+- 废弃目录：`reviews/` 不再创建、不再写入；如目标项目中存在旧的 `reviews/`，只视为历史遗留并在审查时排除。
+
+### 校验
+
+#### 完成条件（验收）
+
+- [ ] 用户指定的 A 轮次数已完成
+- [ ] B 轮代码质量检查已完成
+- [ ] 每轮 A 轮平均问题数量 ≥ 10 个
+- [ ] **每轮 P0 + P1 占比 ≥ 60%**
+- [ ] **每轮系统性问题 ≥ 3 个**（算法/边界/并发/内存/安全/设计）
+- [ ] 关键问题（P0/P1）已闭环
+- [ ] `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 会话结构完整且可追溯（每轮都有 `REVIEW.md`、`TEST_PLAN.md`、`TEST_RUN.md`、`TEST_REPORT.md` 和 `_artifacts/`）
+
+### 失败与恢复
+
+遇到原正文未覆盖的错误时停止、保留证据并报告，不猜测性继续。
+
+
+## 约束
+
+遵守 `.bensz-api` 任务工作区协议和 BAC 贡献记录；不记录 API Key、访问令牌、密码、Cookie、凭据、私有 Prompt 或用户隐私。文件操作限于授权范围，未经授权不执行远程写入、删除或覆盖；Skill 设计缺陷按 `bensz-collect-bugs` 先本地脱敏记录。
+
+#### 与 bensz-collect-bugs 的协作约定
+
+- 因本 skill 设计缺陷导致的 bug，先用 `bensz-collect-bugs` 规范记录到 `~/.bensz-skills/bugs/`，不要直接修改用户本地已安装的 skill 源码；若有 workaround，先记 bug，再继续完成任务。
+- 只有用户明确要求“report bensz skills bugs”等公开上报时，才用本地 `gh` 上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个仓库。
