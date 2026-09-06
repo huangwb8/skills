@@ -24,7 +24,16 @@ python3 -m venv .bensz-api/.venv
 .bensz-api/.venv/bin/bsk verifier list
 ```
 
-Expected: the first command prints `1.0.0`; the second lists built-in Verifiers. To install a published release, use `python3 -m pip install bensz-skill-kernel` instead. Version and dependencies are defined by `pyproject.toml`.
+Expected: the first command prints the current package version; the second lists built-in Verifiers. To install a published release, use `python3 -m pip install bensz-skill-kernel` instead. Version and dependencies are defined by `pyproject.toml`.
+
+## Declarative State/Verifier sub-agent collaboration
+
+The Kernel owns State, Verifier, evidence, and Gate contracts; it does not implement cross-Harness agent creation, parallelism, waiting, or cleanup. A Skill that needs collaboration should reference the [conditional collaboration template](../../docs/templates/state-verifier-agent-coordination.md) and describe its trigger phase, inputs, independence, output schema, and fallback in `SKILL.md`.
+
+- `config.yaml` may declare intent such as `mode`, `count`, and `rounds` for the LLM and Harness to interpret and report; these fields are not Kernel scheduling APIs.
+- The default Verifier recommendation is two independent sub-agents checking the same snapshot in parallel; serial review should be declared only when needed.
+- Codex, Claude Code, or another Harness chooses how to create and isolate sub-agents; Skills must not assume platform APIs, host IDs, or sandbox parameters.
+- Results still return through the existing Verifier/Gate contract; missing, uncertain, or failed evidence must not be represented as a pass.
 
 ## Python support and dependencies
 

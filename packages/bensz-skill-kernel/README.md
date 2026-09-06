@@ -24,7 +24,16 @@ python3 -m venv .bensz-api/.venv
 .bensz-api/.venv/bin/bsk verifier list
 ```
 
-预期：第一条命令输出 `1.0.0`，第二条列出内置 Verifier。只想安装已发布版本时，可改用 `python3 -m pip install bensz-skill-kernel`；版本与依赖以 `pyproject.toml` 为准。
+预期：第一条命令输出当前包版本，第二条列出内置 Verifier。只想安装已发布版本时，可改用 `python3 -m pip install bensz-skill-kernel`；版本与依赖以 `pyproject.toml` 为准。
+
+## 声明式 State/Verifier 子 Agent 协作
+
+Kernel 只负责 State、Verifier、证据和 Gate；它不实现跨 Harness 的 Agent 创建、并行、等待或回收。需要协作的 Skill 应引用[条件性协作模板](../../docs/templates/state-verifier-agent-coordination.md)，在 `SKILL.md` 中说明触发阶段、子 Agent 输入、独立性、输出格式和 fallback。
+
+- `config.yaml` 可以声明 `mode`、`count`、`rounds` 等协作意图，供 LLM 与 Harness 理解和报告；这些字段不是 Kernel 调度 API。
+- 默认的 Verifier 协作建议是两个独立子 Agent 并行检查同一快照；串行复核只在 Skill 明确需要时声明。
+- Codex、Claude Code 或其他 Harness 自主决定如何创建和隔离子 Agent；Skill 不得假设平台 API、host ID 或沙箱参数。
+- 子 Agent 结果仍须回到既有 Verifier/Gate 契约，缺失、不确定或失败不得被伪装为通过。
 
 ## Python 支持与依赖
 

@@ -43,6 +43,8 @@ into the matching sections and replace every placeholder with real content.
 
 仅在显式采用 State、Verifier、Gate、Pack 或其它治理组件时保留本节。说明组件、调用时机、证据绑定、通过条件和人工介入边界。
 
+明确采用 State/Verifier 子 Agent 协作时，引用 `docs/templates/state-verifier-agent-coordination.md`，并在 `config.yaml` 中声明供 LLM/Harness 理解的协作意图；不把条件性条款加入公共约束块。Kernel 不负责跨 Harness 的 Agent 创建、等待或回收。
+
 ## 约束
 
 摘要说明工作区、BAC、隐私、文件边界和 `bensz-collect-bugs` 协作要求；详细公共规则引用 `docs/templates/skill-common-constraints.md`。

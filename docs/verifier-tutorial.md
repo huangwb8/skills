@@ -1,5 +1,7 @@
 # Bensz Skill Verifier 直观教程
 
+明确采用子 Agent 协作时，Verifier 默认建议由两个独立子 Agent 并行检查，也可声明 serial 多轮复核；这是给 LLM 与 Harness 的执行意图，不是 Kernel 的跨平台调度实现。不采用该体系的 Skill 不受影响。
+
 这篇教程回答一个经常被问到的问题：**Verifier（验证器）真正是什么样子，它拿到什么、实际做了什么，又怎样影响一次 Skill 任务能否交付？**
 
 先记住一句话：
