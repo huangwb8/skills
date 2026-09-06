@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.3] - 2026-09-06
+
+### Added（新增）
+- 新增 `docs/templates/verifier-body.md`，以五段轻量骨架统一 `VERIFIER.md` 的判断目标、输入证据、执行、输出判定和失败边界，并增加 BSK 内置契约结构测试。
+
+### Changed（变更）
+- 按新骨架重写 `bensz-skill-kernel` 全部内置 Verifier 契约，补齐真实输入、执行方式、结果枚举、不确定性和非目标边界；不改变 ID、版本、组件、脚本、协议或 Gate 行为。
+- 发布 `bensz-skill-kernel` 1.0.2 到 PyPI：包版本随仓库 v5.0.3 发布同步提升，122 个包内测试全部通过。
+- 根级中英 README 与最新源代码对齐：「更多入口」收录新建的 `docs/templates/verifier-body.md` 轻量骨架模板；双语配对检查（`check_readme_pair.py`）通过。
+
 ## [5.0.2] - 2026-09-06
 
 ### Added（新增）

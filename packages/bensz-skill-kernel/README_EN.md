@@ -76,6 +76,8 @@ The kernel executes only protocol-defined invariants. The current `verifier-resu
 
 `verifiers/index.json` is the single source of truth for the Verifier catalog and execution plans. Every Pack has a `VERIFIER.md` and optional components. Script components receive one JSON request on stdin and emit one result JSON on stdout; `verdict` supports `pass`, `fail`, `uncertain`, `unchecked`, `error`, `timed_out`, and `skipped`. The kernel normalizes timeouts, exceptions, invalid JSON, and result fields.
 
+New or modified `VERIFIER.md` files follow the lightweight skeleton in [`docs/templates/verifier-body.md`](../../docs/templates/verifier-body.md): verification target, inputs and evidence, execution, output and verdicts, then failure and boundaries. Indexed Packs do not duplicate machine metadata in the body; package tests enforce the section order and non-empty content for every built-in contract.
+
 ```bash
 bsk verifier list --tag citation
 bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0

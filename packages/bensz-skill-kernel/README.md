@@ -76,6 +76,8 @@ Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded`
 
 `verifiers/index.json` 是 Verifier 包目录和执行计划的单一来源；每个 Pack 有 `VERIFIER.md` 和可选组件。脚本组件 stdin 接收一个 JSON 请求、stdout 输出一个结果 JSON；`verdict` 支持 `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out`、`skipped`。Kernel 负责超时、异常、非法 JSON 和结果字段归一化。
 
+新建或修改 `VERIFIER.md` 时，正文按 [`docs/templates/verifier-body.md`](../../docs/templates/verifier-body.md) 的轻量骨架依次说明判断目标、输入与证据、执行、输出与判定、失败与边界。带索引的 Pack 不在正文重复机器元数据；包内测试会校验所有内置契约的章节顺序和非空内容。
+
 ```bash
 bsk verifier list --tag citation
 bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0

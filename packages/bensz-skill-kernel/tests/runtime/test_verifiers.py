@@ -230,6 +230,30 @@ def test_builtin_verifier_index_drives_tags_and_classification() -> None:
     assert not (secret.path / "VERIFIER.md").read_text(encoding="utf-8").startswith("---")
 
 
+def test_builtin_verifier_contracts_follow_lightweight_body_skeleton() -> None:
+    expected_sections = (
+        "Verification target",
+        "Inputs and evidence",
+        "Execution",
+        "Output and verdicts",
+        "Failure and boundaries",
+    )
+
+    for definition in FilesystemVerifierRegistry(builtin_verifier_root()).definitions():
+        document = definition.path / "VERIFIER.md"
+        body = document.read_text(encoding="utf-8")
+        headings = tuple(
+            line.removeprefix("## ").strip()
+            for line in body.splitlines()
+            if line.startswith("## ")
+        )
+        assert headings == expected_sections, document
+        assert sum(line.startswith("# ") for line in body.splitlines()) == 1, document
+        for heading, section in zip(expected_sections, body.split("\n## ")[1:], strict=True):
+            content = section.removeprefix(heading).strip()
+            assert content, f"empty section {heading}: {document}"
+
+
 def test_markdown_verifier_resolves_relative_files_and_fragments(tmp_path: Path):
     target = tmp_path / "README.md"
     linked = tmp_path / "docs" / "guide.md"

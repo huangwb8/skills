@@ -201,4 +201,5 @@ These links cover releases, result checking, task stages, and Skill installation
 - [`docs/bsk-tutorial.md`](docs/bsk-tutorial.md): This is the main `bsk` tutorial, introducing State, Verifier, Gate, and Contract Pack with plain-language examples, Mermaid diagrams, and their end-to-end collaboration.
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md): This is the Skill installer's user guide, covering installation methods, options, and common usage; follow it when you are ready to install a Skill.
 - [`docs/templates/skill-body.md`](docs/templates/skill-body.md): The four-section body skeleton for creating or modifying a Skill.
+- [`docs/templates/verifier-body.md`](docs/templates/verifier-body.md): The five-section lightweight skeleton for writing or modifying a `VERIFIER.md` contract, covering the verification target, inputs and evidence, execution, output and verdicts, and failure boundaries.
 - [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md): The shared long-form constraints for workspaces, BAC, privacy, and defect reporting.

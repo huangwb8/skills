@@ -3,8 +3,8 @@
 - 更新
 
 ```
-repo-version = 5.0.2
-bsk-version = 1.0.1
+repo-version = 5.0.3
+bsk-version = 1.0.2
 请您：
 - 将 packages/bensz-skill-kernel 的版本更新至 {bsk-version} ; 如果已经是最新的，则：不需要更新。 如果不是最新，则：packages/bensz-skill-kernel的 README 要对源代码对齐（基于 write-readme skill进行优化）；将python包更新到 pypi ，本机已经配置好权限。
 - 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。

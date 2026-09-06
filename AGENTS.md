@@ -147,6 +147,12 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 - **新增能力的审查顺序**：先判断能力是否属于 State/Verifier 共用的执行、证据或审计基础设施；若是，提炼到共享 Pack 层；若只表达状态迁移或验证命题，再放入相应适配器。只有独立注册、版本化且跨场景复用的组件才提升为顶层 Pack/Verifier/State。
 - **文档与实现必须同步表达该边界**：`STATE.md`、`VERIFIER.md` 负责个性化契约，`index.json` 和共享运行协议负责机器可读执行元数据；计划、README、教程和测试不得把某一方的实现细节误写成另一方的通用规则。
 
+### `VERIFIER.md` 轻量正文骨架
+
+新建或修改 `VERIFIER.md` 时，正文必须依次包含 `## Verification target`、`## Inputs and evidence`、`## Execution`、`## Output and verdicts`、`## Failure and boundaries`；每段都要写入该 Verifier 的真实契约，不得使用空占位或用模板壳包裹旧正文。完整写作提示以 [`docs/templates/verifier-body.md`](docs/templates/verifier-body.md) 为单一维护入口。
+
+带 `index.json` 的 Pack 必须以索引作为 ID、版本、分类、标签、alias、执行模式、保证等级和组件计划的单一来源，`VERIFIER.md` 不重复这些机器元数据；无索引的兼容 Pack 才在 frontmatter 声明身份。迁移后须逐文件对照脚本或 Agent/人工执行契约，核对输入证据、判定枚举、失败/不确定性与副作用边界；结构检查通过不能代替语义复核。
+
 ## Kernel 包开发
 
 `packages/bensz-skill-kernel/` 是独立 Python 包。包的公开 API、CLI 和目录化 Pack 资产必须同时保持可发现、可重放和向后兼容。
@@ -276,6 +282,7 @@ metadata:
 | 中间文件、任务目录、证据和日志 | [`docs/bensz-api-workspace.md`](docs/bensz-api-workspace.md) | 要求统一任务根与敏感信息边界 |
 | State、Verifier、Gate 协作 | [`docs/bsk-tutorial.md`](docs/bsk-tutorial.md) | 仅在显式采用时启用，并保持 State/Verifier 分层 |
 | State ID / Verifier ID | [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) | 采用控制组件时执行 canonical/alias 门禁 |
+| `VERIFIER.md` 正文骨架 | [`docs/templates/verifier-body.md`](docs/templates/verifier-body.md) | 固定最小章节顺序、索引分工与语义迁移门禁 |
 | 公共 Skill 约束 | [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) | 规定模板来源、摘要和同步检查 |
 
 ### 系统级安装
