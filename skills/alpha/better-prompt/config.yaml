@@ -10,8 +10,8 @@
 
 skill_info:
   name: better-prompt
-  version: 0.2.0  # 本次优化后版本
-  description: "将简陋的 prompt 优化为符合社区最佳实践的高质量版本"
+  version: 0.3.0  # 本次融合 prompt-programming 后版本
+  description: "将简陋的 prompt 优化为符合社区最佳实践的高质量版本，或翻译为 Prompt Program 方言"
   author: "Bensz Conan"
   category: "内容优化"
 
@@ -82,3 +82,103 @@ templates:
       - role_definition     # 角色定义
       - state_management    # 状态管理
       - exception_handling  # 异常处理
+
+# ============================================================================
+# 输出模式配置
+# ============================================================================
+
+# 说明：better-prompt 支持两种输出模式
+#   - standard：增强导向，补全缺失要素，输出最佳实践散文结构
+#   - prompt_program：保真导向，严格等价翻译，输出伪代码式块结构
+#   模式选择规则见 SKILL.md；一次任务只使用一种模式
+
+output_modes:
+  # 用户未指定输出形式时的默认模式
+  default: "standard"
+
+  # prompt_program 模式：由原 prompt-programming skill 融合而来
+  prompt_program:
+    kernel:
+      dialect_name: "Prompt Program"
+      default_language: "zh-CN"
+      # 6 个语义原子，同时作为 Step 1 语义分析的统一工具
+      semantic_atoms:
+        - entity
+        - intent
+        - operation
+        - constraint
+        - control
+        - check
+
+    rendering:
+      block_order:
+        - program
+        - goal
+        - input
+        - output
+        - definition
+        - constraint
+        - flow
+        - validation
+        - gap_handling
+        - return
+      optional_blocks:
+        - program
+        - definition
+        - gap_handling
+      omit_empty_blocks: true
+      required_blocks:
+        - goal
+        - input
+        - output
+        - flow
+        - validation
+        - return
+      block_semantics:
+        output: "目标产物、目标格式或目标效果"
+        return: "对 output 的交付动作；不得引入新产物"
+      sentence_patterns:
+        flow:
+          - "执行：把 A 转换为 B。"
+          - "先……，再……，最后……。"
+          - "若 X 成立，则……；否则……。"
+          - "对每个 X，执行……。"
+          - "重复……，直到……为止。"
+        validation:
+          - "在输出前，核对……。"
+          - "确认……满足……。"
+        gap_handling:
+          - "若信息不足，则先……；仍不足时……。"
+          - "若存在冲突，则保留冲突并显式标注。"
+        return:
+          - "返回上述输出。"
+          - "最终交付……。"
+
+    translation:
+      default_output_mode: "final_only"
+      # prompt_program 模式的输入验证；与 optimization.validation 独立
+      input_validation:
+        min_length: 6
+        reject_non_prompt_like_input: true
+      infer_low_risk_context: true
+      expose_high_risk_gaps: true
+      keep_domain_terms: true
+      preserve_output_contract: true
+      preserve_explicit_format: true
+      preserve_sequence_constraints: true
+      strip_social_filler: true
+      control_inference_policy: "only_when_explicit_or_strongly_implied"
+      conflict_resolution_order:
+        - core_intent
+        - hard_constraints
+        - output_contract
+        - validation_requirements
+        - style_preferences
+
+    quality_bar:
+      must_include_control_when_present: true
+      must_include_validation: true
+      must_preserve_core_intent: true
+      max_redundant_constraints: 2
+      soft_sentence_budget: 18
+      relax_budget_when_complex: true

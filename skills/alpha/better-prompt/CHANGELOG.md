@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
+### Added（新增）
+- 新增 `prompt_program` 输出模式：将原 beta 源 `prompt-programming` skill 整体融入，把 prompt 严格等价翻译为伪代码式 Prompt Program 方言；原 skill 目录同步删除
+- 新增"语义分析原子"：6 个语义原子（Entity/Intent/Operation/Constraint/Control/Check）作为两种输出模式共用的统一分析内核，重构原 Step 1 的三问分析
+- 新增"输出模式选择"章节：定义 standard/prompt_program 的触发边界与模式互斥规则
+- 新增 prompt_program 模式专属规则：等价性原则、控制流推断、冲突处理顺序、缺口处理
+- 新增 `references/prompt-program/`：原子与块定义（primitives.md）、翻译规则（translation-rules.md）、典型示例（examples.md），细节下沉不在 SKILL.md 展开
+- config.yaml 新增 `output_modes` 配置节：默认模式与 prompt_program 的 kernel/rendering/translation/quality_bar 参数
+
 ### Changed（变更）
-- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；better-prompt 的既有功能语义保持不变。
+- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；better-prompt 的既有功能语义保持不变
+- `SKILL.md` 的 description 与"目标"章节扩展双模式触发词（伪代码、程序结构、可编程自然语言）
+- 输入验证支持 prompt_program 模式的独立阈值（`min_length: 6`）与非 prompt 型输入拒绝
+- 校验章节拆分为两种模式各自的质量标准：standard 沿用五维度评分，prompt_program 使用等价性五条标准
+- config.yaml 版本号升级：0.2.0 → 0.3.0
 
 ## [0.2.0] - 2026-02-18
 

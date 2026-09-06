@@ -1,6 +1,6 @@
 # Prompt Program 原子与块
 
-`prompt-programming` 不发明真正的编程语言；它只用一组稳定原子，把 prompt 压缩成“可编程的人类自然语言”。
+Prompt Program 方言不发明真正的编程语言；它只用一组稳定原子，把 prompt 压缩成“可编程的人类自然语言”。
 
 ## 六个原子
 

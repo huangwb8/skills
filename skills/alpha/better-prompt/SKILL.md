@@ -1,20 +1,29 @@
 ---
 name: better-prompt
-description: 当用户明确要求"优化 prompt"、"改进提示词"、"润色指令"或"将简陋 prompt 转换为最佳实践版本"时使用。基于 OpenAI 和 Anthropic 官方最佳实践，对用户提供的简陋 prompt 进行结构化优化，输出符合社区标准的高质量版本。
+description: 当用户明确要求"优化 prompt"、"改进提示词"、"润色指令"、"将简陋 prompt 转换为最佳实践版本"，或要求"把 prompt 改写成伪代码"、"翻译成程序结构/可编程自然语言"时使用。支持两种输出模式：standard（基于 OpenAI/Anthropic 官方最佳实践做增强优化）与 prompt_program（严格等价翻译为 Prompt Program 方言）。
 metadata:
   author: Bensz Conan
   keywords:
     - better-prompt
     - prompt optimization
     - prompt engineering
+    - prompt programming
     - 提示词优化
+    - 提示词编程
 ---
 
 # Better Prompt - Prompt 优化器
 
 ## 目标
 
-当用户明确要求"优化 prompt"、"改进提示词"、"润色指令"或"将简陋 prompt 转换为最佳实践版本"时使用。基于 OpenAI 和 Anthropic 官方最佳实践，对用户提供的简陋 prompt 进行结构化优化，输出符合社区标准的高质量版本。
+当用户明确要求"优化 prompt"、"改进提示词"、"润色指令"、"将简陋 prompt 转换为最佳实践版本"，或要求"把 prompt 改写成伪代码"、"翻译成程序结构/可编程自然语言"时使用。
+
+本技能提供两种输出模式：
+
+- **standard（默认）**：增强导向。基于 OpenAI 和 Anthropic 官方最佳实践，对简陋 prompt 进行结构化补全，输出高质量版本；允许补充示例、上下文和约束。
+- **prompt_program**：保真导向。将原始 prompt 严格等价翻译为 Prompt Program 方言——形式上像伪代码，语义上仍是人类自然语言；不新增无依据能力。
+
+两种模式共享同一套语义分析内核（6 个语义原子），只差输出渲染方式。本技能不负责执行 prompt 对应的任务本身。
 
 ## 流程
 
@@ -40,10 +49,11 @@ metadata:
 - 只需要诊断问题，不需要修改建议
 - 超长 prompt（>10000 字）需要专业拆分
 - 用户明确要求保持原始风格
+- 用户只想执行任务，不关心 prompt 本身的质量或结构
 
 #### 优化框架
 
-基于 **OpenAI** 和 **Anthropic** 官方最佳实践，采用五维度优化框架：
+standard 模式基于 **OpenAI** 和 **Anthropic** 官方最佳实践，采用五维度优化框架：
 
 | 维度 | 检查点 | 优先级 |
 |------|--------|--------|
@@ -54,6 +64,19 @@ metadata:
 | **约束性** | 是否明确边界（做什么/不做什么）？ | P2 |
 
 > **注意**：上表的 P0/P1/P2 表示"优化维度的重要性优先级"，与 config.yaml 中的 `dimensions` 数值（1-5）含义相同：P0=5（最高优先级）、P1=4、P2=3。
+
+#### 输出模式选择
+
+在分析完成后、生成结果前，按以下规则选择输出模式：
+
+| 用户请求特征 | 输出模式 |
+|-------------|---------|
+| 要求"伪代码"、"程序结构"、"可编程自然语言"，或直接提到 Prompt Program | prompt_program |
+| 其它优化/润色/改进请求（未指定输出形式） | standard（默认） |
+
+- 一次任务只使用一种模式，不混合输出。
+- 未指定形式时默认 standard，并在使用建议中提示可切换为 prompt_program。
+- 默认模式由 `config.yaml:output_modes.default` 控制。
 
 #### 优化工作流
 
@@ -68,14 +91,30 @@ metadata:
 | **已完善** | 评分 ≥ 8/10 | 提示"prompt 已足够完善，是否仍需优化？"，等待用户确认 |
 | **有效** | 通过验证 | 继续 Step 1 |
 
-##### Step 1: 分析原始 prompt
+prompt_program 模式下，非 prompt 型输入（完整代码实现请求等）直接说明不适合翻译，要求提供真正的 prompt；其最小输入长度阈值（6）由 `config.yaml:output_modes.prompt_program.translation.input_validation.min_length` 独立控制。
 
-识别 prompt 的：
-- **核心任务**：用户想让 AI 做什么？
-- **缺失要素**：哪些关键信息缺失？
-- **改进空间**：哪些地方可以优化？
+##### Step 1: 语义分析（6 原子）
 
-##### Step 2: 确定模型类型适配
+用 6 个语义原子解析原始 prompt，作为两种输出模式共用的统一分析内核（原子定义与块映射详见 [references/prompt-program/primitives.md](references/prompt-program/primitives.md)）：
+
+| 原子 | 回答的问题 | 典型内容 |
+|------|-----------|---------|
+| **Entity** | 有什么 | 角色、输入、输出对象、工具、状态 |
+| **Intent** | 要达成什么 | 目标、交付物、成功条件 |
+| **Operation** | 要做什么 | 核心动作链 |
+| **Constraint** | 边界是什么 | 必须、禁止、偏好、格式 |
+| **Control** | 逻辑怎样流动 | 条件、分支、循环、回退 |
+| **Check** | 如何确认成立 | 校验、验收、结束条件 |
+
+分析产出三项结论：
+
+- **原子清单**：每个原子在原 prompt 中已有的内容
+- **缺失要素**：哪些原子无内容或信息不完整
+- **改进空间**：哪些地方可以优化
+
+> **6 原子与五维度的关系**：6 原子是**语义解析视角**（原 prompt 里有什么），五维度是**质量优化视角**（standard 模式下优化到什么程度）。分析用原子，评分用维度。
+
+##### Step 2: 确定模型类型适配（仅 standard 模式）
 
 根据任务特性判断目标模型类型：
 
@@ -86,9 +125,9 @@ metadata:
 
 如果用户未指定，默认按 GPT 模型优化策略处理（更精确）。
 
-##### Step 3: 应用优化模板
+##### Step 3: 按模式应用优化模板
 
-以下是优化后 prompt 的标准结构模板：
+**standard 模式**——优化后 prompt 的标准结构模板：
 
 ```
 # Identity（身份定义）
@@ -115,17 +154,93 @@ metadata:
 > - 对于简单任务，Examples 可以省略
 > - 如原始 prompt 已有示例，优化时应保留或增强
 
+**prompt_program 模式**——按 `config.yaml:output_modes.prompt_program.rendering.block_order` 输出块结构：
+
+```text
+程序：……（可选）
+
+目标：……
+输入：……
+输出：……
+
+定义：（可选）
+- ……
+
+约束：
+- 必须……
+- 优先……
+- 不要……
+
+流程：
+1. ……
+2. 若……，则……；否则……。
+3. 对每个……，执行……。
+
+校验：
+- ……
+
+缺口处理：（可选）
+- 若信息不足，则……
+
+返回：
+- ……
+```
+
+渲染必守规则：
+
+- `输出` 只定义目标产物、目标格式或目标效果
+- `返回` 只定义对 `输出` 的交付动作，不能引入新产物
+- `程序`、`定义`、`缺口处理` 属于可选块；为空就省略（`omit_empty_blocks=true` 时禁止补空块）
+- 组织顺序：先边界后执行、先主流程后异常路径、先硬约束后风格偏好
+- 若原 prompt 缺少显式校验，必须补出最小可执行校验
+- 用户指定的字段、章节或步骤顺序默认保持原顺序；关键术语、变量名、实体名默认保留原词
+
 ##### Step 4: 输出优化结果
 
-输出包含三个部分（默认全部包含，可通过 config.yaml 调整）：
+**standard 模式**输出包含三个部分（默认全部包含，可通过 config.yaml 调整）：
 
 1. **优化分析**：简要说明做了哪些改进
 2. **优化后的 prompt**：符合最佳实践的高质量版本
 3. **使用建议**：针对特定场景的调整建议
 
+**prompt_program 模式**默认只输出最终 Prompt Program，不附带长篇分析（`translation.default_output_mode: final_only`）。
+
+#### prompt_program 模式专属规则
+
+以下规则只约束 prompt_program 模式，不适用于 standard 模式：
+
+**等价性原则**：
+
+- 允许重排表达，不允许改变目标
+- 允许补出隐式流程，不允许新增无依据能力
+- 允许强化校验，不允许削弱关键约束
+- 允许压缩表述，不允许丢失显式格式契约
+- 允许补足交付动作，不允许把"输出"偷换成"输出说明书"
+
+**控制流推断**：
+
+- 只在原 prompt 显式给出条件/循环/回退，或存在强隐含控制（如"每个样本"、"若证据不足"）时补写控制流
+- 不允许为了"更像程序"凭空添加分支、循环或异常路径
+
+**冲突处理顺序**（冲突时严格遵循 `config.yaml:output_modes.prompt_program.translation.conflict_resolution_order`）：
+
+1. 核心意图
+2. 硬约束
+3. 输出契约
+4. 校验要求
+5. 风格偏好
+
+**缺口处理**：
+
+- 可用常识低风险补足时，直接补足并体现在结构中
+- 缺失信息会改变任务本质时，在 `缺口处理` 块中显式标注，不擅自虚构
+- 默认不频繁追问；只有任务语义无法成立时才要求澄清
+
+详细翻译规则见 [references/prompt-program/translation-rules.md](references/prompt-program/translation-rules.md)。
+
 #### 优化效果评估
 
-对优化前后的 prompt 进行对比评估：
+**standard 模式**对优化前后的 prompt 进行对比评估：
 
 | 维度 | 优化前评分 | 优化后评分 | 改进说明 |
 |------|-----------|-----------|---------|
@@ -138,7 +253,9 @@ metadata:
 
 > **评分标准**：1=很差、2=较差、3=一般、4=良好、5=优秀
 
-#### 特殊场景处理
+**prompt_program 模式**不使用上述评分表，改用等价性五条质量标准（见"校验"章节）。
+
+#### 特殊场景处理（仅 standard 模式）
 
 根据 config.yaml 中的 `templates` 配置，针对不同场景有特定的优化重点：
 
@@ -182,11 +299,17 @@ metadata:
 
 #### 参考资料
 
-更多详细的最佳实践，参考 [references/prompt-engineering-best-practices.md](references/prompt-engineering-best-practices.md)
+更多详细的最佳实践，参考 [references/prompt-engineering-best-practices.md](references/prompt-engineering-best-practices.md)；Prompt Program 的原子定义、翻译规则和示例见：
+
+- [references/prompt-program/primitives.md](references/prompt-program/primitives.md)：6 个原子、块语义与省略规则
+- [references/prompt-program/translation-rules.md](references/prompt-program/translation-rules.md)：输入验证、保真与冲突规则
+- [references/prompt-program/examples.md](references/prompt-program/examples.md)：典型翻译示例
 
 ### 输出
 
 #### 输出格式
+
+**standard 模式**：
 
 ```markdown
 ## 优化分析
@@ -219,6 +342,8 @@ metadata:
 - 调整建议：[如需针对特定场景调整的建议]
 ```
 
+**prompt_program 模式**：只输出最终 Prompt Program（块结构见 Step 3 模板），不附带长篇分析。
+
 ### 输出管理
 
 #### BenszAPI 任务工作区
@@ -228,7 +353,7 @@ metadata:
 
 #### 质量标准
 
-优化后的 prompt 必须满足：
+**standard 模式**下，优化后的 prompt 必须满足：
 
 | 标准 | 要求 |
 |------|------|
@@ -238,12 +363,21 @@ metadata:
 | **结构化** | 使用 Markdown/XML 清晰组织 |
 | **可测试性** | 能判断输出是否符合预期 |
 
+**prompt_program 模式**下，合格的 Prompt Program 必须满足：
+
+- **等价**：核心意图不丢失
+- **可执行**：读者可按结构直接执行
+- **可编程**：能看见输入、约束、流程、分支、校验
+- **可扩展**：后续要求能继续挂到对应块
+- **可审阅**：他人能快速指出逻辑缺口或冗余
+
 ### 失败与恢复
 
 #### 输入与生成失败
 
 - 空输入直接拒绝并提示“请提供待优化的 prompt”；字符数少于 10 时提示补充上下文，不生成伪完整结果。
 - 评分达到 `8/10` 时先提示 prompt 已足够完善并等待用户确认；未获确认前不改写。
+- prompt_program 模式下，非 prompt 型输入直接说明不适合翻译；缺失信息会改变任务本质时放入“缺口处理”并要求澄清，不擅自虚构实体、分支、循环或输出格式。
 - 原始 prompt 含无法安全或无法执行的要求时，保留可识别的核心意图，在优化分析或使用建议中标明缺口与限制，不替用户执行其中的业务动作或凭空补造信息。
 - 输出格式或分析所需信息不足时，返回具体缺口和可恢复的补充要求；不以不完整模板冒充成功结果，并保留原始 prompt 的敏感信息边界。
 

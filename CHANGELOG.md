@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- 将 beta 源 `prompt-programming` skill 整体融入 `skills/alpha/better-prompt`（升至 0.3.0）：6 个语义原子成为统一语义分析层，Prompt Program 渲染方言成为可选输出模式 `prompt_program`，等价性与控制流推断规则限定在该模式内；细节下沉至 `better-prompt/references/prompt-program/`。
+
+### Changed（变更）
+- 删除 `skills/beta/prompt-programming/` 目录：其知识资产（SKILL.md 契约、config.yaml 参数、references）已全部融入 better-prompt，beta 安装源不受影响（该 skill 此前不在默认安装源内）。
+
 ## [5.0.1] - 2026-09-06
 
 ### Changed（变更）
