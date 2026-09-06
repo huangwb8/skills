@@ -4,6 +4,7 @@
 
 ### Changed（变更）
 - 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；write-readme 的既有功能语义保持不变。
+- 默认首屏升级为完整 GitHub Hero（居中标题/标识、事实徽章、导航、价值主张、解释段和证据/Quick Start），新增 `references/github-hero-patterns.md`，沉淀产品展示型、开发者工具型、库/SDK 型和资源/集合型四种可复用套路及其可访问性门槛。
 
 ## [0.2.0] - 2026-09-04
 

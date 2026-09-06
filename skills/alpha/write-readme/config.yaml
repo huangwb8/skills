@@ -1,7 +1,7 @@
 skill_info:
   name: write-readme
-  version: 0.2.0
-  description: "为任意 GitHub 项目生成中文 README.md 与英文 README_EN.md；按项目类型选择模板，基于仓库事实组织 Quick Start、示例、配置、限制、安全、贡献和许可证，并校验双语结构与链接。"
+  version: 0.3.0
+  description: "为任意 GitHub 项目生成中文 README.md 与英文 README_EN.md；默认设计完整 GitHub Hero，并按项目类型组织 Quick Start、示例、配置、限制、安全、贡献和许可证，基于仓库事实校验双语结构与链接。"
   author: Bensz Conan
   category: normal
 

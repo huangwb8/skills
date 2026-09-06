@@ -18,7 +18,7 @@ Read SKILL.md, config.yaml, scripts/, and references/; output README.md (Chinese
 
 ## How it writes
 
-The first screen answers three questions: what the project is, why it is useful, and how to run it quickly. Examples are organized around user tasks, followed by architecture, deployment, limitations, and contribution details. Features, numbers, badges, and commands that cannot be verified from the repository are marked for confirmation instead of being invented.
+The first screen defaults to a complete GitHub Hero: a centered title or real mark, evidence-backed badges, language and documentation navigation, a value proposition, a short explanation, then real visual proof or the shortest Quick Start. It answers three questions: what the project is, why it is useful, and how to run it quickly. Examples are organized around user tasks, followed by architecture, deployment, limitations, and contribution details. Features, numbers, badges, and commands that cannot be verified from the repository are marked for confirmation instead of being invented.
 
 ### Template selection
 
@@ -81,6 +81,7 @@ Its Agent Skill README capability is now part of this Skill. The old directory r
 
 - `SKILL.md`: AI execution contract and safety boundaries
 - `references/readme-principles.md`: distilled community and Trending research
+- `references/github-hero-patterns.md`: complete GitHub Hero anatomy, four reusable patterns, accessibility gates, and sources
 - `references/research-notes.md`: sources and sample notes
 - `references/templates/`: section skeletons by project type
 - `scripts/check_readme_pair.py`: bilingual README structure checker

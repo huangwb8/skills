@@ -1,6 +1,12 @@
-# {项目名}
+<!-- 按 references/github-hero-patterns.md 先完成 Hero，再展开正文。没有可靠视觉资产时删除 img。 -->
+<div align="center">
+  <h1>{项目名}</h1>
+  <p><strong>{为谁解决什么任务，产出什么结果}</strong></p>
+  <p>{已验证徽章：维护/构建/版本/许可证}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/">Docs</a> · <a href="{demo-or-support}">{Demo/支持}</a></p>
+</div>
 
-{一句话价值主张}
+{2–4 句解释：工作方式、适用边界、最短下一步}
 
 ## Quick Start
 

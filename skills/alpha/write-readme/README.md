@@ -18,7 +18,7 @@
 
 ## 它会怎么写
 
-README 的第一屏回答三件事：项目是什么、为什么值得用、怎样在最短路径跑起来。后面按任务组织示例，再逐步展开架构、部署、限制和贡献说明。不能从代码或配置验证的功能、数字、徽章和命令会被标记为待确认，而不是猜出来。
+README 的第一屏默认采用完整 GitHub Hero：居中标题/真实标识、事实徽章、语言与文档导航、价值主张、简短解释，再接真实视觉证据或最短 Quick Start。它回答三件事：项目是什么、为什么值得用、怎样在最短路径跑起来。后面按任务组织示例，再逐步展开架构、部署、限制和贡献说明。不能从代码或配置验证的功能、数字、徽章和命令会被标记为待确认，而不是猜出来。
 
 ### 模板选择
 
@@ -56,7 +56,7 @@ python3 /path/to/write-readme/scripts/check_readme_pair.py README.md README_EN.m
 信息命中会阻止交付；token 漂移、网络不可观测和事实语义缺口保留为不确定项并转人工复核。
 没有 Kernel 时仍可运行上面的脚本，但不能声称已完成运行时 Gate。
 
-## 常见问题
+## 常见问题 FAQ
 
 ### 为什么一定有两个 README？
 
@@ -78,6 +78,7 @@ python3 /path/to/write-readme/scripts/check_readme_pair.py README.md README_EN.m
 
 - `SKILL.md`：AI 执行契约与安全边界
 - `references/readme-principles.md`：社区与 Trending 调研提炼
+- `references/github-hero-patterns.md`：完整 GitHub Hero 的组成、四种套路、可访问性门槛与调研来源
 - `references/research-notes.md`：来源和样本记录
 - `references/templates/`：不同项目类型的章节骨架
 - `scripts/check_readme_pair.py`：双语 README 结构检查

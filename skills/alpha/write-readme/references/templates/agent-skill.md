@@ -1,6 +1,11 @@
-# {Skill 名称} — 用户指南
+<div align="center">
+  <h1>{Skill 名称}</h1>
+  <p><strong>{让什么用户通过什么入口完成什么任务}</strong></p>
+  <p>{兼容宿主 · 版本 · 许可证/测试徽章}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#快速开始">Quick Start</a> · <a href="#触发与适用范围">触发边界</a> · <a href="references/">References</a></p>
+</div>
 
-{一句话说明解决的任务}
+{2–4 句解释：触发方式、输入输出、与相邻 Skill 的边界}
 
 ## 快速开始
 

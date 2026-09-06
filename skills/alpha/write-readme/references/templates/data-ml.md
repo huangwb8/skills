@@ -1,6 +1,11 @@
-# {项目名}
+<div align="center">
+  <h1>{项目名}</h1>
+  <p><strong>{为谁提供什么数据/模型能力}</strong></p>
+  <p>{版本 · 数据/模型许可 · 复现实验/CI 徽章}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#快速复现">Quick Start</a> · <a href="#数据与模型">Data/Model</a> · <a href="docs/">Docs</a></p>
+</div>
 
-{任务、数据/模型和目标读者}
+{2–4 句解释：任务、数据来源、资源边界与最短复现路径}
 
 ## 快速复现
 

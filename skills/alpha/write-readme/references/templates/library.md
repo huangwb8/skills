@@ -1,6 +1,11 @@
-# {库名}
+<div align="center">
+  <h1>{库名}</h1>
+  <p><strong>{为谁提供什么可嵌入能力}</strong></p>
+  <p>{版本 · 运行时 · 构建 · 许可证徽章}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#安装">安装</a> · <a href="docs/">API Docs</a> · <a href="examples/">Examples</a></p>
+</div>
 
-{一句话定位：为谁解决什么问题}
+{2–4 句解释：输入、输出、集成边界}
 
 ## 安装
 

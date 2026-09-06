@@ -1,6 +1,11 @@
-# {项目名}
+<div align="center">
+  <h1>{项目名}</h1>
+  <p><strong>{把某个输入变成某个可验证结果}</strong></p>
+  <p>{维护状态 · 版本 · 许可证 · 兼容平台/宿主徽章}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/">Docs</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+</div>
 
-{一句话定位}
+{2–4 句解释：最短运行路径、服务边界和生产注意事项}
 
 ## Quick Start
 

@@ -1,8 +1,14 @@
-# {应用名}
+<div align="center">
+  <img src="{真实相对路径}" alt="{核心界面或产物}" width="760" />
+  <h1>{应用名}</h1>
+  <p><strong>{一句话体验承诺}</strong></p>
+  <p>{Demo · 版本 · 许可证 · 构建徽章}</p>
+  <p><a href="README_EN.md">English</a> · <a href="#体验与-quick-start">Quick Start</a> · <a href="{demo}">Live Demo</a> · <a href="docs/">Docs</a></p>
+</div>
 
-{一句话体验承诺}
+{2–4 句解释：目标用户、核心体验、无 Demo 时的替代路径}
 
-{真实截图或 Demo；必须有 alt 和可用链接}
+{真实截图或 Demo；必须有 alt 和可用链接；无可靠资产时删除 img}
 
 ## 体验与 Quick Start
 
