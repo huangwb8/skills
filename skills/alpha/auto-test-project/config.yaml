@@ -12,7 +12,7 @@
 
 skill_info:
   name: "auto-test-project"
-  version: "1.4.0"
+  version: "1.4.1"
   description: "项目级自动化测试驱动优化技能 - 支持多轮A轮迭代与B轮质量检查（维度以 b_round_check.dimensions 为准）+ A轮独立评估 + 批判性思维门槛（P0+P1占比/系统性问题）+ 强制验证机制 + 模板自动替换 + 强制数量要求"
   author: "Bensz Conan"
   category: "normal"

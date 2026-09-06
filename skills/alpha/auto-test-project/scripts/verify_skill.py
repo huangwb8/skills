@@ -20,7 +20,6 @@ REQUIRED_FILES = [
     "scripts/workspace_paths.py",
     "scripts/test_workspace_paths.py",
     "scripts/test_workspace_cli.py",
-    "scripts/check_skill_structure.py",
     "templates/OPTIMIZATION_PLAN_TEMPLATE.md",
     "templates/B_ROUND_CHECK_TEMPLATE.md",
     "templates/TEST_PLAN_TEMPLATE.md",
@@ -128,7 +127,6 @@ def main() -> int:
             "scripts/workspace_paths.py",
             "scripts/test_workspace_paths.py",
             "scripts/test_workspace_cli.py",
-            "scripts/check_skill_structure.py",
         ],
         cwd=skill_root,
     )
@@ -151,20 +149,12 @@ def main() -> int:
         "scripts/create_test_session.py",
         "scripts/verify_test_session.py",
         "scripts/verify_all_sessions.py",
-        "scripts/check_skill_structure.py",
     ]:
         proc = _run([sys.executable, script, "--help"], cwd=skill_root)
         if proc.returncode != 0:
             failures.append(f"{script} --help failed:\n{proc.stderr.strip()}")
 
-    structure = _run(
-        [sys.executable, "scripts/check_skill_structure.py", "--skill-root", str(skill_root), "--mode", "strict"],
-        cwd=skill_root,
-    )
-    if structure.returncode != 0:
-        failures.append("normalized Skill structure check failed:\n" + (structure.stderr or structure.stdout).strip())
-
-    # Regression guards: keep "strict mode" entrypoints and key references discoverable.
+    # Regression guards for this Skill's own project-testing entrypoints.
     strict_templates = [
         skill_root / "templates/TEST_PLAN_TEMPLATE.md",
         skill_root / "templates/TEST_REPORT_TEMPLATE.md",

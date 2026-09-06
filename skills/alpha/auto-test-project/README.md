@@ -123,17 +123,6 @@ python3 auto-test-project/scripts/verify_test_session.py \
 
 旧 `.bensz-api/skills/auto-test-project/` 只支持显式只读验证：传入 `--legacy-root .bensz-api/skills/auto-test-project`。创建脚本没有 legacy 写入模式。
 
-### 检查 Skill 正文规范
-
-仓库维护者可用结构检查器报告所有 alpha/beta Skill 的缺项；对已迁移 Skill 使用 `--mode strict` 作为发布门禁：
-
-```bash
-python3 auto-test-project/scripts/check_skill_structure.py --project-root . --mode report
-python3 auto-test-project/scripts/check_skill_structure.py --skill-root path/to/skill --mode strict
-```
-
-四段式正文模板与公共约束长版本分别见仓库的 [`docs/templates/skill-body.md`](../../../docs/templates/skill-body.md) 和 [`docs/templates/skill-common-constraints.md`](../../../docs/templates/skill-common-constraints.md)。
-
 ## 常见问题
 
 ### Q：它和 `auto-test-code` 有什么区别？

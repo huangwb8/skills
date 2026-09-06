@@ -8,6 +8,8 @@
 
 ### Fixed（修复）
 
+- 移除 Skill 结构检查器与公共约束同步器，避免项目级循环优化 Skill 托管仓库级 Skill 开发治理逻辑；相关入口已迁移至仓库根级 `tests/`。
+
 - 修复任务工作区迁移只更新文档、配置与脚本仍写入 `.bensz-api/skills/auto-test-project/` 的问题：新增统一运行态 task-root 解析器，创建、单会话验证、批量验证与自检现共用 `<task-root>/auto-test-project/output/{plans,tests}`；显式 task root 支持续跑原样复用，缺省时只分配新任务，legacy 根仅允许显式只读验证。
 - 补充 task root 越界、`..`、symlink、同分钟冲突、A/B continuation、legacy 只读和缺失路径结构化失败测试；默认流程新增否定断言，确保不再创建 `.bensz-api/skills/`。
 
