@@ -187,6 +187,7 @@ bac --root . --bac-file docs/contribution.bac inspect
 下面这些入口分别介绍版本变化、结果检查、任务阶段和 Skill 安装；按你的目标选择即可。
 
 - [`CHANGELOG.md`](CHANGELOG.md)：这是项目的更新日志，记录每次版本的新增功能、修复问题和重要调整；想了解最近改了什么，可以先看这里。
+- [Gitee 镜像](https://gitee.com/huangwb8/skills)：如果访问 GitHub 不便，也可以从 Gitee 镜像获取本项目。
 - [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md)：这是一份结果检查教程，用完整示例说明系统如何检查结果、处理失败并记录证据；想看一次检查具体怎样完成，可以从这里开始。
 - [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md)：这是一份任务阶段教程，说明任务如何流转，以及系统如何保存和恢复执行进度；想理解任务是怎样一步步推进的，可以阅读这份文档。
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md)：这是 Skill 安装器的使用指南，介绍安装方式、参数和常见用法；准备安装 Skill 时，可以按这份指南操作。

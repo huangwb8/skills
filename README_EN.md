@@ -185,6 +185,7 @@ This project is licensed under MIT; see [`LICENSE`](LICENSE).
 These links cover releases, result checking, task stages, and Skill installation. Choose the one that matches your goal.
 
 - [`CHANGELOG.md`](CHANGELOG.md): This is the project's release log, covering new features, fixes, and important changes; start here to see what changed recently.
+- [Gitee mirror](https://gitee.com/huangwb8/skills): If GitHub is inconvenient to access, you can also get this project from the Gitee mirror.
 - [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md): This is a tutorial on checking results, with a complete example of handling failures and recording evidence; read it to see how one check works from start to finish.
 - [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md): This is a tutorial on task stages, explaining how tasks move forward and how progress is saved and restored; read it to understand how work advances step by step.
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md): This is the Skill installer's user guide, covering installation methods, options, and common usage; follow it when you are ready to install a Skill.
