@@ -154,7 +154,7 @@ def run_stdio(
     max_input_bytes: int = MAX_STDIO_INPUT,
     max_output_bytes: int = MAX_STDIO_OUTPUT,
     max_stderr_bytes: int = MAX_STDIO_ERROR,
-    env_allowlist: tuple[str, ...] = ("PATH", "PYTHONPATH", "SYSTEMROOT", "WINDIR"),
+    env_allowlist: tuple[str, ...] = ("PATH", "PYTHONPATH", "SYSTEMROOT", "WINDIR", "PYTHONPYCACHEPREFIX", "PYTHONDONTWRITEBYTECODE"),
     trusted: bool = True,
     allow_side_effects: bool = False,
 ) -> StdioExecution:
@@ -180,6 +180,7 @@ def run_stdio(
     command = [sys.executable, str(target)] if target.suffix == ".py" else [str(target)]
     env = {key: os.environ[key] for key in env_allowlist if key in os.environ}
     env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     env["BENSZ_ALLOW_SIDE_EFFECTS"] = "1" if allow_side_effects else "0"
     try:
         with tempfile.TemporaryFile(mode="w+b") as stdout_file, tempfile.TemporaryFile(mode="w+b") as stderr_file:

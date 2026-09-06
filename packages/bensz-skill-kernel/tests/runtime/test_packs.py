@@ -54,6 +54,23 @@ def test_shared_stdio_executor_runs_from_pack_root(tmp_path: Path) -> None:
     assert result.value == {"verdict": "pass", "cwd": tmp_path.name}
 
 
+def test_stdio_does_not_write_bytecode_into_pack(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv('PYTHONPYCACHEPREFIX', raising=False)
+    monkeypatch.delenv('PYTHONDONTWRITEBYTECODE', raising=False)
+    (tmp_path / 'helper.py').write_text('value = 1\n', encoding='utf-8')
+    (tmp_path / 'check.py').write_text(
+        'import helper, json\nprint(json.dumps({"value": helper.value}))\n', encoding='utf-8')
+    assert run_stdio(tmp_path, 'check.py', {}, timeout=5).status == 'completed'
+    assert not (tmp_path / '__pycache__').exists()
+
+
+def test_stdio_propagates_explicit_cache_prefix(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('PYTHONPYCACHEPREFIX', '.bensz-api/explicit-cache')
+    (tmp_path / 'check.py').write_text(
+        'import os, json\nprint(json.dumps({"prefix": os.getenv("PYTHONPYCACHEPREFIX")}))\n', encoding='utf-8')
+    assert run_stdio(tmp_path, 'check.py', {}, timeout=5).value['prefix'] == '.bensz-api/explicit-cache'
+
+
 def test_shared_entrypoint_validation_rejects_path_escape(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="inside its directory"):
         resolve_entrypoint(tmp_path, "../outside.py")
