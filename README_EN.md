@@ -15,13 +15,9 @@ A reusable Skill collection, development pipeline, and tools for checking and tr
 
 </div>
 
-![Agent Skills: Build · Test · Run · Know](docs/assets/agent-skills-ecosystem-v5.jpg)
+![Without BSK / With BSK: Skills, but better.](docs/assets/bsk-without-with.jpg)
 
-| **BUILD** | **TEST** | **RUN** | **KNOW** |
-| :---: | :---: | :---: | :---: |
-| Create and standardize | Regression and quality gates | Install and run across hosts | State, evidence, and audit |
-
-This is more than a collection of `SKILL.md` files. It connects Skill creation, testing, documentation, installation, and release into a repeatable engineering workflow—and explores how to know that a Skill still behaves as intended once it becomes a long-lived part of an agent system.
+This is more than a collection of `SKILL.md` files. It connects Skill creation, testing, documentation, installation, and release into a repeatable engineering workflow—and its execution kernel, BSK (`bensz-skill-kernel`), asks a further question: once a Skill becomes a long-lived part of an agent system, does it fire when needed? Does it skip any steps? Does it still work after changes? And when something fails, can you trace which step went wrong?
 
 ## What the project is building
 

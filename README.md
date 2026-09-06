@@ -15,7 +15,7 @@
 
 </div>
 
-这不只是一个 `SKILL.md` 文件集合。它把 Skill 的创建、测试、文档、安装与发布连成可复用的工程流程，并进一步探索：当 Skill 成为 Agent 系统的长期组成部分时，怎样确认它仍在按预期工作。
+Bensz Agent Skills 项目把 Skill 的创建、测试、文档、安装与发布连成可复用的工程流程；更进一步，执行内核`bensz-skill-kernel`（简称BSK）尝试回答：当 Skill 成为 Agent 系统的长期组成部分时，该用的时候它用上了吗？该做的步骤漏掉了吗？改动之后变差了吗？出错时，能查到是哪一步吗？
 
 ![Without BSK / With BSK：Skills, but better.](docs/assets/bsk-without-with.jpg)
 
