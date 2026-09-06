@@ -9,7 +9,7 @@
 ```text
 请使用 init-project skill 为本项目进行初始化。
 输入：当前项目根目录
-输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`、`docs/`、`docs/plans/`
+输出：`AGENTS.md`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`.gitignore`、`docs/`、`docs/plans/`、`skills/`
 ```
 
 ### 进阶用法
@@ -74,6 +74,7 @@
 - `.gitignore`：默认的安全与项目类型忽略规则。
 - `docs/`：项目文档根目录。
 - `docs/plans/`：计划文档固定目录；其余 `docs/` 文档在代码变化时也应及时同步更新。
+- `skills/`：project-specific Agent Skills 目录。目录内 Skill 遵循 `huangwb8/skills` 的 `AGENTS.md` 与 `docs/templates` 规范；通用 Skill 不应复制到这里。
 - `docs/contribution.bac`：默认 BAC 贡献托管文件；用户可通过 `--bac-file` 指定其它项目内路径。
 
 ## 配置

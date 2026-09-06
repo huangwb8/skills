@@ -7,9 +7,10 @@ Project Init Generator - 生成脚本
 - CLAUDE.md（Claude Code 特定适配 - 通过 @./AGENTS.md 引用）
 - README.md（项目介绍与使用方法 - 可选）
 - CHANGELOG.md（项目变更记录 - 强制性）
-并在完整初始化时补齐标准文档目录：
+并在完整初始化时补齐标准项目目录：
 - docs/
 - docs/plans/
+- skills/
 
 支持语言检测、模板变量替换、自定义配置和自动项目分析。
 
@@ -538,30 +539,36 @@ class ProjectInitGenerator:
         template = self.load_template("CHANGELOG.md.template")
         return self.replace_placeholders(template, variables)
 
-    def ensure_docs_structure(self, output_dir: Path) -> List[Path]:
+    def ensure_project_structure(self, output_dir: Path) -> List[Path]:
         """
-        确保项目具备标准 docs 目录结构。
+        确保项目具备标准 docs 与 project-specific skills 目录结构。
 
         会创建：
         - docs/
         - docs/plans/
+        - skills/
 
         如果目录已存在，则静默跳过。
         """
         docs_dir = output_dir / "docs"
         plans_dir = docs_dir / "plans"
+        skills_dir = output_dir / "skills"
         created_dirs = []
 
-        for directory in [docs_dir, plans_dir]:
+        for directory in [docs_dir, plans_dir, skills_dir]:
             if directory.exists():
                 if not directory.is_dir():
-                    raise ValueError(f"{directory} 已存在但不是目录，无法初始化标准 docs 结构")
+                    raise ValueError(f"{directory} 已存在但不是目录，无法初始化标准项目结构")
                 continue
 
             directory.mkdir(parents=True, exist_ok=True)
             created_dirs.append(directory)
 
         return created_dirs
+
+    def ensure_docs_structure(self, output_dir: Path) -> List[Path]:
+        """向后兼容的别名；同时初始化标准项目目录。"""
+        return self.ensure_project_structure(output_dir)
 
     def get_bac_config(self) -> dict:
         """读取 BAC 贡献记录配置。"""
@@ -1178,7 +1185,7 @@ class ProjectInitGenerator:
         else:
             # 完整初始化时补齐标准 docs 目录，但不让其影响项目类型检测结果
             try:
-                created_dirs = self.ensure_docs_structure(output_dir)
+                created_dirs = self.ensure_project_structure(output_dir)
             except ValueError as e:
                 print(f"❌ {e}")
                 return False
@@ -1579,7 +1586,7 @@ def main():
 
     # 手动模式也补齐标准 docs 目录
     try:
-        created_dirs = generator.ensure_docs_structure(output_dir)
+        created_dirs = generator.ensure_project_structure(output_dir)
     except ValueError as e:
         print(f"错误: {e}")
         return 1

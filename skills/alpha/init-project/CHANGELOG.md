@@ -8,6 +8,8 @@
 
 ### Added（新增）
 
+- **项目专属 Skills 目录**：完整初始化新增 `skills/`，用于托管 project-specific Agent Skills；生成的 `AGENTS.md` 明确要求遵循 `huangwb8/skills` 的 `AGENTS.md` 与 `docs/templates` 规范，技能版本号 `2.3.6 → 2.4.0`
+
 - **BAC 贡献记录默认集成**：初始化项目时默认检查 Python 环境和 `bac` 包，必要时安装 `git+https://github.com/huangwb8/bensz-auto-contribution.git`，并初始化贡献托管文件
   - 默认托管文件为 `docs/contribution.bac`
   - 新增 `--bac-file` 参数，允许用户指定项目内其它 `.bac` 文件路径

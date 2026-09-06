@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: 当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成结果包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）、.gitignore（Git 忽略规则，安全优先），并在完整初始化时自动补齐 `docs/` 与 `docs/plans/`。
+description: 当用户明确要求初始化项目、创建项目指令文件、生成 AGENTS.md，或为已有项目补齐 AI 协作规范时使用。该 Skill 会分析项目结构，并生成或更新适用于当前项目的标准化协作文档与基础目录。
 metadata:
   author: Bensz Conan
   short-description: 完全自动生成 AI 项目指令文档并初始化标准 docs 目录
@@ -24,7 +24,7 @@ metadata:
 
 ## 目标
 
-当用户明确要求"初始化项目"、"创建项目指令文件"或"生成 AGENTS.md"时使用。完全自动化：自动检测操作系统默认语言，分析项目目录结构（支持 Python/Web/Rust/Go/Java/数据科学/文档项目等），推断项目类型和用途，一键生成规范的项目指令文档。生成结果包括：AGENTS.md（跨平台通用项目指令，Single Source of Truth）、CLAUDE.md（Claude Code 特定适配，通过 @./AGENTS.md 引用）、README.md（项目介绍与使用方法）、CHANGELOG.md（项目变更记录）、.gitignore（Git 忽略规则，安全优先），并在完整初始化时自动补齐 `docs/` 与 `docs/plans/`。
+当用户明确要求初始化项目、创建项目指令文件、生成 AGENTS.md，或为已有项目补齐 AI 协作规范时使用。本 Skill 分析项目结构，并生成或更新适用于当前项目的标准化协作文档与基础目录。
 
 ## 流程
 
@@ -45,7 +45,8 @@ metadata:
 - `AGENTS.md` 是唯一需要长期手动维护的通用指令源；`CLAUDE.md` 只做 Claude Code 适配，并通过 `@./AGENTS.md` 自动引用。
 - 生成模板统一放在 `init-project/templates/`：`AGENTS.md.template`、`CLAUDE.md.template`、`README.md.template`、`CHANGELOG.md.template`、`gitignore.yaml`。
 - 配置统一放在 `init-project/config.yaml`，版本号以 `skill_info.version` 为准；当前 BAC 配置在 `bac_contribution`。
-- 完整初始化必须补齐 `docs/` 与 `docs/plans/`。
+- 完整初始化必须补齐 `docs/`、`docs/plans/` 与 `skills/`；`skills/` 只托管项目专属 Agent Skills。
+- `skills/` 中的 Agent Skill 必须遵循 `huangwb8/skills` 仓库的 `AGENTS.md`，并配合该仓库的 `docs/templates` 使用；不得把通用 Skill 或无关项目代码放入其中。
 - 代码变化导致 `docs/` 中非 `plans/` 文档过时时，生成的项目指令必须要求同步更新。
 - 影响项目行为、结构、工作流、工程原则、指令文件或关键配置的变更，必须写入 `CHANGELOG.md` 的 `[Unreleased]`。
 
@@ -127,7 +128,7 @@ python3 init-project/scripts/generate.py \
 - `AGENTS.md`：跨平台通用项目指令，Single Source of Truth；必生成，智能合并。
 - `CLAUDE.md`：Claude Code 适配层，核心为 `@./AGENTS.md`；必生成，智能合并。
 - `README.md`、`CHANGELOG.md`、`.gitignore`：按需生成；`--overwrite` 可覆盖/合并。项目变更必须维护 `CHANGELOG.md`。
-- `docs/`、`docs/plans/`：完整初始化时自动补齐；计划文档固定放在 `./docs/plans/`。
+- `docs/`、`docs/plans/`、`skills/`：完整初始化时自动补齐；计划文档固定放在 `./docs/plans/`，项目专属 Agent Skills 固定放在 `./skills/`。
 - `docs/contribution.bac`：默认 BAC 账本；`--bac-file` 可改，`--disable-bac` 可关。
 
 ### 输出管理
@@ -141,7 +142,7 @@ python3 init-project/scripts/generate.py \
 
 - [ ] `AGENTS.md` 包含必需章节：项目目标、核心工作流、工程原则、默认语言、联网与搜索、贡献记录、Codex CLI 特定说明、变更记录与版本、有机更新原则。
 - [ ] `CLAUDE.md` 正确通过 `@./AGENTS.md` 引用通用指令。
-- [ ] `docs/`、`docs/plans/` 已存在或无需本模式创建。
+- [ ] `docs/`、`docs/plans/`、`skills/` 已存在或无需本模式创建。
 - [ ] BAC 已初始化/验证，或用户已显式使用 `--disable-bac`。
 - [ ] `.gitignore` 已生成/合并，且包含敏感文件忽略规则。
 - [ ] `CHANGELOG.md` 已创建或变更已记录。
@@ -153,7 +154,7 @@ python3 init-project/scripts/generate.py \
 
 - Windows GBK 等非 UTF-8 控制台不会因装饰性 Unicode 状态符号中止；脚本保留宿主编码，仅转义无法编码的字符，业务异常与退出码仍按原逻辑传播。
 - 输出目录越界、目标目录不存在或不是目录：停止。
-- `docs` / `docs/plans` 已存在但不是目录：停止。
+- `docs` / `docs/plans` / `skills` 已存在但不是目录：停止。
 - BAC 安装、导入、初始化或验证失败：停止，并提示可用 `--disable-bac` 显式关闭。
 - 语言检测失败：回退到简体中文。
 - 项目类型无法识别：使用通用项目模板。

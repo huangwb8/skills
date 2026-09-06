@@ -98,6 +98,10 @@ class ConsoleEncodingTest(unittest.TestCase):
         for name in ("AGENTS.md", "CLAUDE.md", "README.md", "CHANGELOG.md", ".gitignore"):
             self.assertTrue((project_root / name).exists(), name)
         self.assertTrue((project_root / "docs" / "plans").is_dir())
+        self.assertTrue((project_root / "skills").is_dir())
+        agents_content = (project_root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("project-specific Agent Skills", agents_content)
+        self.assertIn("huangwb8/skills", agents_content)
 
     def test_manual_mode_completes_under_strict_gbk(self) -> None:
         proc, project_root = self._run_cli(
@@ -115,6 +119,7 @@ class ConsoleEncodingTest(unittest.TestCase):
         self.assertNotIn("UnicodeEncodeError", output)
         self.assertTrue((project_root / "AGENTS.md").exists())
         self.assertTrue((project_root / "CLAUDE.md").exists())
+        self.assertTrue((project_root / "skills").is_dir())
         agents_content = (project_root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("本项目当前未启用", agents_content)
         self.assertIn("贡献记录当前处于关闭状态", agents_content)

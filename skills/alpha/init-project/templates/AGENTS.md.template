@@ -34,6 +34,9 @@
 - `./tests`：质检用测试脚本及相关软件结构
 - `./docs`：解释性文档、教程等非计划类文档
 - `./docs/plans`：AI 为解决特定问题而制定的计划文档
+- `./skills`：仅服务于本项目的 project-specific Agent Skills；每个 Skill 应以自身 `SKILL.md` 为边界
+  - Skill 开发规范以 `huangwb8/skills` 仓库的 `AGENTS.md` 为主，并配合该仓库的 `docs/templates` 执行
+  - 通用 Skill 不应复制到此目录；项目专属 Skill 应保持最小范围、明确触发边界，并遵守路径安全、敏感信息保护和验证要求
 
 ## 工程原则
 
