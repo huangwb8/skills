@@ -115,6 +115,18 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 安装记录、MD5 清单和远程缓存位于用户目录的 `~/.bensz-skills/installation/`；安装器不会把 beta Skill 混入默认源。
 
+### 更新已安装的技能
+
+本地安装器提供静默增量更新入口：`--silent-update` 在 72 小时 TTL 到期后更新已安装技能，不能与安装/检查/筛选参数组合使用。远程安装可改用快速版本检查脚本：它并发读取远端版本，仅在远程版本更高或本地缺失时才调用远程安装器，支持 `--check-only`、`--skill`、`--source-contains` 等参数。
+
+```bash
+# 静默增量更新（TTL 到期后执行）
+python3 skills/alpha/install-bensz-skills/scripts/install.py --silent-update
+
+# 只检查远程版本差异，不安装
+python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --check-only
+```
+
 ## Kernel
 
 `bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖；已发布版本可通过 `python3 -m pip install bensz-skill-kernel` 直接安装。

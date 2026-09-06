@@ -3,10 +3,10 @@
 - 更新
 
 ```
-repo-version = 5.0.1
+repo-version = 5.0.2
 bsk-version = 1.0.1
 请您：
-- 将 packages/bensz-skill-kernel 的版本更新至 {bsk-version} 。 packages/bensz-skill-kernel的 README 要对源代码对齐（基于 write-readme skill进行优化）。然后，将python包更新到 pypi ，本机已经配置好权限。
+- 将 packages/bensz-skill-kernel 的版本更新至 {bsk-version} ; 如果已经是最新的，则：不需要更新。 如果不是最新，则：packages/bensz-skill-kernel的 README 要对源代码对齐（基于 write-readme skill进行优化）；将python包更新到 pypi ，本机已经配置好权限。
 - 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
 - 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。
 - 用 git-publish-release skill 发布新的 release。

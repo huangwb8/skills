@@ -113,6 +113,18 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 Install manifests, MD5 records, and remote caches live under `~/.bensz-skills/installation/`. Beta Skills are never mixed into the default source.
 
+### Updating installed Skills
+
+The local installer ships a silent incremental update entry: `--silent-update` refreshes installed Skills once the 72-hour TTL has expired and cannot be combined with install/check/filter options. For remote installations, use the fast version checker instead: it reads remote versions concurrently and invokes the remote installer only when the remote version is newer or missing locally, with options such as `--check-only`, `--skill`, and `--source-contains`.
+
+```bash
+# Silent incremental update (runs once the TTL has expired)
+python3 skills/alpha/install-bensz-skills/scripts/install.py --silent-update
+
+# Check remote version drift only, without installing
+python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --check-only
+```
+
 ## Kernel
 
 `bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation; published releases can be installed directly with `python3 -m pip install bensz-skill-kernel`.

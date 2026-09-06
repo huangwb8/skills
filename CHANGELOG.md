@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.2] - 2026-09-06
+
 ### Added（新增）
 - 新增 GitHub 到 Gitee 镜像同步链路：通过 `sync-gitee-mirror.yml` 在默认分支 push 后即时同步，并以定时任务和手动触发作为补偿；配套提供 SSH 配置指南、同步脚本及回归测试。
 - 将 beta 源 `prompt-programming` skill 整体融入 `skills/alpha/better-prompt`（升至 0.3.0）：6 个语义原子成为统一语义分析层，Prompt Program 渲染方言成为可选输出模式 `prompt_program`，等价性与控制流推断规则限定在该模式内；细节下沉至 `better-prompt/references/prompt-program/`。
+- 新增 `install-bensz-skills`（0.6.5）远程快速版本更新脚本 `scripts/update_remote_skills.py`：默认检查 URL、名称或 ID 包含 `huangwb8` 的 `remote_sources`，仅远程版本更高或本地缺失时调用远程自动安装；Gitee Raw 镜像优先、失败自动回退 GitHub，支持 `--check-only`、`--all-sources`、`--source-contains`、`--skill`、`--codex` 和 `--claude`；仅影响远程安装，本地安装保持 MD5 策略。
+- 新增本地安装器 `--silent-update` 静默更新入口：以 `~/.bensz-skills/installation/state/` 的原子状态与 72 小时 TTL 控制检查频率，仅增量更新已安装 Skill，异常时保留 last-known-good 版本且不阻塞调用方。
 
 ### Changed（变更）
 - 删除 `skills/beta/prompt-programming/` 目录：其知识资产（SKILL.md 契约、config.yaml 参数、references）已全部融入 better-prompt，beta 安装源不受影响（该 skill 此前不在默认安装源内）。
+- 根级中英 README 与最新源代码对齐：安装章节新增「更新已安装的技能」小节，覆盖 `--silent-update` 静默增量更新与 `update_remote_skills.py` 远程快速版本更新入口；双语配对检查（`check_readme_pair.py`）通过。
+- 确认 `bensz-skill-kernel` 保持 1.0.1：本地 `pyproject.toml` 与 PyPI 已发布版本一致，本版本无 Kernel 包变更。
 
 ## [5.0.1] - 2026-09-06
 
