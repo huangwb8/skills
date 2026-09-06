@@ -8,7 +8,7 @@ import hashlib
 from pathlib import Path
 
 
-CHECKER = Path(__file__).parents[1] / "skills/alpha/auto-test-project/scripts/check_skill_structure.py"
+CHECKER = Path(__file__).with_name("check_skill_structure.py")
 SPEC = importlib.util.spec_from_file_location("check_skill_structure", CHECKER)
 assert SPEC and SPEC.loader
 checker = importlib.util.module_from_spec(SPEC)

@@ -161,7 +161,7 @@ python3 -m pytest
 python3 skills/alpha/write-readme/scripts/check_readme_pair.py README.md README_EN.md
 
 # 报告所有 alpha/beta Skill 的正文规范缺项；迁移后的 Skill 可加 --mode strict
-python3 skills/alpha/auto-test-project/scripts/check_skill_structure.py --mode report
+python3 tests/check_skill_structure.py --mode report
 
 # 查看 BAC 贡献账本
 bac --root . --bac-file docs/contribution.bac inspect

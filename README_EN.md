@@ -163,7 +163,7 @@ python3 -m pytest
 python3 skills/alpha/write-readme/scripts/check_readme_pair.py README.md README_EN.md
 
 # Report normalized-structure findings for all alpha/beta Skills
-python3 skills/alpha/auto-test-project/scripts/check_skill_structure.py --mode report
+python3 tests/check_skill_structure.py --mode report
 
 # Inspect the BAC contribution ledger
 bac --root . --bac-file docs/contribution.bac inspect

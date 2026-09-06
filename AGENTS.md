@@ -242,8 +242,8 @@ metadata:
 - `目标` 必须说明用途、触发边界和不负责的范围。
 - `流程` 必须包含上述六个三级（`###`）章节，分别说明输入、执行、输出、产物管理、校验和失败恢复。
 - `控制` 仅在 `config.yaml` 显式声明 State、Verifier、Gate、Pack 或其它治理组件时出现，并说明组件、调用时机、证据、通过条件和人工介入；普通 Skill 不得因存在 `references/` 目录而被误判为需要控制组件。
-- `约束` 必须直接包含由 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) 生成的 `BEGIN/END COMMON CONSTRAINTS` 公共块；不得手工改写块内内容。使用 [`sync_skill_constraints.py`](skills/alpha/auto-test-project/scripts/sync_skill_constraints.py) 批量同步，使用结构检查器校验哈希；Skill 专属限制放在块后的 `### Skill 专属约束`。
-- 四段式正文模板见 [`docs/templates/skill-body.md`](docs/templates/skill-body.md)。模板是维护入口；Skill `references/` 副本须记录 `Template-ID` 和 `Source-Hash`，由结构检查器验证同步关系。
+- `约束` 必须直接包含由 [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) 生成的 `BEGIN/END COMMON CONSTRAINTS` 公共块；不得手工改写块内内容。使用根级 [`tests/sync_skill_constraints.py`](tests/sync_skill_constraints.py) 批量同步，使用根级结构检查器校验哈希；Skill 专属限制放在块后的 `### Skill 专属约束`。
+- 四段式正文模板见 [`docs/templates/skill-body.md`](docs/templates/skill-body.md)。模板是维护入口；Skill `references/` 副本须记录 `Template-ID` 和 `Source-Hash`，由根级结构检查器验证同步关系。
 
 #### 正文规范化的语义重构门禁
 
@@ -257,7 +257,7 @@ metadata:
 
 #### 结构检查与渐进迁移
 
-使用 `skills/alpha/auto-test-project/scripts/check_skill_structure.py` 扫描 `skills/alpha/` 和 `skills/beta/`。默认 `--mode report` 只生成缺项清单，适合历史 Skill；新建或已迁移 Skill 使用 `--mode strict` 作为发布门禁。检查器至少验证 frontmatter、章节顺序、流程子章节、公共约束摘要、引用存在性和模板副本哈希。迁移应先报告、再按高频/基础 Skill 小范围调整，保持领域语义不变；报告稳定后再将 strict 接入 CI 或安装前门禁。
+使用根级 `tests/check_skill_structure.py` 扫描 `skills/alpha/` 和 `skills/beta/`。默认 `--mode report` 只生成缺项清单，适合历史 Skill；新建或已迁移 Skill 使用 `--mode strict` 作为发布门禁。检查器至少验证 frontmatter、章节顺序、流程子章节、公共约束摘要、引用存在性和模板副本哈希。迁移应先报告、再按高频/基础 Skill 小范围调整，保持领域语义不变；报告稳定后再将 strict 接入 CI 或安装前门禁。该检查器是仓库级 Skill 治理测试，不属于任何单个业务 Skill。
 
 #### 专题文档入口
 

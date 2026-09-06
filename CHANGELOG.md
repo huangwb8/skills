@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Changed（变更）
+- 将 Skill 结构检查器与公共约束同步器迁移到根级 `tests/`，由 `AGENTS.md` 统一声明其治理职责；`auto-test-project` 不再托管或执行 Skill 开发门禁。
 - 将 State/Verifier 子 Agent 协作从跨 Harness 的 Kernel 生命周期编排调整为条件性的 Skill 声明式契约；由 LLM 与宿主 Harness 决定创建、并行、隔离和回收方式，Kernel 继续只负责 State、Verifier、证据与 Gate。
 - 将 39 个 alpha/beta Skill 的公共硬约束收敛为 `docs/templates/skill-common-constraints.md` 的 exact-block 单一来源；新增同步器、递归结构检查与哈希门禁，清理各 Skill 重复的工作区/BAC/缺陷协作段落，保留 Skill 专属约束。
 - 收紧 Skill 正文规范化门禁：明确模板仅提供章节接口，禁止用模板壳包裹旧正文或以附录托管原有规范；结构检查器新增附录迁移标记与模板占位符检测，并要求逐 Skill 语义 diff 复核。
