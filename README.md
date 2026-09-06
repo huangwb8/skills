@@ -188,8 +188,7 @@ bac --root . --bac-file docs/contribution.bac inspect
 
 - [`CHANGELOG.md`](CHANGELOG.md)：这是项目的更新日志，记录每次版本的新增功能、修复问题和重要调整；想了解最近改了什么，可以先看这里。
 - [Gitee 镜像](https://gitee.com/huangwb8/skills)：如果访问 GitHub 不便，也可以从 Gitee 镜像获取本项目。
-- [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md)：这是一份结果检查教程，用完整示例说明系统如何检查结果、处理失败并记录证据；想看一次检查具体怎样完成，可以从这里开始。
-- [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md)：这是一份任务阶段教程，说明任务如何流转，以及系统如何保存和恢复执行进度；想理解任务是怎样一步步推进的，可以阅读这份文档。
+- [`docs/bsk-tutorial.md`](docs/bsk-tutorial.md)：这是 `bsk` 的总教程，用通俗例子和 Mermaid 图介绍 State、Verifier、Gate、Contract Pack 四种重要抽象，以及它们如何协作。
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md)：这是 Skill 安装器的使用指南，介绍安装方式、参数和常见用法；准备安装 Skill 时，可以按这份指南操作。
 - [`docs/templates/skill-body.md`](docs/templates/skill-body.md)：这是新建或修改 Skill 时使用的四段式正文骨架。
 - [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md)：这是工作区、BAC、隐私和缺陷协作的公共约束长版本。

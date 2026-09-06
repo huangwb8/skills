@@ -186,8 +186,7 @@ These links cover releases, result checking, task stages, and Skill installation
 
 - [`CHANGELOG.md`](CHANGELOG.md): This is the project's release log, covering new features, fixes, and important changes; start here to see what changed recently.
 - [Gitee mirror](https://gitee.com/huangwb8/skills): If GitHub is inconvenient to access, you can also get this project from the Gitee mirror.
-- [`docs/verifier-tutorial.md`](docs/verifier-tutorial.md): This is a tutorial on checking results, with a complete example of handling failures and recording evidence; read it to see how one check works from start to finish.
-- [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md): This is a tutorial on task stages, explaining how tasks move forward and how progress is saved and restored; read it to understand how work advances step by step.
+- [`docs/bsk-tutorial.md`](docs/bsk-tutorial.md): This is the main `bsk` tutorial, introducing State, Verifier, Gate, and Contract Pack with plain-language examples, Mermaid diagrams, and their end-to-end collaboration.
 - [`skills/alpha/install-bensz-skills/README.md`](skills/alpha/install-bensz-skills/README.md): This is the Skill installer's user guide, covering installation methods, options, and common usage; follow it when you are ready to install a Skill.
 - [`docs/templates/skill-body.md`](docs/templates/skill-body.md): The four-section body skeleton for creating or modifying a Skill.
 - [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md): The shared long-form constraints for workspaces, BAC, privacy, and defect reporting.

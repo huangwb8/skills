@@ -274,7 +274,7 @@ metadata:
 | Skill 场景 | 规范入口 | `AGENTS.md` 职责 |
 | --- | --- | --- |
 | 中间文件、任务目录、证据和日志 | [`docs/bensz-api-workspace.md`](docs/bensz-api-workspace.md) | 要求统一任务根与敏感信息边界 |
-| State、Verifier、Gate 协作 | [`docs/state-machine-tutorial.md`](docs/state-machine-tutorial.md)、[`docs/verifier-tutorial.md`](docs/verifier-tutorial.md) | 仅在显式采用时启用，并保持 State/Verifier 分层 |
+| State、Verifier、Gate 协作 | [`docs/bsk-tutorial.md`](docs/bsk-tutorial.md) | 仅在显式采用时启用，并保持 State/Verifier 分层 |
 | State ID / Verifier ID | [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) | 采用控制组件时执行 canonical/alias 门禁 |
 | 公共 Skill 约束 | [`docs/templates/skill-common-constraints.md`](docs/templates/skill-common-constraints.md) | 规定模板来源、摘要和同步检查 |
 
