@@ -13,6 +13,9 @@
 ## [Unreleased]
 
 ### Added
+- 新增 `--silent-update` 静默入口：以 `~/.bensz-skills/installation/state/` 中的原子状态和 72 小时 TTL 控制检查频率，仅增量更新已安装 Skill；网络、缓存、安装或状态异常均保留 last-known-good 版本并不阻塞调用方。
+
+### Added
 - 新增 `scripts/update_remote_skills.py`：默认快速检查 URL、名称或 ID 包含 `huangwb8` 的 `remote_sources`，比较远程与本地 skill 的 `config.yaml` 版本，仅远程版本更高或本地缺失时调用远程自动安装；支持 `--check-only`、`--all-sources`、`--source-contains`、`--skill`、`--codex` 和 `--claude`。该机制仅影响远程安装，本地安装保持原有 MD5 策略。
 - `huangwb8` 的 general/research 源增加 Gitee Raw 镜像地址；快速检查并发读取版本，镜像失败自动回退 GitHub，远程目录清单仍以 GitHub 为准，避免镜像滞后导致误判。
 

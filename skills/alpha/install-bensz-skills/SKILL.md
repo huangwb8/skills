@@ -1,7 +1,7 @@
 ---
 name: install-bensz-skills
 category: normal
-description: 当用户需要将本仓库的生产 Skill 安装或更新到系统级目录，使其可在任意项目或对话中发现和调用时使用。默认处理 alpha；只有用户明确指定时才处理 beta。
+description: 当用户需要将本仓库的生产 Skill 安装或更新到系统级目录，使其可在任意项目或对话中发现和调用时使用。默认处理 alpha；只有用户明确指定时才处理 beta；支持 72 小时 TTL 到期后的静默增量更新。
 metadata:
   author: Bensz Conan
   keywords:
@@ -32,6 +32,7 @@ metadata:
 - **安装选择**：可选 `--skill`、`--force`、`--dry-run`、`--source`，以及远程模式的 `--remote --check/--auto` 与源过滤参数。
 - **运行环境**：本地完整安装器要求 Python 3.11+；Python 3.8–3.10 仅支持标准库 bootstrap 的远程首次/应急安装。
 - **远程快速更新**：运行 `scripts/update_remote_skills.py`；它只影响远程安装，本地源码安装仍使用原有 MD5 策略。
+- **静默更新**：宿主在新任务/会话入口可调用 `python3 "$INSTALLER" --silent-update`；它只在 72 小时状态过期时检查，并且只更新已安装技能。
 
 ### 执行步骤
 

@@ -290,3 +290,35 @@ def test_local_cli_dry_run_does_not_create_target_and_real_run_reuses_md5(tmp_pa
     )
     assert second.returncode == 0
     assert "跳过" in second.stdout or "Skipped" in second.stdout
+
+
+def test_silent_update_creates_state_for_empty_install_set(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    assert install._run_silent_update(t=install.get_translator()) == 0
+    state_path = tmp_path / ".bensz-skills/installation/state/silent-update.json"
+    data = json.loads(state_path.read_text(encoding="utf-8"))
+    assert data["schema_version"] == 1
+    assert data["last_result"] == "empty-install-set"
+
+
+def test_silent_update_respects_ttl_without_remote_call(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    install._write_silent_update_state(result="success")
+    monkeypatch.setattr(install, "_remote_install_main", lambda **_: pytest.fail("remote call"))
+    assert install._run_silent_update(t=install.get_translator()) == 0
+
+
+def test_silent_update_only_passes_installed_skills_and_never_blocks_on_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    make_skill(tmp_path / ".codex/skills", "installed")
+    captured = {}
+
+    def fake_remote(**kwargs):
+        captured.update(kwargs)
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(install, "_remote_install_main", fake_remote)
+    assert install._run_silent_update(t=install.get_translator()) == 0
+    assert captured["skill_filter"] == ["installed"]
+    state = json.loads((tmp_path / ".bensz-skills/installation/state/silent-update.json").read_text(encoding="utf-8"))
+    assert state["last_result"] == "failed"

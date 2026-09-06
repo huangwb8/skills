@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import fnmatch
 import hashlib
 import json
@@ -11,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,6 +53,8 @@ from remove_legacy_skills import (
 
 _INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 MANIFEST_SCHEMA_VERSION = 1
+SILENT_UPDATE_STATE_SCHEMA_VERSION = 1
+SILENT_UPDATE_TTL_SECONDS = 72 * 60 * 60
 
 
 @dataclass(frozen=True)
@@ -118,6 +123,114 @@ def _get_installation_root() -> Path:
 def _get_installation_root_label() -> str:
     """返回相对用户主目录的工作根目录标签。"""
     return str(Path(*_INSTALLATION_ROOT_PARTS))
+
+
+def _get_state_dir() -> Path:
+    return _get_installation_root() / "state"
+
+
+def _get_silent_update_state_path() -> Path:
+    return _get_state_dir() / "silent-update.json"
+
+
+def _load_silent_update_state() -> dict:
+    path = _get_silent_update_state_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _write_silent_update_state(*, result: str, error: str = "") -> None:
+    state_dir = _get_state_dir()
+    state_dir.mkdir(parents=True, exist_ok=True)
+    path = _get_silent_update_state_path()
+    payload = _load_silent_update_state()
+    now = int(time.time())
+    payload.update({
+        "schema_version": SILENT_UPDATE_STATE_SCHEMA_VERSION,
+        "last_check_completed_at": now,
+        "last_check_completed_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "last_result": result,
+    })
+    if error:
+        payload["last_error"] = error[:500]
+    else:
+        payload.pop("last_error", None)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+@contextmanager
+def _silent_update_lock():
+    """Serialize automatic checks without requiring a third-party package."""
+    lock_path = _get_state_dir() / "silent-update.lock"
+    _get_state_dir().mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+", encoding="utf-8")
+    try:
+        try:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (ImportError, BlockingIOError):
+            if "fcntl" in sys.modules:
+                yield False
+                return
+        yield True
+    finally:
+        try:
+            if "fcntl" in sys.modules:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
+def _installed_skill_names() -> list[str]:
+    names: set[str] = set()
+    for root in (Path.home() / ".codex/skills", Path.home() / ".claude/skills"):
+        try:
+            for child in root.iterdir():
+                if child.is_dir() and (child / "SKILL.md").is_file():
+                    names.add(child.name)
+        except OSError:
+            continue
+    return sorted(names)
+
+
+def _run_silent_update(*, t: get_translator().__class__) -> int:
+    """Run at most one non-interactive update per 72-hour window."""
+    with _silent_update_lock() as acquired:
+        if not acquired:
+            return 0
+        state = _load_silent_update_state()
+        completed = state.get("last_check_completed_at")
+        if isinstance(completed, (int, float)) and time.time() - completed < SILENT_UPDATE_TTL_SECONDS:
+            return 0
+        installed = _installed_skill_names()
+        if not installed:
+            try:
+                _write_silent_update_state(result="empty-install-set")
+            except OSError:
+                pass
+            return 0
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+                code = _remote_install_main(
+                    auto_mode=True,
+                    install_codex=True,
+                    install_claude=True,
+                    skill_filter=installed,
+                    t=t,
+                )
+            _write_silent_update_state(result="success" if code == 0 else "degraded", error=output.getvalue())
+        except Exception as exc:
+            try:
+                _write_silent_update_state(result="failed", error=str(exc))
+            except OSError:
+                pass
+        return 0
 
 
 _IGNORE_DIR_NAMES = {
@@ -1946,6 +2059,11 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--remote", action="store_true", help=t.get("arg_help_remote"))
     parser.add_argument("--check", action="store_true", help=t.get("arg_help_check"))
     parser.add_argument("--auto", action="store_true", help=t.get("arg_help_auto"))
+    parser.add_argument(
+        "--silent-update",
+        action="store_true",
+        help="在 72 小时 TTL 到期后静默增量更新已安装技能",
+    )
 
     # 加载配置以获取可用的源 ID（用于动态添加 --<id> 参数）
     config_path = Path(__file__).resolve().parents[1] / "config.yaml"
@@ -1973,6 +2091,12 @@ def main(argv: list[str]) -> int:
 
     args = parser.parse_args(argv)
     selected_skill_names = _parse_skill_filter(args.skill)
+
+    if args.silent_update:
+        if args.remote or args.check or args.auto or args.force or args.source or selected_skill_names:
+            print("错误: --silent-update 不能与安装/检查/筛选参数组合使用")
+            return 1
+        return _run_silent_update(t=t)
 
     # 远程安装模式
     if args.remote:
