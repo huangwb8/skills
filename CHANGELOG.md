@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- 新增 GitHub 到 Gitee 镜像同步链路：通过 `sync-gitee-mirror.yml` 在默认分支 push 后即时同步，并以定时任务和手动触发作为补偿；配套提供 SSH 配置指南、同步脚本及回归测试。
 - 将 beta 源 `prompt-programming` skill 整体融入 `skills/alpha/better-prompt`（升至 0.3.0）：6 个语义原子成为统一语义分析层，Prompt Program 渲染方言成为可选输出模式 `prompt_program`，等价性与控制流推断规则限定在该模式内；细节下沉至 `better-prompt/references/prompt-program/`。
 
 ### Changed（变更）
