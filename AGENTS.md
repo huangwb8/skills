@@ -13,7 +13,7 @@
 
 - `skills/alpha/<skill-name>/`：可发布、默认安装的成熟 Skill；以自身 `SKILL.md` 为识别边界，可包含专属的 `scripts/`、`references/`、`templates/` 和资源文件。
 - `skills/beta/<skill-name>/`：尚未成熟的候选 Skill；不进入默认安装源，仅当用户显式指定 beta 源目录时才处理。
-- `skills/alpha/auto-draw-plot/`：该 Skill 属于 Sub2API 生态，在 Sub2API 源仓库的 `skills/auto-draw-plot/` 协同开发。本项目不承担其功能开发、测试计划或日常维护，仅托管从外部开发源同步的最新可发布源代码，供公开发布与安装发现；发现问题时应回到 Sub2API 源仓库处理后再同步。
+- `skills/alpha/auto-draw-plot/`：该 Skill 属于 BenszAPI 生态，在 BenszAPI 源仓库的 `skills/auto-draw-plot/` 协同开发。本项目不承担其功能开发、测试计划或日常维护，仅托管从外部开发源同步的最新可发布源代码，供公开发布与安装发现。除非人类明确表示要修改 `auto-draw-plot` 的源代码或源文件，否则严禁修改该目录及其内容。
 - `packages/<project>/`：独立运行时包边界，拥有自己的项目配置、版本、依赖和测试；不得在包内放置领域 Skill 流程。
 - `docs/plans/`：正式计划、迁移说明和治理文档；不得在 Skill 目录内新建 `plans/`。
 - `tests/`：面向 `packages/` Python 包核心公开 API 及仓库级公开入口（如安装器）的可执行 smoke/integration 测试脚本；不承载测试计划、报告、artifacts、fixture 或运行缓存。
@@ -112,6 +112,7 @@
 - 先读取足够上下文，明确输入、输出、兼容性和安全边界，再进行最小范围修改。
 - 按需使用专门 Skill 或多代理协作；协作结果必须回收、复核并由主流程统一验证。
 - 不得遗留已知缺陷，不得以无关重构扩大变更范围，不得破坏既有功能。
+- `skills/alpha/auto-draw-plot/` 永远不得修改；唯一例外是人类明确表示要修改 `auto-draw-plot` 的源代码或源文件。本项目仅托管该 Skill 的源代码，不是其开发源项目。
 - 修改代码后运行与风险匹配的构建、静态检查或测试，并把验证证据写入变更记录。
 - 默认只修改 `skills/alpha/`、`skills/beta/` 与其配套的 `packages/`、`docs/`、`tests/`；`AGENTS.md`、`CLAUDE.md`、`CHANGELOG.md` 和 `docs/contribution.bac` 属于项目治理文件，可在遵守本文件变更记录与 BAC 规则的前提下修改；扩展到其它范围需用户明确授权。
 - 修改技能时，优先做语义重排和最小增量修改，保留用户自定义内容；当用户明确要求规范化正文时，允许重构标题和段落位置，但不得用模板壳包裹旧正文，也不得把旧正文整体移到附录来规避重排。
