@@ -157,6 +157,15 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 - 如本次修改涉及状态或验证运行时，事件和状态投影必须可重放；时间、哈希和 JSON 序列化保持确定性。错误处理应提供稳定的错误类别或状态，不以异常文本作为调用方契约。
 - 包内单元测试放在 `packages/bensz-skill-kernel/tests/`；根级 `tests/` 仅用于仓库公开入口或跨包集成测试。测试运行产物统一写入 `tmp/`，不得写入源码或测试目录。
 
+## `awesome-code` 子 Agent 例外
+
+`skills/alpha/awesome-code/agents/` 及其下级目录属于 `skills/alpha/awesome-code` 的内部子 Agent，不是可独立发布、安装或版本化的正式 Skill。其 `SKILL.md` 仅作为 Agent 工作契约使用：
+
+- 不要求 `config.yaml`、Skill 版本号、`skill_info.version`、README、CHANGELOG 或正式 Skill 的发布元数据。
+- 不要求包含 `docs/templates/skill-common-constraints.md` 生成的公共硬约束块，也不要求严格遵守下方正式 Skill 的固定正文骨架、模板副本哈希或结构检查器 strict 门禁。
+- 可以按子 Agent 的实际职责自由组织 `SKILL.md`、`references/`、`scripts/` 和其它专属资产，但仍须遵守本文件中的安全、隐私、路径、未授权远程写入和用户项目边界要求。
+- 子 Agent 的专属流程、参考资料和脚本由父级 `awesome-code` Skill 负责发现与调用；只有将其提升为独立发布 Skill 时，才重新适用正式 Skill 的完整开发规范。
+
 ## Skill 开发
 
 ### 高质量技能开发原则

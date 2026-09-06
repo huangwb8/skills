@@ -1,0 +1,78 @@
+version: 1
+description: 受控的公开前端 UI 参考索引；只用于定向检索和模式提取，不代表自动采用依赖。
+categories:
+  visual-inspiration:
+    keywords: [hero, landing, brand, motion, animation, visual, gradient, background, 动效, 首屏, 营销]
+    sources:
+      - name: React Bits
+        url: https://github.com/DavidHDev/react-bits
+        role: inspiration
+        best_for: [hero, animated-heading, background-effects]
+        risks: [animation-overuse, performance-cost, demo-context]
+        license: verify-before-copy
+      - name: Magic UI
+        url: https://github.com/magicuidesign/magicui
+        role: inspiration
+        best_for: [saas-landing, feature-sections, motion]
+        risks: [visual-overfitting, dependency-drift]
+        license: verify-before-copy
+  page-structure:
+    keywords: [landing, saas, pricing, faq, feature, page, marketing, 页面, 区块, 营销]
+    sources:
+      - name: HyperUI
+        url: https://github.com/markmead/hyperui
+        role: prototype
+        best_for: [marketing-sections, forms, navigation]
+        risks: [copy-context, responsive-assumptions]
+        license: verify-before-copy
+      - name: shadcn/ui
+        url: https://github.com/shadcn-ui/ui
+        role: production
+        best_for: [page-composition, tokens, reusable-components]
+        risks: [copied-code-drift, theme-migration]
+        license: verify-before-copy
+  interaction-primitives:
+    keywords: [dialog, dropdown, tabs, popover, tooltip, keyboard, focus, aria, 交互, 弹窗, 键盘]
+    sources:
+      - name: Radix Primitives
+        url: https://github.com/radix-ui/primitives
+        role: production
+        best_for: [accessible-primitives, focus-management]
+        risks: [version-compatibility, styling-integration]
+        license: verify-before-copy
+      - name: Headless UI
+        url: https://github.com/tailwindlabs/headlessui
+        role: production
+        best_for: [accessible-primitives, tailwind-integration]
+        risks: [framework-scope, styling-integration]
+        license: verify-before-copy
+  product-components:
+    keywords: [dashboard, table, form, chart, crm, admin, api, data, 后台, 表格, 表单, 看板, 数据]
+    sources:
+      - name: Tremor
+        url: https://github.com/tremorlabs/tremor
+        role: prototype
+        best_for: [dashboard, metrics, charts]
+        risks: [data-density, version-drift]
+        license: verify-before-copy
+      - name: Ant Design
+        url: https://github.com/ant-design/ant-design
+        role: production
+        best_for: [enterprise-forms, tables, admin]
+        risks: [theme-overrides, bundle-size]
+        license: verify-before-copy
+      - name: Mantine
+        url: https://github.com/mantinedev/mantine
+        role: production
+        best_for: [product-components, forms, theming]
+        risks: [framework-version, theme-migration]
+        license: verify-before-copy
+  engineering-governance:
+    keywords: [storybook, visual-regression, tokens, design-system, components, 回归, 设计系统, token]
+    sources:
+      - name: Storybook
+        url: https://github.com/storybookjs/storybook
+        role: production
+        best_for: [component-docs, visual-regression, states]
+        risks: [setup-cost, maintenance-cost]
+        license: verify-before-copy
