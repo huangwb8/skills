@@ -31,6 +31,10 @@ bootstrap = load_module(
     "bootstrap_install",
     "skills/alpha/install-bensz-skills/scripts/bootstrap_install.py",
 )
+updater = load_module(
+    "update_remote_skills",
+    "skills/alpha/install-bensz-skills/scripts/update_remote_skills.py",
+)
 
 
 def test_python_support_boundaries_match_project_contract():
@@ -134,6 +138,24 @@ def test_remote_general_source_uses_canonical_alpha_path():
     assert local_general["skills_path"] == "skills/alpha"
     assert bootstrap_general["skills_path"] == "skills/alpha"
     assert config["skill_info"]["version"] == bootstrap.FALLBACK_CONFIG_VERSION
+
+
+def test_remote_updater_compares_versions_and_parses_sources(tmp_path):
+    assert updater.parse_version("v1.2.0") == (1, 2, 0)
+    assert updater.version_is_newer((1, 2), (1, 1, 9))
+    assert not updater.version_is_newer((1, 2), (1, 2, 1))
+
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "remote_sources:\n"
+        "  - id: general\n"
+        "    name: General\n"
+        "    url: https://github.com/huangwb8/skills\n"
+        "    branch: main\n"
+        "    skills_path: skills/alpha\n",
+        encoding="utf-8",
+    )
+    assert updater.load_sources(config)[0]["id"] == "general"
 
 
 def test_local_manifest_exposes_shared_core_contract(tmp_path):

@@ -12,7 +12,7 @@ metadata:
 
 ## 目标
 
-当需要把本仓库 skills/alpha 下的生产 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。默认不安装 skills/beta；只有显式指定 beta 源目录时才处理 beta skill。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。
+当需要把本仓库 skills/alpha 下的生产 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。默认不安装 skills/beta；只有显式指定 beta 源目录时才处理 beta skill。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。远程场景另提供版本预检脚本，默认只筛选包含 `huangwb8` 的远程源。
 
 目的：把当前仓库 `skills/alpha/` 中的生产 skills（**包括 install-bensz-skills 自身**）**复制安装**到：
 
@@ -31,6 +31,7 @@ metadata:
 - **目标平台**：默认 Codex 与 Claude Code；可用 `--codex` 或 `--claude` 限定单一目标。
 - **安装选择**：可选 `--skill`、`--force`、`--dry-run`、`--source`，以及远程模式的 `--remote --check/--auto` 与源过滤参数。
 - **运行环境**：本地完整安装器要求 Python 3.11+；Python 3.8–3.10 仅支持标准库 bootstrap 的远程首次/应急安装。
+- **远程快速更新**：运行 `scripts/update_remote_skills.py`；它只影响远程安装，本地源码安装仍使用原有 MD5 策略。
 
 ### 执行步骤
 

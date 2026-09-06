@@ -223,6 +223,27 @@ python3 "$INSTALLER" --legacy-source
 
 ### 远程安装
 
+#### 快速版本更新（推荐给自动化流程）
+
+如果只是希望“远程版本更高才更新”，直接运行独立的快速检查脚本。它从 GitHub 获取权威目录清单，并发读取版本；配置了 Gitee 镜像的源优先走 Gitee Raw，失败自动回退 GitHub。只有版本证据完整且远程版本更高（或本地缺失）时，才调用现有远程自动安装器。
+
+```bash
+# 默认检查并更新 URL、名称或 ID 包含 huangwb8 的远程源
+python3 "$INSTALLER_DIR/update_remote_skills.py"
+
+# 只检查，不安装
+python3 "$INSTALLER_DIR/update_remote_skills.py" --check-only
+
+# 检查全部 remote_sources，或指定源匹配字符串
+python3 "$INSTALLER_DIR/update_remote_skills.py" --all-sources
+python3 "$INSTALLER_DIR/update_remote_skills.py" --source-contains huangwb8
+
+# 只处理指定 skill / 平台
+python3 "$INSTALLER_DIR/update_remote_skills.py" --skill nsfc-bib-manager --codex
+```
+
+该机制**仅影响远程安装**。本地安装一般来自用户 fork 的完整仓库，继续沿用本地安装器的 MD5 检查，不增加远程版本约束。
+
 ```bash
 # 远程检查模式：下载、对比、确认后安装
 python3 "$INSTALLER" --remote --check
