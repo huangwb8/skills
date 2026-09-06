@@ -65,7 +65,7 @@ The installer copies Skills to `~/.codex/skills/` and `~/.claude/skills/` by def
 
 ## Skill map
 
-The current `skills/alpha/` source contains 15 production Skills:
+The current `skills/alpha/` source contains 16 production Skills:
 
 | Area | Skills |
 | --- | --- |
@@ -73,7 +73,7 @@ The current `skills/alpha/` source contains 15 production Skills:
 | Testing and collaboration | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
 | Prompts and creation | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
 | Installation and release | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
-| Governance | `bensz-collect-bugs` |
+| Governance | `bensz-collect-bugs` · `verifier-state-architect` |
 
 Read a Skill's `README.md` for triggers, minimal prompts, inputs/outputs, and FAQ. Maintainers should also read `SKILL.md`, `config.yaml`, and `CHANGELOG.md`.
 
@@ -115,7 +115,7 @@ Install manifests, MD5 records, and remote caches live under `~/.bensz-skills/in
 
 ## Kernel
 
-`bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation.
+`bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation; published releases can be installed directly with `python3 -m pip install bensz-skill-kernel`.
 
 It provides the `bsk` command for managing task stages, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
 

@@ -100,7 +100,7 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 
 ## 运行边界与审计
 
-Pack helper 默认以受信本地进程运行；Kernel 限制输入、stdout/stderr 体积、环境变量和执行时长，超时终止整个进程组。对不可信 Pack 传入 `trusted=False` 会 fail-closed；这是进程级资源边界，不等同于容器或操作系统沙箱。
+Pack helper 默认以受信本地进程运行；Kernel 限制输入、stdout/stderr 体积、环境变量和执行时长，超时终止整个进程组。对不可信 Pack 传入 `trusted=False` 会 fail-closed；这是进程级资源边界，不等同于容器或操作系统沙箱。stdio 子进程默认设置 `PYTHONDONTWRITEBYTECODE=1`，不会向 Pack 目录写入 `__pycache__`；显式提供的 `PYTHONPYCACHEPREFIX` 仍会透传，便于把缓存归档到指定目录。
 
 追加式账本保留可选契约快照、授权链和执行审计。`reduce_events()` 只做离线投影重放，不重新调用模型或工具。`verification-v2` 在记录和完成门禁处复核组件唯一性、哈希、证据引用、运行身份、执行者/模型及人工确认；调用方自报的 aggregate pass 不能覆盖 required 失败或漏跑。`summarize_metrics()` 额外汇总组件绑定率和执行者身份覆盖率。
 

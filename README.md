@@ -65,7 +65,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 ## Skill 导航
 
-当前 `skills/alpha/` 包含 15 个生产 Skill：
+当前 `skills/alpha/` 包含 16 个生产 Skill：
 
 | 方向 | Skill |
 | --- | --- |
@@ -73,7 +73,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 | 测试与协作 | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
 | Prompt 与创作 | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
 | 安装与版本 | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
-| 治理 | `bensz-collect-bugs` |
+| 治理 | `bensz-collect-bugs` · `verifier-state-architect` |
 
 选择 Skill 后，阅读对应目录的 `README.md` 获取触发方式、最小 Prompt、输入输出和 FAQ；维护者同时阅读 `SKILL.md`、`config.yaml` 与 `CHANGELOG.md`。
 
@@ -117,7 +117,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 ## Kernel
 
-`bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖。
+`bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖；已发布版本可通过 `python3 -m pip install bensz-skill-kernel` 直接安装。
 
 它提供 `bsk` 命令，帮助你管理任务阶段、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 

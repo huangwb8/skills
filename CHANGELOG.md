@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.1] - 2026-09-06
+
+### Changed（变更）
+- 发布 `bensz-skill-kernel` 1.0.1 到 PyPI：包版本随仓库 v5.0.1 发布同步提升，kernel 中英 README「运行边界与审计」补充 stdio 子进程默认 `PYTHONDONTWRITEBYTECODE=1`、显式 `PYTHONPYCACHEPREFIX` 仍可透传的行为说明。
+- 根级中英 README 与最新源代码对齐：`skills/alpha/` 生产 Skill 数量由 15 修正为 16（治理行补充 `verifier-state-architect`），Kernel 章节补充已发布版本的 `pip install bensz-skill-kernel` 安装入口；`AGENTS.md` 中 `verifier-state-architect` 的两处引用由 `skills/beta/` 修正为 `skills/alpha/`。
+
+### Fixed（修复）
+- 补记 Kernel stdio 执行器可能向 Pack 目录写入 `__pycache__` 的修复：`run_stdio` 环境白名单加入 `PYTHONPYCACHEPREFIX` 与 `PYTHONDONTWRITEBYTECODE`，子进程默认禁写字节码并覆盖无残留与显式前缀透传两条测试路径。
+
 ### Changed（变更）
 - 中英文 README 首屏引导句点名执行内核 BSK（`bensz-skill-kernel`），以四个通俗问题（触发、漏步、退化、定位失败）具体化"确认 Skill 仍在按预期工作"，与主页横幅的 "Without BSK / With BSK" 对比宣传图形成图文衔接；英文版同步替换为该横幅并移除过时的 BUILD/TEST/RUN/KNOW 表格，消除双语 token 漂移。
 - 将 Skill 结构检查器与公共约束同步器迁移到根级 `tests/`，由 `AGENTS.md` 统一声明其治理职责；`auto-test-project` 不再托管或执行 Skill 开发门禁。

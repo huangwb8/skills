@@ -100,7 +100,7 @@ Initialization creates `bensz.workspace.ready` (legacy alias: `workspace.ready`)
 
 ## Runtime boundaries and audit
 
-Pack helpers run as trusted local processes by default. The kernel limits input, stdout/stderr size, environment variables, and execution time, and terminates the full process group on timeout. Passing `trusted=False` for an untrusted Pack fails closed; this is a process-level resource boundary, not a container or OS sandbox.
+Pack helpers run as trusted local processes by default. The kernel limits input, stdout/stderr size, environment variables, and execution time, and terminates the full process group on timeout. Passing `trusted=False` for an untrusted Pack fails closed; this is a process-level resource boundary, not a container or OS sandbox. stdio subprocesses set `PYTHONDONTWRITEBYTECODE=1` by default so no `__pycache__` is written into Pack directories; an explicit `PYTHONPYCACHEPREFIX` is still passed through so caches can be archived elsewhere.
 
 The append-only ledger retains optional contract snapshots, authorization chains, and execution audit trails. `reduce_events()` performs offline projection replay and never calls a model or tool. `verification-v2` rechecks component uniqueness, hashes, evidence references, run identity, executor/model, and human confirmation at recording and completion gates; a caller-reported aggregate pass cannot override a required failure or missing run. `summarize_metrics()` also reports component binding and executor identity coverage.
 

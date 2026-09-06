@@ -128,7 +128,7 @@
 ### 对象化最小流程
 
 - **Skill**：读取现有 `SKILL.md`、`config.yaml`、脚本和必要 references → 确认触发边界与输入输出 → 最小修改 → 静态一致性检查 → 轻量测试 → README、CHANGELOG 和 BAC 同步；影响安装发现时再运行安装器回归。
-- **Verifier/State 规划与审查（按需）**：凡需规划、评估、精简或接入 Verifier/State，先使用 `skills/beta/verifier-state-architect` 产出设计计划；该 Skill 负责删除影响测试、Kernel 复用/提炼判断和最小契约设计，不直接实现 Pack 或 Kernel。
+- **Verifier/State 规划与审查（按需）**：凡需规划、评估、精简或接入 Verifier/State，先使用 `skills/alpha/verifier-state-architect` 产出设计计划；该 Skill 负责删除影响测试、Kernel 复用/提炼判断和最小契约设计，不直接实现 Pack 或 Kernel。
 - **Verifier/State 实现**：仅在开发者明确要求时执行，并以该 Skill 的计划、下方最小门禁及 Kernel/ID 文档为依据。
 
 ### 状态机与验证器的可选性
@@ -292,7 +292,7 @@ Verifier Pack、内部 Rule/Prompt、输入 Adapter 和运行实例使用不同�
 
 `initial_state`、允许状态集合、入口条件和迁移边引用 canonical State ID；发布后的重命名使用唯一 `aliases`，历史事件/快照不改写，修改契约时同步 Kernel、Skill、文档、测试和 `CHANGELOG.md`。
 
-Pack 的详细设计与审查由 `skills/beta/verifier-state-architect` 负责；本节只保留实现时不可违反的边界。
+Pack 的详细设计与审查由 `skills/alpha/verifier-state-architect` 负责；本节只保留实现时不可违反的边界。
 
 ### Verifier Pack（仅在显式采用 Verifier 时适用）
 
