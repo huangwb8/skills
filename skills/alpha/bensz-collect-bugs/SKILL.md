@@ -1,6 +1,6 @@
 ---
 name: bensz-collect-bugs
-description: 这是一个用于 Bensz Agent Skill 与基础设施设计缺陷留痕和按需上报的 Agent Skill。当 Bensz Agent Skill 在真实用户环境中因设计缺陷而出现 bug，或用户明确说“我想 report bensz skills bugs”“帮我公开上报 bensz skills 的 bug”时使用。该 Skill 负责把 bug 规范化记录到 `~/.bensz-skills/bugs/`，并在用户明确要求公开报告时通过本地 `gh` 轻量上传到 `huangwb8/bensz-bugs`，全程严禁修改用户本地 Claude Code/Codex 中已安装 Skills 的源代码。
+description: 当 Bensz Agent Skill 或基础设施本身因设计缺陷出现问题，或用户明确要求记录/上报此类 bug 时使用。⚠️ 不适用：用户数据错误、第三方服务故障、用户主动改源码或模型偶发波动。
 metadata:
   author: Bensz Conan
   short-description: 收集并公开上报 Bensz 系列 skills 的设计缺陷类 bug

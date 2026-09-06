@@ -110,7 +110,7 @@ extra-index-url = https://pypi.org/simple/
 
 ## 技术栈特定指南
 
-### Python/pip
+### Python/pip 配置
 
 ```bash
 # 全局配置
@@ -125,7 +125,7 @@ EOF
 export PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 ```
 
-### Node.js/npm
+### Node.js/npm 配置
 
 ```bash
 # 全局配置
@@ -135,7 +135,7 @@ npm config set registry https://registry.npmmirror.com
 echo "registry=https://registry.npmmirror.com" > .npmrc
 ```
 
-### Go Modules
+### Go Modules 配置
 
 ```bash
 # 环境变量
@@ -146,7 +146,7 @@ export GOSUMDB=off
 go mod download
 ```
 
-### Docker
+### Docker 配置
 
 ```dockerfile
 # 多阶段构建时每个阶段都需要配置

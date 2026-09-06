@@ -83,8 +83,8 @@ feat(auth): add JWT token validation
 # 完整提交
 feat(payment): integrate Stripe payment gateway
 
-Implement credit card payment processing using Stripe API.
-Add webhook handling for payment status updates.
+使用 Stripe API 实现信用卡支付处理。
+增加用于更新支付状态的 webhook 处理。
 
 - Add Stripe client initialization
 - Implement payment intent creation
@@ -275,7 +275,7 @@ docs(readme): update installation guide
 - [ ] 命名：`d()` → `double_value()` (utils.py:12)
 - [ ] 注释：补充复杂逻辑说明 (payment.py:34)
 
-### LGTM with suggestions
+### LGTM（附带建议）
 - [ ] 可以合并，但建议后续优化
 ```
 
@@ -283,7 +283,7 @@ docs(readme): update installation guide
 
 ## Git Hooks 自动化
 
-### Pre-commit Hook
+### 提交前钩子
 
 ```bash
 #!/bin/bash
@@ -306,7 +306,7 @@ fi
 echo "✅ Pre-commit checks passed"
 ```
 
-### Commit Message Hook
+### 提交消息钩子
 
 ```bash
 #!/bin/bash

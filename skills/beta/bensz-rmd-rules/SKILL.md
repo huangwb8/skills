@@ -1,6 +1,6 @@
 ---
 name: bensz-rmd-rules
-description: 规范 AI 开发 R Markdown 分析脚本的行为准则。当用户要求"写 Rmd 分析"、"开发 R 脚本"、"做数据分析"时触发。核心原则：遵循主业与副业分离架构（.R 保留完整数据，.Rmd 应用业务阈值），优先使用用户已有 R 包资源；图表默认按 Nature 级别可读性与出版质量生成；专家级解读兼顾弱背景读者，提供四层框架、指标导读与不常用指标首次解释协议；路径验证确保跨平台兼容性。前提：luckyBase 为硬依赖。
+description: 当用户要求编写 R Markdown 分析、开发 R 脚本或进行 R 数据分析时使用。规范脚本与报告分工、图表表达、结果解读和跨平台路径处理。
 metadata:
   author: Bensz Conan
   short-description: R Markdown 开发规范（.R+.Rmd 混合架构 + 专家级解读 + 跨平台兼容）

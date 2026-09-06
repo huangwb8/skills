@@ -1,6 +1,6 @@
 ---
 name: write-readme
-description: 为任意 GitHub 项目创建或改写高质量、可执行、证据驱动的双语 README；当用户说“写 README / README.md / 项目说明 / 文档首页 / GitHub 项目介绍”，或需要把 Agent Skill、库、CLI、Web 应用、服务、数据/机器学习项目整理成中文 README.md 与英文 README_EN.md 时使用。优先读取项目事实并验证命令、链接和功能，不凭空编造。
+description: 为 GitHub 项目创建或改写高质量、可执行、证据驱动的双语 README；当用户要求写 README、项目说明或整理项目首页时使用。优先依据项目事实核验功能、命令和链接。
 metadata:
   author: Bensz Conan
   short-description: 为任意项目生成中英文对齐的 GitHub README

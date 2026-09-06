@@ -1,6 +1,6 @@
 ---
 name: find-best-skill
-description: 当用户明确要求"搜索技能"、"寻找 Agent Skill"、"查找某个领域的 skill"、"推荐最佳 skill"时使用。支持多平台搜索（GitHub、SkillsMP、Reddit）和社区/AI 双维度评价，推荐数量可根据用户指令动态调整（默认 5-10 个，支持 3-20 个）。⚠️ 不适用：用户只是询问"有没有某个技能"（应直接回答）、只是想了解技能列表（应直接列举）、没有明确"搜索/寻找/查找/推荐"意图。
+description: 当用户明确要求搜索、寻找、查找或推荐某个领域的 Agent Skill 时使用。对候选 Skill 进行多来源检索与比较后给出推荐。⚠️ 不适用：只想查看已有技能列表，或没有明确搜索/推荐意图。
 metadata:
   author: Bensz Conan
   keywords:

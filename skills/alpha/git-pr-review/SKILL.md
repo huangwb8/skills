@@ -1,6 +1,6 @@
 ---
 name: git-pr-review
-description: 当用户明确要求“review 某个 GitHub PR”“评估某个 pull request 是否值得 merge”“帮我判断这个 PR 怎么处理”时使用。基于用户提供的 GitHub 仓库地址、PR 编号/链接和补充说明，进行只读、证据驱动的 PR 审查：理解 PR 解决的问题、评估方案优劣与局限、默认优先使用内置“好 PR”标准并在必要时联网补充、识别恶意或高风险改动，并输出是否建议 merge 的 Markdown 决策报告。⚠️ 不适用：用户要你直接修改 PR 代码、直接 merge PR、或在本地执行 PR 分支中的不可信代码。
+description: 当用户明确要求审查 GitHub PR、评估是否合并或判断 PR 应如何处理时使用。对 PR 做只读、证据驱动的方案与风险评估，并给出合并建议。⚠️ 不适用：直接修改、合并 PR，或在本地执行不可信 PR 代码。
 metadata:
   author: Bensz Conan
   short-description: 只读审查 GitHub Pull Request，并产出可决策的 Markdown 报告

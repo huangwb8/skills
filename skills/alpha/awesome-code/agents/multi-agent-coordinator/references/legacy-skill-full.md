@@ -1,6 +1,6 @@
 ---
 name: multi-agent-coordinator
-description: Use when executing implementation plans with independent tasks - dispatches fresh subagent for each task with code review between tasks, enabling fast iteration with quality gates. Supports orchestrator, peer-to-peer, and pipeline coordination modes.
+description: 用于执行包含独立任务的实施计划，为每个任务分派新的子代理，并在任务之间进行代码审查，以支持快速迭代和质量门禁。支持编排器、点对点和流水线三种协作模式。
 metadata:
   short-description: 多代理协调与编排
   keywords:
@@ -103,13 +103,13 @@ prompt: |
 
 **代码审查者返回**：
 - ✅ **优势**：做得好的地方
-- ⚠️ **问题**：Critical（阻塞）、Important（重要）、Minor（次要）
+- ⚠️ **问题**：Critical（严重、阻塞）、Important（重要）、Minor（次要）
 - 📊 **评估**：总体质量评分
 
 #### 4. 应用审查反馈
 
 **如果发现问题**：
-- 🔴 **Critical 问题**：立即修复
+- 🔴 **Critical（严重）问题**：立即修复
 - 🟡 **Important 问题**：下一任务前修复
 - 🟢 **Minor 问题**：记录，稍后处理
 

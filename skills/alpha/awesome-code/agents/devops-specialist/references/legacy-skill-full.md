@@ -55,7 +55,7 @@ metadata:
 
 ## CI/CD 流水线
 
-### GitHub Actions
+### GitHub Actions 工作流
 
 ```yaml
 # .github/workflows/ci.yml
@@ -134,7 +134,7 @@ jobs:
           cache-to: type=gha,mode=max
 ```
 
-### GitLab CI
+### GitLab CI 工作流
 
 ```yaml
 # .gitlab-ci.yml
@@ -244,7 +244,7 @@ EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### Docker Compose
+### Docker Compose 编排
 
 ```yaml
 # docker-compose.yml
@@ -306,9 +306,9 @@ volumes:
 
 ---
 
-## Kubernetes
+## Kubernetes 编排
 
-### Deployment
+### 部署
 
 ```yaml
 # deployment.yaml
@@ -370,7 +370,7 @@ spec:
           periodSeconds: 5
 ```
 
-### Service & Ingress
+### 服务与入口
 
 ```yaml
 # service.yaml
@@ -419,7 +419,7 @@ spec:
 
 ## 基础设施即代码
 
-### Terraform
+### Terraform 基础设施
 
 ```hcl
 # main.tf
@@ -491,7 +491,7 @@ resource "aws_db_instance" "main" {
 }
 ```
 
-### Ansible
+### Ansible 配置
 
 ```yaml
 # playbook.yml

@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements - reviews implementation against plan or requirements with severity分级（Critical/Important/Minor）. NO MERGE WITHOUT CODE REVIEW FIRST.
+description: 用于任务完成、重大功能实现或合并前的检查，根据计划或需求审查实现并按严重程度分级（Critical/Important/Minor）。未经代码审查不得合并。
 metadata:
   short-description: 代码审查与质量保证
   keywords:

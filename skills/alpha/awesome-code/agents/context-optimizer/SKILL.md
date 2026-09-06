@@ -153,7 +153,7 @@ class ContextCompressor:
             max_tokens: 最大 token 数
             retention_priority: 保留优先级 ["current_task", "decisions", "errors"]
 
-        Returns:
+        返回值：
             压缩后的对话
         """
         priority = retention_priority or ["current_task", "decisions", "errors"]

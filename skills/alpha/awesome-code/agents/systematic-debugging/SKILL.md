@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes - four-phase framework (root cause investigation, pattern analysis, hypothesis testing, implementation). NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.
+description: 用于遇到缺陷、测试失败或异常行为，且必须在提出修复方案前调查根因的场景。未经根因分析不得只修复表象。
 metadata:
   short-description: 系统化调试与根因分析
   keywords:

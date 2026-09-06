@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements - reviews implementation against plan or requirements with severity分级（Critical/Important/Minor）. NO MERGE WITHOUT CODE REVIEW FIRST.
+description: 用于审查已完成的工作、重大功能或合并前的变更，核对需求并按严重程度识别风险。未经审查不得合并。
 metadata:
   short-description: 代码审查与质量保证
   keywords:
@@ -37,7 +37,7 @@ metadata:
 ## 输出格式（必须结构化）
 
 对每个问题输出：
-- Severity：Critical / Important / Minor
+- 严重程度：Critical（严重）/ Important（重要）/ Minor（次要）
 - What：问题是什么（具体到文件/函数/行为）
 - Why：为什么是问题（风险与影响）
 - Fix：如何修（最小变更优先）
@@ -45,15 +45,15 @@ metadata:
 
 ## 审查顺序（先 P0 再 P2）
 
-1. Critical（P0）
+1. Critical（严重，P0）
    - 鉴权/授权缺陷、注入、路径遍历、敏感信息泄露
    - 数据一致性/事务边界错误、不可恢复的数据破坏
 
-2. Important（P1）
+2. Important（重要，P1）
    - 明显性能风险（N+1、O(n^2) 热路径、内存爆）
    - 测试覆盖不足（关键路径无回归验证）
 
-3. Minor（P2）
+3. Minor（次要，P2）
    - 可维护性：命名、重复、复杂度、模块边界
    - 文档/注释/类型标注缺失
 

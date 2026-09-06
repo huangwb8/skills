@@ -91,7 +91,7 @@
 
 ## Debian/Ubuntu APT 镜像源
 
-### Ubuntu
+### Ubuntu 软件源
 
 | 提供商 | URL | 备注 |
 |--------|-----|------|
@@ -99,7 +99,7 @@
 | 清华大学 | `https://mirrors.tuna.tsinghua.edu.cn/ubuntu/` | 教育网友好 |
 | 中国科技大学 | `https://mirrors.ustc.edu.cn/ubuntu/` | 教育网友好 |
 
-### Debian
+### Debian 软件源
 
 | 提供商 | URL | 备注 |
 |--------|-----|------|

@@ -215,7 +215,7 @@ def calculate_compound_interest(
         periods: 投资期数
         compound_frequency: 每年复利次数，默认为 1（年复利）
 
-    Returns:
+    返回值：
         最终金额
 
     Raises:
@@ -341,7 +341,7 @@ docs/
 
 ## 文档生成工具
 
-### Python (Sphinx)
+### Python（Sphinx）
 
 ```python
 # conf.py
@@ -372,7 +372,7 @@ sphinx-apidoc -o docs src
 make html
 ```
 
-### JavaScript (JSDoc)
+### JavaScript（JSDoc）
 
 ```javascript
 /**

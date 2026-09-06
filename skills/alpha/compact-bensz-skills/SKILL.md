@@ -1,6 +1,6 @@
 ---
 name: compact-bensz-skills
-description: 当用户明确要求“压缩/瘦身/精简某个 Agent Skill 的 Markdown 文档”“在不改变功能前提下降低 skill 上下文开销”时使用。先理解目标 skill 的真实能力与安全边界，再在忽略 `tests/`、`plans/` 以及目标 skill 的 `README.md`、`CHANGELOG.md` 的前提下，压缩 `SKILL.md`、`references/*.md` 等工作型 Markdown，并把中间产物隔离到 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/compact-bensz-skills/`。⚠️ 不适用：用户主要想新增功能、修复脚本逻辑、批量改代码、或只想压缩非 skill 文档。
+description: 当用户明确要求压缩、瘦身或精简 Agent Skill 文档、降低上下文开销且不改变功能时使用。⚠️ 不适用：新增功能、修复脚本逻辑、批量改代码或压缩普通文档。
 
 metadata:
   author: Bensz Conan

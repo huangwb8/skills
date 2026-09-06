@@ -1,6 +1,6 @@
 ---
 name: awesome-code
-description: 当用户明确要求"使用 awesome-code / 多代理协作 / 并行协调开发"时使用。通过脚本收集可用 Agent 摘要、配置约束与 `dispatch_gate`，再由 AI 自主判断 single-pass / focused-agent / parallel / sequential 策略并选择子代理；当配置中的 required route agent 缺失时必须阻塞继续执行。⚠️ 不适用：用户仅需单一角色的简单修改或咨询、用户未明确表达多代理协作意图、用户只是了解技能概念。
+description: 当用户明确要求使用 awesome-code、进行多代理协作或并行协调开发时使用。根据任务选择合适的协作方式并协调专业 Agent。⚠️ 不适用：用户只需单一角色完成简单修改或咨询，或未表达多代理协作意图。
 metadata:
   short-description: AI 自主规划多代理软件开发协调系统
   keywords:

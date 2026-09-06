@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when asked to create, review, or revise a multi-step implementation, bug-fix, or change plan before editing code, including existing plans that may use a legacy task-by-task template. Assume readers have no relevant professional background; explain what happened in plain language before giving precise analysis and implementation guidance.
+description: 用于在编辑代码前创建、审查或修订多步骤实施、缺陷修复或变更计划。
 metadata:
   author: Bensz Conan
   keywords:

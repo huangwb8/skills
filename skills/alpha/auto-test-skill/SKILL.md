@@ -1,7 +1,7 @@
 ---
 name: auto-test-skill
 category: normal
-description: 当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。通过多轮 A 轮批判性测试 + B 轮质量原则检查，系统化发现、记录、修复问题，并沉淀可追溯的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 文档。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问技能问题（应直接回答）、没有明确"测试"意图。
+description: 当用户明确要求测试 Skill、运行 auto-test 或对 Skill 进行批判性测试时使用。系统化发现、记录并验证 Skill 问题。⚠️ 不适用：用户只是想开发或优化 Skill，或没有明确测试意图。
 metadata:
   author: Bensz Conan
   short-description: 批判性思维驱动的测试驱动优化流水线（多轮 A 轮 + B 轮质量原则检查）

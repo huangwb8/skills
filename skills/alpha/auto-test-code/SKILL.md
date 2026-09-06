@@ -1,7 +1,7 @@
 ---
 name: auto-test-code
 category: normal
-description: 当用户明确要求"测试代码"、"运行代码审查"或"进行代码自检"时使用。通过多轮 A 轮批判性代码审查 + B 轮代码质量原则检查，系统化发现、记录、修复程序代码中的问题，并将计划/过程/结果统一沉淀到目标代码根目录的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-code/{yyyy-mm-dd-hh-mm}/output/tests/` 隔离工作区。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问代码问题（应直接回答）、没有明确"测试代码"意图。
+description: 当用户明确要求测试代码、代码审查或代码自检时使用。系统化发现并验证代码问题。⚠️ 不适用：用户只是想实现或优化功能、询问代码问题，或没有明确测试意图。
 metadata:
   author: Bensz Conan
   short-description: 批判性思维驱动的代码自审查与优化流水线（多轮 A 轮静态/动态/安全分析 + B 轮代码质量原则检查）

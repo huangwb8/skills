@@ -1,6 +1,6 @@
 ---
 name: parallel-vibe
-description: 当用户明确要求"并行执行同一条 Vibe Coding 指令 / 多个独立 agent 或 subagent 同时审查、想方案、优化、对比多条路线 / 多线程独立尝试"时使用。默认使用智能模式：由宿主原生 subagent 独立分析并由主 agent 汇总；智能模式和代码模式必须使用同一套 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 与 `runner.log` 契约，区别只在底层执行机制；当用户要求脚本 runner、plan-file、resume、跨 CLI runner、退出码或无可用 subagent 时，切换到代码模式并调用 `scripts/parallel_vibe.py`。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务、要求强安全隔离或处理高度敏感数据。
+description: 当用户明确要求并行执行同一条 Vibe Coding 指令、让多个 Agent 或 Subagent 独立审查/设计/比较方案时使用。⚠️ 不适用：普通 shell 并发、单元测试并发、下载任务，或要求强隔离的敏感数据处理。
 metadata:
   author: Bensz Conan
   keywords:

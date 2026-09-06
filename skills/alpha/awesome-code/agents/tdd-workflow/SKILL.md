@@ -1,6 +1,6 @@
 ---
 name: tdd-workflow
-description: Use when implementing any feature or bugfix, before writing implementation code - write the test first, watch it fail, write minimal code to pass; ensures tests actually verify behavior by requiring failure first. Enforces RED-GREEN-REFACTOR cycle with iron-law compliance.
+description: 用于需要以测试驱动开发、遵循“红—绿—重构”循环实现功能或修复缺陷的场景。必须先编写失败测试，再实现代码。
 metadata:
   short-description: TDD 测试驱动开发工作流
   keywords:
@@ -245,7 +245,7 @@ def test_create_user_with_duplicate_email():
 
 ## 不同语言的 TDD 示例
 
-### Python (pytest)
+### Python（pytest）
 
 ```python
 # 测试
@@ -268,7 +268,7 @@ class ShoppingCart:
         return sum(item.price for item in self.items)
 ```
 
-### JavaScript (Jest)
+### JavaScript（Jest）
 
 ```javascript
 // 测试
@@ -296,7 +296,7 @@ class ShoppingCart {
 }
 ```
 
-### TypeScript (Jest)
+### TypeScript（Jest）
 
 ```typescript
 // 测试

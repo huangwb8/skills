@@ -1,7 +1,7 @@
 ---
 name: install-bensz-skills
 category: normal
-description: "当需要把本仓库 skills/alpha 下的生产 skills 安装到系统级（默认同时安装到 Codex: ~/.codex/skills 和 Claude Code: ~/.claude/skills），以便在任意项目/对话中可被发现与调用时使用。默认不安装 skills/beta；只有显式指定 beta 源目录时才处理 beta skill。使用 MD5 哈希进行版本控制，仅安装有更新的 skills；支持 --skill 指定单个或少量技能安装/更新、强制覆盖安装、指定单一目标安装和远程安装模式（--remote --check/--auto）。"
+description: 当用户需要将本仓库的生产 Skill 安装或更新到系统级目录，使其可在任意项目或对话中发现和调用时使用。默认处理 alpha；只有用户明确指定时才处理 beta。
 metadata:
   author: Bensz Conan
   keywords:
