@@ -1,6 +1,6 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.3.0"
+  version: "0.3.2"
   description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
   author: "Bensz Conan"
   category: "image-generation"
@@ -54,6 +54,11 @@ api:
     codex_auth_key_names:
       - "OPENAI_API_KEY"
       - "OPENAI_API"
+    codex_provider_auth_key_names:
+      - "experimental_bearer_token"
+      - "api_key"
+      - "api_token"
+      - "token"
     env_model_keys:
       - "OPENAI_IMAGE_MODEL"
       - "OPENAI_MODEL"

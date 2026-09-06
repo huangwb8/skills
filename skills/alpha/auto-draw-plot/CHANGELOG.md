@@ -1,6 +1,9 @@
 ## [Unreleased]
 
 ### Changed
+- 版本 `0.3.1 → 0.3.2`：恢复从 Codex provider 配置读取 `experimental_bearer_token` 的兼容行为，确保新规范重排不改变设备级 Codex 生图功能。
+- 修复 Codex provider 认证读取：优先使用 `~/.codex/config.toml` 中 BenszAPI provider 的 bearer token，恢复设备级 Codex 配置可直接驱动图片 provider 的行为；`remote.env` 保留为兜底来源。
+- 按 huangwb8/skills 最新正文骨架规范重排 `SKILL.md`：一级章节统一为「目标 / 流程（输入、执行步骤、输出、输出管理、校验、失败与恢复）/ 约束」，`## 约束` 逐字同步公共硬约束块（`BEGIN/END COMMON CONSTRAINTS`，`Source-Hash: sha256:15120201e9e0c7569517261d57ecefb63ac279c26ed13876f8e95b6dc35854d3`）并新增「Skill 专属约束」；所有执行契约、命令、参数与安全边界语义保持不变，仅调整章节归属；同步将版本号 `0.2.18 → 0.2.19`
 - 明确 `auto-draw-plot` 是经 BenszAPI 自行完成 prompt、generation/edit 与多轮迭代的自包含图片工作流；选中后不得默认调用或依赖 `imagegen`，并把版本号从 `0.2.13` 更新至 `0.2.14`
 
 ### Fixed

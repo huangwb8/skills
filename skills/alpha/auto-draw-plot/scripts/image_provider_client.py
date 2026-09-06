@@ -223,6 +223,7 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
         auth_path=codex_auth_path,
         provider_names=_codex_provider_names(api_cfg=api_cfg, data=None),
         auth_key_names=gpt_cfg.get("codex_auth_key_names") or gpt_cfg.get("env_api_key_keys") or ["OPENAI_API_KEY", "OPENAI_API"],
+        provider_auth_key_names=gpt_cfg.get("codex_provider_auth_key_names") or ["experimental_bearer_token", "api_key", "api_token", "token"],
     )
     base_url, api_key, model, source = _resolve_gpt_image_2_inputs(codex=codex, env=env, gpt_cfg=gpt_cfg)
     conflicts = _config_conflicts(codex=codex, env=env, gpt_cfg=gpt_cfg)
@@ -1954,6 +1955,7 @@ def _load_codex_provider_config(
     auth_path: Path,
     provider_names: List[str],
     auth_key_names: Any,
+    provider_auth_key_names: Any = ("experimental_bearer_token", "api_key", "api_token", "token"),
 ) -> Dict[str, Any]:
     codex_path = Path(config_path).expanduser()
     out: Dict[str, Any] = {}
@@ -1966,6 +1968,12 @@ def _load_codex_provider_config(
         provider = providers.get(name)
         if isinstance(provider, dict) and provider.get("base_url"):
             out.update({"name": name, "base_url": str(provider.get("base_url"))})
+            for key in provider_auth_key_names or []:
+                value = provider.get(key)
+                if isinstance(value, str) and value.strip():
+                    out["api_key"] = value.strip()
+                    out["auth_path"] = str(codex_path)
+                    break
             break
 
     auth_path = Path(auth_path).expanduser()
