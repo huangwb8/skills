@@ -15,6 +15,7 @@ legacy_skill_names:
   - "transfer_old_latex_to_new"
   - "write-paper-sci"
   - "explain-figures"
+  - "explain-results"
   - "complete_example"
   - "get-review-theme"
   - "guide-updater"
