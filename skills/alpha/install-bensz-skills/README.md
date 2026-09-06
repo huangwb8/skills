@@ -337,3 +337,13 @@ A：同名 skill 会按 MD5 对比并覆盖更新。想先看影响范围时，�
 ### Q：如何回退到旧版本？
 
 A：在源仓库用 Git 回退到旧版本后重新运行安装器即可。安装器本身不备份旧目录。
+
+### 静默更新（后台入口）
+
+```bash
+python3 "$INSTALLER" --silent-update
+# 只有标准库 bootstrap 时：
+python3 /path/to/bootstrap_install.py --silent-update
+```
+
+静默入口按 72 小时 TTL 限制远程检查，默认只更新 `general`/`skills/alpha` 中已安装的生产 Skill，并按 Codex 与 Claude Code 分别处理。它不会安装新 Skill、扫描 beta/legacy 或扩展用户额外源；旧版安装器会先由 bootstrap 安全升级自身。运行状态和失败摘要保存在 `~/.bensz-skills/installation/state/silent-update.json`。

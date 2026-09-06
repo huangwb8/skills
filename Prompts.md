@@ -62,6 +62,10 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+基于 /Volumes/2T01/Github/sub2api/docs/plans/2026-09-06-install-bensz-skills-bootstrap-hardening-plan.md 优化skill。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
+
+---
+
 基于 /Volumes/2T01/Github/sub2api/docs/plans/2026-09-06-install-bensz-skills-silent-update-plan.md  优化skill。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
 ---

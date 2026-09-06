@@ -142,7 +142,17 @@ def _load_silent_update_state() -> dict:
         return {}
 
 
-def _write_silent_update_state(*, result: str, error: str = "") -> None:
+def _redact_error(value: object) -> str:
+    text = str(value).replace(str(Path.home()), "~")
+    for token in ("token=", "password=", "api_key=", "authorization:"):
+        while token.lower() in text.lower():
+            start = text.lower().index(token.lower())
+            end = text.find(" ", start)
+            text = text[:start] + token + "[redacted]" + (text[end:] if end >= 0 else "")
+    return text[:500]
+
+
+def _write_silent_update_state(*, result: str, error: str = "", **fields: object) -> None:
     state_dir = _get_state_dir()
     state_dir.mkdir(parents=True, exist_ok=True)
     path = _get_silent_update_state_path()
@@ -150,17 +160,22 @@ def _write_silent_update_state(*, result: str, error: str = "") -> None:
     now = int(time.time())
     payload.update({
         "schema_version": SILENT_UPDATE_STATE_SCHEMA_VERSION,
+        "last_check_started_at": payload.get("last_check_started_at", now),
         "last_check_completed_at": now,
         "last_check_completed_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
         "last_result": result,
+        **fields,
     })
     if error:
-        payload["last_error"] = error[:500]
+        payload["last_error"] = _redact_error(error)
     else:
         payload.pop("last_error", None)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    try:
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 @contextmanager
@@ -173,10 +188,9 @@ def _silent_update_lock():
         try:
             import fcntl
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (ImportError, BlockingIOError):
-            if "fcntl" in sys.modules:
-                yield False
-                return
+        except (ImportError, BlockingIOError, OSError):
+            yield False
+            return
         yield True
     finally:
         try:
@@ -186,9 +200,12 @@ def _silent_update_lock():
             handle.close()
 
 
-def _installed_skill_names() -> list[str]:
+def _installed_skill_names(target: str | None = None) -> list[str]:
     names: set[str] = set()
-    for root in (Path.home() / ".codex/skills", Path.home() / ".claude/skills"):
+    roots = {"codex": Path.home() / ".codex/skills", "claude": Path.home() / ".claude/skills"}
+    for root in (roots.get(target),) if target else roots.values():
+        if root is None:
+            continue
         try:
             for child in root.iterdir():
                 if child.is_dir() and (child / "SKILL.md").is_file():
@@ -204,27 +221,40 @@ def _run_silent_update(*, t: get_translator().__class__) -> int:
         if not acquired:
             return 0
         state = _load_silent_update_state()
+        if state.get("schema_version", 0) not in (0, SILENT_UPDATE_STATE_SCHEMA_VERSION):
+            return 0
         completed = state.get("last_check_completed_at")
         if isinstance(completed, (int, float)) and time.time() - completed < SILENT_UPDATE_TTL_SECONDS:
             return 0
-        installed = _installed_skill_names()
-        if not installed:
+        platform_skills = {platform: _installed_skill_names(platform) for platform in ("codex", "claude")}
+        if not any(platform_skills.values()):
             try:
-                _write_silent_update_state(result="empty-install-set")
+                _write_silent_update_state(result="empty-install-set", failure_kind="none", platforms=platform_skills)
             except OSError:
                 pass
             return 0
         output = io.StringIO()
         try:
+            _write_silent_update_state(
+                result="running",
+                last_check_started_at=int(time.time()),
+                platforms=platform_skills,
+                source={"id": "general", "repository": "https://github.com/huangwb8/skills", "branch": "main", "skills_path": "skills/alpha"},
+            )
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
                 code = _remote_install_main(
                     auto_mode=True,
-                    install_codex=True,
-                    install_claude=True,
-                    skill_filter=installed,
+                    install_codex=bool(platform_skills["codex"]),
+                    install_claude=bool(platform_skills["claude"]),
+                    source_filter=["general"],
+                    platform_skill_filters=platform_skills,
+                    skill_filter=sorted({name for names in platform_skills.values() for name in names}),
                     t=t,
                 )
-            _write_silent_update_state(result="success" if code == 0 else "degraded", error=output.getvalue())
+            _write_silent_update_state(result="success" if code == 0 else "degraded",
+                                       failure_kind="none" if code == 0 else "remote-or-install",
+                                       error=output.getvalue(), platforms=platform_skills,
+                                       source={"id": "general", "skills_path": "skills/alpha"})
         except Exception as exc:
             try:
                 _write_silent_update_state(result="failed", error=str(exc))
@@ -495,6 +525,7 @@ def _save_skill_manifest(dest_dir: Path, md5: str, source: str | Path, target: T
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "md5": md5,
         "source": str(source),
+        "source_id": "general" if "skills/alpha" in str(source) else str(source),
         "installed_at": _now_stamp(),
         "target": target.label,
         "target_root": str(target.root),
@@ -1400,16 +1431,27 @@ def _install_remote_skills(
             ))
             continue
 
-        # 删除旧版本
         dest_dir = target.root / comparison.name
-        remove_msg = _remove_existing(dest_dir, dry_run=False, t=t)
-        if remove_msg:
-            process_messages.append(remove_msg)
-
-        # 复制新版本
-        copy_msg = _copy_fresh(comparison.remote_path, dest=dest_dir, dry_run=False, t=t)
-        if copy_msg:
-            process_messages.append(copy_msg)
+        stage_root = _get_installation_root() / "staging" / f"{os.getpid()}-{target.label}"
+        stage_root.mkdir(parents=True, exist_ok=True)
+        staged = stage_root / comparison.name
+        try:
+            if staged.exists():
+                shutil.rmtree(staged)
+            shutil.copytree(comparison.remote_path, staged, symlinks=False, ignore=_copytree_ignore(comparison.remote_path))
+            if dest_dir.exists() or dest_dir.is_symlink():
+                backup = stage_root / f".old-{comparison.name}"
+                os.replace(dest_dir, backup)
+            os.replace(staged, dest_dir)
+            backup = stage_root / f".old-{comparison.name}"
+            if backup.exists() or backup.is_symlink():
+                shutil.rmtree(backup) if backup.is_dir() and not backup.is_symlink() else backup.unlink()
+        except OSError as exc:
+            backup = stage_root / f".old-{comparison.name}"
+            if not dest_dir.exists() and (backup.exists() or backup.is_symlink()):
+                os.replace(backup, dest_dir)
+            process_messages.append(f"staging failed for {comparison.name}: {_redact_error(exc)}")
+            continue
 
         _save_skill_manifest(dest_dir, comparison.remote_md5, source_label, target)
 
@@ -1444,6 +1486,7 @@ def _remote_install_main(
     skill_filter: list[str] | None = None,
     available_source_ids: list[str] | None = None,
     legacy_skill_names: list[str] | None = None,
+    platform_skill_filters: dict[str, list[str]] | None = None,
     t: get_translator().__class__,
 ) -> int:
     """远程安装主流程。
@@ -1558,12 +1601,17 @@ def _remote_install_main(
                 print(f"{'=' * 60}")
 
                 # 对比远程与本地技能
+                target_skill_filter = (
+                    platform_skill_filters.get(target.label)
+                    if platform_skill_filters is not None
+                    else skill_filter
+                )
                 comparisons = _compare_remote_skills(
                     remote_skills_dir,
                     target.root,
                     target,
                     t,
-                    skill_names=skill_filter,
+                    skill_names=target_skill_filter,
                     md5_cache=remote_md5_cache,
                 )
                 matched_skill_names.update(comparison.name for comparison in comparisons)

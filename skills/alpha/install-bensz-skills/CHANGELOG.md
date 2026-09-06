@@ -578,3 +578,8 @@ installed: /Users/xxx/.claude/skills/nsfc-abstract-writer
 - **单一职责**：每个函数只做一件事（计算 MD5、检查版本、安装、报告）
 - **开闭原则**：易于扩展新的版本控制策略
 - **依赖倒置**：通过 `SkillInfo` 数据类解耦数据与逻辑
+## 0.6.6
+
+- 加固 bootstrap 静默入口：旧版安装器可在 TTL 到期后先升级自身，再交给新版安装器处理。
+- 静默更新默认限定 `general` 生产源，并按 Codex/Claude Code 平台分别读取已安装技能集合。
+- 扩展静默状态记录、错误脱敏与 staging 替换；锁竞争、远程失败和替换失败不阻塞宿主任务。

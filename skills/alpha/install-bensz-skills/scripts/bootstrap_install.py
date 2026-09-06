@@ -22,6 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -71,7 +72,7 @@ _configure_console_streams()
 
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.6.5"
+FALLBACK_CONFIG_VERSION = "0.6.6"
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 DOWNLOAD_RETRIES = 3
@@ -243,6 +244,55 @@ def stamp() -> str:
 
 def installation_root() -> Path:
     return Path.home().joinpath(*INSTALLATION_ROOT_PARTS)
+
+
+SILENT_UPDATE_TTL_SECONDS = 72 * 60 * 60
+
+
+def _silent_state_path() -> Path:
+    return installation_root() / "state" / "silent-update.json"
+
+
+def _load_silent_state() -> dict:
+    try:
+        value = json.loads(_silent_state_path().read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def _run_silent_update(lang: str) -> int:
+    state = _load_silent_state()
+    completed = state.get("last_check_completed_at")
+    if state.get("schema_version", 0) not in (0, MANIFEST_SCHEMA_VERSION):
+        return 0
+    if isinstance(completed, (int, float)) and time.time() - completed < SILENT_UPDATE_TTL_SECONDS:
+        return 0
+    installed = []
+    for root in (Path.home() / ".codex/skills", Path.home() / ".claude/skills"):
+        try:
+            installed.extend(child.name for child in root.iterdir() if child.is_dir() and (child / "SKILL.md").is_file())
+        except OSError:
+            continue
+    installer = next((Path.home() / suffix for suffix in (".codex/skills/install-bensz-skills/scripts/install.py", ".claude/skills/install-bensz-skills/scripts/install.py") if (Path.home() / suffix).is_file()), None)
+    if installer is not None:
+        try:
+            supports_silent = "--silent-update" in subprocess.check_output(
+                [sys.executable, str(installer), "--help"], text=True,
+                stderr=subprocess.STDOUT, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            supports_silent = False
+        if supports_silent:
+            subprocess.run([sys.executable, str(installer), "--silent-update"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           check=False)
+            return 0
+    if installed:
+        # Old installers do not understand --silent-update. Upgrade only the
+        # installer from the production source, without expanding the set.
+        return main(["--source", "general", "--skill", "install-bensz-skills", "--lang", lang])
+    return 0
 
 
 def path_label(path: Path) -> str:
@@ -917,6 +967,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", help="Comma-separated source ids. Available: general,research,anthropic-docs.")
     parser.add_argument("--skill", action="append", default=[], help="Install only selected skill names. Repeat or comma-separate values.")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Installer language. Default: en.")
+    parser.add_argument("--silent-update", action="store_true", help="Refresh installed production skills after the 72-hour TTL.")
     return parser
 
 
@@ -925,6 +976,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     lang = args.lang
     ensure_python(lang)
+    if args.silent_update:
+        if any((args.codex, args.claude, args.force, args.dry_run, args.check, args.source, args.skill)):
+            parser.error("--silent-update cannot be combined with install or filter options")
+        return _run_silent_update(lang)
     dry_run = bool(args.dry_run or args.check)
     selected_skill_names = parse_skill_filter(args.skill)
     selected_skill_set = set(selected_skill_names)

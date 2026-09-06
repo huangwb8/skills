@@ -394,3 +394,11 @@ legacy_skill_names:
 
 <!-- End of canonical common constraints. -->
 <!-- END COMMON CONSTRAINTS -->
+
+### 静默更新与 bootstrap 协议
+
+- `--silent-update` 是后台自动入口，不等同于用户主动的 `--remote --check` 或 `--remote --auto`。
+- 自动入口只使用 `general` 的 `skills/alpha` 生产源，只处理目标平台中已经存在的 Skill；Codex 与 Claude Code 的集合分别计算，不做跨平台并集安装。
+- 状态文件位于 `~/.bensz-skills/installation/state/silent-update.json`，记录 TTL、来源、平台集合、结果、失败类型和脱敏错误摘要。旧状态缺字段按过期处理，未知 schema 保守跳过。
+- `bootstrap_install.py --silent-update` 在旧版安装器不支持该参数时，先仅升级 `install-bensz-skills` 自身，再由新版入口接管；后台失败不阻塞宿主任务。
+- 远程更新先在 staging 目录完成复制与校验，再原子替换目标 Skill；安装器自身最后生效，新版本从后续会话加载。
