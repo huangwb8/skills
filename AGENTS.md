@@ -128,14 +128,16 @@
 ### 对象化最小流程
 
 - **Skill**：读取现有 `SKILL.md`、`config.yaml`、脚本和必要 references → 确认触发边界与输入输出 → 最小修改 → 静态一致性检查 → 轻量测试 → README、CHANGELOG 和 BAC 同步；影响安装发现时再运行安装器回归。
-- **Verifier/State 规划与审查（按需）**：凡需规划、评估、精简或接入 Verifier/State，先使用 `skills/alpha/verifier-state-architect` 产出设计计划；该 Skill 负责删除影响测试、Kernel 复用/提炼判断和最小契约设计，不直接实现 Pack 或 Kernel。
-- **Verifier/State 实现**：仅在开发者明确要求时执行，并以该 Skill 的计划、下方最小门禁及 Kernel/ID 文档为依据。
+- **Verifier/State 设计与落地（按需）**：开发者明确把目标 Skill 交给 `skills/alpha/verifier-state-architect` 设计/接入时，该 Skill 默认完成删除影响测试、Kernel 复用/提炼判断、最小设计及授权范围内的本地实现；计划先保存到 `docs/plans/` 供 AI 连续执行和人类事后审查，不等待人工审批计划。明确“仅计划/不修改源码”或只读审查时不实现。
+- **Verifier/State 实现**：仅在开发者明确要求采用组件时执行，以该 Skill 的计划、下方最小门禁及托管/Kernel/ID 文档为依据；不默认修改 Kernel、系统级安装副本或远程状态，未完成实际验证不得宣称接入生效。
 
 ### 状态机与验证器的可选性
 
 状态机、Verifier 及其 Pack/Gate 集成不是普通 Skill 开发的默认必需项。只有开发者在当前任务中明确表示需要使用状态机或验证器时，才纳入相应流程、运行时声明、Pack 资产和专门测试；未明确要求时按普通 Skill 的最小流程处理，不得因仓库已有 Kernel、Pack 或示例而自动接入。由于这两类基础设施仍处于活跃开发阶段、成熟度和兼容性尚在演进，决定采用前应评估实际收益、失败风险与回退方案。
 
 详细字段表和长示例应下沉到 `docs/`；`AGENTS.md` 只保留不可违反的边界、门禁和入口，避免规范与实现长期双写漂移。
+
+新建或修改 Skill 专用 Verifier / State 的托管布局、索引或契约时，必须遵循 [`skills/alpha/verifier-state-architect/references/skill-pack-hosting.md`](skills/alpha/verifier-state-architect/references/skill-pack-hosting.md)。该文件是托管规范的唯一维护入口，统一维护目录、声明与发现、兼容边界和验收要求；`AGENTS.md`、`docs/` 和其它参考只引用它，不保留规范副本。修改规范时同步受影响的检查脚本与引用，规范随该 Skill 发布和安装。
 
 ### State/Verifier 共用底层与个性化适配
 

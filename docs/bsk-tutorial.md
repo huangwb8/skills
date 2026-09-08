@@ -253,13 +253,14 @@ Verifier CLI 会输出结构化的 `results` 和 `gate`；需要审计时可用 
 
 ## 它代表什么
 
-`Contract Pack` 是把一项 State 或 Verifier 组织成可发现、可版本化、可执行和可审计单元的目录。一个 Pack 通常包含：
+`Contract Pack` 是把一项 State 或 Verifier 组织成可发现、可版本化、可执行和可审计单元的目录。Skill 专用资产遵循 [托管规范](../skills/alpha/verifier-state-architect/references/skill-pack-hosting.md)；规范由该 Skill 唯一维护，以下示意仅用于解释集合索引与单个 Pack 的位置关系：
 
 ```text
-<pack>/
-├── STATE.md 或 VERIFIER.md
-├── scripts/verify.py       # 可选的 script 组件
-└── index.json               # Pack 集合的目录索引
+<states 或 verifiers>/
+├── index.json                # Pack 集合的目录索引
+└── <pack>/
+    ├── STATE.md 或 VERIFIER.md
+    └── scripts/verify.py      # 可选的 script 组件
 ```
 
 索引记录稳定 ID、版本、alias、分类、标签、契约路径、执行模式和有序组件。组件可以是：
