@@ -1,14 +1,25 @@
 skill_info:
   name: verifier-state-architect
-  version: 0.2.1
-  description: 为 Agent Skill 规划最小、可解释、AI 友好的 Verifier 与 State 组合
+  version: 0.3.1
+  description: 为 Agent Skill 设计并落地最小、可解释、AI 友好的 Verifier 与 State 组合
   author: Bensz Conan
   category: skill architecture
 
 directories:
   workspace_subdir: verifier-state-architect
-  default_output: output/design-plan.md
+  default_output: docs/plans/{skill-name}-verifier-state-design.md
   formal_plan_root: docs/plans
+  verification_report: output/verification-report.json
+
+execution:
+  default_mode: implement
+  read_only_modes:
+    - plan-only
+    - review-only
+  require_plan_before_changes: true
+  require_human_plan_approval: false
+  require_hosting_check: true
+  require_execution_evidence: true
 
 planning:
   allow_zero_components: true
@@ -29,6 +40,9 @@ planning:
     - uncertainty-and-fallback
 
 safety:
-  default_read_only: true
+  default_read_only: false
+  require_authorized_source_root: true
+  allow_kernel_changes: false
+  allow_remote_writes: false
   never_modify_installed_skill: true
   redact_sensitive_data: true

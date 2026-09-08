@@ -1,9 +1,9 @@
 ---
 name: verifier-state-architect
-description: 帮助设计或审查 Agent Skill 的 Verifier 与 State 架构。只要用户要为 skill 规划、评估、精简或接入 verifier/state，尤其担心形式主义、过度设计、硬编码或 Kernel 契约不匹配，就使用本技能。它先理解目标 skill 的业务流程，再判断是否真的需要这些外挂，输出可执行的 Markdown 设计计划；不直接创建状态机或验证器实现。
+description: 为任意 Agent Skill 设计、实现、接入或精简 Verifier 与 State；当用户希望给目标 skill 配置验证器/状态机、落实已有设计，或仅规划和审查架构时使用，尤其适合需要避免过度设计、硬编码并符合 Kernel 契约的任务。
 metadata:
   author: Bensz Conan
-  short-description: 为 Agent Skill 规划最小、可解释、AI 友好的 Verifier/State 组合
+  short-description: 为 Agent Skill 设计并落地最小、可审查的 Verifier/State 组合
   keywords:
     - verifier-state-architect
     - verifier design
@@ -18,18 +18,20 @@ metadata:
 
 ## 目标
 
-帮助设计或审查 Agent Skill 的 Verifier 与 State 架构。只要用户要为 skill 规划、评估、精简或接入 verifier/state，尤其担心形式主义、过度设计、硬编码或 Kernel 契约不匹配，就使用本技能。它先理解目标 skill 的业务流程，再判断是否真的需要这些外挂，输出可执行的 Markdown 设计计划；不直接创建状态机或验证器实现。
+为任意领域的目标 Skill 完成业务理解、最小设计、本地实现和验证。Verifier/State 是可插拔外挂，不为展示 Kernel 强行加入；零组件或仅一类组件也可以是正确结果。适合专用组件的新建、现有组件接入与精简，以及已有设计的落实。
 
-架构顾问 Skill：Verifier/State 是可插拔外挂，不为展示 Kernel 强行加入。只产出设计计划，不写 `VERIFIER.md`、`STATE.md`、Pack 脚本或 Kernel 源码。
+默认是设计者兼执行者：人类把目标 Skill 交给本技能后，先保存供 AI 执行、人类事后审查的计划，再连续落地，不等待人类审核计划。仅当用户明确要求“仅计划 / 不修改源码”或只读审查时，分别采用 `plan-only` / `review-only`。不负责普通业务重写、Kernel 修复或提升通用组件、发布及远程操作；这些范围只能另行授权，不能作为默认执行的延伸。
 
 ## 流程
 
 ### 输入
 
-#### 适用边界
+#### 输入与模式
 
-- **适用**：规划/审查 Skill 的 Verifier/State 接入、把自然语言判断映射到 Kernel 契约、生成实现交接计划。
-- **不适用**：直接实现已确定组件、修 Kernel bug、写普通 Skill 内容，或跳过分析直接改代码；这些任务可把本 Skill 计划作为前置阶段。
+- **必需输入**：目标 Skill 源目录或完整内容、业务目标和已知约束。执行模式需要可写、已授权的源码目录；只有文本时可以设计，但不能假装已经落地，也不擅自创建未知目标。
+- **可选输入**：已有计划、Kernel 源码/安装路径、`runtime` 声明、Pack、测试、历史报告和计划路径。读取 `config.yaml` 获取默认模式、输出和检查设置。
+- 确认目标是开发源码而非系统级已安装副本；记录未提交改动和允许修改范围。用户指定目标并要求本技能设计/接入，默认授权其必要本地变更，不需要第二次计划审批；纯审查或明确只规划不授权源码写入。
+- 已有计划先核对当前源码、版本、范围和验收，局部更新偏差后实施，不无理由重做整套规划。模式、依据与未解决缺口写入计划。
 
 ### 执行步骤
 
@@ -37,7 +39,7 @@ metadata:
 
 ##### 理解服务对象
 
-读取目标 `SKILL.md`、`config.yaml`、脚本、references、模板和运行声明；按需读取 Kernel Pack、ID 与运行时文档。绘制目标、输入/输出、阶段、风险、失败/回退、人工介入和产物；从证据列出稳定命题的 Verifier 候选与持续阶段的 State 候选，标记来源和不确定性，不从文件名或关键词臆测。
+读取目标 `SKILL.md`、`config.yaml`、脚本、references、模板、运行声明和适用项目指令；绘制目标、输入/输出、阶段、风险、失败/回退、人工介入和产物。从证据列出稳定命题的 Verifier 候选与持续阶段的 State 候选，不从文件名或关键词臆测。执行前必读本 Skill 的 [托管规范](references/skill-pack-hosting.md) 和 [落地参考](references/implementation.md)：前者是托管规则的唯一维护文件，后者仅提供操作指引。在本仓库按需核对 ID 文档与正文模板；仓库外使用随 Skill 安装的规范和实际 Kernel 契约，不依赖本开发仓库的绝对路径。
 
 ##### 删除影响闸门
 
@@ -54,7 +56,7 @@ metadata:
 
 在专用设计前完成以下盘点，避免重复造轮子，也不默认新增 Kernel 功能：
 
-1. 读取 `packages/bensz-skill-kernel` 的 `verifiers/index.json`、`states/index.json`、对应 `VERIFIER.md`/`STATE.md`、README 和版本声明；记录 canonical ID、版本、classification/kind、输入契约、入口及限制，不能只看名称/标签。
+1. 从用户提供的 Kernel 源码或当前 Python 环境定位实际包；本仓库源码位于 `packages/bensz-skill-kernel/src/bensz_skill_kernel`。读取其 `verifiers/index.json`、`states/index.json`、对应契约、README 和版本声明；记录 canonical ID、版本、classification/kind、输入契约、入口及限制，不能只看名称/标签。源码与安装版本不同则明确选择并固定验证环境，不混用。
 2. 为每个候选标记“直接复用 / 组合复用 / 适配后复用 / 不适用”，比较语义、输入/证据契约、Gate/转移、资源边界、版本兼容和失败路径；事实结构相同而仅词汇不同，优先适配器。
 3. 检查是否有可在两个及以上不相邻领域复用、领域无关、契约稳定、可独立版本化和可回放的能力。Verifier 要能用 `subject/context/evidence` 表达稳定命题；State 要表达跨 Skill 的持续阶段/生命周期，而非动作、标签或一次性 helper。
 4. 依赖领域规则、模型偏好、易变阈值、特定格式或单一 Skill 偶然流程的候选，留在 Skill/适配器层；证据不足时标为“待验证的 Kernel 提炼候选”。Kernel 建议只写入计划（范围、契约、兼容/迁移、测试、风险），不直接改 Kernel。
@@ -75,7 +77,7 @@ metadata:
 计划必须说明：
 
 - Verifier 用 `owner.domain.capability`、State 用 `owner.machine.state`；版本和 alias 独立维护，不把 Skill 名、模型、实现或 Gate 策略写入 ID。
-- Pack 的 `VERIFIER.md`/`STATE.md` 负责判断目标、入口条件、不变量、证据边界和转移；`index.json` 是元数据单一来源；入口仅 JSON-stdio，路径留在 Pack 内。
+- Pack 的 `VERIFIER.md`/`STATE.md` 负责判断目标、入口条件、不变量、证据边界和转移；集合根的 `index.json` 是元数据单一来源。脚本组件使用 JSON-stdio，入口留在 Pack 内；Agent/人工组件使用宿主 handoff 和绑定结果回传，不强行配脚本。
 - Kernel 只负责发现、协议校验、超时/资源边界、结果归一化、Gate、事件和状态持久化；领域判断留在 Skill 契约或 AI 适配器。
 - `required`/`advisory`、Gate 放行条件、`uncertain/unchecked` 人工复核去向、`run_id`/`attempt_id`、失败/恢复和事件重放策略。
 - 无 Verifier 时将 Gate 写为“不适用/无需验证”，无 State 时说明由普通流程和工作区生命周期承担；接入时 required 缺失必须 fail-closed，advisory 只提示不阻塞。
@@ -100,17 +102,26 @@ metadata:
 - **元组件提炼结论**：推荐、暂缓验证或明确不提炼；每项至少两条理由，含跨领域证据、稳定性、版本化收益及领域耦合风险。
 - **对人类决策的影响**：采纳/不采纳建议会改变的文件、兼容性、测试、迁移成本和维护责任。
 
-两类结论即使均为“不复用/不提炼”也必须保留并分点说明。实施顺序只写下一步改动，不改源代码：P0 为安全/完整性/不可恢复错误，P1 为契约/可观测性，P2 为可选改进；每项含文件位置、证据、影响、验证命令和完成条件。
+两类结论即使均为“不复用/不提炼”也必须保留并分点说明。计划在目标源码修改前落盘：P0 为安全/完整性/不可恢复错误，P1 为契约/可观测性，P2 为可选改进；每项含文件位置、证据、影响、验证命令、完成条件及回退办法。不把计划生成当成执行模式的完成条件，也不增加“请确认计划后继续”的关卡。
+
+##### 连续落地
+
+`plan-only` / `review-only` 在设计/审查结果形成后结束，不写目标源码；`implement` 紧接计划执行：
+
+1. 按落地参考创建实际使用的 `references/verifiers/`、`references/states/` 集合及索引、契约、必要组件；专用资产随目标 Skill 托管，不写进 Kernel 内置目录。不批量迁移不相关历史资产，不覆盖用户未确认的冲突改动。
+2. 在目标 `config.yaml` 接入真实支持的 `runtime` 声明；在 `SKILL.md` 的 `## 控制` 说明调用时机、证据、Gate、迁移、失败恢复及人工介入。连接实际业务入口/宿主，而非仅生成孤立文件。只用 Verifier 时不要为通过声明加载硬造无用 State。
+3. 机械工作由脚本执行，语义检查由宿主执行并回传证据；required 缺证据不放行。业务本身需要人工判断与“人工审批设计计划”不是一回事，不因默认连续实施而删除前者。
+4. 同步目标 Skill 版本、使用文档、变更记录及适用的 BAC；版本只在 `config.yaml` 维护，Pack 版本在索引中独立维护。保留 canonical/alias 兼容，不改历史事件。
+5. 运行只读托管检查和最短真实执行验证；检查复制后的资产发现、错误/缺证据、状态迁移及适用的重放。对照计划逐项记录完成、偏差、不适用和受阻项，再交付。零组件结论需给出删除影响证据，无需生成空目录、无意义 runtime 或虚假执行记录。
 
 ### 输出
 
 #### 输入、输出与工作区
 
-- **必需输入**：目标 Skill 根目录或完整内容、业务目标和已知约束。
-- **可选输入**：Kernel 路径（默认 `packages/bensz-skill-kernel`）、`runtime` 声明、Pack、测试、历史报告和输出路径。
-- **默认计划**：`./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`；用户指定正式计划时优先写 `docs/plans/` 或指定路径，不把正式交付藏在 `.bensz-api`。
-- 计划只作后续 Agent 的短契约：引用用相对路径和行号/标题锚点，日志只写脱敏摘要。
-- 复用会话已声明的任务根目录；否则用 `bsk workspace init . --description verifier-state-architect` 初始化，并在 Skill 专属 `input|output|log` 边界工作。记录目标路径、读取清单、Kernel 版本和计划路径。
+- **执行交付**：目标 Skill 中可发现、可调用的组件及接入改动，或有依据的零组件结论；附实际验证、未执行项和剩余风险。
+- **可审查计划**：项目 `docs/plans/{skill-name}-verifier-state-design.md`，或用户指定路径。它是流程中间步骤，但持续保留供事后审查；已有文件不是本任务所有时使用不冲突名称，不覆盖。
+- **交付对账**：计划项 → 修改文件/契约 → 命令或宿主证据 → 结果；明确区分“结构可加载”“实际已执行”“业务语义已验证”。
+- 引用用相对路径和行号/标题锚点，日志只写脱敏摘要。复用会话已声明任务根，否则先确认根目录、时间与冲突，公开声明唯一目录后再创建；不依赖 BSK 才能初始化普通工作区。
 
 #### 计划固定结构
 
@@ -133,15 +144,17 @@ metadata:
 
 #### 计划与证据边界
 
-- 正式计划优先写入 `docs/plans/` 或用户指定路径；未指定时使用 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/verifier-state-architect/output/design-plan.md`。
+- 计划固定写入项目 `docs/plans/` 或用户指定路径；草稿、读取清单和验证日志才写入任务目录。只读且仅需文本的审查可以不落盘。
 - 读取清单、决策依据、机器可读摘要和日志写入当前会话已声明任务根目录的 `verifier-state-architect/input|output|log/`；不把正式计划藏在任务目录中。
-- 本 Skill 只交付设计计划和证据摘要，不写 `VERIFIER.md`、`STATE.md`、Pack 脚本或 Kernel 源码。
+- 专用 Pack 源码写入目标 Skill 的标准目录；运行证据、快照、日志、缓存和夹具不得进入发布资产。复制安装验证使用项目临时目录，不覆盖系统级安装副本。
 
 ### 校验
 
-#### 删除影响测试（含“不接入”结论）
-
 #### 验收与回归测试
+
+- 执行 `python3 <本Skill>/scripts/check_integration.py <目标Skill>`，需要 Python 3.11+、PyYAML 和与目标声明匹配的 BSK；可从任意工作目录运行。该工具只读取文件、调用加载器，不执行目标组件。报告输出至 stdout，可重定向至任务 `output/verification-report.json`。
+- 工具只证明托管及静态加载，不替代契约语义、组件执行、Gate、恢复/重放和版本迁移验证。具体用例及宿主边界见落地参考；`unchecked` 不能写成完成。
+- 只规划/审查时仅检查可获得证据，不创建实现来凑测试；无组件时登记“不适用”。
 
 #### 质量闸门
 
@@ -154,13 +167,13 @@ metadata:
 - 测试是否覆盖 canonical/alias、非法输入、超时、越界路径、Gate 缺证据和删除后的回退？
 - 计划是否写出目标 Skill/Kernel 版本、读取证据、决策日期、实现位置，以及两个独立结论的分点理由和人类决策影响？
 
-资料不足时停在“待确认”，不凭空补状态/规则；中间文件遵循 `.bensz-api` 协议，禁止记录密钥、令牌、Cookie、私有 Prompt 或不必要原始数据。作为更大任务中间环节时只交付计划和机器可读摘要；独立使用时说明保留/删除、原因、下一步、计划路径和验证证据。
+资料不足时只阻塞依赖缺失证据的部分，不凭空补状态/规则。执行模式须实现已选范围且完成必要验证后才标记完成；不得以“计划就绪”“文件生成”替代完成。作为更大任务的环节也遵循选定模式，交付实际源码/证据或明确只读产物，不偷偷退回只输出计划。
 
 ### 失败与恢复
 
-- Kernel 索引、Pack 契约或目标 Skill 资料不可读取时，停止相关判断，保留已读取清单和错误摘要，并将计划标记为“待确认”。
+- Kernel 缺失/不兼容、目标源目录不可写或宿主缺执行入口时，保留已读清单和脱敏错误摘要，标记受影响实现/验证为“受阻”；可完成不依赖这些前提的设计，但不声称接入生效，也不擅自升级 Kernel 或修改安装副本。
 - 证据不足、组件结果为 `uncertain/unchecked` 或网络不可观测时，不把不确定结论写成 `pass`；记录缺口并指定人工复核或后续验证动作。
-- 计划生成失败时保留部分草稿和日志，可在同一任务根目录重试；本 Skill 不因失败而修改目标 Skill、Pack 或 Kernel。
+- 计划落盘失败时不进入实现；实现/测试失败时定位本轮相关原因并最小修复，保留失败证据；必要时按计划只撤销自己的变更，不使用 destructive Git、不清除用户改动。确需扩大授权、冲突无法消解或发生不可逆副作用才请求人类决策，不把普通设计取舍当成审批门槛。
 
 ## 约束
 

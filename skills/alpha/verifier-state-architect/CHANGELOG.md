@@ -2,8 +2,19 @@
 
 ## [Unreleased]
 
+### Added（新增）
+- 新增随 Skill 安装的落地参考与只读 `scripts/check_integration.py`，核验专用 Pack 托管、索引/契约分工和真实 Kernel 加载；结构通过不冒充组件已执行。
+- 补齐中英文对齐的使用指南，说明默认落地、显式只读、事后审查和执行证据边界。
+
 ### Changed（变更）
-- 规范化 `SKILL.md` 正文骨架，补齐输入、输出、校验、失败恢复和公共约束摘要；verifier-state-architect 的既有功能语义保持不变。
+- 托管规范集中到 `references/skill-pack-hosting.md` 唯一维护，合并落地参考中的重复规则；项目治理、教程和 Skill 入口统一引用，安装后的规范不依赖开发仓库外部文档路径。
+- 默认从只规划升级为“设计 → 保存计划 → 本地实现 → 验证”，不等待人工审批计划；保留显式 `plan-only` / `review-only`，计划持久保存在 `docs/plans/`。
+- 专用组件按目标 Skill 标准目录托管，明确 Verifier-only、宿主回传、版本/alias、失败恢复及复制后验证；不默认修改 Kernel 或安装副本。
+- 保留已规范化的正文骨架、公共约束和既有删除影响/Kernel 两层审查规则，在原有设计能力之上增加执行闭环。
+
+### Validation（验证）
+- Python 3.12 与仓库 Kernel 源码环境通过 31 个定向用例，覆盖零组件、单类/双类组件、标准布局、索引/声明拒绝、alias、越界、复制后发现、脚本成功/失败与 Agent 待回传；未进行完整模型端到端评测。
+- Skill strict 结构检查、双语指南检查、Ruff 与 Diff 空白检查通过；旧版已安装 Kernel 缺 API 时返回受阻，不自动改动系统环境。
 
 ## [0.2.1] - 2026-08-31
 
