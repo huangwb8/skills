@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
-### Changed（变更）
-- `verifier-state-architect` 从规划顾问升级为默认设计并落地目标 Skill 的执行者；计划先保存供 AI 连续执行和人类事后审查，显式只读模式仍不修改源码。新增托管/加载检查脚本与安装后可用的执行参考，同步双语指南和项目调用边界，不修改 Kernel 或系统安装副本。
+## [5.0.4] - 2026-09-09
 
 ### Added（新增）
 - 新增 `skills/alpha/verifier-state-architect/references/skill-pack-hosting.md`，作为 Skill 专用 Verifier / State 托管规范的唯一维护入口，随 Skill 发布和安装；`AGENTS.md`、教程和落地参考统一引用，不在 `docs/` 保留规范副本。
+
+### Changed（变更）
+- `verifier-state-architect` 从规划顾问升级为默认设计并落地目标 Skill 的执行者；计划先保存供 AI 连续执行和人类事后审查，显式只读模式仍不修改源码。新增托管/加载检查脚本与安装后可用的执行参考，同步双语指南和项目调用边界，不修改 Kernel 或系统安装副本。
+- 发布 `bensz-skill-kernel` 1.0.3 到 PyPI：包版本随仓库 v5.0.4 发布同步提升，122 个包内测试全部通过；本轮 Kernel 源码无变更，根级与 Kernel 中英 README 经 `write-readme` 流程与 `check_readme_pair.py` 核验已与源代码对齐，无需改写。
 
 ### Fixed（修复）
 - 修正 BSK 教程的 Contract Pack 目录示意，明确 `index.json` 属于集合根目录而非单个 Pack；本次仅更新文档，不改变运行时或现有 Skill 资产。
