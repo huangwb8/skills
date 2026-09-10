@@ -562,17 +562,17 @@ def main() -> None:
     parser.add_argument("--postprocess-resize", action="store_true", default=None, help="显式启用后处理尺寸对齐；默认保留 provider 原生输出")
     parser.add_argument("--postprocess-width", type=int, default=0, help="后处理目标宽度；需配合 --postprocess-resize")
     parser.add_argument("--postprocess-height", type=int, default=0, help="后处理目标高度；需配合 --postprocess-resize")
-    parser.add_argument("--quality", default="", help="gpt-image-2 quality：low/medium/high/auto")
-    parser.add_argument("--provider-size", default="", help="gpt-image-2 原生尺寸枚举，默认 1024x1024")
-    parser.add_argument("--output-format", default="", help="gpt-image-2 输出格式：jpeg/png/webp")
+    parser.add_argument("--quality", default="", help="OpenAI 图片模型 quality：low/medium/high/auto")
+    parser.add_argument("--provider-size", default="", help="OpenAI 图片模型原生尺寸枚举，默认 1024x1024")
+    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp")
     parser.add_argument("--output-compression", type=int, default=-1, help="输出压缩 0-100；默认使用配置值")
     parser.add_argument("--api-env", default="", help="remote.env 路径")
     parser.add_argument("--mode", default="", help="绘图模式：general（默认）/ roadmap / schematic")
-    parser.add_argument("--provider", default="auto", help="图片 provider：auto（默认）/ gpt-image-2 / nano_banana")
+    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2 / nano_banana")
     parser.add_argument(
         "--allow-provider-fallback",
         action="store_true",
-        help="provider 故障时允许从 gpt-image-2 切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
+        help="provider 故障时允许从 OpenAI 图片模型切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
     )
     parser.add_argument("--allow-outside-project", action="store_true", help="允许 workspace/output 写到 project_root 外部")
     parser.add_argument("--reference-image", action="append", default=[], help="可重复传入参考图")

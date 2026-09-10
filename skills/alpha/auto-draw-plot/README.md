@@ -36,7 +36,7 @@
 - max_rounds：3
 ```
 
-尺寸可以用自然语言写在 Prompt 里作为布局参考，例如 `画布比例：16:9`、`期望布局：1800 x 1697`。如果你直接运行脚本，`--canvas-width` 和 `--canvas-height` 只影响布局提示，不承诺最终像素。为控制真实调用成本，`gpt-image-2` 默认显式请求 `quality=low`、最小方形原生尺寸 `1024x1024` 和 `output_format=jpeg`。
+尺寸可以用自然语言写在 Prompt 里作为布局参考，例如 `画布比例：16:9`、`期望布局：1800 x 1697`。如果你直接运行脚本，`--canvas-width` 和 `--canvas-height` 只影响布局提示，不承诺最终像素。为控制真实调用成本，OpenAI 图片模型默认使用 `gpt-image-2.5-flare`，并显式请求 `quality=low`、最小方形原生尺寸 `1024x1024` 和 `output_format=jpeg`。
 
 ## 模式选择
 
@@ -99,7 +99,7 @@
 | 宽幅机制图 | schematic 首轮生成与多轮优化 | `宽幅机制图，约 16:10` | `--canvas-width 1920 --canvas-height 1200` |
 | 竖版 A4 | 需要接近 A4 竖版比例 | `竖版 A4 比例` | `--canvas-width 2400 --canvas-height 3394` |
 
-`gpt-image-2` 默认固定请求最低成本的 `1024x1024` 原生尺寸；画布宽高仍会进入 prompt 作为布局意图，但不会把 provider 请求提高到更大的原生尺寸。Nano Banana/Gemini 会按 provider 的 `aspectRatio` / `imageSize` 能力返回图片。若要出版级清晰文字，优先使用矢量重排、程序化绘图或后续排版处理，不要依赖插值放大。
+OpenAI 图片模型默认固定请求最低成本的 `1024x1024` 原生尺寸；画布宽高仍会进入 prompt 作为布局意图，但不会把 provider 请求提高到更大的原生尺寸。Nano Banana/Gemini 会按 provider 的 `aspectRatio` / `imageSize` 能力返回图片。若要出版级清晰文字，优先使用矢量重排、程序化绘图或后续排版处理，不要依赖插值放大。
 
 ## 工作原理
 
@@ -109,21 +109,21 @@
 
 图片生成默认使用 `auto` provider 选择：运行前按优先级寻找一个配置、连接和鉴权检查通过的图片 provider。这里的 `/v1/models` 探测不执行完整 Images 计费资格检查，因此输出 `connectivity/authentication_ok` 只表示“能连通且 Key 可鉴权”，不表示当前请求已经 `generation_eligible`。真实生成资格以 `/images/jobs/generations` 或 `/images/jobs/edits` 的 submit 响应为准。
 
-生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2` 画图”，`gpt-image-2` 失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage、计费服务错误，以及 submit 空/非 JSON 等无法确认 job 是否已创建的协议错误，即使开启该选项也不会跨 provider，以免掩盖真实业务故障或重复生成计费。
+生成过程中默认不跨模型回退；如果你明确要求“用 `gpt-image-2.5-sunburst` 画图”或“用 `gpt-image-2` 画图”，对应模型失败时会停止并报告原因，不会自动改用 Nano Banana / Gemini。只有你明确说“provider 故障时可以换模型”时，才允许开启 provider fallback；订阅、余额、权限、overage、计费服务错误，以及 submit 空/非 JSON 等无法确认 job 是否已创建的协议错误，即使开启该选项也不会跨 provider，以免掩盖真实业务故障或重复生成计费。
 
-`gpt-image-2` 默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/v1/images/jobs/generations`，参考图编辑提交到 `/v1/images/jobs/edits`。配置为 `https://<subdomain>.benszresearch.com` 的根地址时，客户端会在安全校验后自动规范为 `.../v1`；已显式配置 `/v1` 时保持不变。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/v1/images/generations` 或 `/v1/images/edits` 长连接更容易暴露在 504 风险下。
+`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 共享 OpenAI Images provider，默认主动使用 Sub2API 的 image job endpoint：文本出图提交到 `/v1/images/jobs/generations`，参考图编辑提交到 `/v1/images/jobs/edits`。配置为 `https://<subdomain>.benszresearch.com` 的根地址时，客户端会在安全校验后自动规范为 `.../v1`；已显式配置 `/v1` 时保持不变。这样长耗时图片任务会在服务端 job 中运行，客户端只负责轮询，避免同步 `/v1/images/generations` 或 `/v1/images/edits` 长连接更容易暴露在 504 风险下。
 
 同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 时，脚本才会改用旧同步端点。服务端尚未确认持久幂等语义前，submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等 `retryable=false` 错误不会退避重试，`2xx` 空/非 JSON 响应也不会重放，poll/result 的临时故障独立处理。JSON 与 multipart 请求都会发送单次生成的安全 `X-Client-Request-ID`；此类协议错误会在 `image-debug/gpt-image-2-error.json` 中记录服务端回传的安全 `X-Request-ID` / `X-Client-Request-ID`、HTTP 状态、origin/path、Content-Type、声明/实际长度、正文 SHA-256、首字节类别和重定向变化，但不会保存 query、鉴权头、prompt 或原始响应正文。参考图证据同样只记录 SHA-256，不记录 API Key 或内部订阅明细。
 
 ## 配置
 
-推荐配置在 `~/.bensz-skills/config/remote.env` 或环境变量中。如果只使用 `gpt-image-2`，不需要配置 Gemini。
+推荐配置在 `~/.bensz-skills/config/remote.env` 或环境变量中。如果只使用 OpenAI 图片模型，不需要配置 Gemini。
 
 ```bash
-# gpt-image-2 主路径
+# OpenAI 图片模型主路径；不设置 OPENAI_IMAGE_MODEL 时默认 gpt-image-2.5-flare
 OPENAI_BASE_URL=https://api.benszresearch.com/v1
 OPENAI_API_KEY=你的密钥
-OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_IMAGE_MODEL=gpt-image-2.5-flare
 
 # Nano Banana/Gemini 图片 provider 路径（仅在使用该 provider 或明确允许图片回退时需要）
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
@@ -149,7 +149,7 @@ Prompt 调用是推荐用法；当你需要固定参数、批量跑图或接入�
 ```bash
 python3 auto-draw-plot/scripts/run_draw_plot.py \
   --mode roadmap \
-  --provider gpt-image-2 \
+  --provider gpt-image-2.5-flare \
   --request-text "画一张白底技术路线图：三阶段研究任务，包含风险控制和验证闭环。" \
   --canvas-width 1800 \
   --canvas-height 1697 \
@@ -167,12 +167,12 @@ python3 auto-draw-plot/scripts/run_draw_plot.py \
 | `--postprocess-resize` | 显式启用尺寸后处理；必须同时提供 `--postprocess-width` 与 `--postprocess-height` |
 | `--postprocess-width` | 后处理目标宽度，需配合 `--postprocess-resize` |
 | `--postprocess-height` | 后处理目标高度，需配合 `--postprocess-resize` |
-| `--quality` | `gpt-image-2` 画质：`low` / `medium` / `high` / `auto`，默认 `low` |
-| `--provider-size` | `gpt-image-2` 原生尺寸枚举，默认 `1024x1024` |
+| `--quality` | OpenAI 图片模型画质：`low` / `medium` / `high` / `auto`，默认 `low` |
+| `--provider-size` | OpenAI 图片模型原生尺寸枚举，默认 `1024x1024` |
 | `--output-format` | `jpeg` / `png` / `webp`，默认 `jpeg` |
 | `--output-compression` | `0-100`，默认 `85` |
 | `--reference-image` | 用户参考图；第 2 轮起上一轮输出图会自动排在这些参考图之前 |
-| `--provider` | 图片 provider：`auto` / `gpt-image-2` / `nano_banana`；用户点名模型时应显式传入 |
+| `--provider` | 图片 provider/model：`auto` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` / `gpt-image-2` / `nano_banana`；用户点名模型时应显式传入 |
 | `--allow-provider-fallback` | 只有用户明确允许 provider 故障时换模型才使用；计费、权限与客户端策略错误仍不回退 |
 | `--api-env` | 自定义 env 文件 |
 | `--allow-outside-project` | 允许输出或工作区写到 `project_root` 外部 |
@@ -185,7 +185,7 @@ python3 auto-draw-plot/scripts/run_draw_plot.py \
 python3 auto-draw-plot/scripts/nano_banana_check.py
 ```
 
-这个命令名保留旧兼容性，实际会检查当前图片 provider 优先级。对 `gpt-image-2`，它只检查配置、连接与鉴权；看到 `generation_eligible=unknown_until_image_submit` 是正常结果，真正的准入判断发生在图片 submit。
+这个命令名保留旧兼容性，实际会检查当前图片 provider 优先级。对 OpenAI 图片模型，它只检查配置、连接与鉴权；看到 `generation_eligible=unknown_until_image_submit` 是正常结果，真正的准入判断发生在图片 submit。
 
 ## FAQ
 
@@ -193,7 +193,7 @@ python3 auto-draw-plot/scripts/nano_banana_check.py
 
 A：可以写，但它只作为布局和 provider 尺寸选择参考。默认最终图片保留 provider 原生尺寸；如果 meta 里看到 `native_size` 与 `output_size` 一致，说明没有后处理插值。
 
-### Q：为什么指定 `gpt-image-2` 后没有自动回退到 Nano Banana？
+### Q：为什么指定 OpenAI 图片模型后没有自动回退到 Nano Banana？
 
 A：这是预期行为。用户点名模型时，skill 会尊重这个选择；如果配置、额度或端点失败，会停止并报告原因。只有你明确允许 provider 故障时换模型，脚本才会使用 `--allow-provider-fallback`；订阅、余额、权限、overage 与计费服务错误不会借此切换模型。
 
@@ -205,9 +205,9 @@ A：检查阶段的 `OK connectivity/authentication_ok` 只证明 base URL 可�
 
 A：它表示 HTTP 客户端收到了成功状态，但正文为空或不是 Sub2API Images 约定的 JSON。由于客户端无法确认服务端是否已经创建 job，脚本不会自动重试，也不会跨 provider 再生成；请保留 `image-debug/gpt-image-2-error.json`，用其中不含密钥和正文的 `request_id`、`client_request_id`、状态、路径、长度、类型与指纹联系管理员排查边缘/代理链路。
 
-### Q：使用 `gpt-image-2` 时还会调用 Gemini 做文本规划或评估吗？
+### Q：使用 OpenAI 图片模型时还会调用 Gemini 做文本规划或评估吗？
 
-A：不会。`gpt-image-2` 路径默认不需要 Gemini 配置；prompt 规划由当前宿主 AI 和脚本本地模板完成，脚本评估默认是启发式检查，最终语义质量由宿主 AI 根据图片把关。
+A：不会。OpenAI 图片路径默认不需要 Gemini 配置；prompt 规划由当前宿主 AI 和脚本本地模板完成，脚本评估默认是启发式检查，最终语义质量由宿主 AI 根据图片把关。
 
 ### Q：多轮优化是在重画，还是沿着上一张图继续改？
 

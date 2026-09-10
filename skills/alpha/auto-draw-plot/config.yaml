@@ -1,7 +1,7 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.3.2"
-  description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
+  version: "0.3.3"
+  description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2.5-flare、gpt-image-2.5-sunburst、gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
   author: "Bensz Conan"
   category: "image-generation"
 
@@ -34,7 +34,7 @@ directories:
 api:
   env_path: "~/.bensz-skills/config/remote.env"
   provider_priority:
-    - "gpt-image-2"
+    - "gpt-image-2.5-flare"
     - "nano_banana"
   default_provider: "auto"
   allow_provider_fallback: false
@@ -42,7 +42,12 @@ api:
   codex_config_path: "~/.codex/config.toml"
   codex_auth_path: "~/.codex/auth.json"
   gpt_image_2:
-    model: "gpt-image-2"
+    model: "gpt-image-2.5-flare"
+    provider: "gpt-image-2"
+    allowed_models:
+      - "gpt-image-2.5-flare"
+      - "gpt-image-2.5-sunburst"
+      - "gpt-image-2"
     allowed_base_domains:
       - "benszresearch.com"
     env_base_url_keys:

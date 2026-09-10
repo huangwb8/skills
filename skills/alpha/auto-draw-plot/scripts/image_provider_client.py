@@ -131,7 +131,7 @@ class ProviderJobError(RuntimeError):
         self.safe_message = _redact_sensitive_error_text(message or "image generation job failed")
         self.category = _classify_provider_error(http_status=None, error_code=self.error_code)
         super().__init__(
-            "gpt-image-2 异步图片任务失败："
+            "OpenAI 图片异步任务失败："
             f"job_id={self.job_id}; status={self.status}; code={self.error_code}; message={self.safe_message}"
         )
 
@@ -161,16 +161,19 @@ def resolve_image_provider(
     api_cfg = cfg.get("api", {}) if isinstance(cfg.get("api"), dict) else {}
     requested_provider = _normalize_provider(provider_name or "")
     priority = (
-        [requested_provider]
+        [str(provider_name or "").strip()]
         if requested_provider and requested_provider != "auto"
-        else [str(item).strip() for item in (api_cfg.get("provider_priority") or ["gpt-image-2", "nano_banana"])]
+        else [str(item).strip() for item in (api_cfg.get("provider_priority") or ["gpt-image-2.5-flare", "nano_banana"])]
     )
     errors: List[str] = []
     for provider in priority:
         normalized = _normalize_provider(provider)
         try:
             if normalized == "gpt-image-2":
-                image_cfg = load_gpt_image_2_config(remote_env_path=remote_env_path)
+                image_cfg = load_gpt_image_2_config(
+                    remote_env_path=remote_env_path,
+                    model_override=_openai_model_from_provider_name(provider),
+                )
                 if run_healthcheck:
                     preflight_status = _openai_health_check(image_cfg, timeout_s=timeout_s)
                     image_cfg = image_cfg.with_preflight(
@@ -210,7 +213,11 @@ def resolve_image_provider(
     raise ProviderUnavailable("未找到可用图片生成 provider：" + " | ".join(errors))
 
 
-def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageProviderConfig:
+def load_gpt_image_2_config(
+    *,
+    remote_env_path: Optional[Path] = None,
+    model_override: Optional[str] = None,
+) -> ImageProviderConfig:
     cfg = load_config()
     api_cfg = cfg.get("api", {}) if isinstance(cfg.get("api"), dict) else {}
     gpt_cfg = api_cfg.get("gpt_image_2", {}) if isinstance(api_cfg.get("gpt_image_2"), dict) else {}
@@ -233,10 +240,14 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
                 ", ".join(conflicts)
             )
         )
-    if not model:
-        model = str(gpt_cfg.get("model") or "gpt-image-2")
-    if str(model).strip() != str(gpt_cfg.get("model") or "gpt-image-2"):
-        raise ProviderUnavailable(f"OpenAI 图片模型必须是 {gpt_cfg.get('model', 'gpt-image-2')}，当前为 {model!r}")
+    model = str(model_override or model or _default_openai_image_model(gpt_cfg)).strip()
+    if model_override:
+        source = "+".join(dict.fromkeys([*source.split("+"), "provider_arg"])) if source else "provider_arg"
+    allowed_models = _allowed_openai_image_models(gpt_cfg)
+    if model not in allowed_models:
+        raise ProviderUnavailable(
+            "OpenAI 图片模型必须是 {} 之一，当前为 {!r}".format(", ".join(allowed_models), model)
+        )
     if not base_url:
         raise ProviderUnavailable("缺少 OPENAI_BASE_URL / OPENAI_API_BASE，且未从 Codex 配置找到 BenszAPI base_url")
     if not api_key:
@@ -248,7 +259,7 @@ def load_gpt_image_2_config(*, remote_env_path: Optional[Path] = None) -> ImageP
     if urllib.parse.urlparse(base_url).path.rstrip("/") == "":
         base_url = f"{base_url}/v1"
     return ImageProviderConfig(
-        provider="gpt-image-2",
+        provider=str(gpt_cfg.get("provider") or "gpt-image-2"),
         base_url=base_url,
         api_key=str(api_key).strip(),
         model=str(model).strip(),
@@ -285,7 +296,7 @@ def generate_image_png(
         postprocess_w=postprocess_w,
         postprocess_h=postprocess_h,
     )
-    if provider_cfg.provider == "gpt-image-2":
+    if _is_openai_image_provider(provider_cfg):
         result = _generate_openai_png(
             cfg=provider_cfg,
             prompt=prompt,
@@ -354,6 +365,7 @@ def _generate_openai_png(
     output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
     refs = [Path(p) for p in (reference_images or [])]
+    model_label = _openai_model_label(cfg)
     if refs:
         return _generate_openai_edit_png(
             cfg=cfg,
@@ -409,7 +421,7 @@ def _generate_openai_png(
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
             retries=submit_retries,
-            retry_message="gpt-image-2 暂时不可用",
+            retry_message=f"{model_label} 暂时不可用",
         )
     except ProviderHTTPError as exc:
         if not _can_fallback_openai_async_job_to_sync(exc):
@@ -441,7 +453,7 @@ def _generate_openai_png(
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
             retries=submit_retries,
-            retry_message="gpt-image-2 兼容同步接口暂时不可用",
+            retry_message=f"{model_label} 兼容同步接口暂时不可用",
         )
     response = _resolve_openai_image_response(
         initial_response=response,
@@ -456,7 +468,7 @@ def _generate_openai_png(
     best = _best_image(_extract_openai_images(response))
     if best is None:
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
-        raise RuntimeError(f"未从 gpt-image-2 响应中提取到图片。response_excerpt={excerpt}")
+        raise RuntimeError(f"未从 {model_label} 响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
     mime = _write_provider_image(output_png, mime, raw)
     size_meta = _build_output_size_meta(
@@ -498,6 +510,7 @@ def _generate_openai_edit_png(
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
 ) -> Dict[str, Any]:
+    model_label = _openai_model_label(cfg)
     refs = _existing_reference_images(reference_images)
     requested_size = _openai_requested_size(canvas_w, canvas_h, provider_size)
     quality, output_format, output_compression = _openai_generation_options(
@@ -550,7 +563,7 @@ def _generate_openai_edit_png(
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
             retries=submit_retries,
-            retry_message="gpt-image-2 编辑暂时不可用",
+            retry_message=f"{model_label} 编辑暂时不可用",
         )
     except ProviderHTTPError as exc:
         if not _can_fallback_openai_async_job_to_sync(exc):
@@ -596,7 +609,7 @@ def _generate_openai_edit_png(
             headers={"Authorization": f"Bearer {cfg.api_key}"},
             timeout_s=timeout_s,
             retries=submit_retries,
-            retry_message="gpt-image-2 兼容编辑接口暂时不可用",
+            retry_message=f"{model_label} 兼容编辑接口暂时不可用",
         )
     response = _resolve_openai_image_response(
         initial_response=response,
@@ -611,7 +624,7 @@ def _generate_openai_edit_png(
     best = _best_image(_extract_openai_images(response))
     if best is None:
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
-        raise RuntimeError(f"未从 gpt-image-2 编辑响应中提取到图片。response_excerpt={excerpt}")
+        raise RuntimeError(f"未从 {model_label} 编辑响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
     mime = _write_provider_image(output_png, mime, raw)
     size_meta = _build_output_size_meta(
@@ -954,7 +967,7 @@ def _resolve_openai_image_response(
     )
     if not status_urls:
         raise RuntimeError(
-            "gpt-image-2 返回了异步图片任务，但响应中没有可轮询的 status_url 或 job_id。"
+            f"{_openai_model_label(cfg)} 返回了异步图片任务，但响应中没有可轮询的 status_url 或 job_id。"
             f"endpoint={endpoint}; status={job.get('status') or 'unknown'}"
         )
 
@@ -997,7 +1010,7 @@ def _resolve_openai_image_response(
                 return result
             if attempt > 0:
                 raise RuntimeError(
-                    "gpt-image-2 异步图片任务已完成，但响应中没有可提取图片："
+                    f"{_openai_model_label(cfg)} 异步图片任务已完成，但响应中没有可提取图片："
                     f"job_id={job.get('job_id') or 'unknown'}"
                 )
 
@@ -1023,7 +1036,7 @@ def _resolve_openai_image_response(
             write_json(debug_dir / "async-job-polls.json", poll_log)
 
     raise TimeoutError(
-        "gpt-image-2 异步图片任务轮询超时："
+        f"{_openai_model_label(cfg)} 异步图片任务轮询超时："
         f"job_id={job.get('job_id') or 'unknown'}; max_wait_s={max_wait_s:g}; endpoint={endpoint}"
     )
 
@@ -1537,7 +1550,7 @@ def _existing_reference_images(reference_images: List[Path]) -> List[Path]:
             raise ValueError(f"参考图过大：{ref} ({size_bytes} bytes > {max_bytes} bytes)")
         refs.append(ref)
     if not refs:
-        raise ValueError("gpt-image-2 编辑模式需要至少 1 张参考图。")
+        raise ValueError("OpenAI 图片编辑模式需要至少 1 张参考图。")
     return refs
 
 
@@ -1624,7 +1637,7 @@ def _openai_requested_size(w: int, h: int, requested: Optional[str] = None) -> s
     configured = str(requested or gen_cfg.get("provider_size") or "").strip().lower()
     if configured:
         if configured not in {"1024x1024", "1536x1024", "1024x1536", "auto"}:
-            raise ValueError(f"不支持的 gpt-image-2 provider_size：{configured}")
+            raise ValueError(f"不支持的 OpenAI 图片 provider_size：{configured}")
         return configured
     return _choose_openai_size(w, h)
 
@@ -1847,13 +1860,13 @@ def _validate_benszresearch_base_url(base_url: str, *, allowed_domains: List[str
     parsed = urllib.parse.urlparse(base_url)
     host = (parsed.hostname or "").lower()
     if parsed.scheme != "https" or not host:
-        raise ProviderUnavailable("gpt-image-2 base_url 必须是 https URL")
+        raise ProviderUnavailable("OpenAI 图片 base_url 必须是 https URL")
     if parsed.username or parsed.password:
-        raise ProviderUnavailable("gpt-image-2 base_url 不允许包含 userinfo")
+        raise ProviderUnavailable("OpenAI 图片 base_url 不允许包含 userinfo")
     if parsed.query or parsed.fragment:
-        raise ProviderUnavailable("gpt-image-2 base_url 不允许包含 query 或 fragment")
+        raise ProviderUnavailable("OpenAI 图片 base_url 不允许包含 query 或 fragment")
     if parsed.path.rstrip("/") not in {"", "/v1"}:
-        raise ProviderUnavailable("gpt-image-2 base_url 只允许空路径或 /v1")
+        raise ProviderUnavailable("OpenAI 图片 base_url 只允许空路径或 /v1")
     allowed = False
     for domain in allowed_domains:
         domain = domain.lstrip(".").lower()
@@ -1861,7 +1874,43 @@ def _validate_benszresearch_base_url(base_url: str, *, allowed_domains: List[str
             allowed = True
             break
     if not allowed:
-        raise ProviderUnavailable("gpt-image-2 base_url 必须是 benszresearch.com 的子域名")
+        raise ProviderUnavailable("OpenAI 图片 base_url 必须是 benszresearch.com 的子域名")
+
+
+def _default_openai_image_model(gpt_cfg: Dict[str, Any]) -> str:
+    return str(gpt_cfg.get("model") or "gpt-image-2.5-flare").strip()
+
+
+def _allowed_openai_image_models(gpt_cfg: Optional[Dict[str, Any]] = None) -> List[str]:
+    cfg = gpt_cfg or {}
+    configured = cfg.get("allowed_models")
+    if isinstance(configured, list):
+        models = [str(item).strip() for item in configured if str(item).strip()]
+    else:
+        models = []
+    for model in (_default_openai_image_model(cfg), "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"):
+        if model and model not in models:
+            models.append(model)
+    return models
+
+
+def _openai_model_from_provider_name(value: str) -> Optional[str]:
+    raw = str(value or "").strip()
+    normalized = raw.lower().replace("_", "-")
+    if normalized == "gptimage2":
+        return "gpt-image-2"
+    for model in _allowed_openai_image_models():
+        if normalized == model.lower():
+            return model
+    return None
+
+
+def _is_openai_image_provider(cfg: ImageProviderConfig) -> bool:
+    return str(cfg.provider or "").strip() == "gpt-image-2"
+
+
+def _openai_model_label(cfg: ImageProviderConfig) -> str:
+    return str(cfg.model or cfg.provider or "OpenAI 图片模型").strip()
 
 
 def _secret_fingerprint(value: str) -> str:
@@ -2069,7 +2118,7 @@ def _normalize_provider(value: str) -> str:
     v = str(value or "").strip().lower().replace("_", "-")
     if v in {"", "auto"}:
         return "auto" if v == "auto" else ""
-    if v in {"gpt-image-2", "openai", "gptimage2"}:
+    if v in {"openai", "gptimage2"} or v in {model.lower() for model in _allowed_openai_image_models()}:
         return "gpt-image-2"
     if v in {"nano-banana", "nano_banana", "gemini", "google"}:
         return "nano_banana"

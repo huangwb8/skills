@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.5] - 2026-09-11
+
+### Added（新增）
+- 同步 `skills/alpha/auto-draw-plot` 0.3.2 → 0.3.3（源自 BenszAPI 外部开发源）：OpenAI 图片路径新增 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 三模型白名单，默认模型切换为 `gpt-image-2.5-flare`；三者共享既有 BenszAPI 子域名校验、异步 image job endpoint、低成本 JPEG 默认参数和不确定 submit 不重放约束。
+
+### Changed（变更）
+- 确认 `bensz-skill-kernel` 保持 1.0.3：本地 `pyproject.toml` 与 PyPI 已发布版本一致，本版本无 Kernel 包变更。
+- 根级中英 README 经 `write-readme` 流程与 `check_readme_pair.py` 核验已与源代码对齐：本轮 `auto-draw-plot` 模型白名单变更不触及根 README 事实声明，生产 Skill 数量 16 保持一致，无需改写。
+
 ## [5.0.4] - 2026-09-09
 
 ### Added（新增）

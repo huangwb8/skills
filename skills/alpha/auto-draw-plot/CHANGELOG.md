@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Added
+- 版本 `0.3.2 → 0.3.3`：OpenAI 图片路径新增 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 三模型白名单，默认模型切换为 `gpt-image-2.5-flare`；`--provider` 可显式固定任一模型，三者共享既有 BenszAPI 子域名校验、异步 image job endpoint、低成本 JPEG 默认参数和不确定 submit 不重放约束。
+
 ### Changed
 - 版本 `0.3.1 → 0.3.2`：恢复从 Codex provider 配置读取 `experimental_bearer_token` 的兼容行为，确保新规范重排不改变设备级 Codex 生图功能。
 - 修复 Codex provider 认证读取：优先使用 `~/.codex/config.toml` 中 BenszAPI provider 的 bearer token，恢复设备级 Codex 配置可直接驱动图片 provider 的行为；`remote.env` 保留为兜底来源。

@@ -91,6 +91,7 @@ def generate_image(
         if provider_cfg.provider != "gpt-image-2":
             raise
         gpt_error = exc
+        model_label = str(provider_cfg.model or provider_cfg.provider)
         if debug_dir is not None:
             write_json(
                 debug_dir / "gpt-image-2-error.json",
@@ -104,21 +105,21 @@ def generate_image(
             )
         if not allow_provider_fallback:
             raise RuntimeError(
-                "gpt-image-2 生成失败，未切换到其他图片模型。"
+                f"{model_label} 生成失败，未切换到其他图片模型。"
                 "只有用户明确要求允许模型回退时，才会改用 Nano Banana/Gemini。"
                 f"错误：{gpt_error}"
             ) from gpt_error
         if not is_provider_fallback_allowed(gpt_error):
             raise RuntimeError(
-                "gpt-image-2 请求已被服务端计费、权限或客户端策略拒绝，未跨 provider 回退。"
+                f"{model_label} 请求已被服务端计费、权限或客户端策略拒绝，未跨 provider 回退。"
                 "请根据结构化错误码修复订阅、余额、权限或计费服务状态后重试。"
                 f"错误：{gpt_error}"
             ) from gpt_error
-        warn(f"gpt-image-2 生成失败，用户已允许回退，改用 Nano Banana/Gemini：{exc}")
+        warn(f"{model_label} 生成失败，用户已允许回退，改用 Nano Banana/Gemini：{exc}")
         try:
             gemini_cfg = load_gemini_config(remote_env_path=remote_env)
         except Exception as gemini_exc:
-            raise RuntimeError(f"gpt-image-2 生成失败，且 Nano Banana/Gemini 回退不可用：gpt={gpt_error}; gemini={gemini_exc}") from gemini_exc
+            raise RuntimeError(f"{model_label} 生成失败，且 Nano Banana/Gemini 回退不可用：gpt={gpt_error}; gemini={gemini_exc}") from gemini_exc
         result = generate_image_png(
             provider_cfg=ImageProviderConfig(
                 provider="nano_banana",
@@ -150,7 +151,7 @@ def generate_image(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="调用图片 provider 生成图片；gpt-image-2 默认请求低画质 JPEG。")
+    parser = argparse.ArgumentParser(description="调用图片 provider 生成图片；OpenAI 图片模型默认请求低画质 JPEG。")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--prompt-file", help="prompt 文件路径")
     group.add_argument("--prompt-text", help="直接传入 prompt 文本")
@@ -161,17 +162,17 @@ def main() -> None:
     parser.add_argument("--postprocess-resize", action="store_true", default=None, help="显式启用后处理尺寸对齐；默认保留 provider 原生输出")
     parser.add_argument("--postprocess-width", type=int, default=0, help="后处理目标宽度；需配合 --postprocess-resize")
     parser.add_argument("--postprocess-height", type=int, default=0, help="后处理目标高度；需配合 --postprocess-resize")
-    parser.add_argument("--quality", default="", help="gpt-image-2 quality：low/medium/high/auto")
-    parser.add_argument("--provider-size", default="", help="gpt-image-2 原生尺寸枚举，默认 1024x1024")
-    parser.add_argument("--output-format", default="", help="gpt-image-2 输出格式：jpeg/png/webp")
+    parser.add_argument("--quality", default="", help="OpenAI 图片模型 quality：low/medium/high/auto")
+    parser.add_argument("--provider-size", default="", help="OpenAI 图片模型原生尺寸枚举，默认 1024x1024")
+    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp")
     parser.add_argument("--output-compression", type=int, default=-1, help="输出压缩 0-100；默认使用配置值")
     parser.add_argument("--debug-dir", default="", help="调试目录")
     parser.add_argument("--reference-image", action="append", default=[], help="可重复传入参考图路径")
-    parser.add_argument("--provider", default="auto", help="图片 provider：auto（默认）/ gpt-image-2 / nano_banana")
+    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2 / nano_banana")
     parser.add_argument(
         "--allow-provider-fallback",
         action="store_true",
-        help="provider 故障时允许从 gpt-image-2 切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
+        help="provider 故障时允许从 OpenAI 图片模型切到 Nano Banana/Gemini；计费、权限与客户端策略错误仍不回退",
     )
     parser.add_argument("--require-reference-images", action="store_true", help="传入参考图时必须使用可消费参考图的 provider")
     args = parser.parse_args()
