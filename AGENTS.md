@@ -149,6 +149,33 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 - **新增能力的审查顺序**：先判断能力是否属于 State/Verifier 共用的执行、证据或审计基础设施；若是，提炼到共享 Pack 层；若只表达状态迁移或验证命题，再放入相应适配器。只有独立注册、版本化且跨场景复用的组件才提升为顶层 Pack/Verifier/State。
 - **文档与实现必须同步表达该边界**：`STATE.md`、`VERIFIER.md` 负责个性化契约，`index.json` 和共享运行协议负责机器可读执行元数据；计划、README、教程和测试不得把某一方的实现细节误写成另一方的通用规则。
 
+### BSK 与 State / Verifier Pack 的职责边界
+
+`bensz-skill-kernel`（BSK）只托管 State 与 Verifier 共用的最底层运行基础设施，不托管单个 State 或 Verifier 的个性化判断逻辑。BSK 的职责包括 Pack 目录发现、`index.json` 解析、ID/version/alias 校验、Markdown 契约加载、package data 分发、JSON stdio 执行边界、组件执行计划、hash 绑定、handoff/result 绑定、evidence 快照、状态/判定枚举归一化、Gate 聚合、事件审计与可重放运行协议。
+
+单个 Verifier 的验证命题、判定规则、facts/findings 结构、证据解释、脚本实现、agent/human 执行说明和失败边界，必须优先放在该 Verifier 自己的目录中，例如 `verifiers/<verifier-name>/VERIFIER.md`、`verifiers/<verifier-name>/scripts/`、`verifiers/<verifier-name>/references/`。单个 State 的阶段语义、进入/离开条件、状态转移、invariant、快照字段、脚本实现和人工介入说明，也必须优先放在该 State 自己的目录中，例如 `states/<state-name>/STATE.md`、`states/<state-name>/scripts/`、`states/<state-name>/references/`。
+
+不得因为多个 Pack 都是“简单规则”就把它们集中写入 BSK 的中央 dispatcher、巨大 `if name == ...` 分发函数或按 Pack 名称切换业务语义的共享模块。只有确实跨 State 与 Verifier 复用、且不表达任何具体阶段/验证命题含义的能力，才可以提升到 BSK 共享层；例如请求拆分、evidence 映射、结果包装、stdio main、路径安全解析、hash 计算、组件绑定校验等。
+
+判断一段代码是否应进入 BSK，必须先通过以下门禁：
+
+- 若删除某个具体 Verifier 或 State 后，这段代码就失去主要意义，则它属于该 Pack 自己的子目录。
+- 若代码需要知道具体 verifier/state 名称、具体 finding ID、具体 required field、具体状态边或具体业务判定，则它不属于 BSK 共享层。
+- 若代码只处理通用协议、存储、执行、绑定、审计、序列化或安全边界，并可被多个 Pack 无语义差异地复用，才可以放入 BSK。
+- 新增 State / Verifier 时，默认新建或修改对应 Pack 子目录；不得先修改 Kernel 中央逻辑，除非发现的是通用运行能力缺口。
+
+State 与 Verifier 可以共享同一种 Pack 托管和执行底座，但语义适配必须分层：State 表达生命周期阶段、转移和 invariant；Verifier 表达验证命题、证据、verdict 和 Gate。共享执行器不得把两者的领域语义混成一个通用对象，也不得让 BSK 通过硬编码 Pack 名称承担具体 State 或 Verifier 的判断职责。
+
+### State Pack 模块化与热插拔边界
+
+State Pack 的架构原则是：`states/<state>/` 或 Skill 自有 `references/states/<state>/` 是状态能力包边界；BSK 是状态能力包的加载器、执行器和审计底座，不是状态业务逻辑的宿主。
+
+- 内置 State 目录保持扁平布局；`runtime`、`workspace`、领域状态等差异通过 canonical ID、`kind`、`classification` 和 `tags` 表达，不因概念分类新增 `runtime/`、`workspace/` 等中间目录，除非项目负责人明确要求整体迁移。
+- 每个 State 子目录应承载该状态的大部分特色功能：`STATE.md` 写阶段语义、入口/离开条件、证据和转移解释；确定性检查放在本状态目录的 `scripts/` 或索引声明的组件中；需要 Agent/人工判断时通过 `components`、handoff 和证据契约表达。
+- BSK 只托管最基础且跨 State 复用的能力：Pack 发现、ID/alias 校验、契约加载与哈希、组件/JSON-stdio 执行边界、通用转移合法性、事件与快照、资源限制、错误归一化和敏感信息脱敏。
+- 新增普通 State 时，默认只新增或修改对应 State Pack、`index.json` 或目标 Skill 的 `config.yaml.runtime` 声明，不修改 BSK 系统代码；若必须改 BSK，必须证明该能力是跨多个不相邻 State/Skill 复用的基础设施，而不是某个状态的领域规则。
+- `runtime.py` 的生命周期 reducer 是稳定、可重放的最小系统投影例外，不承载领域状态扩展；修改内置 runtime 状态或转移时，必须同步 State Pack 契约并运行一致性测试，防止硬编码投影与 Pack 声明漂移。
+
 ### `VERIFIER.md` 轻量正文骨架
 
 新建或修改 `VERIFIER.md` 时，正文必须依次包含 `## Verification target`、`## Inputs and evidence`、`## Execution`、`## Output and verdicts`、`## Failure and boundaries`；每段都要写入该 Verifier 的真实契约，不得使用空占位或用模板壳包裹旧正文。完整写作提示以 [`docs/templates/verifier-body.md`](docs/templates/verifier-body.md) 为单一维护入口。
