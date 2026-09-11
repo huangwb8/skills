@@ -42,15 +42,24 @@ def collect_markdown(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return _markdown_collector_module().collect_markdown(*args, **kwargs)
 
 
-@lru_cache(maxsize=1)
-def _atomic_module():
-    atomic_path = Path(__file__).resolve().parent / 'atomic_verifiers.py'
-    spec = spec_from_file_location('bensz_skill_kernel._atomic_verifiers', atomic_path)
+@lru_cache(maxsize=None)
+def _verifier_script_module(directory: str):
+    script_path = Path(__file__).resolve().parent / 'verifiers' / directory / 'scripts' / 'verify.py'
+    spec = spec_from_file_location(
+        f"bensz_skill_kernel._builtin_verifier_{directory.replace('-', '_')}",
+        script_path,
+    )
     if spec is None or spec.loader is None:
-        raise ImportError(f'cannot load atomic verifier rules: {atomic_path}')
+        raise ImportError(f'cannot load verifier script: {script_path}')
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
+    if not hasattr(module, 'verify'):
+        raise ImportError(f'verifier script has no verify() function: {script_path}')
     return module
+
+
+def _script_rule(directory: str):
+    return lambda request, evidence: _verifier_script_module(directory).verify(request, evidence)
 
 
 CITATION_TRUTH_FIT_SPEC = VerifierSpec(
@@ -76,12 +85,6 @@ def _citation_engine_gap(request: Any, evidence: Mapping[str, Evidence]) -> Mapp
     }
 
 
-def _file_exists(request: Any, evidence: Mapping[str, Evidence]) -> Mapping[str, Any]:
-    path = request.subject.get('path')
-    exists = bool(path and Path(path).is_file())
-    return {'verdict': 'pass' if exists else 'fail', 'facts': {'path': path, 'exists': exists}, 'findings': [] if exists else [{'id': 'missing-file', 'severity': 'required', 'verdict': 'fail', 'message': f'file does not exist: {path}'}]}
-
-
 FILE_SPEC = VerifierSpec(
     verifier_id='bensz.artifact.file-existence',
     version='1.0.0',
@@ -95,20 +98,20 @@ FILE_SPEC = VerifierSpec(
 
 def build_builtin_registry() -> PackRegistry:
     registry = PackRegistry()
-    registry.register(VerifierPack(FILE_SPEC, rules=(('file-exists', _file_exists),)))
+    registry.register(VerifierPack(FILE_SPEC, rules=(('file-exists', _script_rule('artifact-file-exists')),)))
     registry.register(VerifierPack(CITATION_TRUTH_FIT_SPEC, prompts=(('citation-semantics', _citation_engine_gap),)))
     atomic = (
-        ("bensz.contract.conformance", "contract-conformance", "contract"),
-        ("bensz.artifact.path-scope", "path-scope", "artifact"),
-        ("bensz.artifact.schema-conformance", "schema-conformance", "artifact"),
-        ("bensz.source.diff-scope", "diff-scope", "source"),
-        ("bensz.security.secret-redaction", "secret-redaction", "security"),
-        ("bensz.evidence.provenance", "evidence-provenance", "evidence"),
-        ("bensz.runtime.event-integrity", "event-integrity", "runtime"),
-        ("bensz.runtime.state-transition", "state-transition", "runtime"),
-        ("bensz.runtime.task-completeness", "task-completeness", "runtime"),
+        ("bensz.contract.conformance", "contract-conformance", "contract-conformance", "contract"),
+        ("bensz.artifact.path-scope", "path-scope", "path-scope", "artifact"),
+        ("bensz.artifact.schema-conformance", "schema-conformance", "schema-conformance", "artifact"),
+        ("bensz.source.diff-scope", "diff-scope", "diff-scope", "source"),
+        ("bensz.security.secret-redaction", "secret-redaction", "secret-redaction", "security"),
+        ("bensz.evidence.provenance", "evidence-provenance", "evidence-provenance", "evidence"),
+        ("bensz.runtime.event-integrity", "event-integrity", "event-integrity", "runtime"),
+        ("bensz.runtime.state-transition", "state-transition", "state-transition", "runtime"),
+        ("bensz.runtime.task-completeness", "task-completeness", "task-completeness", "runtime"),
     )
-    for verifier_id, rule_name, tag in atomic:
-        rule = lambda request, evidence, name=rule_name: _atomic_module().run_atomic(name, request, evidence)
+    for verifier_id, rule_name, directory, tag in atomic:
+        rule = _script_rule(directory)
         registry.register(VerifierPack(VerifierSpec(verifier_id, "1.0.0", "rule", tags=("common", tag, "deterministic")), rules=((rule_name, rule),)))
     return registry

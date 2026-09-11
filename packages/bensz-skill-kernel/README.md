@@ -51,6 +51,10 @@ canonical ID、版本和 alias 迁移规则见 [`docs/verifier-id-naming.md`](..
 
 `states/index.json` 是 State 目录清单；每个状态目录包含 `STATE.md`，可选 JSON-stdio helper。内置生命周期状态为 `planned`、`active`、`waiting`、`checking`、`delivering`、`completed`、`failed`、`cancelled`；`workspace-ready` 与 `workspace-closed` 是工作区系统状态。领域 Skill 阶段仍放在自身 `references/states/`。
 
+State Pack 的模块化边界是单个状态目录本身：`states/<state>/` 或 Skill 自有 `references/states/<state>/` 承载该状态的语义契约、脚本 helper、Agent/人工组件和证据要求。内置 `states/` 目录故意保持扁平；`runtime`、`workspace`、领域状态等差异通过 canonical ID、`kind`、`classification` 和 `tags` 表达，而不是通过额外子目录表达。
+
+BSK 只托管跨状态复用的基础设施：Pack 发现、ID/alias 校验、契约加载与哈希、组件执行边界、通用转移合法性、事件与快照、资源限制、错误归一化和敏感信息脱敏。新增普通 State 应优先通过新增状态目录、更新 `index.json` 或目标 Skill 的 `config.yaml.runtime` 声明完成；只有确属跨多个 State/Skill 复用的基础能力，才进入 Kernel 系统代码。`runtime.py` 的生命周期 reducer 是稳定投影例外，修改其状态或转移时必须与内置 State Pack 契约保持一致。
+
 ```bash
 bsk state list
 bsk state describe bensz.workspace.ready
