@@ -14,7 +14,9 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Protocol
+from typing import Any, Iterable, Mapping, Protocol
+
+import yaml
 
 from .contract_packs import ContractExecutionError, ContractExecutionReport, ContractPack, ContractPackExecutor, EXECUTION_MODES
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio, version_key as _version_key
@@ -121,6 +123,8 @@ class VerifierSpec:
         if self.mode not in MODES:
             raise ValueError(f"unsupported verifier mode: {self.mode}")
         validate_verifier_id(self.verifier_id)
+        if not _VERSION_RE.match(self.version):
+            raise ValueError(f"invalid verifier version: {self.version}")
         if self.assurance_tier not in ASSURANCE_TIERS:
             raise ValueError(f"unsupported assurance tier: {self.assurance_tier}")
         if self.verifier_id in self.aliases or len(set(self.aliases)) != len(self.aliases):
@@ -186,8 +190,8 @@ class VerifierDefinition:
             raise ValueError(f"indexed verifier contract must stay inside its directory: {document}")
         verifier_id, version = str(entry.get("id", "")), str(entry.get("version", ""))
         validate_verifier_id(verifier_id)
-        if not version:
-            raise ValueError(f"indexed verifier requires version: {root}")
+        if not _VERSION_RE.match(version):
+            raise ValueError(f"indexed verifier requires a semantic version: {root}")
         entrypoint = resolve_entrypoint(root, entry.get("entrypoint"), label="verifier")
         aliases = parse_aliases(",".join(str(item) for item in entry.get("aliases", ())))
         mode = str(entry.get("mode", "rule" if entrypoint else "human"))
@@ -210,16 +214,31 @@ class VerifierDefinition:
 
     @property
     def spec(self) -> VerifierSpec:
+        index = self.metadata.get("index")
+        indexed = index if isinstance(index, Mapping) else {}
+
+        def strings(key: str) -> tuple[str, ...]:
+            value = indexed.get(key, self.metadata.get(key, ()))
+            if isinstance(value, str):
+                return tuple(item.strip() for item in value.split(",") if item.strip())
+            if isinstance(value, (list, tuple)):
+                return tuple(str(item) for item in value)
+            return ()
+
+        uncertainty = indexed.get("uncertainty_policy", self.metadata.get("uncertainty_policy", {}))
         return VerifierSpec(
             verifier_id=self.verifier_id,
             version=self.version,
             mode=self.mode,
+            capabilities=strings("capabilities"),
+            evidence_requirements=strings("evidence_requirements"),
+            uncertainty_policy=dict(uncertainty) if isinstance(uncertainty, Mapping) else {},
             tags=self.tags,
             aliases=self.aliases,
-            subject_kinds=tuple(item.strip() for item in str(self.metadata.get("subject_kinds", "")).split(",") if item.strip()),
-            prompt_pack_ref=self.metadata.get("prompt_pack_ref"),
-            rule_pack_ref=self.metadata.get("rule_pack_ref"),
-            calibration_set_ref=self.metadata.get("calibration_set_ref"),
+            subject_kinds=strings("subject_kinds"),
+            prompt_pack_ref=indexed.get("prompt_pack_ref", self.metadata.get("prompt_pack_ref")),
+            rule_pack_ref=indexed.get("rule_pack_ref", self.metadata.get("rule_pack_ref")),
+            calibration_set_ref=indexed.get("calibration_set_ref", self.metadata.get("calibration_set_ref")),
             classification=self.classification,
             assurance_tier=self.assurance_tier,
             metadata={"description": self.description, "path": str(self.path), "entrypoint": self.entrypoint, **dict(self.metadata)},
@@ -426,12 +445,14 @@ class CombinedVerifierRegistry:
         self.registries = registries
         self._definitions: dict[tuple[str, str], VerifierDefinition] = {}
         self._aliases: dict[tuple[str, str], tuple[str, str]] = {}
+        self._owners: dict[tuple[str, str], FilesystemVerifierRegistry] = {}
         for registry in registries:
             for definition in registry.definitions():
                 key = (definition.verifier_id, definition.version)
                 if key in self._definitions or key in self._aliases:
                     raise ValueError(f"duplicate verifier: {definition.verifier_id}@{definition.version}")
                 self._definitions[key] = definition
+                self._owners[key] = registry
                 for alias in definition.aliases:
                     alias_key = (alias, definition.version)
                     if alias_key in self._definitions or alias_key in self._aliases:
@@ -467,6 +488,109 @@ class CombinedVerifierRegistry:
 
     def describe(self, verifier_id: str, version: str | None = None) -> VerifierDefinition:
         return self.resolve(verifier_id, version)
+
+    def run(self, verifier_id: str, request: Mapping[str, Any] | VerificationRequest, *, version: str | None = None, timeout: int = 30) -> dict[str, Any]:
+        definition = self.resolve(verifier_id, version)
+        owner = self._owners[(definition.verifier_id, definition.version)]
+        return owner.run(definition.verifier_id, request, version=definition.version, timeout=timeout)
+
+    def run_contract(
+        self,
+        verifier_id: str,
+        request: Mapping[str, Any] | VerificationRequest,
+        *,
+        version: str | None = None,
+        timeout: int = 30,
+        run_id: str = "run",
+        attempt_id: str = "default",
+        submissions: Iterable[Mapping[str, Any]] = (),
+    ) -> "VerifierContractExecution":
+        definition = self.resolve(verifier_id, version)
+        owner = self._owners[(definition.verifier_id, definition.version)]
+        return owner.run_contract(
+            definition.verifier_id,
+            request,
+            version=definition.version,
+            timeout=timeout,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            submissions=submissions,
+        )
+
+
+def build_verifier_registry(*roots: str | Path) -> CombinedVerifierRegistry:
+    """Combine bundled Verifiers with explicitly supplied Pack collection roots."""
+    registries = [FilesystemVerifierRegistry(builtin_verifier_root())]
+    builtin = builtin_verifier_root().resolve()
+    for root in roots:
+        candidate = Path(root).expanduser().resolve()
+        if candidate != builtin:
+            registries.append(FilesystemVerifierRegistry(candidate))
+    return CombinedVerifierRegistry(*registries)
+
+
+@dataclass(frozen=True)
+class SkillVerifierDeclaration:
+    """A Skill-owned Verifier selection independent of State declarations."""
+
+    skill_root: Path
+    verifier_roots: tuple[Path, ...]
+    verifiers: tuple[Mapping[str, Any], ...]
+    source: Path
+
+    @classmethod
+    def from_skill_root(cls, skill_root: str | Path) -> "SkillVerifierDeclaration":
+        root = Path(skill_root).expanduser().resolve()
+        source = root / "config.yaml"
+        try:
+            loaded = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+        except FileNotFoundError as exc:
+            raise ValueError(f"Skill verifier declaration does not exist: {source}") from exc
+        except (OSError, yaml.YAMLError) as exc:
+            raise ValueError(f"invalid Skill config: {exc}") from exc
+        if not isinstance(loaded, Mapping) or not isinstance(loaded.get("runtime"), Mapping):
+            raise ValueError("Skill config must contain a runtime mapping")
+        runtime = loaded["runtime"]
+
+        raw_roots = runtime.get("verifier_roots", ("references/verifiers",))
+        if isinstance(raw_roots, str):
+            raw_roots = (raw_roots,)
+        if not isinstance(raw_roots, (list, tuple)) or not all(isinstance(item, str) and item for item in raw_roots):
+            raise ValueError("runtime.verifier_roots must be a path list")
+        resolved_roots: list[Path] = []
+        for item in raw_roots:
+            candidate = (root / item).resolve()
+            try:
+                candidate.relative_to(root)
+            except ValueError as exc:
+                raise ValueError("verifier_roots must stay inside the Skill directory") from exc
+            resolved_roots.append(candidate)
+
+        registry = build_verifier_registry(*resolved_roots)
+        raw_verifiers = runtime.get("verifiers", ())
+        if raw_verifiers is None:
+            raw_verifiers = ()
+        if not isinstance(raw_verifiers, (list, tuple)):
+            raise ValueError("runtime.verifiers must be a list")
+        requirements = normalize_requirements(raw_verifiers, registry)
+
+        runtime_kernel = runtime.get("kernel")
+        if isinstance(runtime_kernel, Mapping):
+            from . import __version__ as kernel_version
+
+            name = str(runtime_kernel.get("name", ""))
+            version = str(runtime_kernel.get("version", ""))
+            if name != "bensz-skill-kernel" or version != kernel_version:
+                raise ValueError(
+                    f"runtime kernel mismatch: declared {name}@{version}, running bensz-skill-kernel@{kernel_version}"
+                )
+        return cls(root, tuple(resolved_roots), requirements, source)
+
+    def registry(self) -> CombinedVerifierRegistry:
+        return build_verifier_registry(*self.verifier_roots)
+
+    def verifier_requirements(self) -> tuple[Mapping[str, Any], ...]:
+        return tuple(dict(item) for item in self.verifiers)
 
 
 # Short public name for callers that do not care about the storage backend.
@@ -791,15 +915,21 @@ def apply_gate(results: Iterable[VerificationResult], *, required: bool = True,
     ))
     if mismatched_versions:
         return GateDecision("manual_review", "required verifier version mismatch", refs, mismatched_versions)
-    failures = [r for r in items if r.verdict in {"fail", "error"}]
-    unknown = [r for r in items if r.verdict in {"unchecked", "uncertain", "timed_out"}]
+    failures = [r for r in items if r.verdict == "fail"]
+    review = [r for r in items if r.verdict in {"uncertain", "error", "timed_out"}]
+    pending = [r for r in items if r.verdict in {"unchecked", "skipped"}]
     required_failures = [r for r in failures if r.verifier_id in required_set]
+    required_review = [r for r in review if r.verifier_id in required_set]
+    required_pending = [r for r in pending if r.verifier_id in required_set]
     if required_failures:
         return GateDecision("reject", "required verifier failure", refs, tuple(r.verifier_id for r in required_failures))
-    if unknown:
-        return GateDecision("manual_review", "verification gap or semantic uncertainty", refs, tuple(r.verifier_id for r in unknown))
-    if failures:
-        return GateDecision("allow_with_warnings", "optional verifier failure", refs, tuple(r.verifier_id for r in failures))
+    if required_review:
+        return GateDecision("manual_review", "verification gap or semantic uncertainty", refs, tuple(r.verifier_id for r in required_review))
+    if required_pending:
+        return GateDecision("wait", "required verifier has not completed", refs, tuple(r.verifier_id for r in required_pending))
+    warnings = [r for r in items if r.verdict != "pass"]
+    if warnings:
+        return GateDecision("allow_with_warnings", "optional verifier did not pass", refs, tuple(r.verifier_id for r in warnings))
     return GateDecision("allow", "all required verifiers passed", refs)
 
 

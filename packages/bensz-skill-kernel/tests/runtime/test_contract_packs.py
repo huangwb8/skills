@@ -384,6 +384,77 @@ def test_bound_verifier_execution_is_audit_safe_and_replayable(tmp_path: Path) -
     assert len(EventLog(tmp_path / "events.ndjson").read()) == 2
 
 
+def test_component_gate_cannot_hide_another_missing_required_verifier(tmp_path: Path) -> None:
+    pack = _pack(tmp_path, include_human=False)
+    executor = ContractPackExecutor()
+    pending = executor.execute(pack, request={"evidence": [{"ref": "subject"}]}, run_id="r", attempt_id="a")
+    handoff = next(item for item in pending.handoffs if item.component_id == "semantics")
+    report = executor.execute(
+        pack,
+        request={"evidence": [{"ref": "subject"}]},
+        submissions=(_result(handoff),),
+        run_id="r",
+        attempt_id="a",
+    )
+    payload = VerifierContractAdapter().adapt(
+        VerifierSpec("test.demo.mixed", "1.0.0", "hybrid"), report
+    ).to_event_payload()
+
+    _, gate = EventLog(tmp_path / "missing-required.ndjson").record_verification(
+        payload,
+        {"decision": "allow"},
+        run_id="r",
+        attempt_id="a",
+        requirements=[
+            {"verifier_id": "test.demo.mixed", "version": "1.0.0", "required": True},
+            {"verifier_id": "test.demo.missing", "version": "1.0.0", "required": True},
+        ],
+    )
+
+    assert gate is not None
+    assert gate.payload["decision"] == "manual_review"
+    assert "test.demo.missing" in gate.payload["unresolved"]
+
+
+def test_optional_batch_failure_cannot_hide_required_component_binding_error(tmp_path: Path) -> None:
+    pack = _pack(tmp_path, include_human=False)
+    executor = ContractPackExecutor()
+    pending = executor.execute(pack, request={"evidence": [{"ref": "subject"}]}, run_id="r", attempt_id="a")
+    handoff = next(item for item in pending.handoffs if item.component_id == "semantics")
+    report = executor.execute(
+        pack,
+        request={"evidence": [{"ref": "subject"}]},
+        submissions=(_result(handoff),),
+        run_id="r",
+        attempt_id="a",
+    )
+    required_payload = VerifierContractAdapter().adapt(
+        VerifierSpec("test.demo.mixed", "1.0.0", "hybrid"), report
+    ).to_event_payload()
+    required_payload["component_results"][0]["run_id"] = "stale-run"
+    optional_payload = {
+        "verifier_id": "test.demo.optional",
+        "verifier_version": "1.0.0",
+        "execution_status": "completed",
+        "verdict": "fail",
+    }
+
+    _, gate = EventLog(tmp_path / "batch-binding.ndjson").record_verification_batch(
+        (required_payload, optional_payload),
+        {"decision": "allow"},
+        run_id="r",
+        attempt_id="a",
+        requirements=[
+            {"verifier_id": "test.demo.mixed", "version": "1.0.0", "required": True},
+            {"verifier_id": "test.demo.optional", "version": "1.0.0", "required": False},
+        ],
+    )
+
+    assert gate is not None
+    assert gate.payload["decision"] == "reject"
+    assert "component" in gate.payload["reason"].lower()
+
+
 def test_kernel_rejects_forged_or_cross_run_v2_component_evidence(tmp_path: Path) -> None:
     forged = {
         "protocol": "bensz-verification-v2",

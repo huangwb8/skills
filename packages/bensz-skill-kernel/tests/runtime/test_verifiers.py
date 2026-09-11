@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import pytest
 
 from bensz_skill_kernel import (
+    CombinedVerifierRegistry,
     Evidence,
     PackRegistry,
     VerifierPack,
@@ -17,6 +18,7 @@ from bensz_skill_kernel import (
     apply_gate,
     builtin_verifier_root,
     FilesystemVerifierRegistry,
+    SkillVerifierDeclaration,
     VerifierDefinition,
     collect_markdown,
     validate_verifier_id,
@@ -114,7 +116,7 @@ def test_missing_evidence_cannot_pass():
     registry.register(VerifierPack(spec, rules=(("rule", lambda *_: {"verdict": "pass"}),)))
     results, gate = VerifierRunner(registry).run(VerificationRequest(subject={}), "test.needs.evidence")
     assert results[0].verdict == "unchecked"
-    assert gate.decision == "manual_review"
+    assert gate.decision == "wait"
 
 
 def test_generic_citation_pack_is_format_agnostic_and_conservative():
@@ -129,7 +131,7 @@ def test_generic_citation_pack_is_format_agnostic_and_conservative():
     )
     results, gate = VerifierRunner(registry).run(request, "bensz.evidence.citation-truth-fit", version="1.0.0")
     assert results[0].verdict == "unchecked"
-    assert gate.decision == "manual_review"
+    assert gate.decision == "wait"
 
 
 def test_builtin_pack_alias_resolves_to_canonical_result() -> None:
@@ -505,6 +507,110 @@ def test_optional_failure_gate_allows_with_warnings():
     spec = VerifierSpec("test.demo.optional", "1.0.0", "rule")
     result = normalize_result({"verdict": "fail"}, spec)
     assert apply_gate((result,), required=False).decision == "allow_with_warnings"
+
+
+@pytest.mark.parametrize("verdict", ["unchecked", "uncertain", "timed_out", "error"])
+def test_optional_non_passing_gate_never_blocks(verdict):
+    execution_status = verdict if verdict in {"unchecked", "timed_out", "error"} else "completed"
+    result = normalize_result(
+        {"verdict": verdict, "execution_status": execution_status},
+        VerifierSpec("test.demo.optional-gap", "1.0.0", "rule"),
+    )
+    gate = apply_gate(
+        (result,),
+        requirements=[{"verifier_id": result.verifier_id, "version": "1.0.0", "required": False}],
+    )
+    assert gate.decision == "allow_with_warnings"
+
+
+def test_required_unchecked_waits_but_uncertain_requires_review():
+    spec = VerifierSpec("test.demo.required-gap", "1.0.0", "rule")
+    unchecked = normalize_result({"verdict": "unchecked", "execution_status": "unchecked"}, spec)
+    uncertain = normalize_result({"verdict": "uncertain", "execution_status": "completed"}, spec)
+    requirements = [{"verifier_id": spec.verifier_id, "version": spec.version, "required": True}]
+    assert apply_gate((unchecked,), requirements=requirements).decision == "wait"
+    assert apply_gate((uncertain,), requirements=requirements).decision == "manual_review"
+
+
+def test_combined_registry_executes_the_owning_filesystem_registry(tmp_path: Path):
+    root = tmp_path / "verifiers"
+    pack = root / "demo"
+    script = pack / "scripts" / "verify.py"
+    script.parent.mkdir(parents=True)
+    (pack / "VERIFIER.md").write_text("# Demo\n", encoding="utf-8")
+    script.write_text(
+        "import json, sys\n"
+        "request = json.load(sys.stdin)\n"
+        "json.dump({'verdict': 'pass', 'facts': {'value': request['subject']['value']}}, sys.stdout)\n",
+        encoding="utf-8",
+    )
+    (root / "index.json").write_text(
+        json.dumps({
+            "protocol": "bensz-pack-index-v1",
+            "package_kind": "verifier",
+            "entries": [{
+                "directory": "demo", "id": "test.demo.check", "version": "1.0.0",
+                "contract": "VERIFIER.md", "mode": "rule", "assurance_tier": "deterministic",
+                "components": [{"id": "check", "type": "script", "entrypoint": "scripts/verify.py"}],
+            }],
+        }),
+        encoding="utf-8",
+    )
+    combined = CombinedVerifierRegistry(FilesystemVerifierRegistry(root))
+    result = combined.run("test.demo.check", {"subject": {"value": 7}})
+    assert result["verdict"] == "pass"
+    assert result["facts"]["value"] == 7
+
+
+def test_combined_registry_rejects_duplicate_ids_across_roots(tmp_path: Path):
+    roots = []
+    for name in ("first", "second"):
+        root = tmp_path / name
+        verifier = root / "demo"
+        verifier.mkdir(parents=True)
+        (verifier / "VERIFIER.md").write_text(
+            "---\nid: test.demo.duplicate\nversion: 1.0.0\n---\n\n# Demo\n",
+            encoding="utf-8",
+        )
+        roots.append(FilesystemVerifierRegistry(root))
+
+    with pytest.raises(ValueError, match="duplicate verifier"):
+        CombinedVerifierRegistry(*roots)
+
+
+def test_skill_verifier_declaration_supports_verifier_only_runtime(tmp_path: Path):
+    skill = tmp_path / "skill"
+    local_root = skill / "references" / "verifiers"
+    local_root.mkdir(parents=True)
+    (local_root / "index.json").write_text(
+        json.dumps({"protocol": "bensz-pack-index-v1", "package_kind": "verifier", "entries": []}),
+        encoding="utf-8",
+    )
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  verifier_roots: [references/verifiers]\n"
+        "  verifiers:\n"
+        "    - id: bensz.artifact.file-existence\n"
+        "      version: 1.0.0\n"
+        "      required: false\n",
+        encoding="utf-8",
+    )
+    declaration = SkillVerifierDeclaration.from_skill_root(skill)
+    assert declaration.verifier_requirements() == ({
+        "id": "bensz.artifact.file-existence", "version": "1.0.0", "required": False,
+    },)
+    assert declaration.registry().resolve("bensz.artifact.file-existence").version == "1.0.0"
+
+
+def test_skill_verifier_declaration_rejects_root_escape(tmp_path: Path):
+    skill = tmp_path / "skill"
+    skill.mkdir()
+    (skill / "config.yaml").write_text(
+        "runtime:\n  verifier_roots: [../outside]\n  verifiers: []\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="verifier_roots must stay inside"):
+        SkillVerifierDeclaration.from_skill_root(skill)
 
 
 def test_gate_requirements_classify_optional_and_required_failures():

@@ -9,32 +9,29 @@ from __future__ import annotations
 
 from functools import lru_cache
 from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
 from typing import Any, Mapping
 
+from .verifiers import FilesystemVerifierRegistry, builtin_verifier_root
 
-_SCRIPT_BY_NAME = {
-    "artifact-file-exists": "artifact-file-exists",
-    "contract-conformance": "contract-conformance",
-    "path-scope": "path-scope",
-    "schema-conformance": "schema-conformance",
-    "diff-scope": "diff-scope",
-    "secret-redaction": "secret-redaction",
-    "evidence-provenance": "evidence-provenance",
-    "event-integrity": "event-integrity",
-    "state-transition": "state-transition",
-    "task-completeness": "task-completeness",
-}
+
+@lru_cache(maxsize=1)
+def _registry() -> FilesystemVerifierRegistry:
+    return FilesystemVerifierRegistry(builtin_verifier_root())
 
 
 @lru_cache(maxsize=None)
 def _script_module(name: str):
-    directory = _SCRIPT_BY_NAME.get(name)
-    if directory is None:
+    definitions = [definition for definition in _registry().definitions() if definition.path.name == name]
+    if len(definitions) != 1 or definitions[0].classification != "atomic":
         raise ValueError(f"unknown atomic verifier: {name}")
-    script = Path(__file__).resolve().parent / "verifiers" / directory / "scripts" / "verify.py"
+    definition = definitions[0]
+    pack = definition.contract_pack()
+    scripts = [component.entrypoint for component in pack.components if component.type == "script" and component.entrypoint]
+    if len(scripts) != 1:
+        raise ValueError(f"atomic verifier must declare one script component: {name}")
+    script = definition.path / scripts[0]
     spec = spec_from_file_location(
-        f"bensz_skill_kernel._builtin_verifier_{directory.replace('-', '_')}",
+        f"bensz_skill_kernel._builtin_verifier_{name.replace('-', '_')}",
         script,
     )
     if spec is None or spec.loader is None:

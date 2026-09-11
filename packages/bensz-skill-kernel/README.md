@@ -80,17 +80,24 @@ Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded`
 
 `verifiers/index.json` 是 Verifier 包目录和执行计划的单一来源；每个 Pack 有 `VERIFIER.md` 和可选组件。脚本组件 stdin 接收一个 JSON 请求、stdout 输出一个结果 JSON；`verdict` 支持 `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out`、`skipped`。Kernel 负责超时、异常、非法 JSON 和结果字段归一化。
 
+Verifier Pack 与 State Pack 使用相同的模块化边界：内置 `verifiers/<verifier>/` 或 Skill 自有 `references/verifiers/<verifier>/` 承载契约、脚本和专属证据解释。BSK 从索引发现 Pack，不在中央 Registry 重复维护 ID 或目录清单；新增普通 Verifier 不需要修改 Kernel 分发逻辑。
+
 新建或修改 `VERIFIER.md` 时，正文按 [`docs/templates/verifier-body.md`](../../docs/templates/verifier-body.md) 的轻量骨架依次说明判断目标、输入与证据、执行、输出与判定、失败与边界。带索引的 Pack 不在正文重复机器元数据；包内测试会校验所有内置契约的章节顺序和非空内容。
 
 ```bash
 bsk verifier list --tag citation
 bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
 bsk verifier run bensz.document.markdown-link-integrity --input README.md
+bsk verifier list --skill-root path/to/skill
+bsk verifier run org.example.contract.check --skill-root path/to/skill \
+  --request-json '{"subject":{"data":{"id":1}},"context":{"schema":{"required":["id"]}}}'
 ```
+
+`--root` 显式叠加一个或多个 Verifier 集合；`--skill-root` 从 `config.yaml.runtime.verifier_roots`（默认 `references/verifiers`）加载 Pack，并只暴露 `runtime.verifiers` 已声明的 ID/版本。两者互斥且都不会扫描全局目录。`run` 保留 `--input` 文件兼容入口，也支持完整的 `--request-json` 或 `--request-file`；非文件型 Verifier 应使用完整请求，避免遗漏其 subject/context/evidence 契约。JSON 请求中的 `run_id`/`attempt_id` 会被保留，显式 CLI 参数优先。
 
 内置示例包括文件存在、Markdown 链接完整性和引用真实性/适切性；旧 ID alias 仍可解析。引用 Verifier 显式声明为 `agent` 组件，未收到绑定结果时保持 `unchecked`/`wait`。旧单入口 Pack、无 `index.json` 的兼容目录和 instruction-only 状态仍可发现，但会给出缺少显式组件元数据的诊断。原子 Pack 还覆盖合同一致性、路径范围、Schema、diff、敏感信息脱敏、证据来源、事件完整性、状态转移和任务完整性；领域规则不写入 Kernel。
 
-审计运行增加 `--events EVENTS --run-id RUN_ID`，返回统一 `results`、`gate` 和兼容 `verification` 字段。Agent/人工 handoff 会在顶层返回，但不把契约正文或原始上下文写入账本。Python API 的 `trusted=False` 是不可信 Pack 的进程级 fail-closed 选项，不是 `bsk verifier run` 的 CLI 参数。
+审计运行增加 `--events EVENTS --run-id RUN_ID`，返回统一 `results`、`gate` 和兼容 `verification` 字段。Skill 声明中的 required Verifier 失败会拒绝，未完成会等待或进入人工复核；advisory Verifier 的非通过结果只产生警告。Verifier 级和组件级 Gate 按严重度保守合并，advisory 只影响它自己的组件，不会掩盖其它 required Verifier 的绑定错误或缺失结果。Agent/人工 handoff 会在顶层返回，但不把契约正文或原始上下文写入账本。Python API 的 `trusted=False` 是不可信 Pack 的进程级 fail-closed 选项，不是 `bsk verifier run` 的 CLI 参数；CLI 只执行用户显式选择的内置、`--root` 或 `--skill-root` Pack。
 
 ## Workspace：不可变任务边界
 

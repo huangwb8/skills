@@ -16,11 +16,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from .builtins import build_builtin_registry
 from .runtime import EventLog, IntegrityError, KernelError
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
-from .workspace import TaskWorkspace, WorkspaceError, WORKSPACE_KINDS, state_snapshot_hash
-from .verifiers import Evidence, FilesystemVerifierRegistry, GateDecision, VerificationRequest, VerifierRunner, VerificationResult, apply_gate, builtin_verifier_root, summarize_metrics
+from .workspace import TaskWorkspace, WORKSPACE_KINDS, state_snapshot_hash
+from .verifiers import GateDecision, SkillVerifierDeclaration, apply_gate, build_verifier_registry, normalize_result, summarize_metrics
 from . import __version__
 
 
@@ -74,6 +73,11 @@ def _add_event_context(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--actor", default="runtime")
     parser.add_argument("--scope", default="task")
     parser.add_argument("--attempt-id", default="default")
+
+
+def _add_verifier_source(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--root", action="append", default=[], help="additional Verifier Pack collection root; repeatable")
+    parser.add_argument("--skill-root", help="Skill root containing runtime.verifiers and optional verifier_roots")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -147,22 +151,28 @@ def build_parser() -> argparse.ArgumentParser:
     verifier_commands = verifier.add_subparsers(dest="verifier_command", metavar="ACTION")
     verifier_list = verifier_commands.add_parser("list", help="list available verifier ids")
     verifier_list.add_argument("--tag")
+    _add_verifier_source(verifier_list)
     verifier_describe = verifier_commands.add_parser("describe", help="show one verifier contract")
     verifier_describe.add_argument("verifier_id")
     verifier_describe.add_argument("--version")
-    verifier_run = verifier_commands.add_parser("run", help="run a built-in verifier")
+    _add_verifier_source(verifier_describe)
+    verifier_run = verifier_commands.add_parser("run", help="run a selected verifier")
     verifier_run.add_argument("verifier_id")
     verifier_run.add_argument("--version")
-    verifier_run.add_argument("--input", required=True, help="subject file path")
+    verifier_input = verifier_run.add_mutually_exclusive_group(required=True)
+    verifier_input.add_argument("--input", help="legacy file subject path")
+    verifier_input.add_argument("--request-json", help="complete Verifier request JSON object")
+    verifier_input.add_argument("--request-file", help="complete Verifier request JSON file, or - for stdin")
     verifier_run.add_argument("--timeout", type=int, default=10)
     verifier_run.add_argument("--blacklist", action="append", default=[])
     verifier_run.add_argument("--whitelist", action="append", default=[])
     verifier_run.add_argument("--events", help="append verifier results and Gate to an event log")
     verifier_run.add_argument("--run-id")
-    verifier_run.add_argument("--attempt-id", default="default")
+    verifier_run.add_argument("--attempt-id", help="attempt identity; defaults to request JSON value or 'default'")
     verifier_run.add_argument("--actor", default="bsk:verifier")
     verifier_run.add_argument("--scope", default="skill")
     verifier_run.add_argument("--idempotency-key")
+    _add_verifier_source(verifier_run)
 
     state = commands.add_parser("state", help="inspect declarative meta-state definitions")
     state_commands = state.add_subparsers(dest="state_command", metavar="ACTION")
@@ -241,8 +251,24 @@ def _spec_dict(spec: Any) -> dict[str, Any]:
     }
 
 
-def _verifier_registry() -> FilesystemVerifierRegistry:
-    return FilesystemVerifierRegistry(builtin_verifier_root())
+def _verifier_registry(args: argparse.Namespace):
+    skill_root = getattr(args, "skill_root", None)
+    roots = getattr(args, "root", ())
+    if skill_root and roots:
+        raise ValueError("--skill-root and --root cannot be combined")
+    if skill_root:
+        declaration = SkillVerifierDeclaration.from_skill_root(skill_root)
+        return declaration.registry(), declaration
+    return build_verifier_registry(*roots), None
+
+
+def _declared_verifier_requirement(declaration: SkillVerifierDeclaration | None, verifier_id: str, version: str) -> Mapping[str, Any] | None:
+    if declaration is None:
+        return None
+    for item in declaration.verifier_requirements():
+        if item["id"] == verifier_id and item["version"] == version:
+            return item
+    raise ValueError(f"verifier is not declared by the Skill runtime: {verifier_id}@{version}")
 
 
 def _add_state_source(parser: argparse.ArgumentParser) -> None:
@@ -381,7 +407,7 @@ def _run_state_command(args: argparse.Namespace) -> int:
         snapshot["state_event_id"] = state_event_id
         snapshot["snapshot_hash"] = snapshot_hash
         pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
-        state_event = EventLog(workspace.events).append(
+        EventLog(workspace.events).append(
             "state.transition",
             payload={
                 "state_domain": "skill",
@@ -425,12 +451,26 @@ def _run_workspace_command(args: argparse.Namespace) -> int:
 
 
 def _run_verifier_command(args: argparse.Namespace) -> int:
-    registry = _verifier_registry()
+    registry, declaration = _verifier_registry(args)
     if args.verifier_command == "list":
-        _print({"verifiers": [_spec_dict(spec) for spec in registry.specs(tag=args.tag)]}, pretty=True)
+        requirements = {
+            (item["id"], item["version"]): item
+            for item in declaration.verifier_requirements()
+        } if declaration else None
+        specs = registry.specs(tag=args.tag)
+        if requirements is not None:
+            specs = tuple(spec for spec in specs if (spec.verifier_id, spec.version) in requirements)
+        values = []
+        for spec in specs:
+            value = _spec_dict(spec)
+            if requirements is not None:
+                value["required"] = requirements[(spec.verifier_id, spec.version)]["required"]
+            values.append(value)
+        _print({"verifiers": values}, pretty=True)
         return 0
     if args.verifier_command == "describe":
         definition = registry.describe(args.verifier_id, args.version)
+        _declared_verifier_requirement(declaration, definition.verifier_id, definition.version)
         _print(definition.to_dict(), pretty=True)
         return 0
     if args.verifier_command != "run":
@@ -438,12 +478,33 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         return 0
 
     definition = registry.resolve(args.verifier_id, args.version)
-    target = Path(args.input).expanduser().resolve()
-    if not target.is_file():
-        raise ValueError(f"input file does not exist: {args.input}")
-    content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
-    request_id = args.run_id or f"{definition.verifier_id}:{content_hash[:16]}"
-    request_payload = {"request_id": request_id, "subject": {"type": "file", "path": str(target), "content_hash": content_hash}, "context": {"timeout": args.timeout, "blacklist": args.blacklist, "whitelist": args.whitelist}}
+    requirement = _declared_verifier_requirement(declaration, definition.verifier_id, definition.version)
+    target = None
+    if args.input:
+        target = Path(args.input).expanduser().resolve()
+        if not target.is_file():
+            raise ValueError(f"input file does not exist: {args.input}")
+        content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+        request_id = args.run_id or f"{definition.verifier_id}:{content_hash[:16]}"
+        request_payload: dict[str, Any] = {
+            "request_id": request_id,
+            "subject": {"type": "file", "path": str(target), "content_hash": content_hash},
+            "context": {"timeout": args.timeout, "blacklist": args.blacklist, "whitelist": args.whitelist},
+        }
+    else:
+        raw_request = _read_json_value(args.request_file, args.request_json, label="a Verifier request")
+        if not isinstance(raw_request, Mapping):
+            raise ValueError("Verifier request must be a JSON object")
+        request_payload = dict(raw_request)
+        request_hash = hashlib.sha256(
+            json.dumps(request_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+        request_id = str(request_payload.get("request_id") or args.run_id or f"{definition.verifier_id}:{request_hash[:16]}")
+        request_payload["request_id"] = request_id
+    run_id = str(args.run_id or request_payload.get("run_id") or request_id)
+    attempt_id = str(args.attempt_id or request_payload.get("attempt_id") or "default")
+    request_payload["run_id"] = run_id
+    request_payload["attempt_id"] = attempt_id
     index = definition.metadata.get("index")
     contract_execution = None
     if isinstance(index, Mapping) and "components" in index:
@@ -452,26 +513,41 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
             request_payload,
             version=args.version,
             timeout=args.timeout,
-            run_id=request_id,
-            attempt_id=args.attempt_id,
+            run_id=run_id,
+            attempt_id=attempt_id,
+            submissions=request_payload.get("component_results", request_payload.get("submissions", ())),
         )
         raw_result = contract_execution.to_event_payload()
     else:
         raw_result = registry.run(args.verifier_id, request_payload, version=args.version, timeout=args.timeout)
     result_payloads = [{**raw_result, "request_id": request_id}]
-    normalized = VerificationResult(
-        verifier_id=raw_result["verifier_id"], verifier_version=raw_result["verifier_version"], execution_status=raw_result["execution_status"], verdict=raw_result["verdict"], findings=tuple(raw_result.get("findings", ())), facts=dict(raw_result.get("facts", {})), evidence_refs=tuple(raw_result.get("evidence_refs", ())), confidence=raw_result.get("confidence"), uncertainty_reason=raw_result.get("uncertainty_reason"), model_or_engine=raw_result.get("model_or_engine"), duration_ms=raw_result.get("duration_ms"),
+    normalized = normalize_result(raw_result, definition.spec, evidence_refs=raw_result.get("evidence_refs", ()))
+    component_gate = contract_execution.gate if contract_execution is not None else None
+    gate = component_gate or apply_gate((normalized,))
+    if requirement is not None:
+        workflow_gate = apply_gate((normalized,), requirements=(requirement,))
+        if component_gate is not None and component_gate.decision == "allow_with_warnings" and workflow_gate.decision == "allow":
+            gate = component_gate
+        else:
+            gate = workflow_gate
+    metric_results = contract_execution.components if contract_execution is not None else (normalized,)
+    required_metric_ids = (
+        ()
+        if requirement is not None and not requirement["required"]
+        else (definition.verifier_id,)
     )
-    gate = contract_execution.gate if contract_execution is not None else apply_gate((normalized,))
     output: dict[str, Any] = {
         "verifier": _spec_dict(definition.spec),
         "request_id": request_id,
-        "file": str(target),
         "results": result_payloads,
         "gate": gate.to_dict(),
-        "metrics": summarize_metrics((normalized,), (gate,)),
+        "metrics": summarize_metrics(metric_results, (gate,), required_ids=required_metric_ids),
         "verification": {"request_id": request_id, "results": result_payloads, "gate": gate.to_dict()},
     }
+    if target is not None:
+        output["file"] = str(target)
+    if requirement is not None:
+        output["requirement"] = dict(requirement)
     if contract_execution is not None and contract_execution.report.handoffs:
         # Full hand-offs are returned to the invoking Agent but deliberately
         # kept outside ``results`` so EventLog never persists contract text or
@@ -490,9 +566,10 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
                 {**gate.to_dict(), "request_id": request_id} if index == len(result_payloads) - 1 else None,
                 scope=args.scope,
                 actor=args.actor,
-                attempt_id=args.attempt_id,
+                attempt_id=attempt_id,
                 idempotency_key=f"{args.idempotency_key or request_id}:{index}",
-                run_id=request_id,
+                run_id=run_id,
+                requirements=(requirement,) if requirement is not None else None,
             )
             persisted.append({"result_event": verification.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
             if gate_event is not None:
@@ -505,7 +582,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         if persisted_gate is not None:
             output["gate"] = persisted_gate.to_dict()
             output["verification"]["gate"] = persisted_gate.to_dict()
-            output["metrics"] = summarize_metrics((normalized,), (persisted_gate,))
+            output["metrics"] = summarize_metrics(metric_results, (persisted_gate,), required_ids=required_metric_ids)
         output["runtime"] = {"recorded": True, "events": persisted}
     _print(output, pretty=True)
     return 0

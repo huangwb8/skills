@@ -480,13 +480,9 @@ class SkillStateDeclaration:
         verifier_items = []
         if raw_verifiers:
             try:
-                from .verifiers import CombinedVerifierRegistry, FilesystemVerifierRegistry, builtin_verifier_root, normalize_requirements
-                verifier_roots = [FilesystemVerifierRegistry(builtin_verifier_root())]
-                local_verifier_root = root / "references" / "verifiers"
-                if local_verifier_root.is_dir():
-                    verifier_roots.append(FilesystemVerifierRegistry(local_verifier_root))
-                verifier_registry = CombinedVerifierRegistry(*verifier_roots)
-                verifier_items = list(normalize_requirements(raw_verifiers, verifier_registry))
+                from .verifiers import SkillVerifierDeclaration
+
+                verifier_items = list(SkillVerifierDeclaration.from_skill_root(root).verifier_requirements())
             except (ImportError, KeyError, ValueError) as exc:
                 raise StateDefinitionError(f"invalid verifier requirements: {exc}") from exc
         runtime_kernel = raw.get("kernel")

@@ -1,8 +1,35 @@
 import json
+import io
 from pathlib import Path
 
 from bensz_skill_kernel import EventLog
 from bensz_skill_kernel.cli import main
+
+
+def _write_demo_verifier(root: Path) -> None:
+    pack = root / "demo"
+    script = pack / "scripts" / "verify.py"
+    script.parent.mkdir(parents=True)
+    (pack / "VERIFIER.md").write_text("# Demo verifier\n", encoding="utf-8")
+    script.write_text(
+        "import json, sys\n"
+        "request = json.load(sys.stdin)\n"
+        "value = request.get('subject', {}).get('value')\n"
+        "json.dump({'verdict': 'pass' if value == 7 else 'fail', 'facts': {'value': value}}, sys.stdout)\n",
+        encoding="utf-8",
+    )
+    (root / "index.json").write_text(
+        json.dumps({
+            "protocol": "bensz-pack-index-v1", "package_kind": "verifier",
+            "entries": [{
+                "directory": "demo", "id": "test.demo.check", "version": "1.0.0",
+                "classification": "domain", "tags": ["demo"], "contract": "VERIFIER.md",
+                "mode": "rule", "assurance_tier": "deterministic",
+                "components": [{"id": "check", "type": "script", "entrypoint": "scripts/verify.py", "required": True}],
+            }],
+        }),
+        encoding="utf-8",
+    )
 
 
 def test_skill_facing_commands_append_and_project(tmp_path: Path):
@@ -105,6 +132,87 @@ def test_directory_verifier_runs_markdown_link_integrity(tmp_path: Path, capsys)
     assert output["results"][0]["verdict"] == "pass"
     assert output["gate"]["decision"] == "allow"
     assert output["summary"]["valid"] == 1
+
+
+def test_verifier_cli_loads_explicit_root_and_accepts_json_request(tmp_path: Path, capsys):
+    root = tmp_path / "verifiers"
+    _write_demo_verifier(root)
+    assert main([
+        "verifier", "run", "test.demo.check", "--root", str(root),
+        "--request-json", json.dumps({"subject": {"value": 7}}),
+    ]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["results"][0]["verdict"] == "pass"
+    assert output["metrics"]["component_count"] == 1
+    assert output["metrics"]["bound_component_ratio"] == 1.0
+
+
+def test_verifier_cli_accepts_request_file_from_stdin_and_preserves_attempt_id(tmp_path: Path, capsys, monkeypatch):
+    root = tmp_path / "verifiers"
+    _write_demo_verifier(root)
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({"subject": {"value": 7}, "attempt_id": "attempt-json"})))
+
+    assert main([
+        "verifier", "run", "test.demo.check", "--root", str(root),
+        "--request-file", "-",
+    ]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["results"][0]["attempt_id"] == "attempt-json"
+
+
+def test_verifier_cli_rejects_combined_root_and_skill_root(tmp_path: Path, capsys):
+    root = tmp_path / "verifiers"
+    _write_demo_verifier(root)
+    skill = tmp_path / "skill"
+    skill.mkdir()
+    (skill / "config.yaml").write_text("runtime:\n  verifiers: []\n", encoding="utf-8")
+
+    assert main(["verifier", "list", "--root", str(root), "--skill-root", str(skill)]) == 2
+    assert "cannot be combined" in capsys.readouterr().err
+
+
+def test_verifier_cli_skill_root_enforces_declaration_and_advisory_gate(tmp_path: Path, capsys):
+    skill = tmp_path / "skill"
+    root = skill / "references" / "verifiers"
+    _write_demo_verifier(root)
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  verifier_roots: [references/verifiers]\n"
+        "  verifiers:\n"
+        "    - id: test.demo.check\n"
+        "      version: 1.0.0\n"
+        "      required: false\n",
+        encoding="utf-8",
+    )
+    events = tmp_path / "events.ndjson"
+    assert main([
+        "verifier", "run", "test.demo.check", "--skill-root", str(skill),
+        "--request-json", json.dumps({"subject": {"value": 8}}),
+        "--events", str(events),
+    ]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["results"][0]["verdict"] == "fail"
+    assert output["gate"]["decision"] == "allow_with_warnings"
+    assert output["metrics"]["verifier_count"] == 0
+    assert output["metrics"]["required_coverage"] == 0.0
+    gate = [event for event in EventLog(events).read() if event.event_type == "verification.gate"][-1]
+    assert gate.payload["decision"] == "allow_with_warnings"
+
+
+def test_verifier_cli_skill_root_rejects_undeclared_verifier(tmp_path: Path, capsys):
+    skill = tmp_path / "skill"
+    root = skill / "references" / "verifiers"
+    _write_demo_verifier(root)
+    (skill / "config.yaml").write_text(
+        "runtime:\n  verifier_roots: [references/verifiers]\n  verifiers: []\n",
+        encoding="utf-8",
+    )
+    assert main([
+        "verifier", "run", "test.demo.check", "--skill-root", str(skill),
+        "--request-json", json.dumps({"subject": {"value": 7}}),
+    ]) == 2
+    assert "not declared" in capsys.readouterr().err
 
 
 def test_directory_verifier_persists_the_gate_returned_by_cli(tmp_path: Path, capsys):

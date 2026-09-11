@@ -260,6 +260,64 @@ def _component_bound_gate(
     return decision
 
 
+_GATE_SEVERITY = {
+    "allow": 0,
+    "allow_with_warnings": 1,
+    "wait": 2,
+    "manual_review": 3,
+    "reject": 4,
+}
+
+
+def _is_advisory_verifier(
+    verifier_id: str,
+    requirements: Mapping[str, bool] | Iterable[Mapping[str, Any]] | None,
+) -> bool:
+    """Return whether an otherwise valid requirement set marks an ID advisory."""
+    if requirements is None:
+        return False
+    if isinstance(requirements, Mapping):
+        return all(isinstance(value, bool) for value in requirements.values()) and not requirements.get(verifier_id, False)
+    try:
+        items = tuple(requirements)
+    except TypeError:
+        return False
+    if not all(isinstance(item, Mapping) and isinstance(item.get("required", False), bool) for item in items):
+        return False
+    return not any(
+        str(item.get("verifier_id", item.get("id", ""))) == verifier_id and item.get("required", False)
+        for item in items
+    )
+
+
+def _merge_component_gate(
+    base: GateDecision,
+    component: GateDecision,
+    *,
+    advisory: bool,
+) -> GateDecision:
+    """Merge a bound component Gate without weakening verifier-level requirements."""
+    if advisory and component.decision not in {"allow", "allow_with_warnings"}:
+        component = GateDecision(
+            "allow_with_warnings",
+            "advisory Verifier components did not pass",
+            component.result_refs,
+            component.unresolved,
+        )
+    base_rank = _GATE_SEVERITY.get(base.decision, _GATE_SEVERITY["reject"])
+    component_rank = _GATE_SEVERITY.get(component.decision, _GATE_SEVERITY["reject"])
+    if component_rank > base_rank:
+        return component
+    if component_rank < base_rank:
+        return base
+    return GateDecision(
+        base.decision,
+        base.reason if base.reason == component.reason else f"{base.reason}; {component.reason}",
+        tuple(dict.fromkeys((*base.result_refs, *component.result_refs))),
+        tuple(dict.fromkeys((*base.unresolved, *component.unresolved))),
+    )
+
+
 def _event_safe_value(value: Any, *, key: str | None = None, base_dir: Path | None = None) -> Any:
     """Return an audit-safe representation without leaking private evidence."""
     lowered = (key or "").lower()
@@ -927,7 +985,11 @@ class EventLog:
                 computed = apply_gate((computed_result,), requirements=requirements)
                 component_gate = _component_bound_gate(result_data, run_id=run_id, attempt_id=attempt_id)
                 if component_gate is not None:
-                    computed = component_gate
+                    computed = _merge_component_gate(
+                        computed,
+                        component_gate,
+                        advisory=_is_advisory_verifier(str(verifier_id), requirements),
+                    )
             except (TypeError, ValueError):
                 computed = None
         if computed is None:
@@ -1003,7 +1065,7 @@ class EventLog:
                 event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
                 result_events.append(event)
             computed_results: list[VerificationResult] = []
-            component_gates: list[GateDecision] = []
+            component_gates: list[tuple[str, GateDecision]] = []
             for item in items:
                 try:
                     from .verifier_ids import validate_verifier_id
@@ -1011,19 +1073,17 @@ class EventLog:
                     computed_results.append(VerificationResult(verifier_id=str(item["verifier_id"]), verifier_version=str(item["verifier_version"]), execution_status=str(item.get("execution_status", "completed")), verdict=str(item["verdict"]), evidence_refs=tuple(item.get("evidence_refs", ()))))
                     component_gate = _component_bound_gate(item, run_id=run_id, attempt_id=attempt_id)
                     if component_gate is not None:
-                        component_gates.append(component_gate)
+                        component_gates.append((str(item["verifier_id"]), component_gate))
                 except (KeyError, TypeError, ValueError):
                     continue
             computed = apply_gate(computed_results, requirements=requirements) if len(computed_results) == len(items) else None
-            blocking_component_gates = [item for item in component_gates if item.decision not in {"allow", "allow_with_warnings"}]
-            if blocking_component_gates:
-                decision = "reject" if any(item.decision == "reject" for item in blocking_component_gates) else "manual_review"
-                computed = GateDecision(
-                    decision,
-                    "one or more Contract Pack component sets did not pass",
-                    tuple(ref for item in blocking_component_gates for ref in item.result_refs),
-                    tuple(dict.fromkeys(value for item in blocking_component_gates for value in item.unresolved)),
-                )
+            if computed is not None:
+                for component_verifier_id, component_gate in component_gates:
+                    computed = _merge_component_gate(
+                        computed,
+                        component_gate,
+                        advisory=_is_advisory_verifier(component_verifier_id, requirements),
+                    )
             if gate is None:
                 return result_events[-1], None
             gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})

@@ -76,17 +76,24 @@ The kernel executes only protocol-defined invariants. The current `verifier-resu
 
 `verifiers/index.json` is the single source of truth for the Verifier catalog and execution plans. Every Pack has a `VERIFIER.md` and optional components. Script components receive one JSON request on stdin and emit one result JSON on stdout; `verdict` supports `pass`, `fail`, `uncertain`, `unchecked`, `error`, `timed_out`, and `skipped`. The kernel normalizes timeouts, exceptions, invalid JSON, and result fields.
 
+Verifier Packs use the same modular boundary as State Packs: built-in `verifiers/<verifier>/` or Skill-owned `references/verifiers/<verifier>/` directories contain the contract, scripts, and verifier-specific evidence interpretation. BSK discovers Packs from their index and does not duplicate IDs or directories in a central registry; adding a normal Verifier does not require a Kernel dispatch change.
+
 New or modified `VERIFIER.md` files follow the lightweight skeleton in [`docs/templates/verifier-body.md`](../../docs/templates/verifier-body.md): verification target, inputs and evidence, execution, output and verdicts, then failure and boundaries. Indexed Packs do not duplicate machine metadata in the body; package tests enforce the section order and non-empty content for every built-in contract.
 
 ```bash
 bsk verifier list --tag citation
 bsk verifier describe bensz.evidence.citation-truth-fit --version 1.0.0
 bsk verifier run bensz.document.markdown-link-integrity --input README.md
+bsk verifier list --skill-root path/to/skill
+bsk verifier run org.example.contract.check --skill-root path/to/skill \
+  --request-json '{"subject":{"data":{"id":1}},"context":{"schema":{"required":["id"]}}}'
 ```
+
+`--root` explicitly overlays one or more Verifier collections. `--skill-root` loads Packs from `config.yaml.runtime.verifier_roots` (default: `references/verifiers`) and exposes only the IDs and versions selected by `runtime.verifiers`. The options are mutually exclusive and never scan global directories. `run` keeps the file-oriented `--input` compatibility form and also accepts a complete `--request-json` or `--request-file`; non-file Verifiers should use a complete request so their subject/context/evidence contract is not omitted. `run_id` and `attempt_id` from a JSON request are preserved unless explicitly overridden by CLI options.
 
 Built-in examples cover file existence, Markdown link integrity, and citation truth/fit; legacy IDs remain resolvable as aliases. The citation Verifier is explicitly an `agent` component and stays `unchecked`/`wait` until a bound result arrives. Legacy single-entry Packs, compatibility directories without `index.json`, and instruction-only states remain discoverable but report missing explicit component metadata. Atomic Packs also cover contract conformance, path scope, Schema, diff scope, secret redaction, evidence provenance, event integrity, state transition, and task completeness; domain rules stay out of the Kernel.
 
-For an audit run, add `--events EVENTS --run-id RUN_ID` to receive unified `results`, `gate`, and compatibility `verification` fields. Agent/human handoffs are returned at the top level but contract text and raw context are not written to the ledger. Python API `trusted=False` is the process-level fail-closed option for an untrusted Pack; it is not a `bsk verifier run` CLI flag.
+For an audit run, add `--events EVENTS --run-id RUN_ID` to receive unified `results`, `gate`, and compatibility `verification` fields. A required Skill Verifier rejects on failure and waits or enters manual review while unresolved; a non-passing advisory Verifier produces warnings only. Verifier-level and component-level Gates are merged conservatively by severity: advisory status affects only that Verifier's components and cannot hide another required Verifier's binding error or missing result. Agent/human handoffs are returned at the top level but contract text and raw context are not written to the ledger. Python API `trusted=False` is the process-level fail-closed option for an untrusted Pack; it is not a `bsk verifier run` CLI flag. The CLI executes only built-in Packs or roots explicitly selected with `--root`/`--skill-root`.
 
 ## Workspace: immutable task boundaries
 
