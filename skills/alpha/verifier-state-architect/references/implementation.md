@@ -32,6 +32,6 @@ python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/
 - “仅写计划，不改源码” / “只读审查”：目标文件不变，报告建议和证据缺口。
 - “按已有计划接入”：核验计划与源码后实施，只修正实质偏差。
 - “这个小 Skill 是否需要组件”：删除影响为零则不接入，不生成空 Pack。
-- “只加入语义 Verifier”：用 Agent 组件和本地注册表宿主，不添加占位 State 或强制 Python 判断。
+- “只加入语义 Verifier”：用 Agent 组件与 `runtime.verifier_roots`/`runtime.verifiers` 声明，通过显式 Skill source 加载，不添加占位 State 或强制 Python 判断。
 - “目标在系统安装目录”：不就地改写，要求开发源码入口，不以自动执行绕过边界。
 - “Kernel 不可用/宿主没回传/已有改动冲突”：记录受阻与已完成范围，不伪造通过、不擅自扩大授权。

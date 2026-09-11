@@ -77,7 +77,7 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 ### 配置与 AI 执行契约
 
 - 使用领域 State 时，必须在 `config.yaml.runtime.state_roots` 显式声明 `references/states`，并通过 `initial_state`、`states` 使用 canonical State ID；入口条件和迁移边也使用 canonical ID。
-- 使用 Verifier 要求时，在 `config.yaml.runtime.verifiers` 声明 `id`、`version` 和布尔 `required`。通用 Verifier 引用 Kernel 中的能力，专用 Verifier 引用本 Skill 集合，不把内置契约复制进 Skill。
+- 使用 Verifier 要求时，在 `config.yaml.runtime.verifiers` 声明 `id`、`version` 和布尔 `required`；专用集合通过 `runtime.verifier_roots` 声明，默认值为 `references/verifiers`，路径必须留在 Skill 根目录内。通用 Verifier 引用 Kernel 中的能力，专用 Verifier 引用本 Skill 集合，不把内置契约复制进 Skill。
 - 接入 Kernel 时核对 `runtime.kernel` 中的包名、版本与实际运行版本；当前声明加载器精确匹配版本，不接受版本区间。不能盲抄示例中的历史版本，不能以“文件存在”代替版本和解析检查。
 - `SKILL.md` 的控制章节必须说明调用时机、证据来源、通过条件、失败恢复和人工介入，并引用本 Skill 内的配置或契约。领域规则归对应契约维护，不在 `SKILL.md` 再维护平行副本。
 
@@ -86,13 +86,13 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 | 入口或能力 | 当前行为与使用要求 |
 | --- | --- |
 | Skill State 声明加载 | `SkillStateDeclaration.from_skill_root()` 读取 `runtime.state_roots`；路径相对于 Skill 根目录解析，且必须留在 Skill 内。省略该字段时当前默认是 `states`，因此标准布局必须显式声明 `references/states` |
-| Skill Verifier 要求解析 | 上述声明加载路径在存在 `runtime.verifiers` 时合并内置注册表和 `<skill>/references/verifiers`；这不是任意目录自动扫描，也不提供可照搬 `state_roots` 的 `verifier_roots` 配置 |
+| Skill Verifier 要求解析 | `SkillVerifierDeclaration.from_skill_root()` 读取 `runtime.verifier_roots` 与 `runtime.verifiers`，合并内置注册表和显式 Skill 内集合；默认根是 `<skill>/references/verifiers`，不扫描任意目录 |
 | State CLI | 支持通过 `--skill-root` 读取 Skill 声明，或通过 `--root` 提供附加状态目录；两者不能混用 |
-| 普通 Verifier CLI | 当前注册表只加载内置 Verifier；仅安装 Skill 或填写 `runtime.verifiers`，不会使专用 Verifier 自动进入该 CLI 的注册表 |
+| 普通 Verifier CLI | 默认只加载内置 Verifier；显式 `--root` 可叠加集合，`--skill-root` 按 Skill 声明加载并限制可用 ID。`run` 接受兼容文件输入或完整 JSON 请求；两类 source 互斥且不扫描全局目录 |
 
-**声明可解析不等于组件已执行。** 接入方必须明确使用哪个宿主或 Python API 加载本地 Verifier 注册表并交给执行器；不能因 State 声明能解析专用 Verifier，就声称通用 Verifier CLI 已支持它。没有可用执行入口时，应报告接入缺口，不得将未执行或证据不足记录为通过。Agent / 人工组件仍需要宿主执行和绑定结果回传，不能把自然语言契约当成已运行的脚本。
+**声明可解析不等于组件已执行。** CLI/Python 调用方仍须显式选择 Verifier 并提供符合契约的请求；目录发现本身不产生判定。没有可用执行入口时，应报告接入缺口，不得将未执行或证据不足记录为通过。Agent / 人工组件仍需要宿主执行和绑定结果回传，不能把自然语言契约当成已运行的脚本。
 
-只有 Verifier 时，用 `CombinedVerifierRegistry(FilesystemVerifierRegistry(builtin_verifier_root()), FilesystemVerifierRegistry(local_root))` 和 `normalize_requirements()` 解析，不为通过 State 声明加载器而创建无意义状态。本地索引用 `FilesystemVerifierRegistry` / `FilesystemStateRegistry` 验证；组件计划用 `definition.contract_pack()` 或 `ContractPack.from_directory()` 检查。
+只有 Verifier 时，优先用 `SkillVerifierDeclaration.from_skill_root()` 统一加载 `runtime.verifier_roots`、合并内置与专用集合并规范化要求；底层调用方才直接组合 `CombinedVerifierRegistry` 与 `normalize_requirements()`。不要为满足 State 声明格式而创建无意义状态。本地索引用 `FilesystemVerifierRegistry` / `FilesystemStateRegistry` 验证；组件计划用 `definition.contract_pack()` 或 `ContractPack.from_directory()` 检查。
 
 实际接入复用 `ContractPackExecutor` 的脚本执行、Agent/人工 handoff 与绑定结果回传，以及对应 Verifier/State 适配器；调用参数以实际版本 API 为准。handoff 只是待办，不是判定。State 与 Verifier 共用执行/证据底层，不能混淆两者的领域结果对象。
 

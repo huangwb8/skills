@@ -54,7 +54,7 @@
 | 声明与调用点 | 目标 `config.yaml`、`SKILL.md` 及必要的宿主/脚本入口 |
 | 证据、日志和对账 | 同一任务 `.bensz-api/task-…/verifier-state-architect/` 边界 |
 
-计划是流程中的一步，不再是默认最终交付。已有非本任务文件不直接覆盖；最终按“计划项 → 改动 → 验证 → 结果”对账。目录、字段、契约和加载方式统一见[托管规范](references/skill-pack-hosting.md)，操作步骤见[落地参考](references/implementation.md)；托管规范只在该 Skill 内维护一份。
+计划是流程中的一步，不再是默认最终交付。已有非本任务文件不直接覆盖；最终按“计划项 → 改动 → 验证 → 结果”对账。目录、字段、契约和加载方式统一见[托管规范](references/skill-pack-hosting.md)，操作步骤见[落地参考](references/implementation.md)；托管规范只在该 Skill 内维护一份。当前 BSK 支持用 `runtime.verifier_roots` 声明 Skill 内 Verifier 集合，并通过显式 CLI source 加载，不进行全局自动扫描。
 
 ## 配置与检查
 

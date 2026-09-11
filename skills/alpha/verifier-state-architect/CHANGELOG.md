@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+- 托管规范与 BSK 1.1.0 对齐：Skill 专用 Verifier 可通过 `runtime.verifier_roots` 声明，并由 CLI 的显式 `--skill-root`/`--root` 与完整 JSON 请求入口发现和执行；仍禁止任意全局扫描和把“已发现”冒充“已执行”。
+
 ### Added（新增）
 - 新增随 Skill 安装的落地参考与只读 `scripts/check_integration.py`，核验专用 Pack 托管、索引/契约分工和真实 Kernel 加载；结构通过不冒充组件已执行。
 - 补齐中英文对齐的使用指南，说明默认落地、显式只读、事后审查和执行证据边界。

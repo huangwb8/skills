@@ -54,7 +54,7 @@ Mechanical checks require Python 3.11+, PyYAML, and `bensz-skill-kernel` matchin
 | Declarations and invocation points | Target `config.yaml`, `SKILL.md`, and necessary host/script entry points |
 | Evidence, logs, and reconciliation | The same task's `.bensz-api/task-…/verifier-state-architect/` boundary |
 
-The plan is a workflow step, no longer the default final deliverable. Existing files belonging to other work are not overwritten; delivery maps plan items to changes, checks, and results. See the [hosting specification](references/skill-pack-hosting.md) for layout, fields, contracts, and loading, and the [implementation reference](references/implementation.md) for operational steps. This Skill maintains the single authoritative hosting specification.
+The plan is a workflow step, no longer the default final deliverable. Existing files belonging to other work are not overwritten; delivery maps plan items to changes, checks, and results. See the [hosting specification](references/skill-pack-hosting.md) for layout, fields, contracts, and loading, and the [implementation reference](references/implementation.md) for operational steps. This Skill maintains the single authoritative hosting specification. Current BSK versions support Skill-owned Verifier collections through `runtime.verifier_roots` and explicit CLI sources; they never scan global directories automatically.
 
 ## Configuration and Checks
 

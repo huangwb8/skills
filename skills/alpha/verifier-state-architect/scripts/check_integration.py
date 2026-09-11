@@ -108,12 +108,8 @@ def check_collection(root: Path, kind: str, yaml: object) -> list[dict]:
 def check_runtime(root: Path, runtime: dict, verifiers: list[dict], states: list[dict]) -> None:
     from bensz_skill_kernel import __version__
     from bensz_skill_kernel.states import SkillStateDeclaration
-    from bensz_skill_kernel.verifiers import (
-        CombinedVerifierRegistry, FilesystemVerifierRegistry,
-        builtin_verifier_root, normalize_requirements,
-    )
+    from bensz_skill_kernel.verifiers import SkillVerifierDeclaration
 
-    require("verifier_roots" not in runtime, "unsupported_verifier_roots")
     require(runtime.get("kernel") == {"name": "bensz-skill-kernel", "version": __version__}, "runtime_kernel_mismatch")
     require("## 控制" in read_text(root / "SKILL.md", root), "missing_control_section")
     if states:
@@ -131,12 +127,11 @@ def check_runtime(root: Path, runtime: dict, verifiers: list[dict], states: list
             for target in (*definition.entry_conditions, *definition.transitions):
                 require(target in selected, "state_graph_outside_selection")
                 require(registry.resolve(target).id == target, "noncanonical_state_graph")
-    registries = [FilesystemVerifierRegistry(builtin_verifier_root())]
     if verifiers:
-        registries.append(FilesystemVerifierRegistry(root / "references" / "verifiers"))
-    combined = CombinedVerifierRegistry(*registries)
+        require(runtime.get("verifier_roots", ["references/verifiers"]) == ["references/verifiers"], "nonstandard_verifier_roots")
     requirements = runtime.get("verifiers", [])
-    normalized = normalize_requirements(requirements, combined)
+    declaration = SkillVerifierDeclaration.from_skill_root(root)
+    normalized = declaration.verifier_requirements()
     require(all(item.get("id") == result["id"] and isinstance(item.get("required"), bool) for item, result in zip(requirements, normalized)), "noncanonical_verifier_requirement")
     require({entry["id"] for entry in verifiers} <= {item["id"] for item in normalized}, "unused_local_verifier")
 
