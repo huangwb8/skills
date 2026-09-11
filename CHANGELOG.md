@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+- `bensz-skill-kernel` 新增与 State 对称的 Verifier Pack source：公开 `SkillVerifierDeclaration` 与 `build_verifier_registry()`，CLI 支持显式 `--root`/`--skill-root` 及完整 `--request-json`/`--request-file`，同时保留文件型 `--input` 兼容入口。
+
+### Changed（变更）
+- `bensz-skill-kernel` 更新至 1.1.0：Combined Verifier Registry 可直接执行所属集合的 Pack；旧内置 Registry 与 `run_atomic` 改为从 `verifiers/index.json` 派生，避免中央 ID、版本和目录清单重复维护。
+- 统一 Verifier Gate 语义：required 明确失败拒绝、未执行等待、不确定或执行异常进入人工复核；advisory 的非通过结果只产生警告。Verifier 级与组件级 Gate 采用保守合并，批量 advisory 结果不能掩盖 required 组件绑定错误；CLI 指标统计真实 Contract 组件并按声明计算 required 覆盖率。
+- `verifier-state-architect` 更新至 0.3.2，托管规范和使用说明同步 BSK 的 `runtime.verifier_roots` 与显式 CLI source 能力。
+
 ## [5.0.5] - 2026-09-11
 
 ### Added（新增）

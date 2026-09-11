@@ -166,15 +166,17 @@ State 与 Verifier 是两类不同的领域对象，但遵循同一个基本设�
 
 State 与 Verifier 可以共享同一种 Pack 托管和执行底座，但语义适配必须分层：State 表达生命周期阶段、转移和 invariant；Verifier 表达验证命题、证据、verdict 和 Gate。共享执行器不得把两者的领域语义混成一个通用对象，也不得让 BSK 通过硬编码 Pack 名称承担具体 State 或 Verifier 的判断职责。
 
-### State Pack 模块化与热插拔边界
+### State 与 Verifier Pack 模块化与热插拔边界
 
-State Pack 的架构原则是：`states/<state>/` 或 Skill 自有 `references/states/<state>/` 是状态能力包边界；BSK 是状态能力包的加载器、执行器和审计底座，不是状态业务逻辑的宿主。
+State 与 Verifier 的领域功能不同，但采用相同的能力包架构：`states/<state>/`、`verifiers/<verifier>/` 或 Skill 自有的 `references/states/<state>/`、`references/verifiers/<verifier>/` 是独立 Pack 边界；BSK 是这些能力包的发现、加载、执行和审计底座，不是状态业务逻辑或验证命题的宿主。
 
-- 内置 State 目录保持扁平布局；`runtime`、`workspace`、领域状态等差异通过 canonical ID、`kind`、`classification` 和 `tags` 表达，不因概念分类新增 `runtime/`、`workspace/` 等中间目录，除非项目负责人明确要求整体迁移。
+- 内置 State 与 Verifier 集合均保持扁平布局；`runtime`、`workspace`、领域类型等差异通过 canonical ID、`kind`、`classification` 和 `tags` 表达，不因概念分类新增中间目录，除非项目负责人明确要求整体迁移。
 - 每个 State 子目录应承载该状态的大部分特色功能：`STATE.md` 写阶段语义、入口/离开条件、证据和转移解释；确定性检查放在本状态目录的 `scripts/` 或索引声明的组件中；需要 Agent/人工判断时通过 `components`、handoff 和证据契约表达。
-- BSK 只托管最基础且跨 State 复用的能力：Pack 发现、ID/alias 校验、契约加载与哈希、组件/JSON-stdio 执行边界、通用转移合法性、事件与快照、资源限制、错误归一化和敏感信息脱敏。
-- 新增普通 State 时，默认只新增或修改对应 State Pack、`index.json` 或目标 Skill 的 `config.yaml.runtime` 声明，不修改 BSK 系统代码；若必须改 BSK，必须证明该能力是跨多个不相邻 State/Skill 复用的基础设施，而不是某个状态的领域规则。
+- 每个 Verifier 子目录应承载该验证能力的大部分特色功能：`VERIFIER.md` 写验证命题、输入证据、判定与失败边界；确定性规则、事实收集和专属适配放在本 Verifier 的 `scripts/`、`references/` 或索引声明的组件中；需要 Agent/人工判断时同样通过 `components`、handoff 和证据契约表达。
+- BSK 的职责以上一节为准；热插拔不得绕过统一的发现、身份、执行、证据绑定、资源限制和审计协议，也不得把 State/Verifier 领域语义下沉到共享加载器或执行器。
+- 新增普通 State 或 Verifier 时，默认只新增或修改对应 Pack、所属集合的 `index.json` 和目标 Skill 的 `config.yaml.runtime` 声明，不修改 BSK 系统代码；若必须改 BSK，必须证明该能力是跨多个不相邻 State/Verifier/Skill 复用的基础设施，而不是某个阶段或验证命题的领域规则。
 - `runtime.py` 的生命周期 reducer 是稳定、可重放的最小系统投影例外，不承载领域状态扩展；修改内置 runtime 状态或转移时，必须同步 State Pack 契约并运行一致性测试，防止硬编码投影与 Pack 声明漂移。
+- Verifier 的通用结果适配和 Gate 聚合可以由 BSK 提供，但只能依据组件的标准字段、`required`/`advisory` 及稳定判定枚举工作；具体 verifier ID、finding ID、required field、证据含义或领域放行规则必须留在对应 Pack 或消费方声明中。修改通用聚合语义时，必须同步 Verifier 契约、事件协议和重放测试。
 
 ### `VERIFIER.md` 轻量正文骨架
 
