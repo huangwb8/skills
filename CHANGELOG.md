@@ -5,17 +5,21 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
-
-- 新增 BSK 内置语义 Verifier `bensz.design.minimum-sufficient-complexity`，以 Agent 契约审查设计复杂度是否有当前目标、约束或风险依据；不使用固定评分或硬编码阈值，缺证据与真实权衡保留为 `unchecked`/`uncertain`。
+## [5.0.6] - 2026-09-12
 
 ### Added（新增）
+- 新增 BSK 内置语义 Verifier `bensz.design.minimum-sufficient-complexity`，以 Agent 契约审查设计复杂度是否有当前目标、约束或风险依据；不使用固定评分或硬编码阈值，缺证据与真实权衡保留为 `unchecked`/`uncertain`。
+- `AGENTS.md` 新增版本号决策权约束：仓库发布版本（Git tag、`CHANGELOG.md` 仓库级版本条目）与 `bensz-skill-kernel` 包版本（`packages/bensz-skill-kernel/pyproject.toml` 的 `version`）只能由人类用户决定；AI 可以建议版本号，但未经人类明确确认，不得擅自写入、创建或提升。
 - `bensz-skill-kernel` 新增与 State 对称的 Verifier Pack source：公开 `SkillVerifierDeclaration` 与 `build_verifier_registry()`，CLI 支持显式 `--root`/`--skill-root` 及完整 `--request-json`/`--request-file`，同时保留文件型 `--input` 兼容入口。
 
 ### Changed（变更）
-- `bensz-skill-kernel` 更新至 1.1.0：Combined Verifier Registry 可直接执行所属集合的 Pack；旧内置 Registry 与 `run_atomic` 改为从 `verifiers/index.json` 派生，避免中央 ID、版本和目录清单重复维护。
+- `bensz-skill-kernel` 更新至 2.0.1：Combined Verifier Registry 可直接执行所属集合的 Pack；旧内置 Registry 与 `run_atomic` 改为从 `verifiers/index.json` 派生，避免中央 ID、版本和目录清单重复维护。本版本同时收紧 State 迁移证据的时序语义，属于不兼容变更。版本号由用户最终确认；发布过程中曾误传 2.0.0 到 PyPI，其代码与 2.0.1 完全一致，无独立变更。
 - 统一 Verifier Gate 语义：required 明确失败拒绝、未执行等待、不确定或执行异常进入人工复核；advisory 的非通过结果只产生警告。Verifier 级与组件级 Gate 采用保守合并，批量 advisory 结果不能掩盖 required 组件绑定错误；CLI 指标统计真实 Contract 组件并按声明计算 required 覆盖率。
 - `verifier-state-architect` 更新至 0.3.2，托管规范和使用说明同步 BSK 的 `runtime.verifier_roots` 与显式 CLI source 能力。
+- 发布 `bensz-skill-kernel` 2.0.1 到 PyPI：140 个包内测试全部通过，版本号由用户确认；根级与 Kernel 中英 README 经 `write-readme` 流程与 `check_readme_pair.py` 核验已与源代码对齐，本轮 Kernel 变更已由包 README 如实覆盖，根级 README 事实声明无需改写。
+
+### Fixed（修复）
+- 修复 State invariant 会在同一 `run_id`/`attempt_id` 内读取当前 State 进入前的 Verifier/Gate 事件、从而允许跨阶段复用旧通过结果的问题；`bsk state transition` 现在以当前 Skill 最近一次进入当前 State 的事件划定证据时间窗口，并保留初始状态与旧日志的兼容路径。
 
 ## [5.0.5] - 2026-09-11
 

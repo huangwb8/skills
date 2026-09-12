@@ -291,13 +291,13 @@ def test_state_transition_cli_keeps_snapshot_when_helper_fails(tmp_path: Path, c
 def test_state_transition_cli_enforces_verifier_result_invariant(tmp_path: Path, capsys):
     workspace = TaskWorkspace.open(tmp_path, description="demo")
     skill = tmp_path / "demo-skill"
-    for name in ("checking", "reported"):
+    for name in ("checking", "reported", "delivered"):
         (skill / "states" / name).mkdir(parents=True)
     (skill / "config.yaml").write_text(
         "runtime:\n"
         "  state_roots: [states]\n"
         "  initial_state: bensz.workspace.ready\n"
-        "  states: [test.demo.checking, test.demo.reported]\n",
+        "  states: [test.demo.checking, test.demo.reported, test.demo.delivered]\n",
         encoding="utf-8",
     )
     (skill / "states" / "checking" / "STATE.md").write_text(
@@ -313,8 +313,17 @@ def test_state_transition_cli_enforces_verifier_result_invariant(tmp_path: Path,
         "---\n"
         "id: test.demo.reported\n"
         "entry_conditions: test.demo.checking\n"
-        "transitions: bensz.workspace.closed\n"
+        "invariants: verifier-result-recorded\n"
+        "transitions: test.demo.delivered\n"
         "---\n\n# Reported\n",
+        encoding="utf-8",
+    )
+    (skill / "states" / "delivered" / "STATE.md").write_text(
+        "---\n"
+        "id: test.demo.delivered\n"
+        "entry_conditions: test.demo.reported\n"
+        "transitions: bensz.workspace.closed\n"
+        "---\n\n# Delivered\n",
         encoding="utf-8",
     )
 
@@ -342,6 +351,34 @@ def test_state_transition_cli_enforces_verifier_result_invariant(tmp_path: Path,
     )
     assert main([
         "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "transitioned"
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.delivered",
+        "--skill-root", str(skill),
+    ]) == 0
+    reused = json.loads(capsys.readouterr().out)
+    assert reused["status"] == "rejected"
+    assert "current state entry" in reused["reason"]
+
+    assert main(["status", str(workspace.events)]) == 0
+    capsys.readouterr()
+    assert main(["rebuild", str(workspace.events)]) == 0
+    capsys.readouterr()
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.delivered",
+        "--skill-root", str(skill),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "rejected"
+
+    log.record_verification(
+        {"verifier_id": "test.demo.links", "verdict": "pass", "execution_status": "completed"},
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+    )
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.delivered",
         "--skill-root", str(skill),
     ]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "transitioned"
@@ -374,6 +411,57 @@ def test_verifier_invariant_rejects_half_bound_identity():
     )
     failures = check_state_invariants(definition, log.read(), context={"attempt_id": "attempt-1"})
     assert any("both must be provided" in item for item in failures)
+
+
+def test_verifier_invariant_rejects_results_from_before_current_state_entry(tmp_path: Path):
+    from bensz_skill_kernel import EventLog, StateDefinition, check_state_invariants
+
+    definition = StateDefinition(
+        id="test.demo.reported",
+        version="1.0.0",
+        invariants=("verifier-result-recorded", "verifier-gate-allow"),
+    )
+    context = {"run_id": "run-1", "attempt_id": "attempt-1", "skill": "demo-skill"}
+    log = EventLog(tmp_path / "events.ndjson")
+    log.record_verification(
+        {
+            "verifier_id": "test.demo.links",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+        },
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "from_state": "test.demo.checking",
+            "to_state": "test.demo.reported",
+        },
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+
+    failures = check_state_invariants(definition, log.read(), context=context)
+    assert any("current state entry" in item for item in failures)
+
+    log.record_verification(
+        {
+            "verifier_id": "test.demo.links",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+        },
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    assert check_state_invariants(definition, log.read(), context=context) == ()
 
 
 def test_state_id_requires_owner_machine_and_state() -> None:

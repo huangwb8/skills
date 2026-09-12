@@ -362,6 +362,7 @@ def _run_state_command(args: argparse.Namespace) -> int:
             return 0
         events = EventLog(workspace.events).read()
         context = _json_object(args.context_json, label="--context-json")
+        context = {**context, "skill": args.skill}
         if args.run_id is not None:
             context = {**context, "run_id": args.run_id, "attempt_id": args.attempt_id}
         if declaration:

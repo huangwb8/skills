@@ -74,7 +74,7 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
 
 状态操作返回 `bensz-meta-state-v1` JSON，含操作、状态、结果、可选 helper 回执和快照。Skill 元状态写入自身 `log/meta-state.json`；任务 `events.ndjson`/`state.json` 仍是独立的生命周期与证据层。成功迁移追加 `state.transition`（`state_domain: skill`）事件，`bsk rebuild` 投影到 `skill_states`/`skill_state_transitions` 并核验稳定字段哈希。缺失快照可由事件恢复，哈希漂移返回结构化 `integrity_error`。
 
-Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded` 要求离开该状态前同时存在 `verification.result` 与 `verification.gate`；不满足时返回 `rejected`，不写入新快照。领域 invariant 仍由 Skill helper 或人工复核负责。带运行身份时，`run_id` 与 `attempt_id` 必须成对传入。
+Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded` 要求离开该状态前同时存在 `verification.result` 与 `verification.gate`；这些事件必须属于当前 `run_id`/`attempt_id`，并发生在当前 Skill 最近一次进入该 State 之后，较早阶段的通过结果不能跨阶段复用。不满足时返回 `rejected`，不写入新快照。领域 invariant 仍由 Skill helper 或人工复核负责。带运行身份时，`run_id` 与 `attempt_id` 必须成对传入。
 
 ## Verifier：证据与 Gate
 

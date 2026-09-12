@@ -404,6 +404,7 @@ Pack 的详细设计与审查由 `skills/alpha/verifier-state-architect` 负责�
 ```
 
 **版本号 Single Source of Truth**：
+- 仓库发布版本与 `bensz-skill-kernel` 包版本只能由人类用户决定：包括 Git tag、`CHANGELOG.md` 中的仓库级版本条目以及 `packages/bensz-skill-kernel/pyproject.toml` 的 `version` 字段。AI 可以建议版本号，但未经人类明确确认，不得擅自写入、创建或提升。
 - 本仓库不维护根级 `config.yaml`：仓库发布版本以 Git tag 为准；项目级 `project_info` 配置仅供需要项目级版本治理的下游仓库参考。
 - 各 Skill 版本唯一记录在自身 `config.yaml:skill_info.version`，不在 SKILL.md、README.md 中冗余记录；遵循 [语义化版本](https://semver.org/lang/zh-CN/)：主版本号为不兼容 API 修改，次版本号为向下兼容功能新增，修订号为向下兼容问题修正。
 - 版本号同步顺序：`config.yaml`（唯一来源）→ README.md 等文档引用 → `CHANGELOG.md` 版本条目。

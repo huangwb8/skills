@@ -88,7 +88,7 @@ Kernel 内置运行生命周期包括 `planned`、`active`、`waiting`、`checki
 | 不变量 | 离开安检前必须完成安全检查 |
 | 终态 | 旅程完成、失败或取消 |
 
-AI 不能只说“我已经检查过了”就把状态改成下一阶段。若契约要求 Verifier 结果和 Gate，它必须先留下对应事件，再由 Kernel 检查迁移是否合法。
+AI 不能只说“我已经检查过了”就把状态改成下一阶段。若契约要求 Verifier 结果和 Gate，它必须先留下对应事件，再由 Kernel 检查迁移是否合法。用于离开当前 State 的结果和 Gate 还必须发生在最近一次进入该 State 之后；即使 `run_id`/`attempt_id` 相同，较早阶段的通过结果也不能再次放行后续阶段。
 
 ## 状态如何叠加
 
@@ -243,7 +243,7 @@ flowchart TD
 
 ## 它如何影响 State
 
-Gate 结果通常作为 State 不变量的证据。只有 required Verifier 全部在同一 `run_id`/`attempt_id` 下完成并通过，且 allowing Gate 覆盖这些结果，状态才可以满足 `required-verifiers-pass`；Gate 自己不负责修改 State。
+Gate 结果通常作为 State 不变量的证据。只有 required Verifier 全部在同一 `run_id`/`attempt_id` 下完成并通过，allowing Gate 覆盖这些结果，而且这些事件位于当前 State 的本次进入事件之后，状态才可以满足 `required-verifiers-pass`；Gate 自己不负责修改 State。
 
 ## 如何观察
 

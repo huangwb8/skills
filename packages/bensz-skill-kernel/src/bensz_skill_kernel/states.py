@@ -52,16 +52,42 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     or human review.  Those are deliberately not guessed by the kernel.  The
     supported ``verifier-result-recorded`` invariant is an evidence guard: a
     task event stream must contain both a verifier result and its Gate before
-    leaving the checking state.
+    leaving the checking state.  When ``context.skill`` identifies the owning
+    Skill, only evidence recorded after its latest entry into the current State
+    is eligible.
     """
     event_list = list(events)
     context = context or {}
     run_id = context.get("run_id")
     attempt_id = context.get("attempt_id")
+    skill = context.get("skill")
     def _value(event: Any, key: str, default: Any = None) -> Any:
         if isinstance(event, Mapping):
             return event.get(key, default)
         return getattr(event, key, default)
+
+    def _payload(event: Any) -> Mapping[str, Any]:
+        payload = _value(event, "payload", {})
+        return payload if isinstance(payload, Mapping) else {}
+
+    def _event_type(event: Any) -> str:
+        return str(_value(event, "type", _value(event, "event_type", "")))
+
+    # A Gate proves that the current State may be left only when its evidence
+    # was produced during the current visit to that State.  Without this
+    # temporal window, an earlier State's passing result can be reused later
+    # when a caller keeps the same run/attempt identity.
+    state_entry_position: int | None = None
+    if isinstance(skill, str) and skill:
+        for position, event in enumerate(event_list):
+            payload = _payload(event)
+            if (
+                _event_type(event) == "state.transition"
+                and payload.get("state_domain") == "skill"
+                and payload.get("skill") == skill
+                and payload.get("to_state") == definition.id
+            ):
+                state_entry_position = position
 
     # Once an event stream carries run identity, silently evaluating the
     # invariant against all historical attempts would allow stale evidence to
@@ -70,15 +96,21 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     has_identity = any(_value(event, "run_id") is not None or _value(event, "attempt_id", "default") != "default" for event in event_list)
     if "verifier-result-recorded" in definition.invariants and has_identity and (run_id is None or attempt_id is None):
         return ("verifier-result-recorded (run_id/attempt_id required; both must be provided)",)
+    positioned_events = list(enumerate(event_list))
     if run_id is not None or attempt_id is not None:
         def _matches(event: Any) -> bool:
             get = event.get if isinstance(event, Mapping) else lambda key, default=None: getattr(event, key, default)
             return (run_id is None or get("run_id") == run_id) and (attempt_id is None or get("attempt_id", "default") == attempt_id)
-        event_list = [event for event in event_list if _matches(event)]
+        positioned_events = [(position, event) for position, event in positioned_events if _matches(event)]
+    if state_entry_position is not None:
+        positioned_events = [
+            (position, event)
+            for position, event in positioned_events
+            if position > state_entry_position
+        ]
+    event_list = [event for _, event in positioned_events]
     event_types = {
-        str(getattr(event, "event_type", getattr(event, "type", "")))
-        if not isinstance(event, Mapping)
-        else str(event.get("type", event.get("event_type", "")))
+        _event_type(event)
         for event in event_list
     }
     failures: list[str] = []
@@ -87,13 +119,11 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
         if required:
             missing = sorted(required - event_types)
             if missing:
-                failures.append(f"{invariant} (missing events: {', '.join(missing)})")
+                timing = " after current state entry" if state_entry_position is not None else ""
+                failures.append(f"{invariant} (missing events{timing}: {', '.join(missing)})")
             elif run_id is not None or attempt_id is not None:
                 result_events = [e for e in event_list if _value(e, "type", _value(e, "event_type", "")) == "verification.result"]
                 gate_events = [e for e in event_list if _value(e, "type", _value(e, "event_type", "")) == "verification.gate"]
-                def _payload(event: Any) -> Mapping[str, Any]:
-                    payload = _value(event, "payload", {})
-                    return payload if isinstance(payload, Mapping) else {}
                 result_refs = {f"{_payload(e).get('verifier_id')}@{_payload(e).get('verifier_version')}" for e in result_events}
                 if any(ref.startswith("None@") or ref.endswith("@None") for ref in result_refs):
                     failures.append(f"{invariant} (verification result missing verifier identity)")
@@ -117,7 +147,8 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                 if payload.get("decision") in {"allow", "allow_with_warnings"}:
                     allowed = True
             if not allowed:
-                failures.append("verifier-gate-allow (no allowing Gate decision)")
+                timing = " after current state entry" if state_entry_position is not None else ""
+                failures.append(f"verifier-gate-allow (no allowing Gate decision{timing})")
         elif invariant == "required-verifiers-pass":
             required = context.get("required_verifiers")
             if not isinstance(required, Iterable) or isinstance(required, (str, bytes, Mapping)):

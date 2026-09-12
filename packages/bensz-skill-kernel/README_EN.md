@@ -70,7 +70,7 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
 
 State operations return `bensz-meta-state-v1` JSON with the operation, state, result, optional helper receipt, and snapshot. Skill metadata state is written to `log/meta-state.json`; task `events.ndjson`/`state.json` remain a separate lifecycle/evidence layer. A successful transition appends a `state.transition` (`state_domain: skill`) event; `bsk rebuild` projects it to `skill_states`/`skill_state_transitions` and checks the stable-field hash. A missing snapshot can be recovered from events; hash drift returns structured `integrity_error`.
 
-The kernel executes only protocol-defined invariants. The current `verifier-result-recorded` invariant requires both `verification.result` and `verification.gate` before leaving the state; otherwise it returns `rejected` without writing a new snapshot. Domain invariants remain the responsibility of a Skill helper or human review. When run identity is present, `run_id` and `attempt_id` must be supplied together.
+The kernel executes only protocol-defined invariants. The current `verifier-result-recorded` invariant requires both `verification.result` and `verification.gate` before leaving the state. Those events must belong to the current `run_id`/`attempt_id` and occur after the Skill most recently entered the current State, so an earlier stage's passing result cannot be reused across stages. Otherwise the transition returns `rejected` without writing a new snapshot. Domain invariants remain the responsibility of a Skill helper or human review. When run identity is present, `run_id` and `attempt_id` must be supplied together.
 
 ## Verifier: evidence and Gates
 
