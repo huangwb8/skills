@@ -95,7 +95,7 @@ bsk verifier run org.example.contract.check --skill-root path/to/skill \
 
 `--root` 显式叠加一个或多个 Verifier 集合；`--skill-root` 从 `config.yaml.runtime.verifier_roots`（默认 `references/verifiers`）加载 Pack，并只暴露 `runtime.verifiers` 已声明的 ID/版本。两者互斥且都不会扫描全局目录。`run` 保留 `--input` 文件兼容入口，也支持完整的 `--request-json` 或 `--request-file`；非文件型 Verifier 应使用完整请求，避免遗漏其 subject/context/evidence 契约。JSON 请求中的 `run_id`/`attempt_id` 会被保留，显式 CLI 参数优先。
 
-内置示例包括文件存在、Markdown 链接完整性和引用真实性/适切性；旧 ID alias 仍可解析。引用 Verifier 显式声明为 `agent` 组件，未收到绑定结果时保持 `unchecked`/`wait`。旧单入口 Pack、无 `index.json` 的兼容目录和 instruction-only 状态仍可发现，但会给出缺少显式组件元数据的诊断。原子 Pack 还覆盖合同一致性、路径范围、Schema、diff、敏感信息脱敏、证据来源、事件完整性、状态转移和任务完整性；领域规则不写入 Kernel。
+内置示例包括文件存在、Markdown 链接完整性、引用真实性/适切性，以及 `bensz.design.minimum-sufficient-complexity`（审查复杂度是否有当前目标、约束或风险依据）；旧 ID alias 仍可解析。引用和设计复杂度 Verifier 显式声明为 `agent` 组件，未收到绑定结果时保持 `unchecked`/`wait`。旧单入口 Pack、无 `index.json` 的兼容目录和 instruction-only 状态仍可发现，但会给出缺少显式组件元数据的诊断。原子 Pack 还覆盖合同一致性、路径范围、Schema、diff、敏感信息脱敏、证据来源、事件完整性、状态转移和任务完整性；领域规则不写入 Kernel。
 
 审计运行增加 `--events EVENTS --run-id RUN_ID`，返回统一 `results`、`gate` 和兼容 `verification` 字段。Skill 声明中的 required Verifier 失败会拒绝，未完成会等待或进入人工复核；advisory Verifier 的非通过结果只产生警告。Verifier 级和组件级 Gate 按严重度保守合并，advisory 只影响它自己的组件，不会掩盖其它 required Verifier 的绑定错误或缺失结果。Agent/人工 handoff 会在顶层返回，但不把契约正文或原始上下文写入账本。Python API 的 `trusted=False` 是不可信 Pack 的进程级 fail-closed 选项，不是 `bsk verifier run` 的 CLI 参数；CLI 只执行用户显式选择的内置、`--root` 或 `--skill-root` Pack。
 

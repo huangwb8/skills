@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+- 新增 BSK 内置语义 Verifier `bensz.design.minimum-sufficient-complexity`，以 Agent 契约审查设计复杂度是否有当前目标、约束或风险依据；不使用固定评分或硬编码阈值，缺证据与真实权衡保留为 `unchecked`/`uncertain`。
+
 ### Added（新增）
 - `bensz-skill-kernel` 新增与 State 对称的 Verifier Pack source：公开 `SkillVerifierDeclaration` 与 `build_verifier_registry()`，CLI 支持显式 `--root`/`--skill-root` 及完整 `--request-json`/`--request-file`，同时保留文件型 `--input` 兼容入口。
 

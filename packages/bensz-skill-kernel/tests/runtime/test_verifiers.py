@@ -190,7 +190,34 @@ def test_builtin_verifiers_are_package_assets():
         "bensz.runtime.event-integrity",
         "bensz.runtime.state-transition",
         "bensz.runtime.task-completeness",
+        "bensz.design.minimum-sufficient-complexity",
     }
+
+
+def test_minimum_sufficient_complexity_is_conservative_instruction_only_verifier():
+    registry = FilesystemVerifierRegistry(builtin_verifier_root())
+    definition = registry.resolve("bensz.design.minimum-sufficient-complexity")
+    assert definition.classification == "semantic"
+    assert "concrete" in definition.instructions
+    result = registry.run(
+        "bensz.design.minimum-sufficient-complexity",
+        {
+            "subject": {"artifact_kind": "software", "scope": "architecture", "snapshot": "snap-1"},
+            "context": {"objective": "ship", "constraints": ["compatibility"]},
+            "evidence": [
+                {"ref": "objective-and-scope"},
+                {"ref": "current-constraints"},
+                {"ref": "artifact-or-design-snapshot"},
+            ],
+        },
+    )
+    assert result["execution_status"] == "unchecked"
+    assert result["verdict"] == "unchecked"
+    assert result["evidence_refs"] == (
+        "objective-and-scope",
+        "current-constraints",
+        "artifact-or-design-snapshot",
+    )
 
 
 def test_filesystem_atomic_verifier_executes_from_its_own_directory() -> None:
