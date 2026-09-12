@@ -2,13 +2,13 @@
 
 ## 适用范围与职责
 
-本文件是 Skill 专用 Verifier / State Contract Pack 托管规范的唯一维护入口，由 `verifier-state-architect` 随 Skill 托管、发布和安装。适用于明确采用这些组件后的新建、接入及相关资产修改；规定资产放在哪里、如何声明和发现，不替代领域架构设计、命名规范或执行协议，也不要求普通 Skill 默认接入 Verifier / State。`AGENTS.md`、教程和落地参考只引用本文件，不另存规范副本；修改托管规则时先改本文件，再同步受影响的检查脚本与引用。
+本文件是 Skill 专用 Verifier / State Contract Pack 托管规范的唯一入口，随 `verifier-state-architect` 发布。它规定采用组件后的托管、声明和发现，不替代架构设计、命名或执行协议，也不要求普通 Skill 接入。其它文档只引用本文件；修改规范时同步检查脚本与引用。
 
-本文件包含安装后执行所需的托管规则。文中 `docs/`、`packages/` 开头的代码路径均为开发仓库中的维护依据，不是相对于本文件的运行依赖；仓库外按实际安装的 Kernel 版本核对 API，不要求存在这些源码路径。
+文中 `docs/`、`packages/` 路径是开发仓库维护依据，不是安装后依赖；仓库外按实际 Kernel 版本核对 API。
 
-- 仅服务于目标 Skill 业务的契约及专属组件，必须随该 Skill 托管、发布和安装，不得为方便发现而塞入 `packages/bensz-skill-kernel/` 的内置目录。
-- BSK 提供通用的发现、索引解析、组件执行与证据处理能力；Skill 保留自身的验证命题和状态迁移语义。跨场景复用的通用能力应另行评估，不能仅凭使用频率或 ID 前缀直接提升为 Kernel 内置 Pack。
-- 本文中的“必须”是新建或修改相关资产时的仓库维护要求；“当前实现”描述现有加载行为。兼容读取旧格式不意味着新资产可以继续沿用旧布局。
+- 专属契约和组件随目标 Skill 发布，不塞入 Kernel 内置目录。
+- BSK 提供发现、索引、执行和证据底层；Skill 保留验证命题与状态语义。提升通用能力需另行评估。
+- “必须”约束新建或修改资产；兼容旧格式不代表新资产可沿用旧布局。
 
 ## 标准目录
 
@@ -33,11 +33,9 @@
                 └── check.py
 ```
 
-- 两个 `index.json` 分别属于 Verifier 和 State **集合根目录**，不是单个 Pack 的内部文件。每个 Pack 位于所属集合的直接子目录。
-- 目录名使用能表达能力或阶段的小写 kebab-case；目录名不是公开 ID，不能用重命名目录代替 ID / alias 迁移。
-- Pack 专属脚本及静态资源放在该 Pack 内；机器可读的组件入口必须指向 Pack 内实际存在的文件，不能使用 `../` 或符号链接越界。
-- Skill 已有的共用业务 helper 可以继续放在 Skill 的 `scripts/` 中，由 Pack 内入口基于 `Path(__file__).resolve()` 定位并调用；不得将索引入口直接指向 Pack 外，不得复制出第二份业务实现。
-- 契约和静态组件是发布资产；运行结果、状态快照、证据、日志、缓存和测试夹具不是，不得回写这些目录。
+- `index.json` 位于集合根，每个 Pack 是其直接子目录；目录用小写 kebab-case，重命名不能代替 ID/alias 迁移。
+- 组件入口必须指向 Pack 内真实文件，拒绝 `../` 和 symlink 逃逸。共用 helper 可留在 Skill `scripts/`，由 Pack 入口基于 `Path(__file__).resolve()` 调用；不复制业务实现。
+- 契约和静态组件属于发布资产；结果、快照、证据、日志、缓存和 fixture 不得回写。
 
 ## 索引、契约与身份
 
@@ -50,11 +48,11 @@
 | `VERIFIER.md` | 验证目标、输入证据、执行含义、判定、失败及副作用边界；`contract` 使用 `VERIFIER.md` |
 | `STATE.md` | 阶段说明、`entry_conditions`、`invariants`、`transitions` 及进入/退出证据；`contract` 使用 `STATE.md` |
 
-带索引的 Pack 以索引作为身份与执行元数据的单一来源，不在契约 frontmatter 或正文中重复维护这些字段。`classification` 应按实际领域属性填写，不得把 Skill 专用 Pack 标成通用内置能力。`runtime` 中的版本要求是消费约束，不是另一个 Pack 版本定义。
+带索引的 Pack 以索引作为身份/执行元数据唯一来源，契约不重复；`classification` 反映实际领域属性。`runtime` 版本是消费约束，不是 Pack 版本定义。
 
-两者均可采用脚本、Agent、人工或混合组件，不要求“每个 Pack 都必须有 Python 脚本”。新执行契约显式声明 `components`，组件类型为当前 Kernel 支持的 `script`、`agent`、`human`，模式按实际组件选择 `rule`、`prompt`、`human`、`hybrid`，不自行增加 Kernel 未支持的执行方式。Verifier 至少一个组件；State 的纯阶段契约可显式使用 `components: []`、`mode: none`、`assurance_tier: none`，但必须有真实阶段/迁移含义，不能冒充执行过的检查。脚本组件声明 Pack 内 `entrypoint`，明确 `required`、`assurance`、`side_effects`、超时及必要依赖顺序。
+两者可用 `script`、`agent`、`human` 或混合组件，模式只用 Kernel 支持值。Verifier 至少一个组件；纯阶段 State 可用空组件、`mode: none`、`assurance_tier: none`，但须有真实阶段/迁移且不冒充检查。脚本组件声明 Pack 内入口、`required`、assurance、副作用、超时和依赖顺序。
 
-身份规范的仓库维护入口为 `docs/verifier-id-naming.md` 与 `docs/state-id-naming.md`：Verifier 使用 `owner.domain.capability`，State 使用 `owner.machine.state`；canonical ID 为全小写 kebab-case 三段式，版本独立维护且不嵌入 ID，发布后重命名保留唯一 `aliases`，历史事件不改写。`bensz` 前缀不代表一定属于 Kernel 内置注册表。
+身份规范见 `docs/verifier-id-naming.md` 与 `docs/state-id-naming.md`：Verifier 用 `owner.domain.capability`，State 用 `owner.machine.state`；canonical ID 为小写 kebab-case 三段式，版本不入 ID，重命名保留唯一 alias，历史事件不改写。`bensz` 前缀不等于 Kernel 内置。
 
 ### VERIFIER.md 正文
 
@@ -80,6 +78,7 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 - 使用 Verifier 要求时，在 `config.yaml.runtime.verifiers` 声明 `id`、`version` 和布尔 `required`；专用集合通过 `runtime.verifier_roots` 声明，默认值为 `references/verifiers`，路径必须留在 Skill 根目录内。通用 Verifier 引用 Kernel 中的能力，专用 Verifier 引用本 Skill 集合，不把内置契约复制进 Skill。
 - 接入 Kernel 时核对 `runtime.kernel` 中的包名、版本与实际运行版本；当前声明加载器精确匹配版本，不接受版本区间。不能盲抄示例中的历史版本，不能以“文件存在”代替版本和解析检查。
 - `SKILL.md` 的控制章节必须说明调用时机、证据来源、通过条件、失败恢复和人工介入，并引用本 Skill 内的配置或契约。领域规则归对应契约维护，不在 `SKILL.md` 再维护平行副本。
+- 同时采用 BSK 领域 State 与 required Verifier 时，必须按 [Skill 自有 BSK 编排入口](bsk-orchestration.md) 在 `runtime.orchestration` 声明一个 Skill 内命令入口与 action 的 current/target State 映射。入口统一读取 State、准备请求、运行 required Verifier、生成 Gate、放行后 transition 并严格检查回执；目标 `SKILL.md` 必须把它设为 Agent 正常执行受控 action 的唯一路径。
 
 ### 当前实现边界
 
@@ -87,14 +86,15 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 | --- | --- |
 | Skill State 声明加载 | `SkillStateDeclaration.from_skill_root()` 读取 `runtime.state_roots`；路径相对于 Skill 根目录解析，且必须留在 Skill 内。省略该字段时当前默认是 `states`，因此标准布局必须显式声明 `references/states` |
 | Skill Verifier 要求解析 | `SkillVerifierDeclaration.from_skill_root()` 读取 `runtime.verifier_roots` 与 `runtime.verifiers`，合并内置注册表和显式 Skill 内集合；默认根是 `<skill>/references/verifiers`，不扫描任意目录 |
+| Skill 编排元数据 | `runtime.orchestration` 由目标 Skill 的单一命令入口读取，BSK 不解释或自动执行；本 Skill 的 `check_integration.py` 只做声明、路径、action 映射和静态 State 边检查 |
 | State CLI | 支持通过 `--skill-root` 读取 Skill 声明，或通过 `--root` 提供附加状态目录；两者不能混用 |
 | 普通 Verifier CLI | 默认只加载内置 Verifier；显式 `--root` 可叠加集合，`--skill-root` 按 Skill 声明加载并限制可用 ID。`run` 接受兼容文件输入或完整 JSON 请求；两类 source 互斥且不扫描全局目录 |
 
-**声明可解析不等于组件已执行。** CLI/Python 调用方仍须显式选择 Verifier 并提供符合契约的请求；目录发现本身不产生判定。没有可用执行入口时，应报告接入缺口，不得将未执行或证据不足记录为通过。Agent / 人工组件仍需要宿主执行和绑定结果回传，不能把自然语言契约当成已运行的脚本。
+**可解析不等于已执行。** 调用方须显式选择 Verifier 并提供契约请求；目录发现不产生判定。无执行入口、未执行或缺证据不得记为通过；Agent/人工组件需宿主执行及绑定回传。
 
-只有 Verifier 时，优先用 `SkillVerifierDeclaration.from_skill_root()` 统一加载 `runtime.verifier_roots`、合并内置与专用集合并规范化要求；底层调用方才直接组合 `CombinedVerifierRegistry` 与 `normalize_requirements()`。不要为满足 State 声明格式而创建无意义状态。本地索引用 `FilesystemVerifierRegistry` / `FilesystemStateRegistry` 验证；组件计划用 `definition.contract_pack()` 或 `ContractPack.from_directory()` 检查。
+Verifier-only 优先用 `SkillVerifierDeclaration.from_skill_root()` 加载并规范化；底层调用方才直接组合 Registry。不得为格式创建无意义 State。本地索引用 Filesystem Registry 验证，组件计划用 `definition.contract_pack()` 或 `ContractPack.from_directory()`。
 
-实际接入复用 `ContractPackExecutor` 的脚本执行、Agent/人工 handoff 与绑定结果回传，以及对应 Verifier/State 适配器；调用参数以实际版本 API 为准。handoff 只是待办，不是判定。State 与 Verifier 共用执行/证据底层，不能混淆两者的领域结果对象。
+实际接入复用 `ContractPackExecutor`、handoff/绑定回传及 Verifier/State 适配器；参数以实际 API 为准。handoff 不是判定，两类领域结果不可混淆。
 
 仓库实现核对入口位于 `packages/bensz-skill-kernel/src/bensz_skill_kernel/`：`states.py` 负责 Skill 声明加载，`packs.py` 负责共享 Pack 加载，`cli.py` 维护 CLI 注册表，`contract_packs.py` 定义共享组件执行协议。这些入口变化时同步本节，不能将本文误当成尚未实现功能的承诺。
 
@@ -120,7 +120,7 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 
 1. 核对领域职责与可选性，只新增确有需要的专用 Pack，不修改内置注册表来绕过接入问题。
 2. 用目标版本的加载器验证索引、契约、canonical / alias 解析和目录边界；确认 State 声明及 Verifier 要求能解析到预期定义。
-3. 验证实际调用入口，而不只做目录检查；脚本组件检查成功、失败与非法输入，Agent / 人工组件检查待处理与结果回传路径。未执行项明确留痕。
+3. 验证实际调用入口，而不只做目录检查；适用时检查单一 BSK 编排入口的完整成功链和 fail-closed 反例。脚本组件检查成功、失败与非法输入，Agent / 人工组件检查待处理与结果回传路径。未执行项明确留痕。
 4. 核对迁移规则与证据判定，保证缺失或不可观察证据不会被默认为通过，状态不会因“有结果文件”就自动放行。
 5. 从仓库约定的临时目录验证复制后的资产仍可发现，组件不依赖开发路径，不产生源码目录缓存；无需为验证而覆盖系统级安装副本。
 6. 更新受影响的 Skill 使用说明、版本和变更记录，按 BAC 要求记录验证证据；正式交付与运行产物分别归档。

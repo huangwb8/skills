@@ -1,6 +1,7 @@
 """Minimal, append-only runtime kernel for Agent Skill task lifecycles."""
 
 from .runtime import (
+    ACTION_AUTHORIZATION_PROTOCOL,
     CompletionError,
     EventEnvelope,
     EventLog,
@@ -56,6 +57,7 @@ from .states import CombinedStateRegistry, FilesystemStateRegistry, META_STATE_P
 from .workspace import META_STATE_SNAPSHOT_VERSION, TaskWorkspace, WorkspaceError, WorkspacePaths, WORKSPACE_KINDS, WORKSPACE_PROTOCOL_VERSION, state_snapshot_hash, workspace_path
 
 __all__ = [
+    "ACTION_AUTHORIZATION_PROTOCOL",
     "CompletionError",
     "EventEnvelope",
     "EventLog",

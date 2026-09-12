@@ -72,6 +72,26 @@ State operations return `bensz-meta-state-v1` JSON with the operation, state, re
 
 The kernel executes only protocol-defined invariants. The current `verifier-result-recorded` invariant requires both `verification.result` and `verification.gate` before leaving the state. Those events must belong to the current `run_id`/`attempt_id` and occur after the Skill most recently entered the current State, so an earlier stage's passing result cannot be reused across stages. Otherwise the transition returns `rejected` without writing a new snapshot. Domain invariants remain the responsibility of a Skill helper or human review. When run identity is present, `run_id` and `attempt_id` must be supplied together.
 
+## Action: in-state authorization
+
+A State transition guards only a transition submitted to the Kernel; it cannot automatically intercept a host that writes a file or invokes business logic around the Kernel. A Skill host that protects an in-state action should call the generic preflight first, obtain a single-use capability bound to the current State snapshot and version, `run_id/attempt_id`, handoff, and evidence window, then atomically consume it immediately before the action:
+
+```bash
+bsk action preflight .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
+  demo-skill publish-report --state org.example.workflow.ready --state-version 1.0.0 \
+  --run-id run-1 --attempt-id attempt-1 --idempotency-key authorize-publish
+
+bsk action consume .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
+  action-auth-... demo-skill publish-report --run-id run-1 --attempt-id attempt-1 \
+  --idempotency-key consume-publish
+```
+
+Python callers use `EventLog.preflight_action()` and `EventLog.consume_action_authorization()`. Preflight accepts only the run identity and snapshot binding of the Skill's most recent `state.transition`. An optional `handoff_id` must come from the same run/attempt after that State entry. Re-entering the State expires prior grants, and each grant can be consumed once. `expected_last_seq` rejects a concurrent observation conflict. Rejections are also appended as `action.authorization.denied` events with stable reason codes and recovery advice. `status/rebuild` only projects existing events; it never fabricates an authorization or business action.
+
+The protocol identifier is `bensz-action-authorization-v1` (public constant `ACTION_AUTHORIZATION_PROTOCOL`). Preflight rejection codes include `concurrent_event_conflict`, `skill_state_unavailable`, `state_mismatch`, `state_version_mismatch`, `state_snapshot_unbound`, `state_identity_mismatch`, `handoff_outside_state_window`, and `evidence_outside_handoff`. Consumption codes include `authorization_not_found`, `authorization_already_consumed`, `authorization_expired`, `authorization_binding_mismatch`, and the concurrent-conflict code. Callers should branch on the reason code and follow `recovery`, not parse prose messages.
+
+The Skill/host contract still defines action names and which actions are protected. The Kernel neither knows domain fields nor scans project files. A host that never invokes preflight cannot be stopped by the Kernel itself; this capability is an auditable protocol guard, not an operating-system permission sandbox. An idempotency key remains bound to its first result, so a recovered retry uses a new action attempt/key.
+
 ## Verifier: evidence and Gates
 
 `verifiers/index.json` is the single source of truth for the Verifier catalog and execution plans. Every Pack has a `VERIFIER.md` and optional components. Script components receive one JSON request on stdin and emit one result JSON on stdout; `verdict` supports `pass`, `fail`, `uncertain`, `unchecked`, `error`, `timed_out`, and `skipped`. The kernel normalizes timeouts, exceptions, invalid JSON, and result fields.

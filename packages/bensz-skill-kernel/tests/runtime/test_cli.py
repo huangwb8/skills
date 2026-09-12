@@ -161,6 +161,42 @@ def test_verifier_cli_accepts_request_file_from_stdin_and_preserves_attempt_id(t
     assert output["results"][0]["attempt_id"] == "attempt-json"
 
 
+def test_action_cli_preflight_and_consume(tmp_path: Path, capsys):
+    events = tmp_path / "events.ndjson"
+    log = EventLog(events)
+    log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "from_state": "test.demo.preparing",
+            "to_state": "test.demo.ready",
+            "state_version": "1.2.0",
+            "snapshot_hash": "a" * 64,
+        },
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+
+    assert main([
+        "action", "preflight", str(events), "demo-skill", "publish-report",
+        "--state", "test.demo.ready", "--state-version", "1.2.0",
+        "--run-id", "run-1", "--attempt-id", "attempt-1",
+        "--idempotency-key", "authorize-publish",
+    ]) == 0
+    granted = json.loads(capsys.readouterr().out)
+    assert granted["payload"]["decision"] == "allow"
+
+    assert main([
+        "action", "consume", str(events), granted["payload"]["authorization_id"],
+        "demo-skill", "publish-report", "--run-id", "run-1",
+        "--attempt-id", "attempt-1", "--idempotency-key", "consume-publish",
+    ]) == 0
+    consumed = json.loads(capsys.readouterr().out)
+    assert consumed["type"] == "action.authorization.consumed"
+
+
 def test_verifier_cli_rejects_combined_root_and_skill_root(tmp_path: Path, capsys):
     root = tmp_path / "verifiers"
     _write_demo_verifier(root)

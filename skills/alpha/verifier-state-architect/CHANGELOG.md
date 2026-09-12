@@ -2,8 +2,12 @@
 
 ## [Unreleased]
 
+### Added（新增）
+- 当目标 Skill 同时采用 BSK State 与 required Verifier 时，强制交付 Skill 自有的单一编排命令，统一 action → State、状态读取、请求准备、required Verifier、Gate、放行后 transition 与严格返回校验；失败默认关闭。
+- 新增 `runtime.orchestration` 的最小声明与静态检查，缺入口、越界路径、空 action 或未声明 State 映射会拒绝；静态通过仍明确标记执行未验证。
+
 ### Changed（变更）
-- 托管规范与 BSK 1.1.0 对齐：Skill 专用 Verifier 可通过 `runtime.verifier_roots` 声明，并由 CLI 的显式 `--skill-root`/`--root` 与完整 JSON 请求入口发现和执行；仍禁止任意全局扫描和把“已发现”冒充“已执行”。
+- 当前托管与检查契约已用 BSK 2.1.0 验证：Skill 专用 Verifier 可通过 `runtime.verifier_roots` 声明，并由 CLI 的显式 `--skill-root`/`--root` 与完整 JSON 请求入口发现和执行；仍禁止任意全局扫描和把“已发现”冒充“已执行”。
 
 ### Added（新增）
 - 新增随 Skill 安装的落地参考与只读 `scripts/check_integration.py`，核验专用 Pack 托管、索引/契约分工和真实 Kernel 加载；结构通过不冒充组件已执行。
@@ -16,6 +20,7 @@
 - 保留已规范化的正文骨架、公共约束和既有删除影响/Kernel 两层审查规则，在原有设计能力之上增加执行闭环。
 
 ### Validation（验证）
+- 本轮 `auto-test-skill` 完成 1 个 A 轮（10 项问题）及强制 B 轮（10 项建议），12 个编排声明正反例、strict 结构、Ruff、相对链接和复制后检查通过；`compact-bensz-skills` 在保持 BSK 七步强制闭环的前提下减少 1,123 个工作型 Markdown 词（约 9.4%）。
 - Python 3.12 与仓库 Kernel 源码环境通过 31 个定向用例，覆盖零组件、单类/双类组件、标准布局、索引/声明拒绝、alias、越界、复制后发现、脚本成功/失败与 Agent 待回传；未进行完整模型端到端评测。
 - Skill strict 结构检查、双语指南检查、Ruff 与 Diff 空白检查通过；旧版已安装 Kernel 缺 API 时返回受阻，不自动改动系统环境。
 

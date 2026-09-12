@@ -234,6 +234,316 @@ def test_side_effect_events_require_authorization(tmp_path: Path):
     assert event.authorization == {"scope": ["publish"]}
 
 
+def test_action_authorization_events_cannot_be_forged_through_generic_append(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+
+    for event_type in (
+        "action.authorization.granted",
+        "action.authorization.consumed",
+        "action.authorization.denied",
+    ):
+        with pytest.raises(IntegrityError, match="must be emitted by action authorization APIs"):
+            log.append(
+                event_type,
+                payload={
+                    "protocol": "bensz-action-authorization-v1",
+                    "authorization_id": "forged",
+                    "decision": "allow",
+                },
+                run_id="run-1",
+                attempt_id="attempt-1",
+            )
+
+
+def _enter_protected_state(
+    log: EventLog,
+    *,
+    run_id: str = "run-1",
+    attempt_id: str = "attempt-1",
+    state: str = "test.demo.ready",
+    version: str = "1.2.0",
+):
+    return log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "from_state": "test.demo.preparing",
+            "to_state": state,
+            "state_version": version,
+            "snapshot_hash": "a" * 64,
+        },
+        scope="skill",
+        run_id=run_id,
+        attempt_id=attempt_id,
+    )
+
+
+def test_action_preflight_binds_current_state_handoff_and_single_use_consumption(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    entry = _enter_protected_state(log)
+    handoff = log.append(
+        "action.handoff",
+        payload={"handoff_id": "handoff-1", "skill": "demo-skill", "state": "test.demo.ready"},
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        evidence_refs=("evidence:new",),
+    )
+
+    granted = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        handoff_id="handoff-1",
+        evidence_refs=("evidence:new",),
+        idempotency_key="authorize-publish",
+    )
+
+    assert granted.event_type == "action.authorization.granted"
+    assert granted.payload["decision"] == "allow"
+    assert granted.payload["state_event_id"] == entry.event_id
+    assert granted.payload["handoff_event_id"] == handoff.event_id
+    grant_replay = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        handoff_id="handoff-1",
+        evidence_refs=("evidence:new",),
+        idempotency_key="authorize-publish",
+    )
+    assert grant_replay == granted
+    authorization_id = granted.payload["authorization_id"]
+
+    consumed = log.consume_action_authorization(
+        authorization_id,
+        skill="demo-skill",
+        action="publish-report",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        idempotency_key="consume-publish",
+    )
+    replay = log.consume_action_authorization(
+        authorization_id,
+        skill="demo-skill",
+        action="publish-report",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        idempotency_key="consume-publish",
+    )
+    denied = log.consume_action_authorization(
+        authorization_id,
+        skill="demo-skill",
+        action="publish-report",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        idempotency_key="consume-publish-again",
+    )
+
+    assert replay == consumed
+    assert consumed.event_type == "action.authorization.consumed"
+    assert consumed.authorization["authorization_id"] == authorization_id
+    assert denied.event_type == "action.authorization.denied"
+    assert denied.payload["reason_code"] == "authorization_already_consumed"
+    projection = log.projection()
+    assert projection["action_authorizations"][authorization_id]["status"] == "consumed"
+    assert projection["action_denials"][-1]["reason_code"] == "authorization_already_consumed"
+
+
+def test_action_preflight_rejects_stale_handoff_wrong_identity_and_state_version(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    log.append(
+        "action.handoff",
+        payload={"handoff_id": "stale-handoff", "skill": "demo-skill", "state": "test.demo.ready"},
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    _enter_protected_state(log)
+
+    stale = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        handoff_id="stale-handoff",
+    )
+    wrong_version = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="9.0.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    wrong_identity = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-2",
+        attempt_id="attempt-1",
+    )
+
+    assert stale.payload["reason_code"] == "handoff_outside_state_window"
+    assert wrong_version.payload["reason_code"] == "state_version_mismatch"
+    assert wrong_identity.payload["reason_code"] == "state_identity_mismatch"
+    assert all(event.payload["decision"] == "reject" for event in (stale, wrong_version, wrong_identity))
+
+    invalid_snapshot_log = EventLog(tmp_path / "invalid-snapshot.ndjson")
+    invalid_snapshot_log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "to_state": "test.demo.ready",
+            "state_version": "1.2.0",
+            "snapshot_hash": "not-a-hash",
+        },
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    invalid_snapshot = invalid_snapshot_log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    assert invalid_snapshot.payload["reason_code"] == "state_snapshot_unbound"
+
+
+def test_action_preflight_rejects_concurrent_snapshot_change_and_consumes_atomically(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    _enter_protected_state(log)
+    observed_seq = log.projection()["last_seq"]
+    log.append("audit.note", payload={"note": "concurrent update"})
+
+    stale = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+        expected_last_seq=observed_seq,
+    )
+    assert stale.payload["reason_code"] == "concurrent_event_conflict"
+
+    granted = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    authorization_id = granted.payload["authorization_id"]
+
+    def consume(index: int):
+        return log.consume_action_authorization(
+            authorization_id,
+            skill="demo-skill",
+            action="publish-report",
+            run_id="run-1",
+            attempt_id="attempt-1",
+            idempotency_key=f"consume-{index}",
+        )
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        outcomes = list(pool.map(consume, range(4)))
+
+    assert sum(item.event_type == "action.authorization.consumed" for item in outcomes) == 1
+    assert sum(item.payload.get("reason_code") == "authorization_already_consumed" for item in outcomes) == 3
+    assert [item.seq for item in log.read()] == list(range(1, len(log.read()) + 1))
+
+
+def test_action_projection_rebuild_is_read_only_and_deterministic(tmp_path: Path):
+    from bensz_skill_kernel import state_snapshot_hash
+
+    task = tmp_path / "task"
+    snapshot_path = task / "demo-skill" / "log" / "meta-state.json"
+    snapshot_path.parent.mkdir(parents=True)
+    snapshot = {
+        "protocol": "bensz-meta-state-v1",
+        "skill": "demo-skill",
+        "current_state": "test.demo.ready",
+        "state_version": "1.2.0",
+    }
+    snapshot["snapshot_hash"] = state_snapshot_hash(snapshot)
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    log = EventLog(task / "log" / "events.ndjson")
+    log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "from_state": "test.demo.preparing",
+            "to_state": "test.demo.ready",
+            "state_version": "1.2.0",
+            "snapshot_hash": snapshot["snapshot_hash"],
+            "snapshot_path": str(snapshot_path),
+        },
+        scope="skill",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    granted = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    count_before = len(log.read())
+    rebuilt = log.rebuild(task / "state.json")
+
+    assert len(log.read()) == count_before
+    assert rebuilt == log.projection()
+    assert rebuilt["action_authorizations"][granted.payload["authorization_id"]]["status"] == "granted"
+
+
+def test_action_authorization_expires_when_skill_state_entry_changes(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    _enter_protected_state(log)
+    granted = log.preflight_action(
+        skill="demo-skill",
+        action="publish-report",
+        state="test.demo.ready",
+        state_version="1.2.0",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    _enter_protected_state(
+        log,
+        run_id="run-1",
+        attempt_id="attempt-1",
+        state="test.demo.next",
+        version="1.3.0",
+    )
+
+    denied = log.consume_action_authorization(
+        granted.payload["authorization_id"],
+        skill="demo-skill",
+        action="publish-report",
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+    assert denied.payload["reason_code"] == "authorization_expired"
+    assert log.projection()["action_authorizations"][granted.payload["authorization_id"]]["status"] == "expired"
+
+
 def test_audit_payloads_are_hashed_and_sensitive_fields_redacted(tmp_path: Path):
     log = EventLog(tmp_path / "events.ndjson")
     log.record_tool_call(run_id="run-1", tool="publish", input={"token": "secret"}, output={"ok": True})

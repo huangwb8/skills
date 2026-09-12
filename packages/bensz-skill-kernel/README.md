@@ -76,6 +76,26 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
 
 Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded` 要求离开该状态前同时存在 `verification.result` 与 `verification.gate`；这些事件必须属于当前 `run_id`/`attempt_id`，并发生在当前 Skill 最近一次进入该 State 之后，较早阶段的通过结果不能跨阶段复用。不满足时返回 `rejected`，不写入新快照。领域 invariant 仍由 Skill helper 或人工复核负责。带运行身份时，`run_id` 与 `attempt_id` 必须成对传入。
 
+## Action：阶段内动作授权
+
+State transition 只能约束主动提交的迁移，不能自动拦截宿主绕过 Kernel 的文件写入或业务调用。需要保护阶段内动作时，Skill host 应在动作前调用通用 preflight，取得与当前 State 快照、State 版本、`run_id/attempt_id`、handoff 和证据窗口绑定的单次 capability，并在实际动作前原子消费：
+
+```bash
+bsk action preflight .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
+  demo-skill publish-report --state org.example.workflow.ready --state-version 1.0.0 \
+  --run-id run-1 --attempt-id attempt-1 --idempotency-key authorize-publish
+
+bsk action consume .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
+  action-auth-... demo-skill publish-report --run-id run-1 --attempt-id attempt-1 \
+  --idempotency-key consume-publish
+```
+
+Python 调用方使用 `EventLog.preflight_action()` 和 `EventLog.consume_action_authorization()`。preflight 只接受当前 Skill 最近一次 `state.transition` 的运行身份和快照绑定；可选 `handoff_id` 必须来自该 State 进入后的同一 run/attempt 窗口。State 再次进入后旧授权自动过期，授权只能消费一次；`expected_last_seq` 可用于拒绝并发观察漂移。拒绝同样追加 `action.authorization.denied`，包含稳定原因码和恢复建议。`status/rebuild` 只投影已有授权事件，不会补写授权或业务动作。
+
+协议标识为 `bensz-action-authorization-v1`（公开常量 `ACTION_AUTHORIZATION_PROTOCOL`）。preflight 拒绝码覆盖 `concurrent_event_conflict`、`skill_state_unavailable`、`state_mismatch`、`state_version_mismatch`、`state_snapshot_unbound`、`state_identity_mismatch`、`handoff_outside_state_window` 和 `evidence_outside_handoff`；消费拒绝码覆盖 `authorization_not_found`、`authorization_already_consumed`、`authorization_expired`、`authorization_binding_mismatch` 及并发冲突。调用方应依据原因码执行 `recovery`，不要解析自然语言消息。
+
+动作名称及“哪些动作必须保护”仍由 Skill/host 契约定义，Kernel 不认识领域字段，也不扫描项目文件。完全不调用 preflight 的宿主无法被 Kernel 自身阻止；该 capability 是可审计的协议门禁，不是操作系统权限沙箱。幂等键绑定首次结果；修复拒绝原因后应使用新的动作尝试/幂等键。
+
 ## Verifier：证据与 Gate
 
 `verifiers/index.json` 是 Verifier 包目录和执行计划的单一来源；每个 Pack 有 `VERIFIER.md` 和可选组件。脚本组件 stdin 接收一个 JSON 请求、stdout 输出一个结果 JSON；`verdict` 支持 `pass`、`fail`、`uncertain`、`unchecked`、`error`、`timed_out`、`skipped`。Kernel 负责超时、异常、非法 JSON 和结果字段归一化。

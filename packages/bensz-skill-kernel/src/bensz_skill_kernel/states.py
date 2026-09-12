@@ -78,6 +78,7 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     # temporal window, an earlier State's passing result can be reused later
     # when a caller keeps the same run/attempt identity.
     state_entry_position: int | None = None
+    state_entry_event: Any | None = None
     if isinstance(skill, str) and skill:
         for position, event in enumerate(event_list):
             payload = _payload(event)
@@ -88,14 +89,31 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                 and payload.get("to_state") == definition.id
             ):
                 state_entry_position = position
+                state_entry_event = event
 
     # Once an event stream carries run identity, silently evaluating the
     # invariant against all historical attempts would allow stale evidence to
     # satisfy a new run.  Callers must provide the *pair* explicitly; a
     # half-bound context is ambiguous and is rejected as well.
     has_identity = any(_value(event, "run_id") is not None or _value(event, "attempt_id", "default") != "default" for event in event_list)
-    if "verifier-result-recorded" in definition.invariants and has_identity and (run_id is None or attempt_id is None):
-        return ("verifier-result-recorded (run_id/attempt_id required; both must be provided)",)
+    identity_bound_invariants = {
+        "verifier-result-recorded", "verifier-gate-allow", "required-verifiers-pass",
+    }
+    active_identity_invariants = identity_bound_invariants.intersection(definition.invariants)
+    if active_identity_invariants and has_identity and (run_id is None or attempt_id is None):
+        return (
+            f"{sorted(active_identity_invariants)[0]} (run_id/attempt_id required; both must be provided)",
+        )
+    if (
+        state_entry_event is not None
+        and (run_id is not None or attempt_id is not None)
+        and active_identity_invariants
+        and (
+            _value(state_entry_event, "run_id") != run_id
+            or _value(state_entry_event, "attempt_id", "default") != attempt_id
+        )
+    ):
+        return ("state entry identity does not match current run_id/attempt_id",)
     positioned_events = list(enumerate(event_list))
     if run_id is not None or attempt_id is not None:
         def _matches(event: Any) -> bool:
@@ -135,7 +153,9 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                     failures.append(f"{invariant} (gate result_refs do not cover current run results)")
                 result_event_ids = {str(_value(item, "event_id")) for item in result_events}
                 bound_ids = {str(_payload(item).get("result_event_id")) for item in gate_events if _payload(item).get("result_event_id")}
-                if bound_ids and not bound_ids.issubset(result_event_ids):
+                if gate_events and not bound_ids:
+                    failures.append(f"{invariant} (gate is not bound to a current result event)")
+                elif bound_ids and not bound_ids.issubset(result_event_ids):
                     failures.append(f"{invariant} (gate result_event_id is not from the current run)")
         elif invariant == "verifier-gate-allow":
             allowed = False

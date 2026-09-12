@@ -105,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     append.add_argument("--path")
     append.add_argument("--evidence-ref", action="append", default=[])
     append.add_argument("--idempotency-key")
+    append.add_argument("--run-id", help="optional run identity for a bound audit event")
     _add_event_context(append)
     _add_contract(append)
 
@@ -146,6 +147,30 @@ def build_parser() -> argparse.ArgumentParser:
     delivery.add_argument("report", metavar="REPORT")
     delivery.add_argument("--metadata", default="{}")
     _add_contract(delivery)
+
+    action = commands.add_parser("action", help="authorize and consume protected Skill actions")
+    action_commands = action.add_subparsers(dest="action_command", metavar="ACTION")
+    action_preflight = action_commands.add_parser("preflight", help="authorize one action in the current Skill state")
+    action_preflight.add_argument("events", metavar="EVENTS")
+    action_preflight.add_argument("skill")
+    action_preflight.add_argument("action")
+    action_preflight.add_argument("--state", required=True)
+    action_preflight.add_argument("--state-version", required=True)
+    action_preflight.add_argument("--run-id", required=True)
+    action_preflight.add_argument("--attempt-id", required=True)
+    action_preflight.add_argument("--handoff-id")
+    action_preflight.add_argument("--evidence-ref", action="append", default=[])
+    action_preflight.add_argument("--idempotency-key")
+    action_preflight.add_argument("--expected-last-seq", type=int)
+    action_consume = action_commands.add_parser("consume", help="consume a current action authorization once")
+    action_consume.add_argument("events", metavar="EVENTS")
+    action_consume.add_argument("authorization_id")
+    action_consume.add_argument("skill")
+    action_consume.add_argument("action")
+    action_consume.add_argument("--run-id", required=True)
+    action_consume.add_argument("--attempt-id", required=True)
+    action_consume.add_argument("--idempotency-key")
+    action_consume.add_argument("--expected-last-seq", type=int)
 
     verifier = commands.add_parser("verifier", help="discover and run built-in verifier packs")
     verifier_commands = verifier.add_subparsers(dest="verifier_command", metavar="ACTION")
@@ -451,6 +476,38 @@ def _run_workspace_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_action_command(args: argparse.Namespace) -> int:
+    log = EventLog(args.events)
+    if args.action_command == "preflight":
+        event = log.preflight_action(
+            skill=args.skill,
+            action=args.action,
+            state=args.state,
+            state_version=args.state_version,
+            run_id=args.run_id,
+            attempt_id=args.attempt_id,
+            handoff_id=args.handoff_id,
+            evidence_refs=args.evidence_ref,
+            idempotency_key=args.idempotency_key,
+            expected_last_seq=args.expected_last_seq,
+        )
+        _print(event.to_dict())
+    elif args.action_command == "consume":
+        event = log.consume_action_authorization(
+            args.authorization_id,
+            skill=args.skill,
+            action=args.action,
+            run_id=args.run_id,
+            attempt_id=args.attempt_id,
+            idempotency_key=args.idempotency_key,
+            expected_last_seq=args.expected_last_seq,
+        )
+        _print(event.to_dict())
+    else:
+        build_parser().parse_args(["action", "--help"])
+    return 0
+
+
 def _run_verifier_command(args: argparse.Namespace) -> int:
     registry, declaration = _verifier_registry(args)
     if args.verifier_command == "list":
@@ -596,6 +653,8 @@ def _run_command(args: argparse.Namespace) -> int:
         return _run_state_command(args)
     if args.command == "workspace":
         return _run_workspace_command(args)
+    if args.command == "action":
+        return _run_action_command(args)
     if args.command == "status":
         _print(_log(args).projection(), pretty=True)
     elif args.command == "rebuild":
@@ -614,6 +673,7 @@ def _run_command(args: argparse.Namespace) -> int:
             path=args.path,
             evidence_refs=args.evidence_ref,
             idempotency_key=args.idempotency_key,
+            run_id=args.run_id,
         )
         _print(event.to_dict())
     elif args.command == "transition":

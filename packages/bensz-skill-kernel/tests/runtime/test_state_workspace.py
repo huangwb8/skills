@@ -464,6 +464,49 @@ def test_verifier_invariant_rejects_results_from_before_current_state_entry(tmp_
     assert check_state_invariants(definition, log.read(), context=context) == ()
 
 
+def test_verifier_invariant_rejects_context_from_a_superseded_state_identity(tmp_path: Path):
+    from bensz_skill_kernel import EventLog, StateDefinition, check_state_invariants
+
+    definition = StateDefinition(
+        id="test.demo.reported",
+        version="1.0.0",
+        invariants=("verifier-result-recorded", "verifier-gate-allow"),
+    )
+    log = EventLog(tmp_path / "events.ndjson")
+    for run_id in ("run-1", "run-2"):
+        log.append(
+            "state.transition",
+            payload={
+                "state_domain": "skill",
+                "skill": "demo-skill",
+                "from_state": "test.demo.checking",
+                "to_state": "test.demo.reported",
+                "state_version": "1.0.0",
+            },
+            scope="skill",
+            run_id=run_id,
+            attempt_id="attempt-1",
+        )
+    log.record_verification(
+        {
+            "verifier_id": "test.demo.links",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+        },
+        {"decision": "allow", "result_refs": ["test.demo.links@1.0.0"]},
+        run_id="run-1",
+        attempt_id="attempt-1",
+    )
+
+    failures = check_state_invariants(
+        definition,
+        log.read(),
+        context={"run_id": "run-1", "attempt_id": "attempt-1", "skill": "demo-skill"},
+    )
+    assert any("state entry identity" in item for item in failures)
+
+
 def test_state_id_requires_owner_machine_and_state() -> None:
     assert validate_state_id("bensz.workspace.ready") == "bensz.workspace.ready"
     assert validate_state_id("org.example.deploy.awaiting-approval") == "org.example.deploy.awaiting-approval"

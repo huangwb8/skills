@@ -8,6 +8,8 @@
 
 实现前明确：选定组件、对应业务调用点、实际宿主/API、输入和证据、失败结果、最小回退、验收命令。宿主缺失时如实标记受阻；不能把建议的 API 当作已经调用。普通业务可以不接入两类组件，不能为满足加载器而添加无意义状态。
 
+若目标同时采用 BSK State 与 required Verifier，实施前还要读取 [BSK 编排入口](bsk-orchestration.md)，把 action 映射、单一命令、BSK 返回校验和 fail-closed 反例纳入 P0。不得把七个步骤分散成要求 Agent 临时记忆的自由调用序列。
+
 ## 2. 按唯一规范实施
 
 根据 [托管规范](skill-pack-hosting.md) 的标准目录、索引与契约、声明接入章节完成计划选定的改动；规范只在该文件维护。本参考不复制目录树、字段表或加载规则。
@@ -22,7 +24,7 @@ python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/
 
 它只读取源码和调用加载器，不执行目标脚本或模型、不访问网络、不创建报告文件；JSON 输出重定向到任务工作区。退出码：0 为结构通过或零组件不适用，1 为确定性不符合，2 为依赖不可用。`execution: unchecked` 始终表示尚未由此工具验证业务执行。helper 拒绝兼容旧格式，属于新建/修改资产的严格检查，不改变 Kernel 兼容读取行为；不自动修复目标。
 
-随后按 [托管规范的最小验收清单](skill-pack-hosting.md#最小验收清单) 收集实际执行、迁移和回归证据，并在计划中对账；机械检查不能替代语义自检。
+随后按 [托管规范的最小验收清单](skill-pack-hosting.md#最小验收清单) 收集实际执行、迁移和回归证据，并在计划中对账；适用时补齐 [BSK 编排入口的最小验收](bsk-orchestration.md#最小验收)。机械检查不能替代语义自检。
 
 ## 4. 行为回归用例
 
@@ -33,5 +35,6 @@ python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/
 - “按已有计划接入”：核验计划与源码后实施，只修正实质偏差。
 - “这个小 Skill 是否需要组件”：删除影响为零则不接入，不生成空 Pack。
 - “只加入语义 Verifier”：用 Agent 组件与 `runtime.verifier_roots`/`runtime.verifiers` 声明，通过显式 Skill source 加载，不添加占位 State 或强制 Python 判断。
+- “同时用 State 和 required Verifier”：生成并接入 Skill 自有单一命令，七项编排职责完整且失败时不迁移；不让 Agent 自由拼接底层命令。
 - “目标在系统安装目录”：不就地改写，要求开发源码入口，不以自动执行绕过边界。
 - “Kernel 不可用/宿主没回传/已有改动冲突”：记录受阻与已完成范围，不伪造通过、不擅自扩大授权。

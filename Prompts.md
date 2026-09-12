@@ -3,13 +3,19 @@
 - 更新
 
 ```
-repo-version = 5.0.6
-bsk-version = 2.0.1
+repo-version = 5.0.7
+bsk-version = 2.1.0
+
 请您：
-- 将 packages/bensz-skill-kernel 的版本更新至 {bsk-version} ; 如果已经是最新的，则：不需要更新。 如果不是最新，则：packages/bensz-skill-kernel的 README 要对源代码对齐（基于 write-readme skill进行优化）；将python包更新到 pypi ，本机已经配置好权限。将bsk的最新版本安装到本设备。
-- 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
-- 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。
-- 用 git-publish-release skill 发布新的 release。
+- 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
+  - 该python包内的和版本有关的文件全对齐到 {bsk-version}
+  - 将 packages/bensz-skill-kernel的 README 与源代码对齐（基于 write-readme skill进行优化）
+  - 将 {bsk-version} 这个版本的bsk更新到 pypi ，本机已经配置好权限
+  - 将 {bsk-version} 这个版本的bsk安装到本设备。
+- 如果 {repo-version} 不是本仓库的最新版本，则 
+  - 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
+  - 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。
+  - 用 git-publish-release skill 发布新的 release。
 ```
 
 - 更新本地测试环境为最新状态
@@ -59,6 +65,26 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 ```
 
 # 日常
+
+---
+
+skills/alpha/verifier-state-architect 优化：实际工作的时候，假设要求某个Agent Skill 使用 bsk 进行状态和验证管理，这些建议通常是有用的——让Agent Skill托管以下功能：
+
+```
+- action → State 的领域映射
+- 通过 BSK API 读取当前 State
+- 统一准备 Verifier 请求
+- 统一调用 required Verifier、生成 Gate
+- Gate allow 后调用 BSK transition
+- 严格检查 BSK 返回结果
+- 给 Agent 一个简单、很难用错的命令入口
+```
+
+这种规定有希望让Agent工作时对状态和验证流程的遵循更加严谨（比如，更加不容易漏掉预设的 state / verifier 步骤，然后强行自己出结果）
+
+因此，我希望这成为 skills/alpha/verifier-state-architect 在为 Agent Skill 添加基于 bsk 进行状态和验证管理时的一个强制的约束； 在优化 Agent Skill 时，verifier-state-architect 必须强制 AI 把上面的事情做好。
+
+上述任务完成后，使用 auto-test-skill skill 对该 skill 迭代优化1次。 使用 compact-bensz-skills 压缩该skill的文档。
 
 ---
 

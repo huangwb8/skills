@@ -5,6 +5,19 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [5.0.7] - 2026-09-12
+
+### Added（新增）
+- `bensz-skill-kernel` 新增与当前 Skill State 快照、State 版本、`run_id/attempt_id` 和可选 handoff 证据窗口绑定的 `action preflight/consume` 单次 capability；拒绝写入稳定原因码与恢复建议，State 再进入会使旧授权过期，消费使用事件锁和幂等键防止并发重复执行。
+- `bensz-skill-kernel` 更新至 2.1.0（版本号由用户确认）并发布到 PyPI：新增 capability 属向下兼容的功能新增，按语义化版本提升 minor；包内全量测试通过后构建 sdist+wheel 上传，并安装到本机 anaconda3 环境。
+- `verifier-state-architect` 更新至 0.4.0：当目标 Skill 同时采用 BSK State 与 required Verifier 时，强制交付 Skill 自有的单一编排命令，统一 action → State 映射、状态读取、请求准备、required Verifier、Gate、放行后 transition 与严格返回校验，失败默认关闭；新增 `runtime.orchestration` 最小声明与静态检查，缺入口、越界路径、空 action 或未声明 State 映射会拒绝，静态通过仍明确标记执行未验证；托管与检查契约已用 BSK 2.1.0 验证。
+
+### Changed（变更）
+- 根级中英 README 经 `write-readme` 流程与 `check_readme_pair.py` 核验已与源代码对齐：Skill 数量 16、安装器参数、Kernel 命令与引用链接全部复核成立，仅在 Kernel 能力概括中补入 2.1.0 的"授权阶段内动作"事实声明；本轮 Kernel 变更详情由包 README 覆盖。
+
+### Fixed（修复）
+- 收紧 State invariant 的身份窗口：最新 State 进入事件必须与当前 run/attempt 一致，Verifier Gate 必须显式绑定当前窗口中的 result event；补充旧窗口、错身份、版本漂移、并发消费、重放无伪事件与 CLI 回归测试。Kernel 保持领域无关，不增加科研或其它 Skill 专属 ID/字段。
+
 ## [5.0.6] - 2026-09-12
 
 ### Added（新增）

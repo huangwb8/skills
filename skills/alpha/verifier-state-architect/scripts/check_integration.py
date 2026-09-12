@@ -20,6 +20,7 @@ VERIFIER_HEADINGS = [
     "Verification target", "Inputs and evidence", "Execution",
     "Output and verdicts", "Failure and boundaries",
 ]
+ACTION_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 
 
 class CheckFailure(ValueError):
@@ -39,6 +40,29 @@ def contained(path: Path, root: Path) -> Path:
 
 def read_text(path: Path, root: Path) -> str:
     return contained(path, root).read_text(encoding="utf-8")
+
+
+def markdown_section(text: str, title: str) -> str:
+    captured: list[str] = []
+    in_section = False
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        marker = re.match(r"^\s*(`{3,}|~{3,})", line)
+        if marker:
+            character = marker.group(1)[0]
+            fence = None if fence == character else character if fence is None else fence
+            if in_section:
+                captured.append(line)
+            continue
+        heading = re.match(r"^##\s+(.+?)\s*$", line) if fence is None else None
+        if heading:
+            if in_section:
+                break
+            in_section = heading.group(1) == title
+            continue
+        if in_section:
+            captured.append(line)
+    return "".join(captured)
 
 
 def frontmatter(text: str, yaml: object) -> dict:
@@ -136,6 +160,71 @@ def check_runtime(root: Path, runtime: dict, verifiers: list[dict], states: list
     require({entry["id"] for entry in verifiers} <= {item["id"] for item in normalized}, "unused_local_verifier")
 
 
+def check_orchestration(root: Path, runtime: dict) -> dict:
+    from bensz_skill_kernel.states import SkillStateDeclaration, StateMachine
+
+    state_ids = runtime.get("states", [])
+    requirements = runtime.get("verifiers", [])
+    required = [
+        item for item in requirements
+        if isinstance(item, dict) and item.get("required") is True
+    ]
+    has_orchestration = "orchestration" in runtime
+    declaration = SkillStateDeclaration.from_skill_root(root) if state_ids else None
+    registry = declaration.registry() if declaration else None
+    selected_definitions = {
+        state_id: registry.resolve(state_id) for state_id in state_ids
+    } if registry else {}
+    domain_states = {
+        state_id for state_id, definition in selected_definitions.items()
+        if definition.kind == "skill"
+    }
+    if not domain_states or not required:
+        require(not has_orchestration, "orchestration_without_state_and_required_verifier")
+        return {"status": "not_applicable", "execution": "unchecked"}
+
+    orchestration = runtime.get("orchestration")
+    require(isinstance(orchestration, dict), "missing_bsk_orchestration")
+    entrypoint = orchestration.get("entrypoint")
+    require(isinstance(entrypoint, str) and entrypoint, "missing_orchestration_entrypoint")
+    entry_path = Path(entrypoint)
+    require(
+        not entry_path.is_absolute()
+        and ".." not in entry_path.parts
+        and "\\" not in entrypoint
+        and entry_path.parts[:1] == ("scripts",),
+        "invalid_orchestration_entrypoint",
+    )
+    resolved_entry = contained(root / entry_path, root)
+    require(resolved_entry.is_file(), "missing_orchestration_entrypoint_file")
+
+    actions = orchestration.get("actions")
+    require(isinstance(actions, dict) and actions, "missing_orchestration_actions")
+    selected_states = set(state_ids)
+    for action, mapping in actions.items():
+        require(isinstance(action, str) and ACTION_NAME.fullmatch(action), "invalid_orchestration_action")
+        require(isinstance(mapping, dict), "invalid_orchestration_action_mapping")
+        current = mapping.get("current_state")
+        target = mapping.get("target_state")
+        require(
+            isinstance(current, str) and isinstance(target, str),
+            "missing_orchestration_state_mapping",
+        )
+        require(current in selected_states and target in selected_states, "orchestration_state_not_declared")
+        require(current in domain_states and target in domain_states, "orchestration_state_not_domain")
+        require(StateMachine(registry, current).can_transition(target), "orchestration_transition_not_allowed")
+
+    skill_text = read_text(root / "SKILL.md", root)
+    require(entrypoint in markdown_section(skill_text, "控制"), "orchestration_entrypoint_not_in_control_section")
+    return {
+        "status": "declared",
+        "execution": "unchecked",
+        "entrypoint": entrypoint,
+        "actions": len(actions),
+        "required_verifiers": len(required),
+    }
+
+
 def check(root: Path, yaml: object) -> dict:
     require(root.is_dir(), "missing_skill_root")
     require((root / "SKILL.md").is_file(), "missing_skill_document")
@@ -156,7 +245,15 @@ def check(root: Path, yaml: object) -> dict:
     verifiers = check_collection(root, "verifier", yaml)
     states = check_collection(root, "state", yaml)
     check_runtime(root, runtime, verifiers, states)
-    return {"status": "pass", "execution": "unchecked", "scope": "hosting_and_loader_only", "verifiers": len(verifiers), "states": len(states)}
+    orchestration = check_orchestration(root, runtime)
+    return {
+        "status": "pass",
+        "execution": "unchecked",
+        "scope": "hosting_loader_and_orchestration_declaration_only",
+        "verifiers": len(verifiers),
+        "states": len(states),
+        "orchestration": orchestration,
+    }
 
 
 def main() -> int:

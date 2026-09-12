@@ -42,6 +42,7 @@
 - 确定性脚本检查结构、路径、协议和事实；业务语义由 AI 按契约及证据判断。
 - 先盘点 Kernel 的直接、组合或适配复用，再考虑专用组件；分开记录复用和跨领域提炼结论。
 - 不把领域规则塞进 Kernel；专用 Pack 随目标 Skill 发布和安装。
+- 同时采用 BSK State 与 required Verifier 时，必须交付 Skill 自有的单一命令入口；它统一完成 action 映射、State 读取、请求准备、required Verifier、Gate、放行后迁移和严格回执检查，失败即停止。
 - 与 `skill-creator` 的普通技能开发不同，本技能专门负责 Verifier/State 的设计和接入；Kernel 功能开发是另一个授权范围。
 
 ## 交付与目录
@@ -56,6 +57,8 @@
 
 计划是流程中的一步，不再是默认最终交付。已有非本任务文件不直接覆盖；最终按“计划项 → 改动 → 验证 → 结果”对账。目录、字段、契约和加载方式统一见[托管规范](references/skill-pack-hosting.md)，操作步骤见[落地参考](references/implementation.md)；托管规范只在该 Skill 内维护一份。当前 BSK 支持用 `runtime.verifier_roots` 声明 Skill 内 Verifier 集合，并通过显式 CLI source 加载，不进行全局自动扫描。
 
+若目标同时采用 State 与 required Verifier，还须按 [BSK 编排入口契约](references/bsk-orchestration.md) 在 `runtime.orchestration` 声明一条 Agent 很难误用的正常命令路径。静态检查只证明声明与路径存在；成功和 fail-closed 反例仍需真实行为证据。
+
 ## 配置与检查
 
 默认模式、计划路径和安全设置见 [config.yaml](config.yaml)；完整执行契约见 [SKILL.md](SKILL.md)。用户显式只读要求优先于默认配置。`README.md` 与 `README_EN.md` 保持同一用法契约。
@@ -64,7 +67,7 @@
 python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/target-skill
 ```
 
-只读脚本校验标准布局、索引/契约分工、State 图字段、canonical/alias、声明及真实 Kernel 加载。它不会执行目标脚本或模型、写目标文件、联网或修改安装副本。
+只读脚本校验标准布局、索引/契约分工、State 图字段、canonical/alias、声明及真实 Kernel 加载；组合场景还检查真实 `## 控制` 段中的入口、领域 State 映射和静态转移边，并拒绝孤立编排声明。它不会执行目标脚本或模型、写目标文件、联网或修改安装副本。
 
 JSON 报告的 `execution: unchecked` 表示此检查**不证明业务执行**。退出码 0 为结构通过或零组件不适用，1 为不符合，2 为依赖不可用。还需验证真实组件、缺证据失败、Gate、状态迁移及适用的重放；旧格式能被 Kernel 读取不等于符合新托管规范。
 

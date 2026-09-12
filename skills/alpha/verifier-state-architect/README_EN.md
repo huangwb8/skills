@@ -42,6 +42,7 @@ Mechanical checks require Python 3.11+, PyYAML, and `bensz-skill-kernel` matchin
 - Deterministic scripts check structure, paths, protocols, and facts; AI judges domain semantics against contracts and evidence.
 - Inventory direct, combined, and adapted Kernel reuse before designing dedicated components; record reuse and cross-domain extraction conclusions separately.
 - Keep domain rules out of the Kernel; dedicated Packs ship with the target Skill.
+- When BSK manages both State and required Verifiers, deliver one Skill-owned command that handles action mapping, State reads, request preparation, required Verifiers, Gate, allowed transition, and strict response checks; any failure stops the flow.
 - Unlike general Skill development through `skill-creator`, this Skill specializes in Verifier/State design and integration; Kernel development requires separate authorization.
 
 ## Deliverables and Layout
@@ -56,6 +57,8 @@ Mechanical checks require Python 3.11+, PyYAML, and `bensz-skill-kernel` matchin
 
 The plan is a workflow step, no longer the default final deliverable. Existing files belonging to other work are not overwritten; delivery maps plan items to changes, checks, and results. See the [hosting specification](references/skill-pack-hosting.md) for layout, fields, contracts, and loading, and the [implementation reference](references/implementation.md) for operational steps. This Skill maintains the single authoritative hosting specification. Current BSK versions support Skill-owned Verifier collections through `runtime.verifier_roots` and explicit CLI sources; they never scan global directories automatically.
 
+If the target uses both State and required Verifiers, it must also follow the [BSK orchestration entry contract](references/bsk-orchestration.md), declare the Agent's single normal command path in `runtime.orchestration`, and provide real success and fail-closed evidence. Static checks prove only that the declaration and path exist.
+
 ## Configuration and Checks
 
 See [config.yaml](config.yaml) for defaults, plan paths, and safety settings, and [SKILL.md](SKILL.md) for the execution contract. Explicit read-only requests override defaults. `README.md` and `README_EN.md` describe the same usage contract.
@@ -64,7 +67,7 @@ See [config.yaml](config.yaml) for defaults, plan paths, and safety settings, an
 python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/target-skill
 ```
 
-The read-only script checks standard layout, index/contract responsibilities, State graph fields, canonical/alias resolution, declarations, and actual Kernel loading. It does not execute target scripts or models, write target files, access the network, or modify installed copies.
+The read-only script checks standard layout, index/contract responsibilities, State graph fields, canonical/alias resolution, declarations, and actual Kernel loading. In combined scenarios it also checks the entry in the real `## 控制` section, domain-State mappings, and static transition edges, and rejects orphan orchestration declarations. It does not execute target scripts or models, write target files, access the network, or modify installed copies.
 
 The JSON report's `execution: unchecked` means this check **does not prove business execution**. Exit code 0 means structural success or no applicable components, 1 means nonconformance, and 2 means unavailable dependencies. Actual components, missing-evidence failures, Gate behavior, state transitions, and applicable replay still require verification. Kernel compatibility with a legacy layout does not establish compliance with the new hosting convention.
 

@@ -96,7 +96,11 @@ _SENSITIVE_KEYS = ("token", "secret", "password", "cookie", "api_key", "credenti
 _RAW_KEYS = {"input", "output", "prompt", "content", "response", "stdout", "stderr"}
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 _KERNEL_GATE_TOKEN = object()
+_ACTION_GATE_TOKEN = object()
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_RAW_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_ACTION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+ACTION_AUTHORIZATION_PROTOCOL = "bensz-action-authorization-v1"
 
 
 def _component_bound_gate(
@@ -507,6 +511,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "run_snapshot": {},
         "skill_states": {},
         "skill_state_transitions": [],
+        "action_authorizations": {},
+        "action_denials": [],
     }
     if initial:
         projection.update(dict(initial))
@@ -572,6 +578,37 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "event_id": event.event_id,
                     "snapshot_hash": payload.get("snapshot_hash"),
                 })
+                for authorization in projection["action_authorizations"].values():
+                    if authorization.get("skill") == skill and authorization.get("status") == "granted":
+                        authorization["status"] = "expired"
+                        authorization["expired_by_event_id"] = event.event_id
+        elif event.event_type == "action.authorization.granted":
+            authorization_id = str(payload.get("authorization_id", ""))
+            if not authorization_id or authorization_id in projection["action_authorizations"]:
+                raise IntegrityError("action authorization identity is missing or duplicated")
+            projection["action_authorizations"][authorization_id] = {
+                **payload,
+                "status": "granted",
+                "event_id": event.event_id,
+                "run_id": event.run_id,
+                "attempt_id": event.attempt_id,
+            }
+        elif event.event_type == "action.authorization.consumed":
+            authorization_id = str(payload.get("authorization_id", ""))
+            authorization = projection["action_authorizations"].get(authorization_id)
+            if authorization is None:
+                raise IntegrityError("action authorization consumption has no grant")
+            if authorization.get("status") != "granted":
+                raise IntegrityError("action authorization was consumed more than once or after expiry")
+            authorization["status"] = "consumed"
+            authorization["consumed_event_id"] = event.event_id
+        elif event.event_type == "action.authorization.denied":
+            projection["action_denials"].append({
+                **payload,
+                "event_id": event.event_id,
+                "run_id": event.run_id,
+                "attempt_id": event.attempt_id,
+            })
         elif event.event_type in {"delivery.reported", "delivery.completed"}:
             projection["delivery_report"] = payload.get("report") or payload.get("path") or event.path or payload
         if event.snapshot:
@@ -580,6 +617,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             "run.started", "model.called", "tool.called", "verification.result", "verification.gate",
             "approval.granted", "effect.prepared", "effect.applied", "effect.reconciled",
             "delivery.reported", "recovery.recorded",
+            "action.handoff", "action.authorization.granted",
+            "action.authorization.consumed", "action.authorization.denied",
         }:
             projection["audit_trail"].append({
                 "seq": event.seq,
@@ -824,7 +863,7 @@ class EventLog:
             previous = event.event_hash
         return events
 
-    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None, _lock_held: bool = False) -> EventEnvelope:
+    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None, _action_gate: object | None = None, _lock_held: bool = False) -> EventEnvelope:
         # Use the declared artifact/project root for artifact locators; this
         # keeps legitimate completion paths resolvable while still redacting
         # anything outside the allowed boundary.
@@ -849,6 +888,8 @@ class EventLog:
             events = self.read()
             if event_type == "verification.gate" and _kernel_gate is not _KERNEL_GATE_TOKEN:
                 raise IntegrityError("verification.gate must be emitted by record_verification")
+            if event_type.startswith("action.authorization.") and _action_gate is not _ACTION_GATE_TOKEN:
+                raise IntegrityError("action authorization events must be emitted by action authorization APIs")
             if event_type in {"effect.applied", "effect.reconciled"} and not (auth.get("scope") or auth.get("approval_ref") or auth.get("policy_version")):
                 raise AuthorizationError(f"{event_type} requires explicit authorization")
             if idempotency_key:
@@ -910,6 +951,320 @@ class EventLog:
 
     def projection(self) -> dict[str, Any]:
         return reduce_events(self.read())
+
+    def _record_action_denial(
+        self,
+        *,
+        reason_code: str,
+        skill: str,
+        action: str,
+        state: str | None,
+        state_version: str | None,
+        run_id: str,
+        attempt_id: str,
+        recovery: str,
+        requested_state: str | None = None,
+        requested_state_version: str | None = None,
+        handoff_id: str | None = None,
+        idempotency_key: str | None = None,
+        evidence_refs: Iterable[str] = (),
+        _lock_held: bool = False,
+    ) -> EventEnvelope:
+        return self.append(
+            "action.authorization.denied",
+            payload={
+                "protocol": ACTION_AUTHORIZATION_PROTOCOL,
+                "decision": "reject",
+                "reason_code": reason_code,
+                "skill": skill,
+                "action": action,
+                "state": state,
+                "state_version": state_version,
+                "requested_state": requested_state,
+                "requested_state_version": requested_state_version,
+                "handoff_id": handoff_id,
+                "recovery": recovery,
+            },
+            scope="skill",
+            actor="bsk:action",
+            run_id=run_id,
+            attempt_id=attempt_id,
+            idempotency_key=idempotency_key,
+            evidence_refs=evidence_refs,
+            _action_gate=_ACTION_GATE_TOKEN,
+            _lock_held=_lock_held,
+        )
+
+    def preflight_action(
+        self,
+        *,
+        skill: str,
+        action: str,
+        state: str,
+        state_version: str,
+        run_id: str,
+        attempt_id: str,
+        handoff_id: str | None = None,
+        evidence_refs: Iterable[str] = (),
+        idempotency_key: str | None = None,
+        expected_last_seq: int | None = None,
+    ) -> EventEnvelope:
+        """Authorize one protected action against the current Skill state.
+
+        The returned grant is a short-lived, single-use capability.  It is
+        valid only while the bound Skill state entry remains current and must
+        be consumed immediately before the host performs the action.
+        """
+        if not isinstance(skill, str) or not skill.strip():
+            raise ValueError("skill must be a non-empty string")
+        if not isinstance(action, str) or not _ACTION_RE.fullmatch(action):
+            raise ValueError("action must match [A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+        if not isinstance(state, str) or not state.strip():
+            raise ValueError("state must be a non-empty string")
+        if not isinstance(state_version, str) or not _VERSION_RE.fullmatch(state_version):
+            raise ValueError("state_version must be a semantic version")
+        if not isinstance(run_id, str) or not run_id or not isinstance(attempt_id, str) or not attempt_id:
+            raise ValueError("run_id and attempt_id must both be non-empty strings")
+        refs = tuple(evidence_refs)
+        with self._locked():
+            events = self.read()
+            if idempotency_key:
+                existing = next((event for event in events if event.idempotency_key == idempotency_key), None)
+                if existing is not None:
+                    existing_state = (
+                        existing.payload.get("state")
+                        if existing.event_type == "action.authorization.granted"
+                        else existing.payload.get("requested_state")
+                    )
+                    existing_version = (
+                        existing.payload.get("state_version")
+                        if existing.event_type == "action.authorization.granted"
+                        else existing.payload.get("requested_state_version")
+                    )
+                    if (
+                        existing.event_type in {"action.authorization.granted", "action.authorization.denied"}
+                        and existing.payload.get("skill") == skill
+                        and existing.payload.get("action") == action
+                        and existing_state == state
+                        and existing_version == state_version
+                        and existing.payload.get("handoff_id") == handoff_id
+                        and existing.run_id == run_id
+                        and existing.attempt_id == attempt_id
+                        and existing.evidence_refs == refs
+                    ):
+                        return existing
+                    raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
+            projection = reduce_events(events)
+            current = projection["skill_states"].get(skill)
+
+            def deny(code: str, recovery: str) -> EventEnvelope:
+                return self._record_action_denial(
+                    reason_code=code,
+                    skill=skill,
+                    action=action,
+                    state=current.get("state") if current else None,
+                    state_version=current.get("version") if current else None,
+                    run_id=run_id,
+                    attempt_id=attempt_id,
+                    recovery=recovery,
+                    requested_state=state,
+                    requested_state_version=state_version,
+                    handoff_id=handoff_id,
+                    idempotency_key=idempotency_key,
+                    evidence_refs=refs,
+                    _lock_held=True,
+                )
+
+            if expected_last_seq is not None and projection["last_seq"] != expected_last_seq:
+                return deny("concurrent_event_conflict", "Refresh the event projection and request a new authorization.")
+            if current is None:
+                return deny("skill_state_unavailable", "Persist the current Skill state before requesting authorization.")
+            if current.get("state") != state:
+                return deny("state_mismatch", "Refresh the Skill state and retry with the current state.")
+            if current.get("version") != state_version:
+                return deny("state_version_mismatch", "Resolve the current State Pack version and request a new authorization.")
+            entry = next(
+                (
+                    event for event in reversed(events)
+                    if event.event_type == "state.transition"
+                    and event.payload.get("state_domain") == "skill"
+                    and event.payload.get("skill") == skill
+                    and event.event_id == current.get("event_id")
+                ),
+                None,
+            )
+            if entry is None or not _RAW_SHA256_RE.fullmatch(str(current.get("snapshot_hash", ""))):
+                return deny("state_snapshot_unbound", "Persist a State transition with snapshot binding before retrying.")
+            if entry.run_id != run_id or entry.attempt_id != attempt_id:
+                return deny("state_identity_mismatch", "Resume the State entry's run/attempt or create an explicit new attempt.")
+            handoff_event = None
+            if handoff_id:
+                handoff_event = next(
+                    (
+                        event for event in reversed(events)
+                        if event.seq > entry.seq
+                        and event.run_id == run_id
+                        and event.attempt_id == attempt_id
+                        and event.event_type in {"action.handoff", "component.handoff", "handoff.created"}
+                        and event.payload.get("handoff_id") == handoff_id
+                        and event.payload.get("skill", skill) == skill
+                        and event.payload.get("state", state) == state
+                    ),
+                    None,
+                )
+                if handoff_event is None:
+                    return deny("handoff_outside_state_window", "Create a new handoff in the current State and attempt.")
+                known_refs = set(handoff_event.evidence_refs) | set(handoff_event.payload.get("evidence_refs", ()))
+                if refs and not set(refs).issubset(known_refs):
+                    return deny("evidence_outside_handoff", "Bind the request only to evidence carried by the current handoff.")
+            authorization_id = (
+                "action-auth-" + hashlib.sha256(
+                    _canonical({
+                        "idempotency_key": idempotency_key,
+                        "skill": skill,
+                        "action": action,
+                        "state_event_id": entry.event_id,
+                        "run_id": run_id,
+                        "attempt_id": attempt_id,
+                    })
+                ).hexdigest()[:32]
+                if idempotency_key
+                else "action-auth-" + uuid.uuid4().hex
+            )
+            return self.append(
+                "action.authorization.granted",
+                payload={
+                    "protocol": ACTION_AUTHORIZATION_PROTOCOL,
+                    "decision": "allow",
+                    "authorization_id": authorization_id,
+                    "skill": skill,
+                    "action": action,
+                    "state": state,
+                    "state_version": state_version,
+                    "state_event_id": entry.event_id,
+                    "state_entry_seq": entry.seq,
+                    "state_snapshot_hash": current.get("snapshot_hash"),
+                    "authorized_through_seq": projection["last_seq"],
+                    "handoff_id": handoff_id,
+                    "handoff_event_id": handoff_event.event_id if handoff_event else None,
+                },
+                scope="skill",
+                actor="bsk:action",
+                run_id=run_id,
+                attempt_id=attempt_id,
+                idempotency_key=idempotency_key,
+                evidence_refs=refs,
+                _action_gate=_ACTION_GATE_TOKEN,
+                _lock_held=True,
+            )
+
+    def consume_action_authorization(
+        self,
+        authorization_id: str,
+        *,
+        skill: str,
+        action: str,
+        run_id: str,
+        attempt_id: str,
+        idempotency_key: str | None = None,
+        expected_last_seq: int | None = None,
+    ) -> EventEnvelope:
+        """Atomically consume a current action authorization once."""
+        if not authorization_id or not isinstance(authorization_id, str):
+            raise ValueError("authorization_id must be a non-empty string")
+        if not isinstance(action, str) or not _ACTION_RE.fullmatch(action):
+            raise ValueError("action must match [A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+        if not run_id or not attempt_id:
+            raise ValueError("run_id and attempt_id must both be non-empty strings")
+        with self._locked():
+            events = self.read()
+            if idempotency_key:
+                existing = next((event for event in events if event.idempotency_key == idempotency_key), None)
+                if existing is not None:
+                    if (
+                        existing.event_type == "action.authorization.consumed"
+                        and existing.payload.get("authorization_id") == authorization_id
+                        and existing.payload.get("skill") == skill
+                        and existing.payload.get("action") == action
+                        and existing.run_id == run_id
+                        and existing.attempt_id == attempt_id
+                    ):
+                        return existing
+                    raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
+            projection = reduce_events(events)
+            grant = next(
+                (
+                    event for event in events
+                    if event.event_type == "action.authorization.granted"
+                    and event.payload.get("authorization_id") == authorization_id
+                ),
+                None,
+            )
+
+            def deny(code: str, recovery: str) -> EventEnvelope:
+                return self._record_action_denial(
+                    reason_code=code,
+                    skill=skill,
+                    action=action,
+                    state=(grant.payload.get("state") if grant else None),
+                    state_version=(grant.payload.get("state_version") if grant else None),
+                    run_id=run_id,
+                    attempt_id=attempt_id,
+                    recovery=recovery,
+                    idempotency_key=idempotency_key,
+                    _lock_held=True,
+                )
+
+            if expected_last_seq is not None and projection["last_seq"] != expected_last_seq:
+                return deny("concurrent_event_conflict", "Refresh the event projection and request a new authorization.")
+            if grant is None:
+                return deny("authorization_not_found", "Request a new action authorization.")
+            projected = projection["action_authorizations"].get(authorization_id, {})
+            if projected.get("status") == "consumed":
+                return deny("authorization_already_consumed", "Request a new authorization for another action attempt.")
+            if projected.get("status") != "granted":
+                return deny("authorization_expired", "Request a new authorization in the current State.")
+            if (
+                grant.payload.get("skill") != skill
+                or grant.payload.get("action") != action
+                or grant.run_id != run_id
+                or grant.attempt_id != attempt_id
+            ):
+                return deny("authorization_binding_mismatch", "Use the exact Skill, action, run and attempt bound to the grant.")
+            current = projection["skill_states"].get(skill)
+            if (
+                not current
+                or current.get("event_id") != grant.payload.get("state_event_id")
+                or current.get("snapshot_hash") != grant.payload.get("state_snapshot_hash")
+                or current.get("version") != grant.payload.get("state_version")
+            ):
+                return deny("authorization_expired", "Request a new authorization in the current State.")
+            return self.append(
+                "action.authorization.consumed",
+                payload={
+                    "protocol": ACTION_AUTHORIZATION_PROTOCOL,
+                    "decision": "allow",
+                    "authorization_id": authorization_id,
+                    "grant_event_id": grant.event_id,
+                    "skill": skill,
+                    "action": action,
+                    "state": grant.payload.get("state"),
+                    "state_version": grant.payload.get("state_version"),
+                    "state_event_id": grant.payload.get("state_event_id"),
+                },
+                scope="skill",
+                actor="bsk:action",
+                run_id=run_id,
+                attempt_id=attempt_id,
+                idempotency_key=idempotency_key,
+                authorization={
+                    "protocol": ACTION_AUTHORIZATION_PROTOCOL,
+                    "authorization_id": authorization_id,
+                    "grant_event_id": grant.event_id,
+                },
+                _action_gate=_ACTION_GATE_TOKEN,
+                _lock_held=True,
+            )
 
     def transition(
         self,

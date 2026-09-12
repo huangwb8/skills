@@ -129,7 +129,7 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 `bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation; published releases can be installed directly with `python3 -m pip install bensz-skill-kernel`.
 
-It provides the `bsk` command for managing task stages, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
+It provides the `bsk` command for managing task stages, authorizing in-stage actions, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
 
 ```bash
 python3 -m venv .bensz-api/.venv
