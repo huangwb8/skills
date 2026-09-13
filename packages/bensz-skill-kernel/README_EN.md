@@ -63,6 +63,8 @@ bsk state list --root path/to/skill/states
 
 `--root` overlays Skill states on built-ins. A Skill declares its initial state, allowed states, state roots, and Verifier subset in root `config.yaml.runtime`; the legacy `state-machine.json` is read-only compatible. Required components must all complete and pass before a state condition can hold.
 
+A new Skill that requires strong identity adds `identity_policy: state-identity-v2` to the same runtime declaration. This policy tightens new writes only: a first transition without `run_id`, without an explicit initial attempt, or with the legacy `default` attempt is rejected with a stable `reason_code` before the first event. Legacy v1 logs remain readable and replayable but cannot be upgraded in place by a strict Skill.
+
 Initialize the task workspace and Skill declaration before checking or persisting a transition:
 
 ```bash
@@ -77,6 +79,7 @@ The new identity protocol separates `run_id` (the whole run), `state_visit_id` (
 
 ```bash
 bsk capabilities
+bsk diagnostics
 bsk attempt start .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name \
   --run-id run-1 --state-visit-id STATE_VISIT_ID --attempt-id collecting-2 \
   --reason retry --idempotency-key collecting-2
@@ -140,6 +143,16 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
 Initialization creates `bensz.workspace.ready` (legacy alias: `workspace.ready`) and `shared/input|output|log` boundaries. The workspace manifest, lifecycle event ledger, and Skill metadata snapshot are separate and replayable.
+
+A strict-v2 Skill can initialize the workspace, immutable runtime snapshot, and first State identity through one entry point. The command accepts only a new task root. An explicit task root is created exclusively, while concurrent automatic naming atomically selects suffixes such as `-a` and `-b`. If any step fails, the command removes the newly created root only while its ownership token still matches:
+
+```bash
+bsk workspace initialize . skill-name org.example.skill.collecting \
+  --skill-root path/to/skill --run-id run-1 --attempt-id collecting-1 \
+  --description citation-review
+```
+
+The run snapshot stores Skill/Kernel versions, the identity policy, State contracts, Verifier Markdown contracts/component plans/helper asset hashes, plus a minimal Python fingerprint without the interpreter's absolute path. Once written, the snapshot cannot be overwritten; reads recompute and validate its payload, hash, and derived ID. State events, projections, and action authorizations reference the same snapshot ID/hash; contract drift or a run mismatch requires a new workspace/task root. `bsk diagnostics` separately reports the CLI's actual interpreter path, Python version, and Kernel version so callers can detect split Python environments.
 
 ## Runtime boundaries and audit
 

@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import sys
 import uuid
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 from .runtime import EventLog, IntegrityError, KernelError
-from .identity import STATE_IDENTITY_PROTOCOL, kernel_capabilities, normalize_state_identity
+from .identity import STRICT_IDENTITY_POLICY, STATE_IDENTITY_PROTOCOL, kernel_capabilities, kernel_diagnostics, normalize_state_identity
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
 from .workspace import TaskWorkspace, WORKSPACE_KINDS, state_snapshot_hash
 from .verifiers import GateDecision, SkillVerifierDeclaration, apply_gate, build_verifier_registry, normalize_result, summarize_metrics
@@ -91,6 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     commands.add_parser("capabilities", help="show supported Kernel protocols and operations")
+    commands.add_parser("diagnostics", help="show the active Python and Kernel protocol environment")
 
     status = commands.add_parser("status", help="show the current projection")
     status.add_argument("events", metavar="EVENTS")
@@ -256,6 +259,22 @@ def build_parser() -> argparse.ArgumentParser:
     workspace_init.add_argument("project_root", nargs="?", default=".")
     workspace_init.add_argument("--task-root")
     workspace_init.add_argument("--description", default="task")
+    workspace_initialize = workspace_commands.add_parser(
+        "initialize",
+        help="atomically create a workspace, bind a run snapshot, and enter the first v2 Skill State",
+    )
+    workspace_initialize.add_argument("project_root", nargs="?", default=".")
+    workspace_initialize.add_argument("skill")
+    workspace_initialize.add_argument("target_state")
+    workspace_initialize.add_argument("--task-root")
+    workspace_initialize.add_argument("--description", default="task")
+    workspace_initialize.add_argument("--skill-root", required=True)
+    workspace_initialize.add_argument("--run-id", required=True)
+    workspace_initialize.add_argument("--attempt-id", required=True)
+    workspace_initialize.add_argument("--state-visit-id")
+    workspace_initialize.add_argument("--idempotency-key")
+    workspace_initialize.add_argument("--context-json", default="{}")
+    workspace_initialize.add_argument("--timeout", type=int, default=10)
     workspace_path = workspace_commands.add_parser("path", help="resolve a Skill-scoped workspace directory")
     workspace_path.add_argument("task_root")
     workspace_path.add_argument("skill")
@@ -336,7 +355,7 @@ def _state_registry(args: argparse.Namespace):
     return build_state_registry(*roots), None
 
 
-def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None, reason_code: str | None = None, source_identity: Mapping[str, Any] | None = None, target_identity: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None, reason_code: str | None = None, source_identity: Mapping[str, Any] | None = None, target_identity: Mapping[str, Any] | None = None, identity_mode: str | None = None, downgrade_policy: str | None = None, warnings: list[str] | None = None) -> dict[str, Any]:
     output: dict[str, Any] = {
         "protocol": META_STATE_PROTOCOL_VERSION,
         "operation": operation,
@@ -358,7 +377,67 @@ def _state_response(operation: str, status: str, *, current_state: str | None = 
         output["source_identity"] = dict(source_identity)
     if target_identity is not None:
         output["target_identity"] = dict(target_identity)
+    if identity_mode is not None:
+        output["identity_mode"] = identity_mode
+    if downgrade_policy is not None:
+        output["downgrade_policy"] = downgrade_policy
+    if warnings:
+        output["warnings"] = list(warnings)
     return output
+
+
+def _contract_hash(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _runtime_snapshot_inputs(declaration: SkillStateDeclaration) -> dict[str, Any]:
+    registry = declaration.registry()
+    definitions = [registry.resolve(state_id) for state_id in declaration.states]
+    state_versions = {item.id: item.version for item in definitions}
+    state_hashes = {
+        item.id: _contract_hash(Path(item.source))
+        for item in definitions
+        if item.source and Path(item.source).is_file()
+    }
+    verifier_versions = {
+        str(item["id"]): str(item["version"])
+        for item in declaration.verifier_requirements()
+    }
+    verifier_hashes: dict[str, Any] = {}
+    if declaration.verifier_requirements():
+        verifier_registry = SkillVerifierDeclaration.from_skill_root(declaration.skill_root).registry()
+        for requirement in declaration.verifier_requirements():
+            verifier_id = str(requirement["id"])
+            version = str(requirement["version"])
+            pack = verifier_registry.resolve(verifier_id, version).contract_pack()
+            verifier_hashes[verifier_id] = {
+                "contract_hash": pack.contract_hash,
+                "plan_hash": pack.plan_hash,
+                "component_hashes": {
+                    component.id: component.component_hash
+                    for component in pack.components
+                },
+                "component_asset_hashes": {
+                    component.id: _contract_hash(pack.root / component.entrypoint)
+                    for component in pack.components
+                    if component.entrypoint and (pack.root / component.entrypoint).is_file()
+                },
+            }
+    return {
+        "skill_id": str(declaration.skill_id or declaration.skill_root.name),
+        "skill_version": declaration.skill_version,
+        "identity_policy": declaration.identity_policy,
+        "runtime_config": {
+            "initial_state": declaration.initial_state,
+            "states": list(declaration.states),
+            "identity_policy": declaration.identity_policy,
+            "declaration_hash": _contract_hash(declaration.source),
+        },
+        "state_versions": state_versions,
+        "state_contract_hashes": state_hashes,
+        "verifier_versions": verifier_versions,
+        "verifier_contract_hashes": verifier_hashes,
+    }
 
 
 def _require_declared_state(registry: Any, declaration: SkillStateDeclaration | None, state_id: str) -> None:
@@ -412,6 +491,36 @@ def _run_state_command(args: argparse.Namespace) -> int:
         current = registry.resolve(persisted_current).id
         machine = StateMachine(registry, current)
         target = registry.resolve(args.target_state)
+        strict_identity = bool(declaration and declaration.identity_policy == STRICT_IDENTITY_POLICY)
+        previous_is_v2 = previous.get("identity_protocol") == STATE_IDENTITY_PROTOCOL
+        requested_v2 = previous_is_v2 or args.target_attempt_id is not None or args.target_state_visit_id is not None
+        identity_mode = "strict-v2" if strict_identity else ("v2" if requested_v2 else "legacy")
+        downgrade_policy = "forbid" if strict_identity else ("forbid-after-v2" if requested_v2 else "warn")
+
+        def reject_identity(reason_code: str, reason: str) -> int:
+            _print(_state_response(
+                "transition",
+                "rejected",
+                current_state=current,
+                target_state=target.id,
+                definition=target,
+                snapshot=previous,
+                reason=reason,
+                reason_code=reason_code,
+                identity_mode=identity_mode,
+                downgrade_policy=downgrade_policy,
+            ), pretty=True)
+            return 2
+
+        if strict_identity:
+            if not args.run_id:
+                return reject_identity("strict_identity_required", "A strict-v2 Skill requires a non-empty run_id.")
+            if args.target_attempt_id is None:
+                return reject_identity("initial_attempt_required", "A strict-v2 Skill requires an explicit target attempt.")
+            if args.target_attempt_id == "default":
+                return reject_identity("default_attempt_forbidden", "The legacy 'default' attempt is forbidden in strict-v2 mode.")
+            if not previous_is_v2 and current != declaration.initial_state:
+                return reject_identity("legacy_snapshot_not_upgradable", "A legacy State snapshot cannot be upgraded in place; create a new workspace/task root.")
         events = EventLog(workspace.events).read()
         if args.idempotency_key:
             existing = next((item for item in events if item.idempotency_key == args.idempotency_key), None)
@@ -461,6 +570,9 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     snapshot=previous,
                     source_identity=existing_source,
                     target_identity=existing_target,
+                    identity_mode=identity_mode,
+                    downgrade_policy=downgrade_policy,
+                    warnings=["legacy_state_write"] if identity_mode == "legacy" else None,
                 ), pretty=True)
                 return 0
         if not machine.can_transition(args.target_state):
@@ -475,7 +587,6 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 "state_visit_id": args.state_visit_id,
                 "attempt_id": args.attempt_id,
             }
-        previous_is_v2 = previous.get("identity_protocol") == STATE_IDENTITY_PROTOCOL
         source_identity = None
         if previous_is_v2:
             source_identity = normalize_state_identity(
@@ -507,8 +618,10 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     source_identity=source_identity,
                 ), pretty=True)
                 return 0
-        v2_requested = previous_is_v2 or args.target_attempt_id is not None or args.target_state_visit_id is not None
+        v2_requested = strict_identity or requested_v2
         target_identity = None
+        run_snapshot = None
+        snapshot_inputs = None
         if v2_requested:
             if args.run_id is None:
                 raise ValueError("--run-id is required for a v2 target State identity")
@@ -534,6 +647,16 @@ def _run_state_command(args: argparse.Namespace) -> int:
             )
             if source_identity is not None and source_identity["run_id"] != target_identity["run_id"]:
                 raise ValueError("source and target State identities must use the same run_id")
+        if target_identity is not None and declaration is not None:
+            snapshot_inputs = _runtime_snapshot_inputs(declaration)
+            existing_run_snapshot = workspace.manifest().get("run_snapshot")
+            if existing_run_snapshot:
+                if existing_run_snapshot.get("run_id") != target_identity["run_id"]:
+                    return reject_identity("run_snapshot_mismatch", "The workspace is already bound to another run snapshot; create a new workspace/task root.")
+                for key in ("skill_id", "skill_version", "identity_policy", "runtime_config", "state_versions", "state_contract_hashes", "verifier_versions", "verifier_contract_hashes"):
+                    if existing_run_snapshot.get(key) != snapshot_inputs.get(key):
+                        return reject_identity("runtime_contract_drift", "The active Skill runtime differs from the bound run snapshot; create a new workspace/task root.")
+                run_snapshot = existing_run_snapshot
         if declaration:
             context = {**context, "required_verifiers": list(declaration.verifier_requirements())}
         invariant_failures = check_state_invariants(registry.resolve(current), events, context=context)
@@ -555,6 +678,8 @@ def _run_state_command(args: argparse.Namespace) -> int:
             _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted.", reason_code="state_entry_helper_failed"), pretty=True)
             return 0
         machine.transition(args.target_state, events=events, context=context)
+        if target_identity is not None and snapshot_inputs is not None and run_snapshot is None:
+            run_snapshot = workspace.record_run_snapshot(run_id=target_identity["run_id"], **snapshot_inputs)["run_snapshot"]
         snapshot = {
             "protocol": META_STATE_PROTOCOL_VERSION if target_identity is not None else "bensz-meta-state-v1",
             "skill": workspace.paths(args.skill).skill,
@@ -579,6 +704,11 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 "active_attempt_id": target_identity["attempt_id"],
                 "legacy_identity": False,
             })
+            if run_snapshot is not None:
+                snapshot.update({
+                    "run_snapshot_id": run_snapshot["snapshot_id"],
+                    "run_snapshot_hash": run_snapshot["snapshot_hash"],
+                })
         snapshot_hash = state_snapshot_hash(snapshot)
         # Stage a pending snapshot before appending the event.  The stable
         # event ID is preallocated so recovery can detect an interrupted
@@ -602,6 +732,11 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 "source_identity": source_identity,
                 "target_identity": target_identity,
             })
+            if run_snapshot is not None:
+                event_payload.update({
+                    "run_snapshot_id": run_snapshot["snapshot_id"],
+                    "run_snapshot_hash": run_snapshot["snapshot_hash"],
+                })
         event_run_id = target_identity["run_id"] if target_identity is not None else args.run_id
         event_attempt_id = target_identity["attempt_id"] if target_identity is not None else args.attempt_id
         event_visit_id = target_identity["state_visit_id"] if target_identity is not None else None
@@ -626,7 +761,8 @@ def _run_state_command(args: argparse.Namespace) -> int:
             )
             path = workspace.commit_meta_state(pending_tmp, pending_target)
         snapshot["path"] = str(path)
-        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot, source_identity=source_identity, target_identity=target_identity), pretty=True)
+        warnings = ["legacy_state_write"] if identity_mode == "legacy" else None
+        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot, source_identity=source_identity, target_identity=target_identity, identity_mode=identity_mode, downgrade_policy=downgrade_policy, warnings=warnings), pretty=True)
     else:
         build_parser().parse_args(["state", "--help"])
     return 0
@@ -642,6 +778,56 @@ def _run_workspace_command(args: argparse.Namespace) -> int:
         _print({"status": "ready", "task_root": str(paths.task_root), "skill": paths.skill, "kind": args.kind, "path": str(paths.path(args.kind))}, pretty=True)
     elif args.workspace_command == "status":
         _print(TaskWorkspace.open_existing(args.task_root).status(), pretty=True)
+    elif args.workspace_command == "initialize":
+        if args.attempt_id == "default":
+            raise ValueError("default_attempt_forbidden: atomic initialization requires a non-default attempt_id")
+        declaration = SkillStateDeclaration.from_skill_root(args.skill_root)
+        registry = declaration.registry()
+        _require_declared_state(registry, declaration, args.target_state)
+        task_root = Path(args.task_root).expanduser().resolve() if args.task_root else None
+        workspace, initialization_owner = TaskWorkspace.create_exclusive(
+            args.project_root,
+            task_root=task_root,
+            description=args.description,
+        )
+        created_root = workspace.task_root
+        transition_args = argparse.Namespace(
+            state_command="transition",
+            root=[],
+            skill_root=args.skill_root,
+            task_root=str(workspace.task_root),
+            skill=args.skill,
+            target_state=args.target_state,
+            context_json=args.context_json,
+            run_id=args.run_id,
+            attempt_id="default",
+            state_visit_id=None,
+            target_state_visit_id=args.state_visit_id,
+            target_attempt_id=args.attempt_id,
+            idempotency_key=args.idempotency_key,
+            timeout=args.timeout,
+        )
+        captured = io.StringIO()
+        try:
+            with redirect_stdout(captured):
+                code = _run_state_command(transition_args)
+            response = json.loads(captured.getvalue())
+            if code != 0 or response.get("status") != "transitioned":
+                workspace.rollback_initialization(initialization_owner)
+                response["status"] = "initialization_rejected"
+                _print(response, pretty=True)
+                return 2
+        except Exception:
+            if created_root.exists():
+                workspace.rollback_initialization(initialization_owner)
+            raise
+        workspace.complete_initialization(initialization_owner)
+        _print({
+            **response,
+            "status": "initialized",
+            "task_root": str(workspace.task_root),
+            "active_identity": response.get("target_identity"),
+        }, pretty=True)
     else:
         build_parser().parse_args(["workspace", "--help"])
     return 0
@@ -947,6 +1133,9 @@ def _run_command(args: argparse.Namespace) -> int:
         return _run_action_command(args)
     if args.command == "capabilities":
         _print(kernel_capabilities(version=__version__), pretty=True)
+        return 0
+    if args.command == "diagnostics":
+        _print(kernel_diagnostics(version=__version__), pretty=True)
         return 0
     if args.command == "status":
         _print(_log(args).projection(), pretty=True)

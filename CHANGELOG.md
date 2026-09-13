@@ -5,6 +5,19 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [Unreleased]
+
+### Added（新增）
+- BSK 新增声明驱动的 `runtime.identity_policy: state-identity-v2`、`bsk workspace initialize` 原子强身份入口与 `bsk diagnostics` 环境诊断；运行快照绑定 Skill/Kernel 版本、State/Verifier 契约哈希和最小 Python 指纹。
+
+### Changed（变更）
+- strict-v2 Skill 的缺失 run、缺失 initial attempt、`default` attempt 与 legacy 原地升级在首条 State 事件前以稳定原因码失败；未声明 policy 的旧 Skill 保留兼容写入，但响应显式报告 legacy mode 与迁移警告。
+- v2 State 事件、实时/重放投影与 action authorization 共享 `run_snapshot_id`/`run_snapshot_hash`，运行契约漂移或跨 run 复用 fail-closed。
+- `bensz-skill-kernel` 更新至 2.1.2（版本号由用户确认）；运行快照改为不可覆盖且读取时校验 payload/hash/ID，Verifier 绑定覆盖真实 Markdown 契约、组件计划与 helper 资产，幂等 transition 保持身份模式字段一致。
+
+### Fixed（修复）
+- 修复 `bsk workspace initialize` 在并发初始化同一任务根时可能误用并回滚其它进程目录的竞态；新任务根现以排他目录创建和初始化 ownership token 保护，自动命名冲突原子分配后缀，回滚前核验所有权。
+
 ## [5.0.8] - 2026-09-13
 
 ### Added（新增）

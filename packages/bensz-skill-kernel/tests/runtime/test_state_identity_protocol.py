@@ -1,4 +1,8 @@
+import hashlib
 import json
+import os
+import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -78,6 +82,49 @@ def _make_transition_skill(root: Path) -> Path:
         "version: 1.0.0\n"
         "entry_conditions: bensz.workspace.ready\n"
         "---\n\n# Checking\n",
+        encoding="utf-8",
+    )
+    return skill
+
+
+def _make_strict_transition_skill(root: Path) -> Path:
+    skill = _make_transition_skill(root)
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        + "  identity_policy: state-identity-v2\n"
+        + "skill_info:\n"
+        + "  name: demo-skill\n"
+        + "  version: 1.2.3\n",
+        encoding="utf-8",
+    )
+    return skill
+
+
+def _make_strict_transition_skill_with_verifier(root: Path) -> Path:
+    skill = _make_strict_transition_skill(root)
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "  identity_policy: state-identity-v2\n",
+            "  identity_policy: state-identity-v2\n"
+            "  verifier_roots: [verifiers]\n"
+            "  verifiers:\n"
+            "    - id: test.demo.contract\n"
+            "      version: 1.0.0\n"
+            "      required: true\n",
+        ),
+        encoding="utf-8",
+    )
+    verifier = skill / "verifiers" / "contract"
+    verifier.mkdir(parents=True)
+    (verifier / "VERIFIER.md").write_text(
+        "---\nid: test.demo.contract\nversion: 1.0.0\n"
+        "entrypoint: check.py\nmode: rule\n---\n\n# Contract\n",
+        encoding="utf-8",
+    )
+    (verifier / "check.py").write_text(
+        "import json, sys\njson.load(sys.stdin)\njson.dump({'verdict': 'pass'}, sys.stdout)\n",
         encoding="utf-8",
     )
     return skill
@@ -504,7 +551,10 @@ def test_transition_snapshot_transaction_holds_event_lock(tmp_path: Path, monkey
         "--skill-root", str(skill), "--run-id", "run-1",
         "--target-attempt-id", "checking-1", "--idempotency-key", "enter-checking",
     ]) == 0
-    assert json.loads(capsys.readouterr().out)["target_identity"] == first["target_identity"]
+    retried = json.loads(capsys.readouterr().out)
+    assert retried["target_identity"] == first["target_identity"]
+    assert retried["identity_mode"] == "v2"
+    assert retried["downgrade_policy"] == "forbid-after-v2"
     assert len(EventLog(workspace.events).read()) == event_count
 
     assert main([
@@ -573,6 +623,323 @@ def test_capability_api_and_cli_advertise_identity_protocol(capsys):
 
     assert main(["capabilities"]) == 0
     assert json.loads(capsys.readouterr().out) == capabilities
+
+
+def test_strict_identity_policy_rejects_legacy_transition_before_first_event(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="strict-missing-identity")
+    skill = _make_strict_transition_skill(tmp_path)
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill),
+    ]) == 2
+    rejected = json.loads(capsys.readouterr().out)
+    assert rejected["reason_code"] == "strict_identity_required"
+    assert rejected["identity_mode"] == "strict-v2"
+    assert not workspace.events.exists()
+    assert workspace.read_meta_state("demo-skill")["legacy_identity"] is True
+
+
+@pytest.mark.parametrize(
+    ("extra", "reason_code"),
+    [
+        (["--run-id", "run-1"], "initial_attempt_required"),
+        (["--run-id", "run-1", "--target-attempt-id", "default"], "default_attempt_forbidden"),
+    ],
+)
+def test_strict_identity_policy_requires_non_default_initial_attempt(tmp_path: Path, capsys, extra, reason_code):
+    workspace = TaskWorkspace.open(tmp_path, description=reason_code)
+    skill = _make_strict_transition_skill(tmp_path)
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill), *extra,
+    ]) == 2
+    assert json.loads(capsys.readouterr().out)["reason_code"] == reason_code
+    assert not workspace.events.exists()
+
+
+def test_strict_transition_binds_runtime_snapshot_and_reports_identity_mode(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="strict-runtime-snapshot")
+    skill = _make_strict_transition_skill(tmp_path)
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill), "--run-id", "run-1", "--target-attempt-id", "checking-1",
+    ]) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["identity_mode"] == "strict-v2"
+    assert response["downgrade_policy"] == "forbid"
+    run_snapshot = workspace.manifest()["run_snapshot"]
+    assert run_snapshot["snapshot_id"].startswith("run-snapshot-")
+    assert run_snapshot["run_id"] == "run-1"
+    assert run_snapshot["skill_id"] == "demo-skill"
+    assert run_snapshot["skill_version"] == "1.2.3"
+    assert run_snapshot["identity_policy"] == "state-identity-v2"
+    assert run_snapshot["kernel_version"]
+    assert run_snapshot["python"]["version_info"][:2] >= [3, 11]
+    assert "executable" not in run_snapshot["python"]
+    event = EventLog(workspace.events).read()[0]
+    assert event.payload["run_snapshot_id"] == run_snapshot["snapshot_id"]
+    assert event.payload["run_snapshot_hash"] == run_snapshot["snapshot_hash"]
+    projected = EventLog(workspace.events).projection()["skill_states"]["demo-skill"]
+    assert projected["run_snapshot_id"] == run_snapshot["snapshot_id"]
+    grant = EventLog(workspace.events).preflight_action(
+        skill="demo-skill",
+        action="publish",
+        state="test.demo.checking",
+        state_version="1.0.0",
+        **response["target_identity"],
+    )
+    assert grant.payload["run_snapshot_id"] == run_snapshot["snapshot_id"]
+    assert grant.payload["run_snapshot_hash"] == run_snapshot["snapshot_hash"]
+
+
+def test_legacy_transition_reports_explicit_mode_and_warning(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="legacy-mode")
+    skill = _make_transition_skill(tmp_path)
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill),
+    ]) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["identity_mode"] == "legacy"
+    assert response["downgrade_policy"] == "warn"
+    assert response["warnings"] == ["legacy_state_write"]
+
+
+def test_capabilities_and_diagnostics_expose_identity_contract(capsys):
+    capabilities = kernel_capabilities()
+    assert capabilities["identity_modes"]["strict-v2"]["required_fields"] == ["run_id", "target_attempt_id"]
+    assert capabilities["identity_modes"]["strict-v2"]["downgrade_policy"] == "forbid"
+    assert capabilities["identity_modes"]["legacy"]["downgrade_policy"] == "warn"
+
+    assert main(["diagnostics"]) == 0
+    diagnostic = json.loads(capsys.readouterr().out)
+    assert diagnostic["protocol"] == "bensz-kernel-diagnostics-v1"
+    assert diagnostic["kernel_version"]
+    assert diagnostic["python"]["executable"]
+    assert diagnostic["python"]["version_info"][:2] >= [3, 11]
+    assert diagnostic["capabilities_protocol"] == KERNEL_CAPABILITIES_PROTOCOL
+
+
+def test_workspace_initialize_atomically_creates_strict_v2_run(tmp_path: Path, capsys):
+    skill = _make_strict_transition_skill(tmp_path)
+    task_root = tmp_path / ".bensz-api" / "task-atomic-success"
+
+    assert main([
+        "workspace", "initialize", str(tmp_path), "demo-skill", "test.demo.checking",
+        "--task-root", str(task_root), "--skill-root", str(skill),
+        "--run-id", "run-1", "--attempt-id", "checking-1",
+    ]) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["status"] == "initialized"
+    assert response["identity_mode"] == "strict-v2"
+    assert response["active_identity"]["run_id"] == "run-1"
+    workspace = TaskWorkspace.open_existing(task_root)
+    assert workspace.manifest()["run_snapshot"]["run_id"] == "run-1"
+    assert workspace.read_meta_state("demo-skill")["active_attempt_id"] == "checking-1"
+    assert len(EventLog(workspace.events).read()) == 1
+
+
+def test_workspace_initialize_rolls_back_new_task_on_event_failure(tmp_path: Path, monkeypatch, capsys):
+    skill = _make_strict_transition_skill(tmp_path)
+    task_root = tmp_path / ".bensz-api" / "task-atomic-failure"
+
+    def fail_append(*args, **kwargs):
+        raise OSError("simulated atomic initialization failure")
+
+    monkeypatch.setattr(EventLog, "append", fail_append)
+    assert main([
+        "workspace", "initialize", str(tmp_path), "demo-skill", "test.demo.checking",
+        "--task-root", str(task_root), "--skill-root", str(skill),
+        "--run-id", "run-1", "--attempt-id", "checking-1",
+    ]) == 2
+    assert "simulated atomic initialization failure" in capsys.readouterr().err
+    assert not task_root.exists()
+
+
+def test_workspace_initialize_explicit_root_is_process_safe(tmp_path: Path):
+    skill = _make_strict_transition_skill(tmp_path)
+    task_root = tmp_path / ".bensz-api" / "task-process-race"
+    command = [
+        sys.executable, "-m", "bensz_skill_kernel.cli",
+        "workspace", "initialize", str(tmp_path), "demo-skill", "test.demo.checking",
+        "--task-root", str(task_root), "--skill-root", str(skill),
+        "--run-id", "run-1", "--attempt-id", "checking-1",
+    ]
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).parents[2] / "src")}
+    processes = [subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env) for _ in range(2)]
+    results = [process.communicate(timeout=15) + (process.returncode,) for process in processes]
+
+    assert sorted(item[2] for item in results) == [0, 2]
+    assert task_root.is_dir()
+    workspace = TaskWorkspace.open_existing(task_root)
+    assert workspace.manifest()["run_snapshot"]["run_id"] == "run-1"
+    assert len(EventLog(workspace.events).read()) == 1
+    assert not any("initialization_owner" in key for key in workspace.manifest())
+
+
+def test_workspace_initialize_auto_name_is_process_safe(tmp_path: Path):
+    skill = _make_strict_transition_skill(tmp_path)
+    command = [
+        sys.executable, "-m", "bensz_skill_kernel.cli",
+        "workspace", "initialize", str(tmp_path), "demo-skill", "test.demo.checking",
+        "--description", "process-race", "--skill-root", str(skill),
+        "--run-id", "run-1", "--attempt-id", "checking-1",
+    ]
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).parents[2] / "src")}
+    processes = [subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env) for _ in range(2)]
+    results = [process.communicate(timeout=15) + (process.returncode,) for process in processes]
+
+    assert [item[2] for item in results] == [0, 0]
+    roots = {json.loads(item[0])["task_root"] for item in results}
+    assert len(roots) == 2
+    for root in roots:
+        workspace = TaskWorkspace.open_existing(root)
+        assert len(EventLog(workspace.events).read()) == 1
+
+
+def test_run_snapshot_is_idempotent_but_not_overwritable(tmp_path: Path):
+    workspace = TaskWorkspace.open(tmp_path, description="immutable-run-snapshot")
+    original = workspace.record_run_snapshot(skill_id="demo-skill", run_id="run-1")
+    assert workspace.record_run_snapshot(skill_id="demo-skill", run_id="run-1") == original
+
+    with pytest.raises(WorkspaceError, match="immutable"):
+        workspace.record_run_snapshot(skill_id="demo-skill", run_id="run-2")
+    assert workspace.manifest()["run_snapshot"] == original["run_snapshot"]
+
+
+@pytest.mark.parametrize("field", ["payload", "snapshot_hash", "snapshot_id", "contract_hash"])
+def test_run_snapshot_tampering_fails_closed(tmp_path: Path, field: str):
+    workspace = TaskWorkspace.open(tmp_path, description=f"tampered-{field}")
+    workspace.record_run_snapshot(skill_id="demo-skill", run_id="run-1")
+    manifest = json.loads(workspace.manifest_path.read_text(encoding="utf-8"))
+    if field == "payload":
+        manifest["run_snapshot"]["skill_id"] = "tampered-skill"
+    else:
+        manifest["run_snapshot"][field] = "tampered"
+    workspace.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(WorkspaceError, match="run snapshot integrity"):
+        workspace.manifest()
+    with pytest.raises(WorkspaceError, match="run snapshot integrity"):
+        workspace.status()
+    with pytest.raises(WorkspaceError, match="run snapshot integrity"):
+        TaskWorkspace.open_existing(workspace.task_root)
+
+
+def test_legacy_run_snapshot_remains_readable_when_its_hash_matches(tmp_path: Path):
+    workspace = TaskWorkspace.open(tmp_path, description="legacy-run-snapshot")
+    legacy = {
+        "skill_id": "demo-skill",
+        "skill_version": "1.0.0",
+        "runtime_config": {"states": ["test.demo.checking"]},
+        "state_versions": {"test.demo.checking": "1.0.0"},
+        "verifier_versions": {},
+        "model": None,
+        "prompt_hash": None,
+        "tools": [],
+        "evidence": {},
+        "authorization": {},
+    }
+    legacy["contract_hash"] = hashlib.sha256(
+        json.dumps(legacy, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    manifest = workspace.manifest()
+    manifest["run_snapshot"] = legacy
+    workspace.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert TaskWorkspace.open_existing(workspace.task_root).manifest()["run_snapshot"] == legacy
+
+
+def test_strict_run_rejects_contract_drift_before_next_event(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="strict-contract-drift")
+    skill = _make_strict_transition_skill(tmp_path)
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "states: [test.demo.checking]",
+            "states: [test.demo.checking, test.demo.reported]",
+        ),
+        encoding="utf-8",
+    )
+    checking = skill / "states" / "checking" / "STATE.md"
+    checking.write_text(
+        checking.read_text(encoding="utf-8").replace(
+            "entry_conditions: bensz.workspace.ready\n",
+            "entry_conditions: bensz.workspace.ready\ntransitions: test.demo.reported\n",
+        ),
+        encoding="utf-8",
+    )
+    reported = skill / "states" / "reported" / "STATE.md"
+    reported.parent.mkdir(parents=True)
+    reported.write_text(
+        "---\nid: test.demo.reported\nversion: 1.0.0\nentry_conditions: test.demo.checking\n---\n\n# Reported\n",
+        encoding="utf-8",
+    )
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill), "--run-id", "run-1", "--target-attempt-id", "checking-1",
+    ]) == 0
+    entered = json.loads(capsys.readouterr().out)
+    reported.write_text(reported.read_text(encoding="utf-8") + "\nChanged contract.\n", encoding="utf-8")
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill), "--run-id", "run-1",
+        "--state-visit-id", entered["target_identity"]["state_visit_id"],
+        "--attempt-id", "checking-1", "--target-attempt-id", "reported-1",
+    ]) == 2
+    assert json.loads(capsys.readouterr().out)["reason_code"] == "runtime_contract_drift"
+    assert len(EventLog(workspace.events).read()) == 1
+
+
+@pytest.mark.parametrize("changed_file", ["VERIFIER.md", "check.py"])
+def test_strict_run_rejects_verifier_contract_or_asset_drift(tmp_path: Path, capsys, changed_file: str):
+    workspace = TaskWorkspace.open(tmp_path, description=f"verifier-drift-{changed_file}")
+    skill = _make_strict_transition_skill_with_verifier(tmp_path)
+    checking = skill / "states" / "checking" / "STATE.md"
+    checking.write_text(
+        checking.read_text(encoding="utf-8").replace(
+            "entry_conditions: bensz.workspace.ready\n",
+            "entry_conditions: bensz.workspace.ready\ntransitions: test.demo.reported\n",
+        ),
+        encoding="utf-8",
+    )
+    reported = skill / "states" / "reported" / "STATE.md"
+    reported.parent.mkdir(parents=True)
+    reported.write_text(
+        "---\nid: test.demo.reported\nversion: 1.0.0\nentry_conditions: test.demo.checking\n---\n\n# Reported\n",
+        encoding="utf-8",
+    )
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "states: [test.demo.checking]",
+            "states: [test.demo.checking, test.demo.reported]",
+        ),
+        encoding="utf-8",
+    )
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill), "--run-id", "run-1", "--target-attempt-id", "checking-1",
+    ]) == 0
+    entered = json.loads(capsys.readouterr().out)
+    target = skill / "verifiers" / "contract" / changed_file
+    target.write_text(target.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill), "--run-id", "run-1",
+        "--state-visit-id", entered["target_identity"]["state_visit_id"],
+        "--attempt-id", "checking-1", "--target-attempt-id", "reported-1",
+    ]) == 2
+    assert json.loads(capsys.readouterr().out)["reason_code"] == "runtime_contract_drift"
+    assert len(EventLog(workspace.events).read()) == 1
 
 
 def test_cli_transition_hands_off_target_identity_and_attempt_start_updates_snapshot(tmp_path: Path, capsys):

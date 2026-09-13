@@ -539,6 +539,9 @@ class SkillStateDeclaration:
     states: tuple[str, ...]
     source: Path
     verifiers: tuple[Mapping[str, Any], ...] = ()
+    identity_policy: str | None = None
+    skill_id: str | None = None
+    skill_version: str | None = None
 
     @classmethod
     def from_skill_root(cls, skill_root: str | Path) -> "SkillStateDeclaration":
@@ -547,6 +550,7 @@ class SkillStateDeclaration:
         # The JSON file remains a read-only compatibility format for older Skills.
         source = root / "config.yaml"
         raw: Mapping[str, Any] | None = None
+        loaded_config: Mapping[str, Any] = {}
         if source.is_file():
             try:
                 loaded = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
@@ -554,6 +558,7 @@ class SkillStateDeclaration:
                 raise StateDefinitionError(f"invalid Skill config: {exc}") from exc
             if isinstance(loaded, Mapping) and isinstance(loaded.get("runtime"), Mapping):
                 raw = loaded["runtime"]
+                loaded_config = loaded
         if raw is None:
             source = root / "state-machine.json"
             try:
@@ -564,6 +569,14 @@ class SkillStateDeclaration:
                 raise StateDefinitionError(f"invalid Skill state declaration: {exc.msg}") from exc
             if not isinstance(raw, Mapping) or raw.get("protocol") != SKILL_STATE_DECLARATION_VERSION:
                 raise StateDefinitionError(f"Skill state declaration must use {SKILL_STATE_DECLARATION_VERSION}")
+        identity_policy = raw.get("identity_policy")
+        if identity_policy is not None:
+            from .identity import STRICT_IDENTITY_POLICY
+
+            if identity_policy != STRICT_IDENTITY_POLICY:
+                raise StateDefinitionError(
+                    f"runtime.identity_policy must be {STRICT_IDENTITY_POLICY!r} when present"
+                )
         initial = raw.get("initial_state", "bensz.workspace.ready")
         names = _as_tuple(raw.get("states"))
         roots = _as_tuple(raw.get("state_roots", ("states",)))
@@ -607,7 +620,23 @@ class SkillStateDeclaration:
                 raise StateDefinitionError(
                     f"runtime kernel mismatch: declared {name}@{version}, running bensz-skill-kernel@{kernel_version}"
                 )
-        return cls(root, canonical_initial, tuple(resolved_roots), canonical_names, source, tuple(verifier_items))
+        skill_info = loaded_config.get("skill_info", {})
+        if not isinstance(skill_info, Mapping):
+            raise StateDefinitionError("skill_info must be a mapping when present")
+        skill_id = str(skill_info.get("name") or root.name)
+        raw_skill_version = skill_info.get("version")
+        skill_version = str(raw_skill_version) if raw_skill_version is not None else None
+        return cls(
+            root,
+            canonical_initial,
+            tuple(resolved_roots),
+            canonical_names,
+            source,
+            tuple(verifier_items),
+            str(identity_policy) if identity_policy is not None else None,
+            skill_id,
+            skill_version,
+        )
 
     def registry(self) -> "CombinedStateRegistry":
         registry = build_state_registry(*self.state_roots)
@@ -630,6 +659,9 @@ class SkillStateDeclaration:
             "states": list(self.states),
             "source": str(self.source),
             "verifiers": [dict(item) for item in self.verifiers],
+            "identity_policy": self.identity_policy,
+            "skill_id": self.skill_id,
+            "skill_version": self.skill_version,
         }
 
     def verifier_requirements(self) -> tuple[Mapping[str, Any], ...]:

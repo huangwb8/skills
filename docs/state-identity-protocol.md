@@ -10,6 +10,8 @@ BSK 将一次业务运行、一次 State 访问和访问内的一次验证尝试
 
 新身份使用 `bensz-state-identity-v2`，新事件信封使用 `bensz-event-v2`，State 响应与快照使用 `bensz-meta-state-v2`。旧 `bensz-event-v1` 和 `bensz-meta-state-v1` 保持只读可重放；缺少 `state_visit_id` 的旧记录会标记 `legacy_identity=true`，不会被推断为具备 v2 完成资格。
 
+Skill 可在 `config.yaml.runtime.identity_policy` 声明 `state-identity-v2`。声明后实际模式为 `strict-v2`：新写入必须显式提供非空 `run_id` 和非 `default` 的目标 attempt，且不能请求 legacy 降级。未声明策略的旧 Skill 暂时保留兼容写入，但响应明确返回 `identity_mode=legacy`、`downgrade_policy=warn` 和 `legacy_state_write` 警告。
+
 ## 状态图
 
 ```text
@@ -55,6 +57,7 @@ transition 的源侧按当前 active identity 检查 invariant；目标侧在同
 
 ```bash
 bsk capabilities
+bsk diagnostics
 ```
 
 进入目标 State 时分别提供源身份与目标 attempt；目标 visit 可显式提供，也可由 Kernel 确定性生成：
@@ -70,7 +73,18 @@ bsk state transition TASK_ROOT SKILL TARGET_STATE \
   --idempotency-key transition-a-b
 ```
 
-首次进入 v2 State 时省略源 `--state-visit-id`，但仍提供 `--run-id` 与 `--target-attempt-id`。同一 State 内重试：
+首次进入 v2 State 时省略源 `--state-visit-id`，但仍提供 `--run-id` 与 `--target-attempt-id`。
+
+新任务可通过一个命令原子建立 workspace、运行契约快照与首个 v2 State：
+
+```bash
+bsk workspace initialize PROJECT_ROOT SKILL TARGET_STATE \
+  --skill-root SKILL_ROOT --run-id run-1 --attempt-id attempt-a1
+```
+
+该入口拒绝复用既有任务根：显式路径以排他目录创建，自动命名冲突时原子选择短后缀；初始化异常时仅在 ownership token 仍匹配时回滚本次新建的任务根。运行快照包含 Skill/Kernel 版本、identity policy、State 契约、Verifier Markdown 契约/组件计划/helper 资产哈希和最小 Python 指纹，并以 `run_snapshot_id`/`run_snapshot_hash` 绑定 State 事件、投影和 action authorization。快照只允许相同内容的幂等写入，读取时重算 payload hash 和派生 ID；运行中的声明或契约发生漂移时返回 `runtime_contract_drift`，不得继续复用旧 Gate 或授权，而应创建新的 workspace/task root。
+
+同一 State 内重试：
 
 ```bash
 bsk attempt start TASK_ROOT SKILL \
@@ -87,4 +101,4 @@ Verifier 与 action 命令在 v2 State 中必须携带同一个 `--state-visit-i
 
 CLI 先写入并 fsync 临时快照，再追加哈希链事件，最后原子替换正式快照。事件追加前会用 reducer 校验 source/target identity；追加或提交中断会留下可检测的临时快照，后续操作 fail-closed。`status`/`rebuild` 只重放事件，不生成新 visit、attempt、Gate 或授权。
 
-Kernel 不理解领域阶段含义，不扫描业务产物，也不自动升级 Python、安装副本或 Skill。环境预检可使用 `bsk capabilities` 判断实际加载版本和协议能力；安装副本漂移、报告 schema、控制完成度与科学证据资格仍由调用方分别诊断。
+Kernel 不理解领域阶段含义，不扫描业务产物，也不自动升级 Python、安装副本或 Skill。环境预检可使用 `bsk capabilities` 判断协议与 identity mode 契约，使用 `bsk diagnostics` 获取实际解释器、Python 和 Kernel 版本；报告 schema、控制完成度与科学证据资格仍由调用方分别诊断。

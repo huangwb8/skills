@@ -63,6 +63,8 @@ bsk state list --root path/to/skill/states
 
 `--root` 会叠加 Skill 状态，不替换内置状态。Skill 在根目录 `config.yaml.runtime` 声明初始状态、可用状态、状态根和 Verifier 子集；旧 `state-machine.json` 只读兼容。required 组件必须全部完成并通过，状态条件才成立。
 
+需要强身份的新 Skill 在同一 runtime 声明中加入 `identity_policy: state-identity-v2`。该策略只收紧新写入：首次 transition 缺少 `run_id`、显式 initial attempt，或使用 legacy `default` attempt 时，会在首条事件前以稳定 `reason_code` 拒绝；旧 v1 日志仍可读取和重放，但不能在 strict Skill 中原地升级。
+
 先初始化任务工作区和 Skill 状态声明，再检查/持久化迁移：
 
 ```bash
@@ -77,6 +79,7 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
 
 ```bash
 bsk capabilities
+bsk diagnostics
 bsk attempt start .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name \
   --run-id run-1 --state-visit-id STATE_VISIT_ID --attempt-id collecting-2 \
   --reason retry --idempotency-key collecting-2
@@ -140,6 +143,16 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
 初始化会创建 `bensz.workspace.ready`（旧 alias：`workspace.ready`）和 `shared/input|output|log` 边界。工作区 manifest、生命周期事件账本和 Skill 元状态快照分层保存且可重放。
+
+strict-v2 Skill 可用单入口完成工作区、运行契约快照和首个 State identity 初始化；该命令只接受新的任务根。显式任务根采用排他创建；自动命名并发冲突会原子选择 `-a`、`-b` 等后缀。任一步失败都只会在 ownership token 匹配时回滚本次新建的任务目录：
+
+```bash
+bsk workspace initialize . skill-name org.example.skill.collecting \
+  --skill-root path/to/skill --run-id run-1 --attempt-id collecting-1 \
+  --description citation-review
+```
+
+运行快照保存 Skill/Kernel 版本、identity policy、State 契约、Verifier Markdown 契约/组件计划/helper 资产哈希，以及不含解释器绝对路径的最小 Python 指纹。快照写入后不可覆盖，读取时会重新校验 payload、hash 与派生 ID。State 事件、投影和 action authorization 引用同一个 snapshot ID/hash；契约漂移或 run 不匹配时必须创建新的 workspace/task root。`bsk diagnostics` 单独报告当前 CLI 的实际解释器路径、Python 与 Kernel 版本，便于识别双 Python 环境。
 
 ## 运行边界与审计
 

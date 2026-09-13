@@ -652,6 +652,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "version": str(payload.get("state_version", "")),
                     "event_id": event.event_id,
                     "snapshot_hash": payload.get("snapshot_hash"),
+                    "run_snapshot_id": payload.get("run_snapshot_id"),
+                    "run_snapshot_hash": payload.get("run_snapshot_hash"),
                     **identity_fields,
                 }
                 projection["skill_state_transitions"].append({
@@ -667,6 +669,8 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "identity_protocol": identity_fields["identity_protocol"],
                     "event_id": event.event_id,
                     "snapshot_hash": payload.get("snapshot_hash"),
+                    "run_snapshot_id": payload.get("run_snapshot_id"),
+                    "run_snapshot_hash": payload.get("run_snapshot_hash"),
                 })
                 for authorization in projection["action_authorizations"].values():
                     if authorization.get("skill") == skill and authorization.get("status") == "granted":
@@ -1417,6 +1421,8 @@ class EventLog:
                     "state_entry_seq": entry.seq,
                     "attempt_window_seq": attempt_window_seq,
                     "state_snapshot_hash": current.get("snapshot_hash"),
+                    "run_snapshot_id": current.get("run_snapshot_id"),
+                    "run_snapshot_hash": current.get("run_snapshot_hash"),
                     "authorized_through_seq": projection["last_seq"],
                     "handoff_id": handoff_id,
                     "handoff_event_id": handoff_event.event_id if handoff_event else None,
@@ -1514,6 +1520,8 @@ class EventLog:
                 not current
                 or current.get("event_id") != grant.payload.get("state_event_id")
                 or current.get("snapshot_hash") != grant.payload.get("state_snapshot_hash")
+                or current.get("run_snapshot_id") != grant.payload.get("run_snapshot_id")
+                or current.get("run_snapshot_hash") != grant.payload.get("run_snapshot_hash")
                 or current.get("version") != grant.payload.get("state_version")
                 or (not current.get("legacy_identity", True) and current.get("state_visit_id") != state_visit_id)
                 or current.get("active_attempt_id") != attempt_id
