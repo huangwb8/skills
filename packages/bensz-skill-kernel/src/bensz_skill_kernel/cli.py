@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .runtime import EventLog, IntegrityError, KernelError
+from .identity import STATE_IDENTITY_PROTOCOL, kernel_capabilities, normalize_state_identity
 from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
 from .workspace import TaskWorkspace, WORKSPACE_KINDS, state_snapshot_hash
 from .verifiers import GateDecision, SkillVerifierDeclaration, apply_gate, build_verifier_registry, normalize_result, summarize_metrics
@@ -89,6 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
+    commands.add_parser("capabilities", help="show supported Kernel protocols and operations")
+
     status = commands.add_parser("status", help="show the current projection")
     status.add_argument("events", metavar="EVENTS")
 
@@ -106,6 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     append.add_argument("--evidence-ref", action="append", default=[])
     append.add_argument("--idempotency-key")
     append.add_argument("--run-id", help="optional run identity for a bound audit event")
+    append.add_argument("--state-visit-id", help="optional active State visit identity")
     _add_event_context(append)
     _add_contract(append)
 
@@ -140,6 +144,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_event_context(verification)
     verification.add_argument("--idempotency-key")
     verification.add_argument("--run-id")
+    verification.add_argument("--state-visit-id")
     _add_contract(verification)
 
     delivery = commands.add_parser("delivery", help="record a delivery report")
@@ -158,6 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
     action_preflight.add_argument("--state-version", required=True)
     action_preflight.add_argument("--run-id", required=True)
     action_preflight.add_argument("--attempt-id", required=True)
+    action_preflight.add_argument("--state-visit-id")
     action_preflight.add_argument("--handoff-id")
     action_preflight.add_argument("--evidence-ref", action="append", default=[])
     action_preflight.add_argument("--idempotency-key")
@@ -169,6 +175,7 @@ def build_parser() -> argparse.ArgumentParser:
     action_consume.add_argument("action")
     action_consume.add_argument("--run-id", required=True)
     action_consume.add_argument("--attempt-id", required=True)
+    action_consume.add_argument("--state-visit-id")
     action_consume.add_argument("--idempotency-key")
     action_consume.add_argument("--expected-last-seq", type=int)
 
@@ -194,6 +201,7 @@ def build_parser() -> argparse.ArgumentParser:
     verifier_run.add_argument("--events", help="append verifier results and Gate to an event log")
     verifier_run.add_argument("--run-id")
     verifier_run.add_argument("--attempt-id", help="attempt identity; defaults to request JSON value or 'default'")
+    verifier_run.add_argument("--state-visit-id", help="active State visit identity")
     verifier_run.add_argument("--actor", default="bsk:verifier")
     verifier_run.add_argument("--scope", default="skill")
     verifier_run.add_argument("--idempotency-key")
@@ -223,8 +231,24 @@ def build_parser() -> argparse.ArgumentParser:
     state_transition.add_argument("--context-json", default="{}", help="JSON object passed to the state helper")
     state_transition.add_argument("--run-id", help="run identity used when checking event-bound invariants")
     state_transition.add_argument("--attempt-id", default="default", help="attempt identity used when checking event-bound invariants")
+    state_transition.add_argument("--state-visit-id", help="source State visit identity used when checking invariants")
+    state_transition.add_argument("--target-state-visit-id", help="target State visit identity; generated when target attempt is supplied")
+    state_transition.add_argument("--target-attempt-id", help="initial attempt identity for the target State visit")
+    state_transition.add_argument("--idempotency-key", help="stable key for replaying the same transition request")
     state_transition.add_argument("--timeout", type=int, default=10)
     _add_state_source(state_transition)
+
+    attempt = commands.add_parser("attempt", help="start or supersede an attempt in the active State visit")
+    attempt_commands = attempt.add_subparsers(dest="attempt_command", metavar="ACTION")
+    attempt_start = attempt_commands.add_parser("start", help="start a new attempt and supersede the active attempt")
+    attempt_start.add_argument("task_root")
+    attempt_start.add_argument("skill")
+    attempt_start.add_argument("--run-id", required=True)
+    attempt_start.add_argument("--state-visit-id", required=True)
+    attempt_start.add_argument("--attempt-id", required=True)
+    attempt_start.add_argument("--reason", required=True)
+    attempt_start.add_argument("--idempotency-key", required=True)
+    attempt_start.add_argument("--expected-last-seq", type=int)
 
     workspace = commands.add_parser("workspace", help="initialize and resolve BenszAPI task workspaces")
     workspace_commands = workspace.add_subparsers(dest="workspace_command", metavar="ACTION")
@@ -312,7 +336,7 @@ def _state_registry(args: argparse.Namespace):
     return build_state_registry(*roots), None
 
 
-def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None) -> dict[str, Any]:
+def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None, reason_code: str | None = None, source_identity: Mapping[str, Any] | None = None, target_identity: Mapping[str, Any] | None = None) -> dict[str, Any]:
     output: dict[str, Any] = {
         "protocol": META_STATE_PROTOCOL_VERSION,
         "operation": operation,
@@ -328,6 +352,12 @@ def _state_response(operation: str, status: str, *, current_state: str | None = 
         output["snapshot"] = snapshot
     if reason:
         output["reason"] = reason
+    if reason_code:
+        output["reason_code"] = reason_code
+    if source_identity is not None:
+        output["source_identity"] = dict(source_identity)
+    if target_identity is not None:
+        output["target_identity"] = dict(target_identity)
     return output
 
 
@@ -382,14 +412,128 @@ def _run_state_command(args: argparse.Namespace) -> int:
         current = registry.resolve(persisted_current).id
         machine = StateMachine(registry, current)
         target = registry.resolve(args.target_state)
-        if not machine.can_transition(args.target_state):
-            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state."), pretty=True)
-            return 0
         events = EventLog(workspace.events).read()
+        if args.idempotency_key:
+            existing = next((item for item in events if item.idempotency_key == args.idempotency_key), None)
+            if existing is not None:
+                existing_source = existing.payload.get("source_identity")
+                existing_target = existing.payload.get("target_identity")
+                requested_target_attempt = args.target_attempt_id or args.attempt_id
+                requested_target_visit = args.target_state_visit_id
+                if existing_target is not None and requested_target_visit is None:
+                    seed = {
+                        "skill": args.skill,
+                        "source": existing_source,
+                        "target_state": target.id,
+                        "target_attempt_id": requested_target_attempt,
+                    }
+                    requested_target_visit = "state-visit-" + hashlib.sha256(
+                        json.dumps(seed, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()[:24]
+                requested_target_matches = (
+                    existing.payload.get("to_state") == target.id
+                    and existing.payload.get("skill") == args.skill
+                    and existing.run_id == args.run_id
+                    and (
+                        existing_target is None
+                        or (
+                            existing_target.get("state_visit_id") == requested_target_visit
+                            and existing_target.get("attempt_id") == requested_target_attempt
+                        )
+                    )
+                    and (
+                        (existing_source is None and args.state_visit_id is None)
+                        or (
+                            existing_source is not None
+                            and existing_source.get("state_visit_id") == args.state_visit_id
+                            and existing_source.get("attempt_id") == args.attempt_id
+                        )
+                    )
+                )
+                if existing.event_type != "state.transition" or not requested_target_matches:
+                    raise ValueError(f"idempotency key conflict: {args.idempotency_key}")
+                _print(_state_response(
+                    "transition",
+                    "transitioned",
+                    current_state=existing.payload.get("from_state"),
+                    target_state=target.id,
+                    definition=target,
+                    snapshot=previous,
+                    source_identity=existing_source,
+                    target_identity=existing_target,
+                ), pretty=True)
+                return 0
+        if not machine.can_transition(args.target_state):
+            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, snapshot=previous, reason="The target is not an allowed transition from the current state.", reason_code="transition_not_allowed"), pretty=True)
+            return 0
         context = _json_object(args.context_json, label="--context-json")
         context = {**context, "skill": args.skill}
         if args.run_id is not None:
-            context = {**context, "run_id": args.run_id, "attempt_id": args.attempt_id}
+            context = {
+                **context,
+                "run_id": args.run_id,
+                "state_visit_id": args.state_visit_id,
+                "attempt_id": args.attempt_id,
+            }
+        previous_is_v2 = previous.get("identity_protocol") == STATE_IDENTITY_PROTOCOL
+        source_identity = None
+        if previous_is_v2:
+            source_identity = normalize_state_identity(
+                {
+                    "run_id": args.run_id,
+                    "state_visit_id": args.state_visit_id,
+                    "attempt_id": args.attempt_id,
+                },
+                label="source identity",
+            )
+            expected_source = normalize_state_identity(
+                {
+                    "run_id": previous.get("run_id"),
+                    "state_visit_id": previous.get("state_visit_id"),
+                    "attempt_id": previous.get("active_attempt_id"),
+                },
+                label="snapshot identity",
+            )
+            if source_identity != expected_source:
+                _print(_state_response(
+                    "transition",
+                    "rejected",
+                    current_state=current,
+                    target_state=target.id,
+                    definition=target,
+                    snapshot=previous,
+                    reason="state_identity_mismatch: source identity is not the active State visit/attempt",
+                    reason_code="state_identity_mismatch",
+                    source_identity=source_identity,
+                ), pretty=True)
+                return 0
+        v2_requested = previous_is_v2 or args.target_attempt_id is not None or args.target_state_visit_id is not None
+        target_identity = None
+        if v2_requested:
+            if args.run_id is None:
+                raise ValueError("--run-id is required for a v2 target State identity")
+            target_attempt_id = args.target_attempt_id or args.attempt_id
+            target_visit_id = args.target_state_visit_id
+            if target_visit_id is None:
+                seed = {
+                    "skill": args.skill,
+                    "source": source_identity,
+                    "target_state": target.id,
+                    "target_attempt_id": target_attempt_id,
+                }
+                target_visit_id = "state-visit-" + hashlib.sha256(
+                    json.dumps(seed, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()[:24]
+            target_identity = normalize_state_identity(
+                {
+                    "run_id": args.run_id,
+                    "state_visit_id": target_visit_id,
+                    "attempt_id": target_attempt_id,
+                },
+                label="target identity",
+            )
+            if source_identity is not None and source_identity["run_id"] != target_identity["run_id"]:
+                raise ValueError("source and target State identities must use the same run_id")
         if declaration:
             context = {**context, "required_verifiers": list(declaration.verifier_requirements())}
         invariant_failures = check_state_invariants(registry.resolve(current), events, context=context)
@@ -402,15 +546,17 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 definition=target,
                 snapshot=previous,
                 reason="State invariant failed: " + "; ".join(invariant_failures),
+                reason_code="state_invariant_failed",
             ), pretty=True)
             return 0
-        execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": context}, timeout=args.timeout)
+        entry_context = {**context, **(target_identity or {})}
+        execution = execute_state(target, {"operation": "enter", "task_root": str(workspace.task_root), "skill": args.skill, "current_state": current, "target_state": target.id, "context": entry_context}, timeout=args.timeout)
         if execution.execution_status != "not_applicable" and execution.verdict != "pass":
-            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted."), pretty=True)
+            _print(_state_response("transition", "rejected", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=previous, reason="The state helper did not pass, so the transition was not persisted.", reason_code="state_entry_helper_failed"), pretty=True)
             return 0
         machine.transition(args.target_state, events=events, context=context)
         snapshot = {
-            "protocol": META_STATE_PROTOCOL_VERSION,
+            "protocol": META_STATE_PROTOCOL_VERSION if target_identity is not None else "bensz-meta-state-v1",
             "skill": workspace.paths(args.skill).skill,
             "current_state": target.id,
             "state_version": target.version,
@@ -425,6 +571,14 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 "verdict": execution.verdict,
             },
         }
+        if target_identity is not None:
+            snapshot.update({
+                "identity_protocol": STATE_IDENTITY_PROTOCOL,
+                "run_id": target_identity["run_id"],
+                "state_visit_id": target_identity["state_visit_id"],
+                "active_attempt_id": target_identity["attempt_id"],
+                "legacy_identity": False,
+            })
         snapshot_hash = state_snapshot_hash(snapshot)
         # Stage a pending snapshot before appending the event.  The stable
         # event ID is preallocated so recovery can detect an interrupted
@@ -432,30 +586,47 @@ def _run_state_command(args: argparse.Namespace) -> int:
         state_event_id = str(uuid.uuid4())
         snapshot["state_event_id"] = state_event_id
         snapshot["snapshot_hash"] = snapshot_hash
-        pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
-        EventLog(workspace.events).append(
-            "state.transition",
-            payload={
-                "state_domain": "skill",
-                "skill": args.skill,
-                "from_state": current,
-                "to_state": target.id,
-                "state_version": target.version,
-                "snapshot_hash": snapshot_hash,
-                "snapshot_path": f"{args.skill}/log/meta-state.json",
-                "state_event_id": state_event_id,
-            },
-            scope="skill",
-            actor="bsk:state",
-            attempt_id=args.attempt_id,
-            run_id=args.run_id,
-            idempotency_key=(f"state:{args.skill}:{args.run_id}:{args.attempt_id}:{target.id}" if args.run_id else None),
-            snapshot={"skill": args.skill, "state_hash": snapshot_hash},
-            event_id=state_event_id,
-        )
-        path = workspace.commit_meta_state(pending_tmp, pending_target)
+        event_payload = {
+            "state_domain": "skill",
+            "skill": args.skill,
+            "from_state": current,
+            "to_state": target.id,
+            "state_version": target.version,
+            "snapshot_hash": snapshot_hash,
+            "snapshot_path": f"{args.skill}/log/meta-state.json",
+            "state_event_id": state_event_id,
+        }
+        if target_identity is not None:
+            event_payload.update({
+                "identity_protocol": STATE_IDENTITY_PROTOCOL,
+                "source_identity": source_identity,
+                "target_identity": target_identity,
+            })
+        event_run_id = target_identity["run_id"] if target_identity is not None else args.run_id
+        event_attempt_id = target_identity["attempt_id"] if target_identity is not None else args.attempt_id
+        event_visit_id = target_identity["state_visit_id"] if target_identity is not None else None
+        log = EventLog(workspace.events)
+        with log._locked():
+            pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
+            log.append(
+                "state.transition",
+                payload=event_payload,
+                scope="skill",
+                actor="bsk:state",
+                attempt_id=event_attempt_id,
+                run_id=event_run_id,
+                state_visit_id=event_visit_id,
+                idempotency_key=(args.idempotency_key or (
+                    f"state:{args.skill}:{event_run_id}:{source_identity['state_visit_id'] if source_identity else 'initial'}:{event_visit_id or event_attempt_id}:{target.id}"
+                    if event_run_id else None
+                )),
+                snapshot={"skill": args.skill, "state_hash": snapshot_hash},
+                event_id=state_event_id,
+                _lock_held=True,
+            )
+            path = workspace.commit_meta_state(pending_tmp, pending_target)
         snapshot["path"] = str(path)
-        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot), pretty=True)
+        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot, source_identity=source_identity, target_identity=target_identity), pretty=True)
     else:
         build_parser().parse_args(["state", "--help"])
     return 0
@@ -486,6 +657,7 @@ def _run_action_command(args: argparse.Namespace) -> int:
             state_version=args.state_version,
             run_id=args.run_id,
             attempt_id=args.attempt_id,
+            state_visit_id=args.state_visit_id,
             handoff_id=args.handoff_id,
             evidence_refs=args.evidence_ref,
             idempotency_key=args.idempotency_key,
@@ -499,12 +671,122 @@ def _run_action_command(args: argparse.Namespace) -> int:
             action=args.action,
             run_id=args.run_id,
             attempt_id=args.attempt_id,
+            state_visit_id=args.state_visit_id,
             idempotency_key=args.idempotency_key,
             expected_last_seq=args.expected_last_seq,
         )
         _print(event.to_dict())
     else:
         build_parser().parse_args(["action", "--help"])
+    return 0
+
+
+def _run_attempt_command(args: argparse.Namespace) -> int:
+    if args.attempt_command != "start":
+        build_parser().parse_args(["attempt", "--help"])
+        return 0
+    workspace = TaskWorkspace.open_existing(args.task_root)
+    log = EventLog(workspace.events)
+    with log._locked():
+        return _start_attempt_locked(args, workspace, log)
+
+
+def _start_attempt_locked(args: argparse.Namespace, workspace: TaskWorkspace, log: EventLog) -> int:
+    """Persist one attempt event and its snapshot under the event-log lock."""
+    previous = workspace.read_meta_state(args.skill)
+    existing = next((item for item in log.read() if item.idempotency_key == args.idempotency_key), None)
+    if existing is not None:
+        if (
+            existing.event_type != "state.attempt.started"
+            or existing.payload.get("skill") != args.skill
+            or existing.run_id != args.run_id
+            or existing.state_visit_id != args.state_visit_id
+            or existing.attempt_id != args.attempt_id
+            or existing.payload.get("reason") != args.reason
+            or previous.get("run_id") != args.run_id
+            or previous.get("state_visit_id") != args.state_visit_id
+            or previous.get("active_attempt_id") != args.attempt_id
+        ):
+            raise ValueError(f"idempotency key conflict: {args.idempotency_key}")
+        _print({
+            "protocol": META_STATE_PROTOCOL_VERSION,
+            "operation": "attempt.start",
+            "status": "started",
+            "active_identity": {
+                "run_id": args.run_id,
+                "state_visit_id": args.state_visit_id,
+                "attempt_id": args.attempt_id,
+            },
+            "event": existing.to_dict(),
+            "snapshot": previous,
+        }, pretty=True)
+        return 0
+    if previous.get("identity_protocol") != STATE_IDENTITY_PROTOCOL:
+        raise ValueError("attempt start requires a v2 State visit snapshot")
+    active = normalize_state_identity(
+        {
+            "run_id": previous.get("run_id"),
+            "state_visit_id": previous.get("state_visit_id"),
+            "attempt_id": previous.get("active_attempt_id"),
+        },
+        label="active identity",
+    )
+    if active["run_id"] != args.run_id or active["state_visit_id"] != args.state_visit_id:
+        raise ValueError("requested run/state visit does not match the active snapshot")
+    if active["attempt_id"] == args.attempt_id:
+        raise ValueError("new attempt_id must differ from the active attempt")
+    event_id = str(uuid.uuid4())
+    snapshot = {
+        key: value
+        for key, value in previous.items()
+        if key not in {"snapshot_hash", "path"}
+    }
+    snapshot.update({
+        "protocol": META_STATE_PROTOCOL_VERSION,
+        "active_attempt_id": args.attempt_id,
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "last_operation": {
+            "operation": "attempt.start",
+            "status": "started",
+            "supersedes_attempt_id": active["attempt_id"],
+            "attempt_id": args.attempt_id,
+            "reason": args.reason,
+        },
+    })
+    snapshot_hash = state_snapshot_hash(snapshot)
+    snapshot["snapshot_hash"] = snapshot_hash
+    pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
+    event = log.start_attempt(
+        skill=args.skill,
+        state=str(previous["current_state"]),
+        state_version=str(previous["state_version"]),
+        run_id=args.run_id,
+        state_visit_id=args.state_visit_id,
+        attempt_id=args.attempt_id,
+        reason=args.reason,
+        idempotency_key=args.idempotency_key,
+        expected_last_seq=args.expected_last_seq,
+        event_id=event_id,
+        snapshot={"skill": args.skill, "state_hash": snapshot_hash},
+        snapshot_hash=snapshot_hash,
+        snapshot_path=f"{args.skill}/log/meta-state.json",
+        state_event_id=str(previous.get("state_event_id", "")),
+        _lock_held=True,
+    )
+    workspace.commit_meta_state(pending_tmp, pending_target)
+    active_identity = {
+        "run_id": args.run_id,
+        "state_visit_id": args.state_visit_id,
+        "attempt_id": args.attempt_id,
+    }
+    _print({
+        "protocol": META_STATE_PROTOCOL_VERSION,
+        "operation": "attempt.start",
+        "status": "started",
+        "active_identity": active_identity,
+        "event": event.to_dict(),
+        "snapshot": snapshot,
+    }, pretty=True)
     return 0
 
 
@@ -561,8 +843,12 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
         request_payload["request_id"] = request_id
     run_id = str(args.run_id or request_payload.get("run_id") or request_id)
     attempt_id = str(args.attempt_id or request_payload.get("attempt_id") or "default")
+    state_visit_id = args.state_visit_id or request_payload.get("state_visit_id")
+    state_visit_id = str(state_visit_id) if state_visit_id is not None else None
     request_payload["run_id"] = run_id
     request_payload["attempt_id"] = attempt_id
+    if state_visit_id is not None:
+        request_payload["state_visit_id"] = state_visit_id
     index = definition.metadata.get("index")
     contract_execution = None
     if isinstance(index, Mapping) and "components" in index:
@@ -573,6 +859,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
             timeout=args.timeout,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             submissions=request_payload.get("component_results", request_payload.get("submissions", ())),
         )
         raw_result = contract_execution.to_event_payload()
@@ -627,6 +914,7 @@ def _run_verifier_command(args: argparse.Namespace) -> int:
                 attempt_id=attempt_id,
                 idempotency_key=f"{args.idempotency_key or request_id}:{index}",
                 run_id=run_id,
+                state_visit_id=state_visit_id,
                 requirements=(requirement,) if requirement is not None else None,
             )
             persisted.append({"result_event": verification.to_dict(), "gate_event": gate_event.to_dict() if gate_event else None})
@@ -653,8 +941,13 @@ def _run_command(args: argparse.Namespace) -> int:
         return _run_state_command(args)
     if args.command == "workspace":
         return _run_workspace_command(args)
+    if args.command == "attempt":
+        return _run_attempt_command(args)
     if args.command == "action":
         return _run_action_command(args)
+    if args.command == "capabilities":
+        _print(kernel_capabilities(version=__version__), pretty=True)
+        return 0
     if args.command == "status":
         _print(_log(args).projection(), pretty=True)
     elif args.command == "rebuild":
@@ -674,6 +967,7 @@ def _run_command(args: argparse.Namespace) -> int:
             evidence_refs=args.evidence_ref,
             idempotency_key=args.idempotency_key,
             run_id=args.run_id,
+            state_visit_id=args.state_visit_id,
         )
         _print(event.to_dict())
     elif args.command == "transition":
@@ -703,6 +997,7 @@ def _run_command(args: argparse.Namespace) -> int:
             attempt_id=args.attempt_id,
             idempotency_key=args.idempotency_key,
             run_id=args.run_id,
+            state_visit_id=args.state_visit_id,
         )
         # Keep the historical per-result CLI response while persisting one
         # kernel-computed gate for the complete batch.  Reading the appended
@@ -721,6 +1016,7 @@ def _run_command(args: argparse.Namespace) -> int:
                     event for event in all_events
                     if event.event_type == "verification.result"
                     and event.run_id == args.run_id
+                    and event.state_visit_id == args.state_visit_id
                     and event.attempt_id == args.attempt_id
                     and event.scope == args.scope
                     and event.actor == args.actor

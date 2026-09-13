@@ -5,6 +5,21 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [5.0.8] - 2026-09-13
+
+### Added（新增）
+- `bensz-skill-kernel` 新增 `bensz-state-identity-v2`：将稳定 `run_id`、单次 State 访问 `state_visit_id` 与访问内 `attempt_id` 分层；transition 显式绑定 `source_identity`/`target_identity`，`bsk attempt start` 可在同一 visit 内替代 attempt，`bsk capabilities` 提供无业务数据的协议能力查询。
+- Contract Pack、Verifier/Gate、handoff 与 action authorization 统一携带三层身份；新 attempt 或新 State visit 会使旧证据窗口与未消费授权失效。新增跨阶段不同 attempt、重试、幂等重放、身份篡改、旧日志读取及实时/rebuild 一致性回归测试。
+
+### Changed（变更）
+- 新 State 身份事件使用 `bensz-event-v2`，新 State 响应与快照使用 `bensz-meta-state-v2`；旧 v1 事件和快照保持只读可重放并标记 legacy，不从缺失字段推断 v2 完成资格。
+- `bensz-skill-kernel` 更新至 2.1.1（版本号由用户确认）并发布到 PyPI：162 个包内测试全部通过后构建 sdist+wheel 上传，`twine check` 通过，并安装到本机 anaconda3 环境，`bsk capabilities` 输出与源码协议一致。
+- 根级中英 README 经 `write-readme` 流程与 `check_readme_pair.py` 核验已与源代码对齐：生产 Skill 数量 16、安装器参数和 Kernel 命令复核成立，仅在 Kernel 能力概括中补入 2.1.1 的"分层运行身份"事实声明、`bsk capabilities` 常用入口和身份协议文档链接；Kernel 包 README 英文版补齐 State Pack 模块化边界两段落与 `bensz.design.minimum-sufficient-complexity` 内置示例声明，与中文版对齐。
+
+### Fixed（修复）
+- 修复一个 transition 事件只能用同一 attempt 同时表示源 State 离站与目标 State 入站、导致后续阶段按约定启用新 attempt 时被 entry identity 校验拒绝的问题；reducer、State invariant、Gate、handoff、action preflight/consume 和快照提交现共用 active visit/attempt 窗口。
+- 清理 Contract Pack stdio 执行边界中未使用的 stderr 局部读取，保持包级 Ruff 门禁通过，不改变既有 stderr 大小限制与错误语义。
+
 ## [5.0.7] - 2026-09-12
 
 ### Added（新增）

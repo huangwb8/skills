@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .identity import STATE_IDENTITY_PROTOCOL, normalize_state_identity
 from .verifiers import GateDecision, VerificationResult, apply_gate
 
 VALID_STATES = frozenset(
@@ -73,8 +74,10 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _request_hash(event_type: str, payload: Mapping[str, Any], summary: str, scope: str, actor: str, attempt_id: str, path: str | None, evidence_refs: Iterable[str], run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None) -> str:
+def _request_hash(event_type: str, payload: Mapping[str, Any], summary: str, scope: str, actor: str, attempt_id: str, path: str | None, evidence_refs: Iterable[str], run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, state_visit_id: str | None = None) -> str:
     intent = {"type": event_type, "payload": dict(payload), "summary": summary, "scope": scope, "actor": actor, "attempt_id": attempt_id, "path": path, "evidence_refs": list(evidence_refs), "run_id": run_id, "authorization": dict(authorization or {}), "snapshot": dict(snapshot or {})}
+    if state_visit_id is not None:
+        intent["state_visit_id"] = state_visit_id
     return hashlib.sha256(_canonical(intent)).hexdigest()
 
 
@@ -108,6 +111,7 @@ def _component_bound_gate(
     *,
     run_id: str | None,
     attempt_id: str,
+    state_visit_id: str | None = None,
 ) -> GateDecision | None:
     """Recompute a v2 Gate from bound component evidence.
 
@@ -132,6 +136,8 @@ def _component_bound_gate(
         return reject("invalid Contract Pack hash binding")
     if result.get("run_id") != run_id or result.get("attempt_id") != attempt_id:
         return reject("verification result run identity mismatch")
+    if state_visit_id is not None and result.get("state_visit_id") != state_visit_id:
+        return reject("verification result state visit identity mismatch")
     if not isinstance(execution_plan, Mapping):
         return reject("v2 verification requires an execution plan")
     plan_components = execution_plan.get("components")
@@ -196,6 +202,7 @@ def _component_bound_gate(
             or raw.get("plan_hash") != plan_hash
             or raw.get("run_id") != run_id
             or raw.get("attempt_id") != attempt_id
+            or (state_visit_id is not None and raw.get("state_visit_id") != state_visit_id)
             or not _SHA256_RE.fullmatch(str(raw.get("component_hash", "")))
             or raw.get("component_hash") != declared.get("component_hash")
             or raw.get("component_type") != declared.get("type")
@@ -390,6 +397,7 @@ class EventEnvelope:
     run_id: str | None = None
     authorization: dict[str, Any] = field(default_factory=dict)
     snapshot: dict[str, Any] = field(default_factory=dict)
+    state_visit_id: str | None = None
 
     @property
     def type(self) -> str:
@@ -417,6 +425,8 @@ class EventEnvelope:
                 result["request_hash"] = self.request_hash
             if self.run_id is not None:
                 result["run_id"] = self.run_id
+            if self.state_visit_id is not None:
+                result["state_visit_id"] = self.state_visit_id
             if self.authorization:
                 result["authorization"] = self.authorization
             if self.snapshot:
@@ -437,8 +447,20 @@ class EventEnvelope:
         try:
             if not isinstance(raw, Mapping):
                 raise TypeError("event envelope must be an object")
-            if raw.get("protocol", "bensz-event-v1") != "bensz-event-v1":
+            protocol = str(raw.get("protocol", "bensz-event-v1"))
+            if protocol not in {"bensz-event-v1", "bensz-event-v2"}:
                 raise ValueError("unsupported event protocol")
+            if protocol == "bensz-event-v2":
+                normalize_state_identity(
+                    {
+                        "run_id": raw.get("run_id"),
+                        "state_visit_id": raw.get("state_visit_id"),
+                        "attempt_id": raw.get("attempt_id"),
+                    },
+                    label="event identity",
+                )
+            if protocol == "bensz-event-v1" and raw.get("state_visit_id") is not None:
+                raise ValueError("bensz-event-v1 cannot carry state_visit_id")
             refs = raw.get("evidence_refs", ())
             if not isinstance(refs, (list, tuple)) or not all(isinstance(item, str) for item in refs):
                 raise TypeError("evidence_refs must be a string list")
@@ -463,6 +485,7 @@ class EventEnvelope:
                 request_hash=(str(raw["request_hash"]) if raw.get("request_hash") is not None else None),
                 protocol=(str(raw["protocol"]) if "protocol" in raw else ""),
                 run_id=(str(raw["run_id"]) if raw.get("run_id") is not None else None),
+                state_visit_id=(str(raw["state_visit_id"]) if raw.get("state_visit_id") is not None else None),
                 authorization=dict(raw.get("authorization", {})),
                 snapshot=dict(raw.get("snapshot", {})),
             )
@@ -511,6 +534,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         "run_snapshot": {},
         "skill_states": {},
         "skill_state_transitions": [],
+        "skill_attempts": [],
         "action_authorizations": {},
         "action_denials": [],
     }
@@ -554,19 +578,81 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             projection["validations"].append(payload)
         elif event.event_type == "verification.result":
             projection["verifications"].append(payload)
-            projection["verification_records"].append({**payload, "_event_id": event.event_id, "_run_id": event.run_id, "_attempt_id": event.attempt_id})
+            projection["verification_records"].append({**payload, "_event_id": event.event_id, "_run_id": event.run_id, "_state_visit_id": event.state_visit_id, "_attempt_id": event.attempt_id})
         elif event.event_type == "verification.gate":
             projection["gate_decisions"].append(payload)
-            projection["gate_records"].append({**payload, "_event_id": event.event_id, "_run_id": event.run_id, "_attempt_id": event.attempt_id})
+            projection["gate_records"].append({**payload, "_event_id": event.event_id, "_run_id": event.run_id, "_state_visit_id": event.state_visit_id, "_attempt_id": event.attempt_id})
         elif event.event_type == "state.transition" and payload.get("state_domain") == "skill":
             skill = str(payload.get("skill", ""))
             target = payload.get("to_state")
             if skill and target:
+                identity_protocol = payload.get("identity_protocol")
+                if identity_protocol == STATE_IDENTITY_PROTOCOL:
+                    try:
+                        target_identity = normalize_state_identity(payload.get("target_identity", {}), label="target identity")
+                    except ValueError as exc:
+                        raise IntegrityError(str(exc)) from exc
+                    source_identity = payload.get("source_identity")
+                    current_skill_state = projection["skill_states"].get(skill)
+                    if source_identity is not None:
+                        try:
+                            normalized_source = normalize_state_identity(source_identity, label="source identity")
+                        except ValueError as exc:
+                            raise IntegrityError(str(exc)) from exc
+                        if normalized_source["run_id"] != target_identity["run_id"]:
+                            raise IntegrityError("State transition cannot change run identity")
+                        if current_skill_state and not current_skill_state.get("legacy_identity", True):
+                            expected_source = {
+                                "run_id": current_skill_state.get("run_id"),
+                                "state_visit_id": current_skill_state.get("state_visit_id"),
+                                "attempt_id": current_skill_state.get("active_attempt_id"),
+                            }
+                            if normalized_source != expected_source:
+                                raise IntegrityError("State transition source identity is not active")
+                    elif current_skill_state and not current_skill_state.get("legacy_identity", True):
+                        raise IntegrityError("State transition from a v2 State requires source identity")
+                    if (
+                        event.run_id != target_identity["run_id"]
+                        or event.state_visit_id != target_identity["state_visit_id"]
+                        or event.attempt_id != target_identity["attempt_id"]
+                    ):
+                        raise IntegrityError("State transition envelope does not match target identity")
+                    if any(
+                        item.get("skill") == skill
+                        and item.get("run_id") == target_identity["run_id"]
+                        and item.get("state_visit_id") == target_identity["state_visit_id"]
+                        for item in projection["skill_state_transitions"]
+                    ):
+                        raise IntegrityError("State visit identity was already used")
+                    identity_fields = {
+                        "identity_protocol": STATE_IDENTITY_PROTOCOL,
+                        "run_id": target_identity["run_id"],
+                        "state_visit_id": target_identity["state_visit_id"],
+                        "active_attempt_id": target_identity["attempt_id"],
+                        "legacy_identity": False,
+                        "visit_started_event_id": event.event_id,
+                        "attempt_started_event_id": event.event_id,
+                        "attempt_history": [target_identity["attempt_id"]],
+                    }
+                elif identity_protocol is not None:
+                    raise IntegrityError("unsupported State identity protocol")
+                else:
+                    identity_fields = {
+                        "identity_protocol": None,
+                        "run_id": event.run_id,
+                        "state_visit_id": None,
+                        "active_attempt_id": event.attempt_id,
+                        "legacy_identity": True,
+                        "visit_started_event_id": event.event_id,
+                        "attempt_started_event_id": event.event_id,
+                        "attempt_history": [event.attempt_id],
+                    }
                 projection["skill_states"][skill] = {
                     "state": str(target),
                     "version": str(payload.get("state_version", "")),
                     "event_id": event.event_id,
                     "snapshot_hash": payload.get("snapshot_hash"),
+                    **identity_fields,
                 }
                 projection["skill_state_transitions"].append({
                     "skill": skill,
@@ -574,7 +660,11 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "to_state": target,
                     "state_version": payload.get("state_version"),
                     "run_id": event.run_id,
+                    "state_visit_id": identity_fields["state_visit_id"],
                     "attempt_id": event.attempt_id,
+                    "source_identity": payload.get("source_identity"),
+                    "target_identity": payload.get("target_identity"),
+                    "identity_protocol": identity_fields["identity_protocol"],
                     "event_id": event.event_id,
                     "snapshot_hash": payload.get("snapshot_hash"),
                 })
@@ -582,6 +672,42 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     if authorization.get("skill") == skill and authorization.get("status") == "granted":
                         authorization["status"] = "expired"
                         authorization["expired_by_event_id"] = event.event_id
+        elif event.event_type == "state.attempt.started":
+            if payload.get("identity_protocol") != STATE_IDENTITY_PROTOCOL:
+                raise IntegrityError("attempt start requires the current State identity protocol")
+            skill = str(payload.get("skill", ""))
+            current_skill_state = projection["skill_states"].get(skill)
+            if not current_skill_state or current_skill_state.get("legacy_identity", True):
+                raise IntegrityError("attempt start requires an active v2 State visit")
+            if payload.get("state") != current_skill_state.get("state") or payload.get("state_version") != current_skill_state.get("version"):
+                raise IntegrityError("attempt start State binding mismatch")
+            if event.run_id != current_skill_state.get("run_id") or event.state_visit_id != current_skill_state.get("state_visit_id"):
+                raise IntegrityError("attempt start State visit identity mismatch")
+            if payload.get("supersedes_attempt_id") != current_skill_state.get("active_attempt_id"):
+                raise IntegrityError("attempt start does not supersede the active attempt")
+            if not event.attempt_id or event.attempt_id == current_skill_state.get("active_attempt_id"):
+                raise IntegrityError("attempt start requires a distinct attempt identity")
+            if event.attempt_id in current_skill_state.get("attempt_history", ()):
+                raise IntegrityError("attempt identity was already used in this State visit")
+            current_skill_state["active_attempt_id"] = event.attempt_id
+            current_skill_state["attempt_started_event_id"] = event.event_id
+            current_skill_state.setdefault("attempt_history", []).append(event.attempt_id)
+            if payload.get("snapshot_hash"):
+                current_skill_state["snapshot_hash"] = payload.get("snapshot_hash")
+            projection["skill_attempts"].append({
+                "skill": skill,
+                "state": current_skill_state.get("state"),
+                "state_visit_id": event.state_visit_id,
+                "run_id": event.run_id,
+                "attempt_id": event.attempt_id,
+                "supersedes_attempt_id": payload.get("supersedes_attempt_id"),
+                "reason": payload.get("reason"),
+                "event_id": event.event_id,
+            })
+            for authorization in projection["action_authorizations"].values():
+                if authorization.get("skill") == skill and authorization.get("status") == "granted":
+                    authorization["status"] = "expired"
+                    authorization["expired_by_event_id"] = event.event_id
         elif event.event_type == "action.authorization.granted":
             authorization_id = str(payload.get("authorization_id", ""))
             if not authorization_id or authorization_id in projection["action_authorizations"]:
@@ -591,6 +717,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                 "status": "granted",
                 "event_id": event.event_id,
                 "run_id": event.run_id,
+                "state_visit_id": event.state_visit_id,
                 "attempt_id": event.attempt_id,
             }
         elif event.event_type == "action.authorization.consumed":
@@ -607,6 +734,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                 **payload,
                 "event_id": event.event_id,
                 "run_id": event.run_id,
+                "state_visit_id": event.state_visit_id,
                 "attempt_id": event.attempt_id,
             })
         elif event.event_type in {"delivery.reported", "delivery.completed"}:
@@ -617,7 +745,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
             "run.started", "model.called", "tool.called", "verification.result", "verification.gate",
             "approval.granted", "effect.prepared", "effect.applied", "effect.reconciled",
             "delivery.reported", "recovery.recorded",
-            "action.handoff", "action.authorization.granted",
+            "action.handoff", "state.attempt.started", "action.authorization.granted",
             "action.authorization.consumed", "action.authorization.denied",
         }:
             projection["audit_trail"].append({
@@ -626,6 +754,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                 "type": event.event_type,
                 "actor": event.actor,
                 "run_id": event.run_id,
+                "state_visit_id": event.state_visit_id,
                 "request_hash": event.request_hash,
                 "authorization": dict(event.authorization),
                 "payload": payload,
@@ -649,7 +778,9 @@ def _verify_skill_snapshots(events: Iterable[EventEnvelope], *, events_path: Pat
     from .workspace import state_snapshot_hash
     latest: dict[str, EventEnvelope] = {}
     for event in events:
-        if event.event_type != "state.transition" or event.payload.get("state_domain") != "skill":
+        is_transition = event.event_type == "state.transition" and event.payload.get("state_domain") == "skill"
+        is_attempt = event.event_type == "state.attempt.started"
+        if not (is_transition or is_attempt):
             continue
         if event.payload.get("snapshot_hash"):
             latest[str(event.payload.get("skill", ""))] = event
@@ -684,6 +815,7 @@ def _guard_completion(
     *,
     run_id: str | None = None,
     attempt_id: str | None = None,
+    state_visit_id: str | None = None,
 ) -> None:
     contract = contract or {}
     artifacts = projection.get("artifacts", {})
@@ -736,11 +868,15 @@ def _guard_completion(
             raise CompletionError("run_id and attempt_id must be provided together")
         verifications = [item for item in verifications if item.get("_run_id") == run_id and item.get("_attempt_id", "default") == attempt_id]
         gates = [item for item in gates if item.get("_run_id") == run_id and item.get("_attempt_id", "default") == attempt_id]
+        if state_visit_id is not None:
+            verifications = [item for item in verifications if item.get("_state_visit_id") == state_visit_id]
+            gates = [item for item in gates if item.get("_state_visit_id") == state_visit_id]
     for item in verifications:
         component_gate = _component_bound_gate(
             item,
             run_id=item.get("_run_id"),
             attempt_id=str(item.get("_attempt_id", "default")),
+            state_visit_id=item.get("_state_visit_id"),
         )
         if component_gate is not None and component_gate.decision not in {"allow", "allow_with_warnings"}:
             raise CompletionError("Contract Pack components do not allow completion")
@@ -863,7 +999,7 @@ class EventLog:
             previous = event.event_hash
         return events
 
-    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None, _action_gate: object | None = None, _lock_held: bool = False) -> EventEnvelope:
+    def append(self, event_type: str, *, payload: Mapping[str, Any] | None = None, summary: str = "", scope: str = "task", actor: str = "runtime", attempt_id: str = "default", path: str | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, run_id: str | None = None, state_visit_id: str | None = None, authorization: Mapping[str, Any] | None = None, snapshot: Mapping[str, Any] | None = None, event_id: str | None = None, _kernel_gate: object | None = None, _action_gate: object | None = None, _lock_held: bool = False) -> EventEnvelope:
         # Use the declared artifact/project root for artifact locators; this
         # keeps legitimate completion paths resolvable while still redacting
         # anything outside the allowed boundary.
@@ -882,7 +1018,12 @@ class EventLog:
         if path is not None and not Path(str(path)).is_file() and not (isinstance(safe_path, str) and (safe_path.startswith("path#") or safe_path.startswith("text#"))):
             safe_path = f"text#sha256:{hashlib.sha256(str(path).encode('utf-8')).hexdigest()}"
         safe_summary = str(_event_safe_value(summary, key="summary", base_dir=base_dir))
-        request_hash = _request_hash(event_type, data, safe_summary, scope, actor, attempt_id, safe_path, refs, run_id, auth, snap)
+        if state_visit_id is not None:
+            normalize_state_identity(
+                {"run_id": run_id, "state_visit_id": state_visit_id, "attempt_id": attempt_id},
+                label="event identity",
+            )
+        request_hash = _request_hash(event_type, data, safe_summary, scope, actor, attempt_id, safe_path, refs, run_id, auth, snap, state_visit_id)
         with (nullcontext() if _lock_held else self._locked()):
             self._recover_partial_tail()
             events = self.read()
@@ -895,22 +1036,33 @@ class EventLog:
             if idempotency_key:
                 for existing in events:
                     if existing.idempotency_key == idempotency_key:
-                        existing_hash = existing.request_hash or _request_hash(existing.event_type, existing.payload, existing.summary, existing.scope, existing.actor, existing.attempt_id, existing.path, existing.evidence_refs, existing.run_id, existing.authorization, existing.snapshot)
+                        existing_hash = existing.request_hash or _request_hash(existing.event_type, existing.payload, existing.summary, existing.scope, existing.actor, existing.attempt_id, existing.path, existing.evidence_refs, existing.run_id, existing.authorization, existing.snapshot, existing.state_visit_id)
                         if existing_hash != request_hash:
                             raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
                         return existing
-            event = EventEnvelope(seq=len(events) + 1, event_id=event_id or str(uuid.uuid4()), scope=scope, actor=actor, attempt_id=attempt_id, event_type=event_type, summary=safe_summary, path=safe_path, evidence_refs=refs, idempotency_key=idempotency_key, payload=data, prev_hash=events[-1].event_hash if events else "", occurred_at=_utc_now(), request_hash=request_hash, run_id=run_id, authorization=auth, snapshot=snap).with_hash()
+            event = EventEnvelope(seq=len(events) + 1, event_id=event_id or str(uuid.uuid4()), scope=scope, actor=actor, attempt_id=attempt_id, event_type=event_type, summary=safe_summary, path=safe_path, evidence_refs=refs, idempotency_key=idempotency_key, payload=data, prev_hash=events[-1].event_hash if events else "", occurred_at=_utc_now(), request_hash=request_hash, protocol="bensz-event-v2" if state_visit_id is not None else "bensz-event-v1", run_id=run_id, state_visit_id=state_visit_id, authorization=auth, snapshot=snap).with_hash()
             target, _ = _event_state(event)
             current = reduce_events(events)["current_state"]
             if target == "completed":
                 identity_events = [item for item in events if item.run_id is not None or item.attempt_id != "default"]
                 if identity_events and run_id is None:
                     raise CompletionError("run_id and attempt_id are required when run-bound evidence exists")
-                _guard_completion(reduce_events(events), self.contract, run_id=run_id, attempt_id=attempt_id if run_id is not None else None)
+                _guard_completion(
+                    reduce_events(events),
+                    self.contract,
+                    run_id=run_id,
+                    attempt_id=attempt_id if run_id is not None else None,
+                    state_visit_id=state_visit_id,
+                )
                 if current != "delivering":
                     raise InvalidTransition(f"illegal transition {current!r} -> 'completed'")
             elif target is not None and current is not None and target not in ALLOWED_TRANSITIONS[current]:
                 raise InvalidTransition(f"illegal transition {current!r} -> {target!r}")
+            if (
+                (event_type == "state.transition" and data.get("state_domain") == "skill")
+                or event_type == "state.attempt.started"
+            ):
+                reduce_events([*events, event])
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
                 handle.flush()
@@ -930,6 +1082,7 @@ class EventLog:
                 "evidence_refs": event.evidence_refs,
                 "idempotency_key": event.idempotency_key,
                 "run_id": event.run_id,
+                "state_visit_id": event.state_visit_id,
                 "authorization": event.authorization,
                 "snapshot": event.snapshot,
                 **kwargs,
@@ -952,6 +1105,105 @@ class EventLog:
     def projection(self) -> dict[str, Any]:
         return reduce_events(self.read())
 
+    def start_attempt(
+        self,
+        *,
+        skill: str,
+        state: str,
+        state_version: str,
+        run_id: str,
+        state_visit_id: str,
+        attempt_id: str,
+        reason: str,
+        idempotency_key: str,
+        expected_last_seq: int | None = None,
+        event_id: str | None = None,
+        snapshot: Mapping[str, Any] | None = None,
+        snapshot_hash: str | None = None,
+        snapshot_path: str | None = None,
+        state_event_id: str | None = None,
+        _lock_held: bool = False,
+    ) -> EventEnvelope:
+        """Start a distinct evidence attempt inside the active State visit."""
+        normalize_state_identity(
+            {"run_id": run_id, "state_visit_id": state_visit_id, "attempt_id": attempt_id},
+            label="new attempt identity",
+        )
+        if not isinstance(skill, str) or not skill.strip():
+            raise ValueError("skill must be a non-empty string")
+        if not isinstance(state, str) or not state.strip():
+            raise ValueError("state must be a non-empty string")
+        if not isinstance(state_version, str) or not _VERSION_RE.fullmatch(state_version):
+            raise ValueError("state_version must be a semantic version")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("reason must be a non-empty string")
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("idempotency_key is required for attempt start")
+        with (nullcontext() if _lock_held else self._locked()):
+            events = self.read()
+            projection = reduce_events(events)
+            existing = next((item for item in events if item.idempotency_key == idempotency_key), None)
+            if existing is not None:
+                if (
+                    existing.event_type == "state.attempt.started"
+                    and existing.payload.get("skill") == skill
+                    and existing.payload.get("state") == state
+                    and existing.payload.get("state_version") == state_version
+                    and existing.run_id == run_id
+                    and existing.state_visit_id == state_visit_id
+                    and existing.attempt_id == attempt_id
+                    and existing.payload.get("reason") == reason
+                ):
+                    current = projection["skill_states"].get(skill)
+                    if (
+                        not current
+                        or current.get("run_id") != run_id
+                        or current.get("state_visit_id") != state_visit_id
+                        or current.get("active_attempt_id") != attempt_id
+                    ):
+                        raise InvalidTransition(
+                            "idempotent_attempt_not_active: the original attempt was superseded or its State visit ended"
+                        )
+                    return existing
+                raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
+            if expected_last_seq is not None and projection["last_seq"] != expected_last_seq:
+                raise InvalidTransition("concurrent_event_conflict: refresh the event projection before starting an attempt")
+            current = projection["skill_states"].get(skill)
+            if not current or current.get("legacy_identity", True):
+                raise InvalidTransition("state_identity_unavailable: enter a v2 State visit before starting an attempt")
+            if current.get("state") != state or current.get("version") != state_version:
+                raise InvalidTransition("state_binding_mismatch: refresh the current State and version")
+            if current.get("run_id") != run_id or current.get("state_visit_id") != state_visit_id:
+                raise InvalidTransition("state_visit_identity_mismatch: resume the active State visit")
+            previous_attempt = current.get("active_attempt_id")
+            if previous_attempt == attempt_id:
+                raise InvalidTransition("attempt_already_active: choose a distinct attempt identity")
+            if attempt_id in current.get("attempt_history", ()):
+                raise InvalidTransition("attempt_identity_reused: choose an attempt identity not used in this State visit")
+            return self.append(
+                "state.attempt.started",
+                payload={
+                    "identity_protocol": STATE_IDENTITY_PROTOCOL,
+                    "skill": skill,
+                    "state": state,
+                    "state_version": state_version,
+                    "supersedes_attempt_id": previous_attempt,
+                    "reason": reason,
+                    "snapshot_hash": snapshot_hash,
+                    "snapshot_path": snapshot_path,
+                    "state_event_id": state_event_id,
+                },
+                scope="skill",
+                actor="bsk:state",
+                run_id=run_id,
+                state_visit_id=state_visit_id,
+                attempt_id=attempt_id,
+                idempotency_key=idempotency_key,
+                event_id=event_id,
+                snapshot=snapshot,
+                _lock_held=True,
+            )
+
     def _record_action_denial(
         self,
         *,
@@ -962,6 +1214,7 @@ class EventLog:
         state_version: str | None,
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None,
         recovery: str,
         requested_state: str | None = None,
         requested_state_version: str | None = None,
@@ -988,6 +1241,7 @@ class EventLog:
             scope="skill",
             actor="bsk:action",
             run_id=run_id,
+            state_visit_id=state_visit_id,
             attempt_id=attempt_id,
             idempotency_key=idempotency_key,
             evidence_refs=evidence_refs,
@@ -1004,6 +1258,7 @@ class EventLog:
         state_version: str,
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None = None,
         handoff_id: str | None = None,
         evidence_refs: Iterable[str] = (),
         idempotency_key: str | None = None,
@@ -1049,6 +1304,7 @@ class EventLog:
                         and existing_version == state_version
                         and existing.payload.get("handoff_id") == handoff_id
                         and existing.run_id == run_id
+                        and existing.state_visit_id == state_visit_id
                         and existing.attempt_id == attempt_id
                         and existing.evidence_refs == refs
                     ):
@@ -1065,6 +1321,7 @@ class EventLog:
                     state=current.get("state") if current else None,
                     state_version=current.get("version") if current else None,
                     run_id=run_id,
+                    state_visit_id=state_visit_id,
                     attempt_id=attempt_id,
                     recovery=recovery,
                     requested_state=state,
@@ -1095,15 +1352,28 @@ class EventLog:
             )
             if entry is None or not _RAW_SHA256_RE.fullmatch(str(current.get("snapshot_hash", ""))):
                 return deny("state_snapshot_unbound", "Persist a State transition with snapshot binding before retrying.")
-            if entry.run_id != run_id or entry.attempt_id != attempt_id:
-                return deny("state_identity_mismatch", "Resume the State entry's run/attempt or create an explicit new attempt.")
+            if current.get("legacy_identity", True):
+                identity_matches = entry.run_id == run_id and entry.attempt_id == attempt_id and state_visit_id is None
+                attempt_window_seq = entry.seq
+            else:
+                identity_matches = (
+                    current.get("run_id") == run_id
+                    and current.get("state_visit_id") == state_visit_id
+                    and current.get("active_attempt_id") == attempt_id
+                )
+                attempt_event_id = current.get("attempt_started_event_id")
+                attempt_event = next((item for item in events if item.event_id == attempt_event_id), entry)
+                attempt_window_seq = attempt_event.seq
+            if not identity_matches:
+                return deny("state_identity_mismatch", "Resume the active State visit/attempt or start an explicit new attempt.")
             handoff_event = None
             if handoff_id:
                 handoff_event = next(
                     (
                         event for event in reversed(events)
-                        if event.seq > entry.seq
+                        if event.seq > attempt_window_seq
                         and event.run_id == run_id
+                        and event.state_visit_id == state_visit_id
                         and event.attempt_id == attempt_id
                         and event.event_type in {"action.handoff", "component.handoff", "handoff.created"}
                         and event.payload.get("handoff_id") == handoff_id
@@ -1113,7 +1383,8 @@ class EventLog:
                     None,
                 )
                 if handoff_event is None:
-                    return deny("handoff_outside_state_window", "Create a new handoff in the current State and attempt.")
+                    reason_code = "handoff_outside_attempt_window" if not current.get("legacy_identity", True) else "handoff_outside_state_window"
+                    return deny(reason_code, "Create a new handoff in the current State visit and active attempt.")
                 known_refs = set(handoff_event.evidence_refs) | set(handoff_event.payload.get("evidence_refs", ()))
                 if refs and not set(refs).issubset(known_refs):
                     return deny("evidence_outside_handoff", "Bind the request only to evidence carried by the current handoff.")
@@ -1125,6 +1396,7 @@ class EventLog:
                         "action": action,
                         "state_event_id": entry.event_id,
                         "run_id": run_id,
+                        "state_visit_id": state_visit_id,
                         "attempt_id": attempt_id,
                     })
                 ).hexdigest()[:32]
@@ -1143,6 +1415,7 @@ class EventLog:
                     "state_version": state_version,
                     "state_event_id": entry.event_id,
                     "state_entry_seq": entry.seq,
+                    "attempt_window_seq": attempt_window_seq,
                     "state_snapshot_hash": current.get("snapshot_hash"),
                     "authorized_through_seq": projection["last_seq"],
                     "handoff_id": handoff_id,
@@ -1151,6 +1424,7 @@ class EventLog:
                 scope="skill",
                 actor="bsk:action",
                 run_id=run_id,
+                state_visit_id=state_visit_id,
                 attempt_id=attempt_id,
                 idempotency_key=idempotency_key,
                 evidence_refs=refs,
@@ -1166,6 +1440,7 @@ class EventLog:
         action: str,
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None = None,
         idempotency_key: str | None = None,
         expected_last_seq: int | None = None,
     ) -> EventEnvelope:
@@ -1187,6 +1462,7 @@ class EventLog:
                         and existing.payload.get("skill") == skill
                         and existing.payload.get("action") == action
                         and existing.run_id == run_id
+                        and existing.state_visit_id == state_visit_id
                         and existing.attempt_id == attempt_id
                     ):
                         return existing
@@ -1209,6 +1485,7 @@ class EventLog:
                     state=(grant.payload.get("state") if grant else None),
                     state_version=(grant.payload.get("state_version") if grant else None),
                     run_id=run_id,
+                    state_visit_id=state_visit_id,
                     attempt_id=attempt_id,
                     recovery=recovery,
                     idempotency_key=idempotency_key,
@@ -1228,6 +1505,7 @@ class EventLog:
                 grant.payload.get("skill") != skill
                 or grant.payload.get("action") != action
                 or grant.run_id != run_id
+                or grant.state_visit_id != state_visit_id
                 or grant.attempt_id != attempt_id
             ):
                 return deny("authorization_binding_mismatch", "Use the exact Skill, action, run and attempt bound to the grant.")
@@ -1237,6 +1515,8 @@ class EventLog:
                 or current.get("event_id") != grant.payload.get("state_event_id")
                 or current.get("snapshot_hash") != grant.payload.get("state_snapshot_hash")
                 or current.get("version") != grant.payload.get("state_version")
+                or (not current.get("legacy_identity", True) and current.get("state_visit_id") != state_visit_id)
+                or current.get("active_attempt_id") != attempt_id
             ):
                 return deny("authorization_expired", "Request a new authorization in the current State.")
             return self.append(
@@ -1255,6 +1535,7 @@ class EventLog:
                 scope="skill",
                 actor="bsk:action",
                 run_id=run_id,
+                state_visit_id=state_visit_id,
                 attempt_id=attempt_id,
                 idempotency_key=idempotency_key,
                 authorization={
@@ -1275,6 +1556,7 @@ class EventLog:
         attempt_id: str = "default",
         idempotency_key: str | None = None,
         run_id: str | None = None,
+        state_visit_id: str | None = None,
         authorization: Mapping[str, Any] | None = None,
         snapshot: Mapping[str, Any] | None = None,
         **payload: Any,
@@ -1289,6 +1571,7 @@ class EventLog:
             attempt_id=attempt_id,
             idempotency_key=idempotency_key,
             run_id=run_id,
+            state_visit_id=state_visit_id,
             authorization=authorization,
             snapshot=snapshot,
         )
@@ -1309,6 +1592,7 @@ class EventLog:
         attempt_id: str = "default",
         idempotency_key: str | None = None,
         run_id: str | None = None,
+        state_visit_id: str | None = None,
         authorization: Mapping[str, Any] | None = None,
         snapshot: Mapping[str, Any] | None = None,
         requirements: Mapping[str, bool] | Iterable[Mapping[str, Any]] | None = None,
@@ -1320,7 +1604,7 @@ class EventLog:
         its decision/reason/unresolved values are never trusted for completion.
         """
         if not isinstance(result, Mapping):
-            return self.record_verification_batch(tuple(result), gate, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=idempotency_key, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements)
+            return self.record_verification_batch(tuple(result), gate, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=idempotency_key, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, requirements=requirements)
         refs = tuple(result.get("evidence_refs", ()))
         result_data = dict(result)
         verifier_id = result_data.get("verifier_id")
@@ -1338,7 +1622,7 @@ class EventLog:
                     duration_ms=result_data.get("duration_ms"), assurance_tier=str(result_data.get("assurance_tier", "deterministic")),
                 )
                 computed = apply_gate((computed_result,), requirements=requirements)
-                component_gate = _component_bound_gate(result_data, run_id=run_id, attempt_id=attempt_id)
+                component_gate = _component_bound_gate(result_data, run_id=run_id, attempt_id=attempt_id, state_visit_id=state_visit_id)
                 if component_gate is not None:
                     computed = _merge_component_gate(
                         computed,
@@ -1360,6 +1644,7 @@ class EventLog:
             attempt_id=attempt_id,
             idempotency_key=idempotency_key,
             run_id=run_id,
+            state_visit_id=state_visit_id,
             authorization=authorization,
             snapshot=snapshot,
             _lock_held=_lock_held,
@@ -1390,6 +1675,7 @@ class EventLog:
                 attempt_id=attempt_id,
                 idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None,
                 run_id=run_id,
+                state_visit_id=state_visit_id,
                 authorization=authorization,
                 snapshot=snapshot,
                 _kernel_gate=_KERNEL_GATE_TOKEN,
@@ -1407,6 +1693,7 @@ class EventLog:
         attempt_id: str = "default",
         idempotency_key: str | None = None,
         run_id: str | None = None,
+        state_visit_id: str | None = None,
         authorization: Mapping[str, Any] | None = None,
         snapshot: Mapping[str, Any] | None = None,
         requirements: Mapping[str, bool] | Iterable[Mapping[str, Any]] | None = None,
@@ -1417,7 +1704,7 @@ class EventLog:
         with self._locked():
             result_events: list[EventEnvelope] = []
             for index, item in enumerate(items):
-                event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
+                event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
                 result_events.append(event)
             computed_results: list[VerificationResult] = []
             component_gates: list[tuple[str, GateDecision]] = []
@@ -1426,7 +1713,7 @@ class EventLog:
                     from .verifier_ids import validate_verifier_id
                     validate_verifier_id(str(item["verifier_id"]))
                     computed_results.append(VerificationResult(verifier_id=str(item["verifier_id"]), verifier_version=str(item["verifier_version"]), execution_status=str(item.get("execution_status", "completed")), verdict=str(item["verdict"]), evidence_refs=tuple(item.get("evidence_refs", ()))))
-                    component_gate = _component_bound_gate(item, run_id=run_id, attempt_id=attempt_id)
+                    component_gate = _component_bound_gate(item, run_id=run_id, attempt_id=attempt_id, state_visit_id=state_visit_id)
                     if component_gate is not None:
                         component_gates.append((str(item["verifier_id"]), component_gate))
                 except (KeyError, TypeError, ValueError):
@@ -1444,7 +1731,7 @@ class EventLog:
             gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
             if computed is not None:
                 gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
-            return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
+            return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
 
     def record_audit(self, event_type: str, *, payload: Mapping[str, Any] | None = None, run_id: str | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:
         """Record a redacted execution-audit event without changing lifecycle state."""

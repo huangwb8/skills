@@ -333,6 +333,7 @@ class ComponentHandoff:
     side_effects: str = "none"
     protocol: str = CONTRACT_EXECUTION_PROTOCOL
     handoff_hash: str = ""
+    state_visit_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.handoff_hash:
@@ -352,6 +353,7 @@ class ComponentHandoff:
             "plan_hash": self.plan_hash,
             "run_id": self.run_id,
             "attempt_id": self.attempt_id,
+            "state_visit_id": self.state_visit_id,
             "subject_hash": _hash(self.subject),
             "context_hash": _hash(self.context),
             "evidence_hash": _hash(self.evidence),
@@ -404,6 +406,7 @@ class ComponentHandoff:
             "plan_hash": self.plan_hash,
             "run_id": self.run_id,
             "attempt_id": self.attempt_id,
+            "state_visit_id": self.state_visit_id,
             "handoff_hash": self.handoff_hash,
             "execution_status": execution_status,
             "verdict": verdict,
@@ -438,6 +441,7 @@ class ComponentResult:
     uncertainty_reason: str | None = None
     handoff_hash: str | None = None
     protocol: str = COMPONENT_RESULT_PROTOCOL
+    state_visit_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.execution_status not in COMPONENT_STATUSES:
@@ -469,6 +473,7 @@ class ContractExecutionReport:
     unresolved: tuple[str, ...] = ()
     diagnostics: tuple[str, ...] = ()
     protocol: str = CONTRACT_EXECUTION_PROTOCOL
+    state_visit_id: str | None = None
 
     def to_dict(self, *, include_handoffs: bool = False) -> dict[str, Any]:
         value = {
@@ -480,6 +485,7 @@ class ContractExecutionReport:
             "plan_hash": self.plan_hash,
             "run_id": self.run_id,
             "attempt_id": self.attempt_id,
+            "state_visit_id": self.state_visit_id,
             "execution_plan": dict(self.execution_plan),
             "decision": self.decision,
             "results": [item.to_dict() for item in self.results],
@@ -502,6 +508,7 @@ class ContractPackExecutor:
         submissions: Iterable[Mapping[str, Any]] = (),
         run_id: str = "run",
         attempt_id: str = "default",
+        state_visit_id: str | None = None,
         timeout: int = 30,
         allow_side_effects: bool = False,
     ) -> ContractExecutionReport:
@@ -565,6 +572,7 @@ class ContractPackExecutor:
                     component,
                     run_id,
                     attempt_id,
+                    state_visit_id,
                     execution_status="unchecked",
                     verdict="unchecked",
                     evidence_refs=tuple(sorted(evidence_refs)),
@@ -578,6 +586,7 @@ class ContractPackExecutor:
                     component,
                     run_id,
                     attempt_id,
+                    state_visit_id,
                     execution_status="skipped",
                     verdict="skipped",
                     uncertainty_reason="dependency incomplete: " + ", ".join(dependency_pending),
@@ -589,12 +598,13 @@ class ContractPackExecutor:
                         component,
                         run_id,
                         attempt_id,
+                        state_visit_id,
                         execution_status="error",
                         verdict="error",
                         uncertainty_reason="component side effects require explicit authorization",
                     )
                 else:
-                    result = self._run_script(pack, component, request, by_id, run_id, attempt_id, timeout, evidence_refs, allow_side_effects)
+                    result = self._run_script(pack, component, request, by_id, run_id, attempt_id, state_visit_id, timeout, evidence_refs, allow_side_effects)
             else:
                 handoff = self._handoff(
                     pack,
@@ -605,6 +615,7 @@ class ContractPackExecutor:
                     by_id,
                     run_id,
                     attempt_id,
+                    state_visit_id,
                 )
                 submission = submission_map.get(component.id)
                 if submission is None:
@@ -614,13 +625,14 @@ class ContractPackExecutor:
                         component,
                         run_id,
                         attempt_id,
+                        state_visit_id,
                         execution_status="pending",
                         verdict="unchecked",
                         evidence_refs=tuple(str(item["ref"]) for item in safe_evidence),
                         uncertainty_reason=f"{component.type} result pending",
                     )
                 else:
-                    result = self._validate_submission(pack, component, handoff, submission, run_id, attempt_id, evidence_refs)
+                    result = self._validate_submission(pack, component, handoff, submission, run_id, attempt_id, state_visit_id, evidence_refs)
             results.append(result)
             by_id[component.id] = result
 
@@ -633,6 +645,7 @@ class ContractPackExecutor:
             plan_hash=pack.plan_hash,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             execution_plan=pack.audit_dict(),
             decision=decision,
             results=tuple(results),
@@ -649,6 +662,7 @@ class ContractPackExecutor:
         previous: Mapping[str, ComponentResult],
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None,
         timeout: int,
         known_evidence_refs: set[str],
         allow_side_effects: bool,
@@ -659,6 +673,7 @@ class ContractPackExecutor:
             "component": component.to_dict(),
             "run_id": run_id,
             "attempt_id": attempt_id,
+            "state_visit_id": state_visit_id,
             "upstream_facts": {key: dict(value.facts) for key, value in previous.items()},
         }
         execution = run_stdio(
@@ -669,11 +684,11 @@ class ContractPackExecutor:
             allow_side_effects=allow_side_effects and component.side_effects not in {"none", "read_only"},
         )
         if execution.status == "timed_out":
-            return self._bound_result(pack, component, run_id, attempt_id, execution_status="timed_out", verdict="timed_out", uncertainty_reason=execution.detail)
+            return self._bound_result(pack, component, run_id, attempt_id, state_visit_id, execution_status="timed_out", verdict="timed_out", uncertainty_reason=execution.detail)
         if execution.status != "completed":
-            return self._bound_result(pack, component, run_id, attempt_id, execution_status="error", verdict="error", uncertainty_reason=execution.detail)
+            return self._bound_result(pack, component, run_id, attempt_id, state_visit_id, execution_status="error", verdict="error", uncertainty_reason=execution.detail)
         if not isinstance(execution.value, Mapping):
-            return self._bound_result(pack, component, run_id, attempt_id, execution_status="error", verdict="error", uncertainty_reason="component output must be a JSON object")
+            return self._bound_result(pack, component, run_id, attempt_id, state_visit_id, execution_status="error", verdict="error", uncertainty_reason="component output must be a JSON object")
         raw = execution.value
         verdict = str(raw.get("verdict", "unchecked"))
         status = str(raw.get("execution_status", "completed"))
@@ -698,6 +713,7 @@ class ContractPackExecutor:
                 component,
                 run_id,
                 attempt_id,
+                state_visit_id,
                 execution_status=status,
                 verdict=verdict,
                 findings=tuple(dict(item) for item in raw_findings),
@@ -707,7 +723,7 @@ class ContractPackExecutor:
                 uncertainty_reason=raw.get("uncertainty_reason"),
             )
         except (TypeError, ValueError):
-            return self._bound_result(pack, component, run_id, attempt_id, execution_status="error", verdict="error", uncertainty_reason="invalid component output")
+            return self._bound_result(pack, component, run_id, attempt_id, state_visit_id, execution_status="error", verdict="error", uncertainty_reason="invalid component output")
 
     def _handoff(
         self,
@@ -719,6 +735,7 @@ class ContractPackExecutor:
         previous: Mapping[str, ComponentResult],
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None,
     ) -> ComponentHandoff:
         return ComponentHandoff(
             pack_id=pack.pack_id,
@@ -732,6 +749,7 @@ class ContractPackExecutor:
             plan_hash=pack.plan_hash,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             subject=_safe_mapping(subject),
             context=_safe_mapping(context),
             evidence=evidence,
@@ -755,6 +773,7 @@ class ContractPackExecutor:
         raw: Mapping[str, Any],
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None,
         evidence_refs: set[str],
     ) -> ComponentResult:
         if raw.get("protocol") != COMPONENT_RESULT_PROTOCOL:
@@ -776,6 +795,8 @@ class ContractPackExecutor:
             raise ContractBindingError(f"plan hash mismatch for component {component.id}")
         if raw.get("run_id") != run_id or raw.get("attempt_id") != attempt_id:
             raise ContractBindingError(f"run identity mismatch for component {component.id}")
+        if raw.get("state_visit_id") != state_visit_id:
+            raise ContractBindingError(f"state visit identity mismatch for component {component.id}")
         if raw.get("handoff_hash") != handoff.handoff_hash:
             raise ContractBindingError(f"handoff binding mismatch for component {component.id}")
         executor = raw.get("executor")
@@ -801,6 +822,7 @@ class ContractPackExecutor:
             component,
             run_id,
             attempt_id,
+            state_visit_id,
             execution_status=str(raw.get("execution_status", "completed")),
             verdict=str(raw.get("verdict", "unchecked")),
             findings=tuple(dict(item) for item in findings),
@@ -817,6 +839,7 @@ class ContractPackExecutor:
         component: ContractComponent,
         run_id: str,
         attempt_id: str,
+        state_visit_id: str | None,
         *,
         execution_status: str,
         verdict: str,
@@ -840,6 +863,7 @@ class ContractPackExecutor:
             plan_hash=pack.plan_hash,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             required=component.required,
             assurance=component.assurance,
             findings=findings,

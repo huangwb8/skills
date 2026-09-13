@@ -131,7 +131,7 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 `bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖；已发布版本可通过 `python3 -m pip install bensz-skill-kernel` 直接安装。
 
-它提供 `bsk` 命令，帮助你管理任务阶段、授权阶段内动作、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
+它提供 `bsk` 命令，帮助你管理任务阶段与分层运行身份、授权阶段内动作、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md)、[`docs/state-identity-protocol.md`](docs/state-identity-protocol.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 
 ```bash
 python3 -m venv .bensz-api/.venv
@@ -143,6 +143,7 @@ python3 -m venv .bensz-api/.venv
 常用入口：
 
 ```bash
+bsk capabilities
 bsk state list
 bsk verifier list --tag citation
 bsk workspace init . --description citation-review

@@ -14,6 +14,7 @@ from .runtime import (
     reduce_events,
 )
 from .contracts import Artifact, Authorization, Contract, Effect, Requirement, Subject, RUNTIME_PROTOCOL_VERSION
+from .identity import KERNEL_CAPABILITIES_PROTOCOL, STATE_IDENTITY_PROTOCOL, kernel_capabilities, normalize_state_identity
 from .contract_packs import (
     COMPONENT_RESULT_PROTOCOL,
     CONTRACT_EXECUTION_PROTOCOL,
@@ -75,6 +76,10 @@ __all__ = [
     "Requirement",
     "Subject",
     "RUNTIME_PROTOCOL_VERSION",
+    "KERNEL_CAPABILITIES_PROTOCOL",
+    "STATE_IDENTITY_PROTOCOL",
+    "kernel_capabilities",
+    "normalize_state_identity",
     "COMPONENT_RESULT_PROTOCOL",
     "CONTRACT_EXECUTION_PROTOCOL",
     "ComponentHandoff",

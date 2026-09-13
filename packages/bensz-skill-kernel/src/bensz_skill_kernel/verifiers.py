@@ -391,6 +391,7 @@ class FilesystemVerifierRegistry:
                     timeout=timeout,
                     run_id=str(request.get("run_id", request.get("request_id", "run"))),
                     attempt_id=str(request.get("attempt_id", "default")),
+                    state_visit_id=(str(request["state_visit_id"]) if request.get("state_visit_id") is not None else None),
                     submissions=request.get("component_results", request.get("submissions", ())),
                 )
                 return {**execution.to_event_payload(), "request_id": request.get("request_id")}
@@ -419,6 +420,7 @@ class FilesystemVerifierRegistry:
         timeout: int = 30,
         run_id: str = "run",
         attempt_id: str = "default",
+        state_visit_id: str | None = None,
         submissions: Iterable[Mapping[str, Any]] = (),
     ) -> "VerifierContractExecution":
         """Execute a filesystem Pack through the shared component protocol."""
@@ -433,6 +435,7 @@ class FilesystemVerifierRegistry:
             submissions=submissions,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             timeout=timeout,
         )
         return VerifierContractAdapter().adapt(definition.spec, report)
@@ -503,6 +506,7 @@ class CombinedVerifierRegistry:
         timeout: int = 30,
         run_id: str = "run",
         attempt_id: str = "default",
+        state_visit_id: str | None = None,
         submissions: Iterable[Mapping[str, Any]] = (),
     ) -> "VerifierContractExecution":
         definition = self.resolve(verifier_id, version)
@@ -514,6 +518,7 @@ class CombinedVerifierRegistry:
             timeout=timeout,
             run_id=run_id,
             attempt_id=attempt_id,
+            state_visit_id=state_visit_id,
             submissions=submissions,
         )
 
@@ -621,6 +626,7 @@ class VerificationResult:
     attempt_id: str | None = None
     executor: Mapping[str, Any] = field(default_factory=dict)
     protocol: str = "bensz-verification-v1"
+    state_visit_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.execution_status not in EXECUTION_STATUSES:
@@ -668,6 +674,7 @@ class VerifierContractExecution:
             "plan_hash": self.report.plan_hash,
             "run_id": self.report.run_id,
             "attempt_id": self.report.attempt_id,
+            "state_visit_id": self.report.state_visit_id,
             "execution_plan": dict(self.report.execution_plan),
             # Persist the shared Contract component shape so the runtime can
             # independently verify every binding before it records a Gate.
@@ -703,6 +710,7 @@ class VerifierContractAdapter:
                 handoff_hash=item.handoff_hash,
                 run_id=item.run_id,
                 attempt_id=item.attempt_id,
+                state_visit_id=item.state_visit_id,
                 executor=dict(item.executor),
                 protocol="bensz-verification-v2",
             )
@@ -740,6 +748,7 @@ class VerifierContractAdapter:
             plan_hash=report.plan_hash,
             run_id=report.run_id,
             attempt_id=report.attempt_id,
+            state_visit_id=report.state_visit_id,
             protocol="bensz-verification-v2",
         )
         decision = {
@@ -848,7 +857,7 @@ def normalize_result(raw: Mapping[str, Any], spec: VerifierSpec, *, evidence_ref
         if verdict == "timed_out" and execution != "timed_out":
             raise ValueError("timed_out verdict requires timed_out execution")
         refs = tuple(raw.get("evidence_refs", evidence_refs))
-        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"), assurance_tier=str(raw.get("assurance_tier", spec.assurance_tier)), contract_hash=raw.get("contract_hash"), plan_hash=raw.get("plan_hash"), component_id=raw.get("component_id"), component_type=raw.get("component_type"), component_hash=raw.get("component_hash"), handoff_hash=raw.get("handoff_hash"), run_id=raw.get("run_id"), attempt_id=raw.get("attempt_id"), executor=dict(raw.get("executor", {})), protocol=str(raw.get("protocol", "bensz-verification-v1")))
+        return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status=execution, verdict=verdict, findings=tuple(raw.get("findings", ())), facts=dict(raw.get("facts", {})), evidence_refs=refs, confidence=raw.get("confidence"), uncertainty_reason=raw.get("uncertainty_reason"), model_or_engine=raw.get("model_or_engine"), duration_ms=raw.get("duration_ms"), assurance_tier=str(raw.get("assurance_tier", spec.assurance_tier)), contract_hash=raw.get("contract_hash"), plan_hash=raw.get("plan_hash"), component_id=raw.get("component_id"), component_type=raw.get("component_type"), component_hash=raw.get("component_hash"), handoff_hash=raw.get("handoff_hash"), run_id=raw.get("run_id"), attempt_id=raw.get("attempt_id"), state_visit_id=raw.get("state_visit_id"), executor=dict(raw.get("executor", {})), protocol=str(raw.get("protocol", "bensz-verification-v1")))
     except (KeyError, TypeError, ValueError):
         return VerificationResult(verifier_id=spec.verifier_id, verifier_version=spec.version, execution_status="unchecked", verdict="unchecked", uncertainty_reason="invalid verifier output", evidence_refs=tuple(evidence_refs))
 

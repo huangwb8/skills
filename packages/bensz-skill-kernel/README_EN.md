@@ -43,13 +43,17 @@ The Kernel owns State, Verifier, evidence, and Gate contracts; it does not imple
 
 ## Directory-based Contract Packs
 
-State and Verifier both use directory Packs made of a Markdown contract, index metadata, and zero or more components. `contract_packs.py` builds on discovery and JSON-stdio boundaries from `packs.py` to orchestrate `script`, `agent`, and `human` components, binding contract/plan/component hashes, evidence, dependency order, `run_id`/`attempt_id`, and executor identity. The shared execution layer does not conflate State transition semantics with Verifier verdict/Gate semantics.
+State and Verifier both use directory Packs made of a Markdown contract, index metadata, and zero or more components. `contract_packs.py` builds on discovery and JSON-stdio boundaries from `packs.py` to orchestrate `script`, `agent`, and `human` components, binding contract/plan/component hashes, evidence, dependency order, `run_id`/`state_visit_id`/`attempt_id`, and executor identity. The shared execution layer does not conflate State transition semantics with Verifier verdict/Gate semantics.
 
 Canonical IDs, versions, and alias migrations are documented in [`docs/verifier-id-naming.md`](../../docs/verifier-id-naming.md) and [`docs/state-id-naming.md`](../../docs/state-id-naming.md).
 
 ## State: stages and transitions
 
 `states/index.json` is the State catalog; each state directory contains a `STATE.md` and may include a JSON-stdio helper. Built-in lifecycle states are `planned`, `active`, `waiting`, `checking`, `delivering`, `completed`, `failed`, and `cancelled`; `workspace-ready` and `workspace-closed` are workspace system states. Domain Skill stages remain in each Skill's `references/states/`.
+
+A State Pack's modular boundary is the individual state directory: `states/<state>/` or a Skill-owned `references/states/<state>/` holds that state's semantic contract, script helpers, agent/human components, and evidence requirements. The built-in `states/` directory deliberately stays flat; differences such as `runtime`, `workspace`, and domain states are expressed through the canonical ID, `kind`, `classification`, and `tags` instead of extra subdirectories.
+
+BSK hosts only infrastructure reused across states: Pack discovery, ID/alias validation, contract loading and hashing, component execution boundaries, generic transition legality, events and snapshots, resource limits, error normalization, and secret redaction. Adding a normal State should be done by adding a state directory, updating `index.json`, or declaring it in the target Skill's `config.yaml.runtime`; only capabilities genuinely reused across multiple States/Skills belong in Kernel system code. The lifecycle reducer in `runtime.py` is the stable-projection exception: changing its states or transitions must stay consistent with the built-in State Pack contracts.
 
 ```bash
 bsk state list
@@ -65,12 +69,22 @@ Initialize the task workspace and Skill declaration before checking or persistin
 bsk workspace init . --description citation-review
 bsk state check bensz.workspace.ready org.example.skill.collecting --skill-root path/to/skill
 bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name org.example.skill.collecting \
-  --skill-root path/to/skill --context-json '{"input":"report.md"}'
+  --skill-root path/to/skill --run-id run-1 --target-attempt-id collecting-1 \
+  --context-json '{"input":"report.md"}'
 ```
 
-State operations return `bensz-meta-state-v1` JSON with the operation, state, result, optional helper receipt, and snapshot. Skill metadata state is written to `log/meta-state.json`; task `events.ndjson`/`state.json` remain a separate lifecycle/evidence layer. A successful transition appends a `state.transition` (`state_domain: skill`) event; `bsk rebuild` projects it to `skill_states`/`skill_state_transitions` and checks the stable-field hash. A missing snapshot can be recovered from events; hash drift returns structured `integrity_error`.
+The new identity protocol separates `run_id` (the whole run), `state_visit_id` (one entry into a State), and `attempt_id` (one verification attempt inside that visit). A transition validates the current State with `source_identity` and atomically creates `target_identity`; the CLI returns the target identity for the next stage. Use `bsk attempt start` for a retry inside the same State. Once the new attempt is active, old Gates, handoffs, and authorizations cannot satisfy the current window. See the [identity protocol](../../docs/state-identity-protocol.md) for the state graph, stable reason codes, and legacy rules.
 
-The kernel executes only protocol-defined invariants. The current `verifier-result-recorded` invariant requires both `verification.result` and `verification.gate` before leaving the state. Those events must belong to the current `run_id`/`attempt_id` and occur after the Skill most recently entered the current State, so an earlier stage's passing result cannot be reused across stages. Otherwise the transition returns `rejected` without writing a new snapshot. Domain invariants remain the responsibility of a Skill helper or human review. When run identity is present, `run_id` and `attempt_id` must be supplied together.
+```bash
+bsk capabilities
+bsk attempt start .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name \
+  --run-id run-1 --state-visit-id STATE_VISIT_ID --attempt-id collecting-2 \
+  --reason retry --idempotency-key collecting-2
+```
+
+New State operations return `bensz-meta-state-v2` JSON. Legacy `bensz-meta-state-v1`/`bensz-event-v1` logs remain read-only and replayable, are marked as legacy, and do not acquire v2 completion eligibility by inference. Skill metadata state is written to `log/meta-state.json`; task `events.ndjson`/`state.json` remain a separate lifecycle/evidence layer. A successful transition appends a `state.transition` (`state_domain: skill`) event, and `bsk rebuild` projects the State, visit, and active attempt while checking the stable-field hash.
+
+The kernel executes only protocol-defined invariants. The current `verifier-result-recorded` invariant requires both `verification.result` and `verification.gate` before leaving the state. V2 events must belong to the active `run_id/state_visit_id/attempt_id` and occur after the current attempt window begins, so a passing result from an earlier stage or superseded attempt cannot be reused. Otherwise the transition returns `rejected` without writing a new snapshot. Domain invariants remain the responsibility of a Skill helper or human review.
 
 ## Action: in-state authorization
 
@@ -79,16 +93,16 @@ A State transition guards only a transition submitted to the Kernel; it cannot a
 ```bash
 bsk action preflight .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
   demo-skill publish-report --state org.example.workflow.ready --state-version 1.0.0 \
-  --run-id run-1 --attempt-id attempt-1 --idempotency-key authorize-publish
+  --run-id run-1 --state-visit-id visit-1 --attempt-id attempt-1 --idempotency-key authorize-publish
 
 bsk action consume .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
-  action-auth-... demo-skill publish-report --run-id run-1 --attempt-id attempt-1 \
+  action-auth-... demo-skill publish-report --run-id run-1 --state-visit-id visit-1 --attempt-id attempt-1 \
   --idempotency-key consume-publish
 ```
 
-Python callers use `EventLog.preflight_action()` and `EventLog.consume_action_authorization()`. Preflight accepts only the run identity and snapshot binding of the Skill's most recent `state.transition`. An optional `handoff_id` must come from the same run/attempt after that State entry. Re-entering the State expires prior grants, and each grant can be consumed once. `expected_last_seq` rejects a concurrent observation conflict. Rejections are also appended as `action.authorization.denied` events with stable reason codes and recovery advice. `status/rebuild` only projects existing events; it never fabricates an authorization or business action.
+Python callers use `EventLog.preflight_action()` and `EventLog.consume_action_authorization()`. V2 preflight accepts only the active run/visit/attempt bound to the current State snapshot. An optional `handoff_id` must come from the current attempt window. Re-entering the State or superseding the attempt expires prior grants, and each grant can be consumed once. `expected_last_seq` rejects a concurrent observation conflict. Rejections are also appended as `action.authorization.denied` events with stable reason codes and recovery advice. `status/rebuild` only projects existing events; it never fabricates an authorization or business action.
 
-The protocol identifier is `bensz-action-authorization-v1` (public constant `ACTION_AUTHORIZATION_PROTOCOL`). Preflight rejection codes include `concurrent_event_conflict`, `skill_state_unavailable`, `state_mismatch`, `state_version_mismatch`, `state_snapshot_unbound`, `state_identity_mismatch`, `handoff_outside_state_window`, and `evidence_outside_handoff`. Consumption codes include `authorization_not_found`, `authorization_already_consumed`, `authorization_expired`, `authorization_binding_mismatch`, and the concurrent-conflict code. Callers should branch on the reason code and follow `recovery`, not parse prose messages.
+The protocol identifier is `bensz-action-authorization-v1` (public constant `ACTION_AUTHORIZATION_PROTOCOL`). Preflight rejection codes include `concurrent_event_conflict`, `skill_state_unavailable`, `state_mismatch`, `state_version_mismatch`, `state_snapshot_unbound`, `state_identity_mismatch`, `handoff_outside_state_window`, `handoff_outside_attempt_window`, and `evidence_outside_handoff`. Consumption codes include `authorization_not_found`, `authorization_already_consumed`, `authorization_expired`, `authorization_binding_mismatch`, and the concurrent-conflict code. Callers should branch on the reason code and follow `recovery`, not parse prose messages.
 
 The Skill/host contract still defines action names and which actions are protected. The Kernel neither knows domain fields nor scans project files. A host that never invokes preflight cannot be stopped by the Kernel itself; this capability is an auditable protocol guard, not an operating-system permission sandbox. An idempotency key remains bound to its first result, so a recovered retry uses a new action attempt/key.
 
@@ -111,7 +125,7 @@ bsk verifier run org.example.contract.check --skill-root path/to/skill \
 
 `--root` explicitly overlays one or more Verifier collections. `--skill-root` loads Packs from `config.yaml.runtime.verifier_roots` (default: `references/verifiers`) and exposes only the IDs and versions selected by `runtime.verifiers`. The options are mutually exclusive and never scan global directories. `run` keeps the file-oriented `--input` compatibility form and also accepts a complete `--request-json` or `--request-file`; non-file Verifiers should use a complete request so their subject/context/evidence contract is not omitted. `run_id` and `attempt_id` from a JSON request are preserved unless explicitly overridden by CLI options.
 
-Built-in examples cover file existence, Markdown link integrity, and citation truth/fit; legacy IDs remain resolvable as aliases. The citation Verifier is explicitly an `agent` component and stays `unchecked`/`wait` until a bound result arrives. Legacy single-entry Packs, compatibility directories without `index.json`, and instruction-only states remain discoverable but report missing explicit component metadata. Atomic Packs also cover contract conformance, path scope, Schema, diff scope, secret redaction, evidence provenance, event integrity, state transition, and task completeness; domain rules stay out of the Kernel.
+Built-in examples cover file existence, Markdown link integrity, citation truth/fit, and `bensz.design.minimum-sufficient-complexity` (reviewing whether complexity is justified by a current goal, constraint, or risk); legacy IDs remain resolvable as aliases. The citation and design-complexity Verifiers are explicitly `agent` components and stay `unchecked`/`wait` until a bound result arrives. Legacy single-entry Packs, compatibility directories without `index.json`, and instruction-only states remain discoverable but report missing explicit component metadata. Atomic Packs also cover contract conformance, path scope, Schema, diff scope, secret redaction, evidence provenance, event integrity, state transition, and task completeness; domain rules stay out of the Kernel.
 
 For an audit run, add `--events EVENTS --run-id RUN_ID` to receive unified `results`, `gate`, and compatibility `verification` fields. A required Skill Verifier rejects on failure and waits or enters manual review while unresolved; a non-passing advisory Verifier produces warnings only. Verifier-level and component-level Gates are merged conservatively by severity: advisory status affects only that Verifier's components and cannot hide another required Verifier's binding error or missing result. Agent/human handoffs are returned at the top level but contract text and raw context are not written to the ledger. Python API `trusted=False` is the process-level fail-closed option for an untrusted Pack; it is not a `bsk verifier run` CLI flag. The CLI executes only built-in Packs or roots explicitly selected with `--root`/`--skill-root`.
 

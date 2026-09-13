@@ -16,11 +16,12 @@ from typing import Any
 import yaml
 
 from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor, STATE_MODES
+from .identity import STATE_IDENTITY_PROTOCOL, normalize_state_identity
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio
 from .state_ids import parse_state_aliases, validate_state_id
 
 
-META_STATE_PROTOCOL_VERSION = "bensz-meta-state-v1"
+META_STATE_PROTOCOL_VERSION = "bensz-meta-state-v2"
 SKILL_STATE_DECLARATION_VERSION = "bensz-skill-state-v1"
 _SCRIPT_VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error", "timed_out", "skipped"})
 
@@ -59,6 +60,7 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     event_list = list(events)
     context = context or {}
     run_id = context.get("run_id")
+    state_visit_id = context.get("state_visit_id")
     attempt_id = context.get("attempt_id")
     skill = context.get("skill")
     def _value(event: Any, key: str, default: Any = None) -> Any:
@@ -78,7 +80,10 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
     # temporal window, an earlier State's passing result can be reused later
     # when a caller keeps the same run/attempt identity.
     state_entry_position: int | None = None
+    attempt_window_position: int | None = None
     state_entry_event: Any | None = None
+    active_identity: dict[str, Any] | None = None
+    v2_identity = False
     if isinstance(skill, str) and skill:
         for position, event in enumerate(event_list):
             payload = _payload(event)
@@ -89,7 +94,41 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                 and payload.get("to_state") == definition.id
             ):
                 state_entry_position = position
+                attempt_window_position = position
                 state_entry_event = event
+                if payload.get("identity_protocol") == STATE_IDENTITY_PROTOCOL:
+                    try:
+                        active_identity = normalize_state_identity(payload.get("target_identity", {}), label="target identity")
+                    except ValueError:
+                        return ("State entry has an invalid target identity",)
+                    v2_identity = True
+                else:
+                    active_identity = {
+                        "run_id": _value(event, "run_id"),
+                        "state_visit_id": _value(event, "state_visit_id"),
+                        "attempt_id": _value(event, "attempt_id", "default"),
+                    }
+                    v2_identity = False
+            elif (
+                state_entry_position is not None
+                and _event_type(event) == "state.attempt.started"
+                and payload.get("skill") == skill
+                and payload.get("state") == definition.id
+            ):
+                if not v2_identity or active_identity is None:
+                    return ("attempt start exists without an active v2 State visit",)
+                if (
+                    _value(event, "run_id") != active_identity["run_id"]
+                    or _value(event, "state_visit_id") != active_identity["state_visit_id"]
+                    or payload.get("supersedes_attempt_id") != active_identity["attempt_id"]
+                ):
+                    return ("attempt start identity does not match the active State visit",)
+                active_identity = {
+                    "run_id": active_identity["run_id"],
+                    "state_visit_id": active_identity["state_visit_id"],
+                    "attempt_id": _value(event, "attempt_id", "default"),
+                }
+                attempt_window_position = position
 
     # Once an event stream carries run identity, silently evaluating the
     # invariant against all historical attempts would allow stale evidence to
@@ -104,27 +143,42 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
         return (
             f"{sorted(active_identity_invariants)[0]} (run_id/attempt_id required; both must be provided)",
         )
+    if active_identity_invariants and v2_identity and state_visit_id is None:
+        return (
+            f"{sorted(active_identity_invariants)[0]} (state_visit_id required for a v2 State visit)",
+        )
     if (
         state_entry_event is not None
         and (run_id is not None or attempt_id is not None)
         and active_identity_invariants
-        and (
-            _value(state_entry_event, "run_id") != run_id
-            or _value(state_entry_event, "attempt_id", "default") != attempt_id
-        )
+        and active_identity is not None
+        and active_identity != {
+            "run_id": run_id,
+            "state_visit_id": state_visit_id,
+            "attempt_id": attempt_id,
+        }
     ):
-        return ("state entry identity does not match current run_id/attempt_id",)
+        return (
+            "context identity does not match the active state visit/attempt"
+            if v2_identity
+            else "state entry identity does not match current run_id/attempt_id",
+        )
     positioned_events = list(enumerate(event_list))
     if run_id is not None or attempt_id is not None:
         def _matches(event: Any) -> bool:
             get = event.get if isinstance(event, Mapping) else lambda key, default=None: getattr(event, key, default)
-            return (run_id is None or get("run_id") == run_id) and (attempt_id is None or get("attempt_id", "default") == attempt_id)
+            return (
+                (run_id is None or get("run_id") == run_id)
+                and (state_visit_id is None or get("state_visit_id") == state_visit_id)
+                and (attempt_id is None or get("attempt_id", "default") == attempt_id)
+            )
         positioned_events = [(position, event) for position, event in positioned_events if _matches(event)]
-    if state_entry_position is not None:
+    window_position = attempt_window_position if attempt_window_position is not None else state_entry_position
+    if window_position is not None:
         positioned_events = [
             (position, event)
             for position, event in positioned_events
-            if position > state_entry_position
+            if position > window_position
         ]
     event_list = [event for _, event in positioned_events]
     event_types = {
@@ -137,7 +191,11 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
         if required:
             missing = sorted(required - event_types)
             if missing:
-                timing = " after current state entry" if state_entry_position is not None else ""
+                timing = (
+                    " after current attempt start"
+                    if attempt_window_position is not None and attempt_window_position != state_entry_position
+                    else (" after current state entry" if state_entry_position is not None else "")
+                )
                 failures.append(f"{invariant} (missing events{timing}: {', '.join(missing)})")
             elif run_id is not None or attempt_id is not None:
                 result_events = [e for e in event_list if _value(e, "type", _value(e, "event_type", "")) == "verification.result"]
@@ -167,7 +225,11 @@ def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] 
                 if payload.get("decision") in {"allow", "allow_with_warnings"}:
                     allowed = True
             if not allowed:
-                timing = " after current state entry" if state_entry_position is not None else ""
+                timing = (
+                    " after current attempt start"
+                    if attempt_window_position is not None and attempt_window_position != state_entry_position
+                    else (" after current state entry" if state_entry_position is not None else "")
+                )
                 failures.append(f"verifier-gate-allow (no allowing Gate decision{timing})")
         elif invariant == "required-verifiers-pass":
             required = context.get("required_verifiers")
@@ -592,6 +654,7 @@ class StateExecutionResult:
     handoffs: tuple[Mapping[str, Any], ...] = ()
     run_id: str | None = None
     attempt_id: str | None = None
+    state_visit_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -609,6 +672,7 @@ class StateExecutionResult:
             "handoffs": [dict(item) for item in self.handoffs],
             "run_id": self.run_id,
             "attempt_id": self.attempt_id,
+            "state_visit_id": self.state_visit_id,
         }
 
 
@@ -646,6 +710,7 @@ class StateContractAdapter:
             handoffs=tuple(item.to_dict() for item in report.handoffs),
             run_id=report.run_id,
             attempt_id=report.attempt_id,
+            state_visit_id=report.state_visit_id,
         )
 
 
@@ -664,12 +729,14 @@ def execute_state(definition: StateDefinition, request: Mapping[str, Any], *, ti
             context = request.get("context", {})
             run_id = str(context.get("run_id", request.get("run_id", "run"))) if isinstance(context, Mapping) else "run"
             attempt_id = str(context.get("attempt_id", request.get("attempt_id", "default"))) if isinstance(context, Mapping) else "default"
+            state_visit_id = context.get("state_visit_id", request.get("state_visit_id")) if isinstance(context, Mapping) else None
             report = ContractPackExecutor().execute(
                 pack,
                 request=request,
                 submissions=submissions,
                 run_id=run_id,
                 attempt_id=attempt_id,
+                state_visit_id=str(state_visit_id) if state_visit_id is not None else None,
                 timeout=timeout,
             )
             return StateContractAdapter().adapt(definition.id, report)

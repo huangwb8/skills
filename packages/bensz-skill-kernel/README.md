@@ -43,7 +43,7 @@ Kernel 只负责 State、Verifier、证据和 Gate；它不实现跨 Harness 的
 
 ## 目录化 Contract Pack
 
-State 与 Verifier 都采用“Markdown 契约 + 索引元数据 + 零个或多个组件”的目录化 Pack。`contract_packs.py` 在 `packs.py` 的发现与 JSON-stdio 边界上编排 `script`、`agent`、`human` 组件，并绑定契约/计划/组件哈希、证据、依赖顺序、`run_id`/`attempt_id` 和执行者。共享执行层不混淆 State 的迁移语义与 Verifier 的 verdict/Gate 语义。
+State 与 Verifier 都采用“Markdown 契约 + 索引元数据 + 零个或多个组件”的目录化 Pack。`contract_packs.py` 在 `packs.py` 的发现与 JSON-stdio 边界上编排 `script`、`agent`、`human` 组件，并绑定契约/计划/组件哈希、证据、依赖顺序、`run_id`/`state_visit_id`/`attempt_id` 和执行者。共享执行层不混淆 State 的迁移语义与 Verifier 的 verdict/Gate 语义。
 
 canonical ID、版本和 alias 迁移规则见 [`docs/verifier-id-naming.md`](../../docs/verifier-id-naming.md) 与 [`docs/state-id-naming.md`](../../docs/state-id-naming.md)。
 
@@ -69,12 +69,22 @@ bsk state list --root path/to/skill/states
 bsk workspace init . --description citation-review
 bsk state check bensz.workspace.ready org.example.skill.collecting --skill-root path/to/skill
 bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name org.example.skill.collecting \
-  --skill-root path/to/skill --context-json '{"input":"report.md"}'
+  --skill-root path/to/skill --run-id run-1 --target-attempt-id collecting-1 \
+  --context-json '{"input":"report.md"}'
 ```
 
-状态操作返回 `bensz-meta-state-v1` JSON，含操作、状态、结果、可选 helper 回执和快照。Skill 元状态写入自身 `log/meta-state.json`；任务 `events.ndjson`/`state.json` 仍是独立的生命周期与证据层。成功迁移追加 `state.transition`（`state_domain: skill`）事件，`bsk rebuild` 投影到 `skill_states`/`skill_state_transitions` 并核验稳定字段哈希。缺失快照可由事件恢复，哈希漂移返回结构化 `integrity_error`。
+新身份协议把 `run_id`（整次运行）、`state_visit_id`（一次进入 State）和 `attempt_id`（该访问内的一次验证尝试）分层。transition 用 `source_identity` 验收当前 State，同时原子创建 `target_identity`；CLI 返回目标身份供下一阶段直接使用。同一 State 内重试使用 `bsk attempt start`，新 attempt 启用后旧 Gate、handoff 与 authorization 均不能满足当前窗口。完整协议、状态图、稳定错误码和 legacy 规则见[身份协议说明](../../docs/state-identity-protocol.md)。
 
-Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded` 要求离开该状态前同时存在 `verification.result` 与 `verification.gate`；这些事件必须属于当前 `run_id`/`attempt_id`，并发生在当前 Skill 最近一次进入该 State 之后，较早阶段的通过结果不能跨阶段复用。不满足时返回 `rejected`，不写入新快照。领域 invariant 仍由 Skill helper 或人工复核负责。带运行身份时，`run_id` 与 `attempt_id` 必须成对传入。
+```bash
+bsk capabilities
+bsk attempt start .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name \
+  --run-id run-1 --state-visit-id STATE_VISIT_ID --attempt-id collecting-2 \
+  --reason retry --idempotency-key collecting-2
+```
+
+新状态操作返回 `bensz-meta-state-v2` JSON；旧 `bensz-meta-state-v1`/`bensz-event-v1` 日志保持只读可重放并标为 legacy，不会被推断为具备 v2 完成资格。Skill 元状态写入自身 `log/meta-state.json`；任务 `events.ndjson`/`state.json` 仍是独立的生命周期与证据层。成功迁移追加 `state.transition`（`state_domain: skill`）事件，`bsk rebuild` 投影 State、visit、active attempt 并核验稳定字段哈希。
+
+Kernel 只执行有明确协议的 invariant。当前 `verifier-result-recorded` 要求离开该状态前同时存在 `verification.result` 与 `verification.gate`；v2 事件必须属于当前 `run_id/state_visit_id/attempt_id`，并发生在当前 attempt 窗口开始之后，较早阶段或已替代 attempt 的通过结果不能复用。不满足时返回 `rejected`，不写入新快照。领域 invariant 仍由 Skill helper 或人工复核负责。
 
 ## Action：阶段内动作授权
 
@@ -83,16 +93,16 @@ State transition 只能约束主动提交的迁移，不能自动拦截宿主绕
 ```bash
 bsk action preflight .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
   demo-skill publish-report --state org.example.workflow.ready --state-version 1.0.0 \
-  --run-id run-1 --attempt-id attempt-1 --idempotency-key authorize-publish
+  --run-id run-1 --state-visit-id visit-1 --attempt-id attempt-1 --idempotency-key authorize-publish
 
 bsk action consume .bensz-api/task-YYYYMMDD-HHMM-demo/log/events.ndjson \
-  action-auth-... demo-skill publish-report --run-id run-1 --attempt-id attempt-1 \
+  action-auth-... demo-skill publish-report --run-id run-1 --state-visit-id visit-1 --attempt-id attempt-1 \
   --idempotency-key consume-publish
 ```
 
-Python 调用方使用 `EventLog.preflight_action()` 和 `EventLog.consume_action_authorization()`。preflight 只接受当前 Skill 最近一次 `state.transition` 的运行身份和快照绑定；可选 `handoff_id` 必须来自该 State 进入后的同一 run/attempt 窗口。State 再次进入后旧授权自动过期，授权只能消费一次；`expected_last_seq` 可用于拒绝并发观察漂移。拒绝同样追加 `action.authorization.denied`，包含稳定原因码和恢复建议。`status/rebuild` 只投影已有授权事件，不会补写授权或业务动作。
+Python 调用方使用 `EventLog.preflight_action()` 和 `EventLog.consume_action_authorization()`。v2 preflight 只接受当前 State 快照绑定的 active run/visit/attempt；可选 `handoff_id` 必须来自当前 attempt 窗口。State 再次进入或 attempt 被替代后旧授权自动过期，授权只能消费一次；`expected_last_seq` 可用于拒绝并发观察漂移。拒绝同样追加 `action.authorization.denied`，包含稳定原因码和恢复建议。`status/rebuild` 只投影已有授权事件，不会补写授权或业务动作。
 
-协议标识为 `bensz-action-authorization-v1`（公开常量 `ACTION_AUTHORIZATION_PROTOCOL`）。preflight 拒绝码覆盖 `concurrent_event_conflict`、`skill_state_unavailable`、`state_mismatch`、`state_version_mismatch`、`state_snapshot_unbound`、`state_identity_mismatch`、`handoff_outside_state_window` 和 `evidence_outside_handoff`；消费拒绝码覆盖 `authorization_not_found`、`authorization_already_consumed`、`authorization_expired`、`authorization_binding_mismatch` 及并发冲突。调用方应依据原因码执行 `recovery`，不要解析自然语言消息。
+协议标识为 `bensz-action-authorization-v1`（公开常量 `ACTION_AUTHORIZATION_PROTOCOL`）。preflight 拒绝码覆盖 `concurrent_event_conflict`、`skill_state_unavailable`、`state_mismatch`、`state_version_mismatch`、`state_snapshot_unbound`、`state_identity_mismatch`、`handoff_outside_state_window`、`handoff_outside_attempt_window` 和 `evidence_outside_handoff`；消费拒绝码覆盖 `authorization_not_found`、`authorization_already_consumed`、`authorization_expired`、`authorization_binding_mismatch` 及并发冲突。调用方应依据原因码执行 `recovery`，不要解析自然语言消息。
 
 动作名称及“哪些动作必须保护”仍由 Skill/host 契约定义，Kernel 不认识领域字段，也不扫描项目文件。完全不调用 preflight 的宿主无法被 Kernel 自身阻止；该 capability 是可审计的协议门禁，不是操作系统权限沙箱。幂等键绑定首次结果；修复拒绝原因后应使用新的动作尝试/幂等键。
 

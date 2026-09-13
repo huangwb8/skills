@@ -11,10 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .identity import STATE_IDENTITY_PROTOCOL, normalize_state_identity
 
 WORKSPACE_KINDS = frozenset({"input", "output", "log"})
 WORKSPACE_PROTOCOL_VERSION = "bensz-api-task-v1"
-META_STATE_SNAPSHOT_VERSION = "bensz-meta-state-v1"
+META_STATE_SNAPSHOT_VERSION = "bensz-meta-state-v2"
 _SNAPSHOT_VOLATILE_FIELDS = frozenset({"snapshot_hash", "state_event_id", "path"})
 
 
@@ -22,6 +23,26 @@ def state_snapshot_hash(snapshot: Mapping[str, Any]) -> str:
     """Hash the stable state snapshot fields using the public audit contract."""
     stable = {str(key): value for key, value in snapshot.items() if key not in _SNAPSHOT_VOLATILE_FIELDS}
     return hashlib.sha256(json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _validate_meta_state_snapshot(snapshot: Mapping[str, Any]) -> None:
+    protocol = snapshot.get("protocol", "bensz-meta-state-v1")
+    if protocol not in {"bensz-meta-state-v1", META_STATE_SNAPSHOT_VERSION}:
+        raise WorkspaceError("meta-state snapshot protocol is unsupported")
+    if protocol == META_STATE_SNAPSHOT_VERSION:
+        if snapshot.get("identity_protocol") != STATE_IDENTITY_PROTOCOL:
+            raise WorkspaceError("v2 meta-state snapshot requires the State identity protocol")
+        try:
+            normalize_state_identity(
+                {
+                    "run_id": snapshot.get("run_id"),
+                    "state_visit_id": snapshot.get("state_visit_id"),
+                    "attempt_id": snapshot.get("active_attempt_id"),
+                },
+                label="meta-state snapshot identity",
+            )
+        except ValueError as exc:
+            raise WorkspaceError(str(exc)) from exc
 
 
 def _redact(value: Any) -> Any:
@@ -204,16 +225,18 @@ class TaskWorkspace:
             raise WorkspaceError(f"meta-state snapshot has an incomplete commit: {paths.meta_state}")
         if not paths.meta_state.is_file():
             return {
-                "protocol": META_STATE_SNAPSHOT_VERSION,
+                "protocol": "bensz-meta-state-v1",
                 "skill": paths.skill,
                 "current_state": "bensz.workspace.ready",
                 "state_version": "1.0.0",
                 "workspace_state": self.manifest().get("state"),
+                "legacy_identity": True,
             }
         try:
             snapshot = json.loads(paths.meta_state.read_text(encoding="utf-8"))
             if not isinstance(snapshot, dict):
                 raise ValueError("snapshot must be an object")
+            _validate_meta_state_snapshot(snapshot)
             expected = snapshot.get("snapshot_hash")
             if expected and str(expected).removeprefix("sha256:") != state_snapshot_hash(snapshot):
                 raise WorkspaceError(f"meta-state snapshot integrity mismatch: {paths.meta_state}")
@@ -232,6 +255,7 @@ class TaskWorkspace:
 
     def prepare_meta_state(self, skill: str, snapshot: dict[str, Any]) -> tuple[Path, Path]:
         """Write and fsync a snapshot staging file without publishing it."""
+        _validate_meta_state_snapshot(snapshot)
         if snapshot.get("snapshot_hash") and str(snapshot["snapshot_hash"]).removeprefix("sha256:") != state_snapshot_hash(snapshot):
             raise WorkspaceError("meta-state snapshot hash does not match its contents")
         paths = self.paths(skill)
