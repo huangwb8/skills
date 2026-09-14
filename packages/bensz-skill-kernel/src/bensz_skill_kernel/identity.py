@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+import re
 import sys
 from typing import Any, Mapping
 
@@ -23,6 +24,47 @@ _CAPABILITIES = (
     "runtime_snapshot_binding",
     "environment_diagnostics",
 )
+_RELEASE_VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$")
+
+
+def _release_tuple(value: str, *, label: str) -> tuple[int, int, int]:
+    match = _RELEASE_VERSION.fullmatch(value)
+    if match is None:
+        raise ValueError(f"{label} must be a semantic release version")
+    return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
+
+
+def validate_kernel_runtime_declaration(
+    declaration: Mapping[str, Any],
+    *,
+    running_version: str,
+    available_capabilities: tuple[str, ...] = _CAPABILITIES,
+) -> None:
+    """Validate the installed Kernel against a Skill's minimum contract.
+
+    The legacy ``version`` field is interpreted as the minimum compatible
+    Kernel version.  This preserves old declarations while allowing a
+    centrally managed runtime to move forward.  Skills may additionally name
+    protocol capabilities that must be present in the running Kernel.
+    """
+    name = str(declaration.get("name", ""))
+    if name != "bensz-skill-kernel":
+        raise ValueError(f"unsupported runtime kernel: {name or '<missing>'}")
+    required_version = str(declaration.get("version", ""))
+    required = _release_tuple(required_version, label="runtime.kernel.version")
+    running = _release_tuple(running_version, label="running kernel version")
+    if running < required:
+        raise ValueError(
+            f"runtime requires bensz-skill-kernel>={required_version}, running {running_version}"
+        )
+    required_capabilities = declaration.get("required_capabilities", ())
+    if not isinstance(required_capabilities, (list, tuple)) or not all(
+        isinstance(item, str) and item for item in required_capabilities
+    ):
+        raise ValueError("runtime.kernel.required_capabilities must be a list of names")
+    missing = sorted(set(required_capabilities) - set(available_capabilities))
+    if missing:
+        raise ValueError("runtime kernel missing required capabilities: " + ", ".join(missing))
 
 
 def normalize_state_identity(value: Mapping[str, Any], *, label: str = "state identity") -> dict[str, str]:

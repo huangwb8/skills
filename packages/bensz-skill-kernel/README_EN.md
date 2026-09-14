@@ -41,6 +41,16 @@ The Kernel owns State, Verifier, evidence, and Gate contracts; it does not imple
 - Runtime uses PyYAML (to read a Skill's `config.yaml`) and otherwise only the Python standard library.
 - A new Python version enters the support range after it passes the test matrix.
 
+A Skill's `runtime.kernel.version` is the minimum acceptable Kernel version, not an exact-version pin; newer compatible Kernels can run older Skills. Add `required_capabilities` to the same declaration when a concrete protocol feature is required. Missing capabilities still fail closed:
+
+```yaml
+runtime:
+  kernel:
+    name: bensz-skill-kernel
+    version: 1.0.0
+    required_capabilities: [runtime_snapshot_binding]
+```
+
 ## Directory-based Contract Packs
 
 State and Verifier both use directory Packs made of a Markdown contract, index metadata, and zero or more components. `contract_packs.py` builds on discovery and JSON-stdio boundaries from `packs.py` to orchestrate `script`, `agent`, and `human` components, binding contract/plan/component hashes, evidence, dependency order, `run_id`/`state_visit_id`/`attempt_id`, and executor identity. The shared execution layer does not conflate State transition semantics with Verifier verdict/Gate semantics.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bensz-skill-kernel"
-version = "2.1.2"
+version = "2.2.0"
 description = "Append-only lifecycle runtime for Bensz Agent Skills"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}

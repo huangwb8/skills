@@ -23,6 +23,7 @@ from bensz_skill_kernel import (
     WorkspaceError,
     check_state_invariants,
     kernel_capabilities,
+    validate_kernel_runtime_declaration,
 )
 from bensz_skill_kernel.cli import main
 
@@ -722,6 +723,30 @@ def test_capabilities_and_diagnostics_expose_identity_contract(capsys):
     assert diagnostic["python"]["executable"]
     assert diagnostic["python"]["version_info"][:2] >= [3, 11]
     assert diagnostic["capabilities_protocol"] == KERNEL_CAPABILITIES_PROTOCOL
+
+
+def test_kernel_runtime_declaration_accepts_newer_compatible_kernel():
+    validate_kernel_runtime_declaration(
+        {"name": "bensz-skill-kernel", "version": "1.0.0"},
+        running_version="2.1.2",
+    )
+
+
+def test_kernel_runtime_declaration_rejects_older_kernel_and_missing_capability():
+    with pytest.raises(ValueError, match="requires bensz-skill-kernel>=2.1.2"):
+        validate_kernel_runtime_declaration(
+            {"name": "bensz-skill-kernel", "version": "2.1.2"},
+            running_version="2.0.0",
+        )
+    with pytest.raises(ValueError, match="missing required capabilities"):
+        validate_kernel_runtime_declaration(
+            {
+                "name": "bensz-skill-kernel",
+                "version": "1.0.0",
+                "required_capabilities": ["runtime_snapshot_binding", "future-capability"],
+            },
+            running_version="2.1.2",
+        )
 
 
 def test_workspace_initialize_atomically_creates_strict_v2_run(tmp_path: Path, capsys):

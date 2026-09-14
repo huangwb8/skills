@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 
 from .contract_packs import ContractExecutionReport, ContractPack, ContractPackExecutor, STATE_MODES
-from .identity import STATE_IDENTITY_PROTOCOL, normalize_state_identity
+from .identity import STATE_IDENTITY_PROTOCOL, normalize_state_identity, validate_kernel_runtime_declaration
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio
 from .state_ids import parse_state_aliases, validate_state_id
 
@@ -613,13 +613,11 @@ class SkillStateDeclaration:
                 raise StateDefinitionError(f"invalid verifier requirements: {exc}") from exc
         runtime_kernel = raw.get("kernel")
         if isinstance(runtime_kernel, Mapping):
-            name = str(runtime_kernel.get("name", ""))
-            version = str(runtime_kernel.get("version", ""))
             from . import __version__ as kernel_version
-            if name != "bensz-skill-kernel" or version != kernel_version:
-                raise StateDefinitionError(
-                    f"runtime kernel mismatch: declared {name}@{version}, running bensz-skill-kernel@{kernel_version}"
-                )
+            try:
+                validate_kernel_runtime_declaration(runtime_kernel, running_version=kernel_version)
+            except ValueError as exc:
+                raise StateDefinitionError(str(exc)) from exc
         skill_info = loaded_config.get("skill_info", {})
         if not isinstance(skill_info, Mapping):
             raise StateDefinitionError("skill_info must be a mapping when present")

@@ -19,6 +19,7 @@ from typing import Any, Iterable, Mapping, Protocol
 import yaml
 
 from .contract_packs import ContractExecutionError, ContractExecutionReport, ContractPack, ContractPackExecutor, EXECUTION_MODES
+from .identity import validate_kernel_runtime_declaration
 from .packs import load_pack_entries, resolve_entrypoint, run_stdio, version_key as _version_key
 from .verifier_ids import parse_aliases, validate_verifier_id
 
@@ -582,13 +583,7 @@ class SkillVerifierDeclaration:
         runtime_kernel = runtime.get("kernel")
         if isinstance(runtime_kernel, Mapping):
             from . import __version__ as kernel_version
-
-            name = str(runtime_kernel.get("name", ""))
-            version = str(runtime_kernel.get("version", ""))
-            if name != "bensz-skill-kernel" or version != kernel_version:
-                raise ValueError(
-                    f"runtime kernel mismatch: declared {name}@{version}, running bensz-skill-kernel@{kernel_version}"
-                )
+            validate_kernel_runtime_declaration(runtime_kernel, running_version=kernel_version)
         return cls(root, tuple(resolved_roots), requirements, source)
 
     def registry(self) -> CombinedVerifierRegistry:

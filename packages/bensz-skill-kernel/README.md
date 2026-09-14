@@ -41,6 +41,16 @@ Kernel 只负责 State、Verifier、证据和 Gate；它不实现跨 Harness 的
 - 运行时仅依赖 PyYAML（读取 Skill 的 `config.yaml`）和 Python 标准库。
 - 新 Python 版本通过测试矩阵后才进入支持范围。
 
+Skill 的 `runtime.kernel.version` 表示可接受的最低 Kernel 版本，而不是必须精确相等的版本；较新的兼容 Kernel 可以直接运行旧 Skill。需要具体协议能力时，在同一声明中增加 `required_capabilities`，缺少能力仍会失败关闭：
+
+```yaml
+runtime:
+  kernel:
+    name: bensz-skill-kernel
+    version: 1.0.0
+    required_capabilities: [runtime_snapshot_binding]
+```
+
 ## 目录化 Contract Pack
 
 State 与 Verifier 都采用“Markdown 契约 + 索引元数据 + 零个或多个组件”的目录化 Pack。`contract_packs.py` 在 `packs.py` 的发现与 JSON-stdio 边界上编排 `script`、`agent`、`human` 组件，并绑定契约/计划/组件哈希、证据、依赖顺序、`run_id`/`state_visit_id`/`attempt_id` 和执行者。共享执行层不混淆 State 的迁移语义与 Verifier 的 verdict/Gate 语义。
