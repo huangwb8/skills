@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+- 升级至 `0.13.4`，运行时版本检查改用 BSK 的统一最低版本/capability 契约，避免托管最新版 Kernel 被旧精确版本声明错误拒绝。
+- 更新事件 QA：调用方 Gate 仅为 advisory；`unchecked` 结果以 Kernel 重算并持久化的 `wait` 为准，同时核验 `computed_by: kernel`。
+
 ### Changed（变更）
 - 升级至 `0.13.3` 并同步 `bensz-skill-kernel@0.14.0`，继续使用原有 canonical Verifier/State，同时兼容新的 Contract Pack 组件结果与 fail-closed Gate 绑定。
 - 同步 `bensz-skill-kernel` 至 `0.13.0`，支持 Skill 本地 Verifier Pack 合并发现和 `mode: prompt` 元数据。

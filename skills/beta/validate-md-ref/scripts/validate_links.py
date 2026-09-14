@@ -16,7 +16,7 @@ import hashlib
 import shutil
 from pathlib import Path
 from urllib.parse import unquote, urlparse
-from typing import List, Dict, Optional
+from typing import List, Dict
 import subprocess
 import os
 
@@ -589,7 +589,7 @@ def main(argv=None):
         # 自动使用技能默认配置文件
         try:
             config_path = get_config_path()
-        except RuntimeError as e:
+        except RuntimeError:
             # 无法定位技能根目录时，使用空配置（不影响基本功能）
             config = {}
             config_path = None
@@ -633,9 +633,8 @@ def main(argv=None):
         runtime_decl = config.get('runtime', {}) if isinstance(config.get('runtime', {}), dict) else {}
         kernel_decl = runtime_decl.get('kernel', {}) if isinstance(runtime_decl.get('kernel', {}), dict) else {}
         if kernel_decl:
-            from bensz_skill_kernel import __version__ as running_kernel_version
-            if kernel_decl.get('name') != 'bensz-skill-kernel' or str(kernel_decl.get('version')) != str(running_kernel_version):
-                raise RuntimeError(f"kernel runtime mismatch: declared {kernel_decl.get('name')}@{kernel_decl.get('version')}, running bensz-skill-kernel@{running_kernel_version}")
+            from bensz_skill_kernel import __version__ as running_kernel_version, validate_kernel_runtime_declaration
+            validate_kernel_runtime_declaration(kernel_decl, running_version=running_kernel_version)
         content_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
         request_id = args.run_id or f"markdown:{content_hash[:16]}"
         resolved_md_file = md_file.resolve()

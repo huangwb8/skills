@@ -58,7 +58,8 @@ class AnchorAndGetFallbackTests(unittest.TestCase):
             self.assertTrue(result['recorded'])
             projection = EventLog(events).projection()
             self.assertEqual(projection['verifications'][0]['request_id'], 'run-test')
-            self.assertEqual(projection['gate_decisions'][0]['decision'], 'manual_review')
+            self.assertEqual(projection['gate_decisions'][0]['decision'], 'wait')
+            self.assertEqual(projection['gate_decisions'][0]['computed_by'], 'kernel')
 
     def test_skill_state_declaration_uses_indexed_state_pack(self) -> None:
         from bensz_skill_kernel import SkillStateDeclaration
