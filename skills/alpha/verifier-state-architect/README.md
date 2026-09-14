@@ -15,7 +15,7 @@
 
 预期结果：目标 Skill 的组件、配置和调用流程完成必要改动，附计划、验证证据和剩余限制；若删除影响测试证明不需要组件，则交付有依据的“不接入”结论。
 
-运行机械检查需要 Python 3.11+、PyYAML 和与目标声明匹配的 `bensz-skill-kernel`。设计本身可以先进行，但缺依赖或宿主时不会宣称执行成功。
+运行机械检查需要 Bensz 托管 `benszapi` 环境中的 Python 3.11+、PyYAML 和最新生产版 `bensz-skill-kernel`。目标 Skill 只声明依赖 BSK，不选择最低或精确版本；设计本身可以先进行，但最新运行时未确认或宿主缺失时不会宣称执行成功。
 
 ## 使用模式
 
@@ -55,7 +55,7 @@
 | 声明与调用点 | 目标 `config.yaml`、`SKILL.md` 及必要的宿主/脚本入口 |
 | 证据、日志和对账 | 同一任务 `.bensz-api/task-…/verifier-state-architect/` 边界 |
 
-计划是流程中的一步，不再是默认最终交付。已有非本任务文件不直接覆盖；最终按“计划项 → 改动 → 验证 → 结果”对账。目录、字段、契约和加载方式统一见[托管规范](references/skill-pack-hosting.md)，操作步骤见[落地参考](references/implementation.md)；托管规范只在该 Skill 内维护一份。当前 BSK 支持用 `runtime.verifier_roots` 声明 Skill 内 Verifier 集合，并通过显式 CLI source 加载，不进行全局自动扫描。
+计划是流程中的一步，不再是默认最终交付。已有非本任务文件不直接覆盖；最终按“计划项 → 改动 → 验证 → 结果”对账。目录、字段、契约和加载方式统一见[托管规范](references/skill-pack-hosting.md)，BSK 依赖声明、最新版检查和更新见 [BSK 最新生产版运行规范](references/bsk-managed-runtime.md)，操作步骤见[落地参考](references/implementation.md)；托管规范只在该 Skill 内维护一份。当前 BSK 支持用 `runtime.verifier_roots` 声明 Skill 内 Verifier 集合，并通过显式 CLI source 加载，不进行全局自动扫描。
 
 若目标同时采用 State 与 required Verifier，还须按 [BSK 编排入口契约](references/bsk-orchestration.md) 在 `runtime.orchestration` 声明一条 Agent 很难误用的正常命令路径。静态检查只证明声明与路径存在；成功和 fail-closed 反例仍需真实行为证据。
 
@@ -64,10 +64,13 @@
 默认模式、计划路径和安全设置见 [config.yaml](config.yaml)；完整执行契约见 [SKILL.md](SKILL.md)。用户显式只读要求优先于默认配置。`README.md` 与 `README_EN.md` 保持同一用法契约。
 
 ```bash
-python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/target-skill
+python3 "$INSTALLER" --force-runtime-update
+"$HOME/.bensz-skills/envs/benszapi/bin/python" \
+  /path/to/verifier-state-architect/scripts/check_integration.py \
+  /path/to/target-skill
 ```
 
-只读脚本校验标准布局、索引/契约分工、State 图字段、canonical/alias、声明及真实 Kernel 加载；组合场景还检查真实 `## 控制` 段中的入口、领域 State 映射和静态转移边，并拒绝孤立编排声明。它不会执行目标脚本或模型、写目标文件、联网或修改安装副本。
+其中 `INSTALLER` 是宿主已发现的 `install-bensz-skills/scripts/install.py`。只读脚本校验标准布局、索引/契约分工、State 图字段、canonical/alias、latest-only 声明及真实 Kernel 加载；组合场景还检查真实 `## 控制` 段中的入口、领域 State 映射和静态转移边，并拒绝孤立编排声明。它不会执行目标脚本或模型、写目标文件、联网或修改安装副本。
 
 JSON 报告的 `execution: unchecked` 表示此检查**不证明业务执行**。退出码 0 为结构通过或零组件不适用，1 为不符合，2 为依赖不可用。还需验证真实组件、缺证据失败、Gate、状态迁移及适用的重放；旧格式能被 Kernel 读取不等于符合新托管规范。
 

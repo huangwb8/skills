@@ -41,15 +41,15 @@ The Kernel owns State, Verifier, evidence, and Gate contracts; it does not imple
 - Runtime uses PyYAML (to read a Skill's `config.yaml`) and otherwise only the Python standard library.
 - A new Python version enters the support range after it passes the test matrix.
 
-A Skill's `runtime.kernel.version` is the minimum acceptable Kernel version, not an exact-version pin; newer compatible Kernels can run older Skills. Add `required_capabilities` to the same declaration when a concrete protocol feature is required. Missing capabilities still fail closed:
+New and modified Skills declare only that they depend on BSK. Before execution, the Bensz-managed runtime updates BSK to the latest production release; individual Skills do not select a minimum, exact version, or capability gate:
 
 ```yaml
 runtime:
   kernel:
     name: bensz-skill-kernel
-    version: 1.0.0
-    required_capabilities: [runtime_snapshot_binding]
 ```
+
+The Kernel still reads legacy `runtime.kernel.version` and `required_capabilities` fields for migration compatibility, but they are not templates for new declarations. Production CLI calls use `~/.bensz-skills/bin/bsk`; `install-bensz-skills --force-runtime-update` performs the latest-version check and update.
 
 ## Directory-based Contract Packs
 

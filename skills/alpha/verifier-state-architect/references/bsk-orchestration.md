@@ -41,7 +41,7 @@ python3 scripts/control.py publish-report \
 入口必须完成并测试以下闭环；不能把任一步交给 Agent 临时补做：
 
 1. 解析 action → current/target State 映射；未知 action 立即拒绝。
-2. 用目标 `runtime.kernel` 精确版本的 BSK 公共 CLI/Python API 读取当前 Skill State、版本和运行绑定；不直接猜测或信任调用方自报状态。调用 CLI 时使用参数数组和结构化 stdin/文件，禁止 `shell=True`、shell 字符串拼接或把未验证输入插入命令。
+2. 按 [BSK 最新生产版运行规范](bsk-managed-runtime.md) 使用托管环境的最新生产版 BSK 公共 CLI/Python API 读取当前 Skill State、版本和运行绑定；目标 `runtime.kernel` 只声明包名。CLI 固定调用 `~/.bensz-skills/bin/bsk`，不直接猜测、使用裸 `bsk` 或信任调用方自报状态；调用时使用参数数组和结构化 stdin/文件，禁止 `shell=True`、shell 字符串拼接或把未验证输入插入命令。
 3. 核对当前 State 等于 action 声明的 `current_state`，再统一构造 Verifier 请求；请求绑定同一 subject/context/evidence、`run_id`、`attempt_id` 和必要证据引用。
 4. 从 Skill 声明解析并调用全部 required Verifier；advisory 可按目标策略运行，但不能掩盖 required 缺失、失败或未完成。
 5. 由 BSK 对本次完整结果生成并记录 Gate；入口不得自行伪造 Gate、把模型自评当 `pass`，或复用旧 State/旧 attempt 的结果。
@@ -52,11 +52,11 @@ python3 scripts/control.py publish-report \
 
 ## 失败与恢复
 
-- 缺声明/证据、版本不匹配、非法路径、超时、`uncertain`、`unchecked`、错绑、未知枚举、Gate 非放行或 transition 回执不一致时，不执行后续阶段或正式交付。
+- 缺声明/证据、最新生产版未确认、非法路径、超时、`uncertain`、`unchecked`、错绑、未知枚举、Gate 非放行或 transition 回执不一致时，不执行后续阶段或正式交付。
 - 依据 BSK 稳定字段和原因码选择重试、补证据、人工复核或新 attempt；不解析异常文本作为调用契约。
 - 幂等键、事件与快照必须绑定当前 action/run/attempt；恢复后不能复用旧 Gate。若目标 action 还需阶段内单次授权，再按实际 BSK 版本接入 action preflight/consume。
 - 未实际执行入口行为测试时，只能报告结构已接入、执行 `unchecked`。
 
 ## 最小验收
 
-除 `check_integration.py` 的声明/路径检查外，至少验证：成功路径；未知 action；当前 State 不匹配；required 缺失、失败、未完成或错版本；Gate 非放行或错绑；transition 拒绝；返回目标 State/版本/快照不一致；重试不复用旧 run/attempt。测试应证明业务入口无法在这些失败下继续，而不只是断言某函数被调用。
+除 `check_integration.py` 的声明/路径检查外，至少验证：成功路径；未知 action；当前 State 不匹配；required 缺失、失败或未完成；托管 BSK 未确认最新；Gate 非放行或错绑；transition 拒绝；返回目标 State/Pack 版本/快照不一致；重试不复用旧 run/attempt。测试应证明业务入口无法在这些失败下继续，而不只是断言某函数被调用。

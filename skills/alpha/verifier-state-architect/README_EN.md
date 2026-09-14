@@ -15,7 +15,7 @@ In a host that can invoke this Skill, specify the target **development source** 
 
 Expected result: necessary changes to target components, configuration, and invocation flow, accompanied by a plan, verification evidence, and limitations. If deletion-impact analysis shows no useful components, it delivers a justified no-integration conclusion instead.
 
-Mechanical checks require Python 3.11+, PyYAML, and `bensz-skill-kernel` matching the target declaration. Design can proceed first, but missing dependencies or a host never count as successful execution.
+Mechanical checks use Python 3.11+, PyYAML, and the latest production `bensz-skill-kernel` from the Bensz-managed `benszapi` environment. A target Skill declares only that it depends on BSK; it does not choose a minimum or exact version. Design can proceed first, but an unconfirmed latest runtime or a missing host never counts as successful execution.
 
 ## Modes
 
@@ -55,7 +55,7 @@ Mechanical checks require Python 3.11+, PyYAML, and `bensz-skill-kernel` matchin
 | Declarations and invocation points | Target `config.yaml`, `SKILL.md`, and necessary host/script entry points |
 | Evidence, logs, and reconciliation | The same task's `.bensz-api/task-…/verifier-state-architect/` boundary |
 
-The plan is a workflow step, no longer the default final deliverable. Existing files belonging to other work are not overwritten; delivery maps plan items to changes, checks, and results. See the [hosting specification](references/skill-pack-hosting.md) for layout, fields, contracts, and loading, and the [implementation reference](references/implementation.md) for operational steps. This Skill maintains the single authoritative hosting specification. Current BSK versions support Skill-owned Verifier collections through `runtime.verifier_roots` and explicit CLI sources; they never scan global directories automatically.
+The plan is a workflow step, no longer the default final deliverable. Existing files belonging to other work are not overwritten; delivery maps plan items to changes, checks, and results. See the [hosting specification](references/skill-pack-hosting.md) for layout, fields, contracts, and loading, the [latest-production BSK runtime specification](references/bsk-managed-runtime.md) for dependency declarations and updates, and the [implementation reference](references/implementation.md) for operational steps. This Skill maintains the single authoritative hosting specification. Current BSK versions support Skill-owned Verifier collections through `runtime.verifier_roots` and explicit CLI sources; they never scan global directories automatically.
 
 If the target uses both State and required Verifiers, it must also follow the [BSK orchestration entry contract](references/bsk-orchestration.md), declare the Agent's single normal command path in `runtime.orchestration`, and provide real success and fail-closed evidence. Static checks prove only that the declaration and path exist.
 
@@ -64,10 +64,13 @@ If the target uses both State and required Verifiers, it must also follow the [B
 See [config.yaml](config.yaml) for defaults, plan paths, and safety settings, and [SKILL.md](SKILL.md) for the execution contract. Explicit read-only requests override defaults. `README.md` and `README_EN.md` describe the same usage contract.
 
 ```bash
-python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/target-skill
+python3 "$INSTALLER" --force-runtime-update
+"$HOME/.bensz-skills/envs/benszapi/bin/python" \
+  /path/to/verifier-state-architect/scripts/check_integration.py \
+  /path/to/target-skill
 ```
 
-The read-only script checks standard layout, index/contract responsibilities, State graph fields, canonical/alias resolution, declarations, and actual Kernel loading. In combined scenarios it also checks the entry in the real `## 控制` section, domain-State mappings, and static transition edges, and rejects orphan orchestration declarations. It does not execute target scripts or models, write target files, access the network, or modify installed copies.
+`INSTALLER` is the current host-discovered `install-bensz-skills/scripts/install.py`. The read-only script checks standard layout, index/contract responsibilities, State graph fields, canonical/alias resolution, the latest-only declaration, and actual Kernel loading. In combined scenarios it also checks the entry in the real `## 控制` section, domain-State mappings, and static transition edges, and rejects orphan orchestration declarations. It does not execute target scripts or models, write target files, access the network, or modify installed copies.
 
 The JSON report's `execution: unchecked` means this check **does not prove business execution**. Exit code 0 means structural success or no applicable components, 1 means nonconformance, and 2 means unavailable dependencies. Actual components, missing-evidence failures, Gate behavior, state transitions, and applicable replay still require verification. Kernel compatibility with a legacy layout does not establish compliance with the new hosting convention.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-- `bensz-skill-kernel` 更新至 2.2.0：`config.yaml.runtime.kernel.version` 改为最低兼容版本语义，并支持 `required_capabilities` 门禁；新版 Kernel 可以运行声明旧最低版本的 Skill，低于最低版本或缺少明确能力时仍失败关闭。
+- BSK 生产使用改为 latest-only：新建或修改的 Skill 只声明 `name: bensz-skill-kernel`，由统一 `benszapi` 托管环境在执行前确认最新生产版；Kernel 继续读取旧 `version`/`required_capabilities` 仅用于历史迁移兼容。
 - `install-bensz-skills` 新增由安装器独占管理的 `~/.bensz-skills/envs/benszapi` Conda 运行时，当前统一维护最新生产版 BSK，并生成固定 `~/.bensz-skills/bin/bsk` 入口；本地完整安装器与 Python 3.8+ bootstrap 新增 ensure/status/force-update 入口，静默更新按 72 小时 TTL 同步维护运行时，避免 PATH 与系统 Python 加载不同 Kernel。
 
 All notable changes to the skills repository will be documented in this file.
@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [Unreleased]
 
 ### Added（新增）
+- `verifier-state-architect` 新增独立的 BSK 最新生产版运行规范，集中说明目标 Skill 的依赖声明、命令行状态检查、强制更新、固定 CLI/Python 入口和失败边界。
 - BSK 新增声明驱动的 `runtime.identity_policy: state-identity-v2`、`bsk workspace initialize` 原子强身份入口与 `bsk diagnostics` 环境诊断；运行快照绑定 Skill/Kernel 版本、State/Verifier 契约哈希和最小 Python 指纹。
 
 ### Changed（变更）
+- `verifier-state-architect` 更新至 0.5.0：业务流程和集成检查不再教目标 Skill 维护最低/精确 BSK 版本或 capability 门禁，改为执行前通过安装器强制收敛到最新生产版并使用固定托管入口。
+- BSK 运行声明验证允许新 Skill 省略 Kernel 版本；旧版本和 capability 字段仍保持只读兼容。本次未调整 Kernel 包版本，发布版本仍待项目负责人决定。
 - strict-v2 Skill 的缺失 run、缺失 initial attempt、`default` attempt 与 legacy 原地升级在首条 State 事件前以稳定原因码失败；未声明 policy 的旧 Skill 保留兼容写入，但响应显式报告 legacy mode 与迁移警告。
 - v2 State 事件、实时/重放投影与 action authorization 共享 `run_snapshot_id`/`run_snapshot_hash`，运行契约漂移或跨 run 复用 fail-closed。
 - `bensz-skill-kernel` 更新至 2.1.2（版本号由用户确认）；运行快照改为不可覆盖且读取时校验 payload/hash/ID，Verifier 绑定覆盖真实 Markdown 契约、组件计划与 helper 资产，幂等 transition 保持身份模式字段一致。

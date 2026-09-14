@@ -725,7 +725,14 @@ def test_capabilities_and_diagnostics_expose_identity_contract(capsys):
     assert diagnostic["capabilities_protocol"] == KERNEL_CAPABILITIES_PROTOCOL
 
 
-def test_kernel_runtime_declaration_accepts_newer_compatible_kernel():
+def test_kernel_runtime_declaration_accepts_latest_only_declaration():
+    validate_kernel_runtime_declaration(
+        {"name": "bensz-skill-kernel"},
+        running_version="2.2.0",
+    )
+
+
+def test_kernel_runtime_declaration_keeps_legacy_minimum_version_compatible():
     validate_kernel_runtime_declaration(
         {"name": "bensz-skill-kernel", "version": "1.0.0"},
         running_version="2.1.2",

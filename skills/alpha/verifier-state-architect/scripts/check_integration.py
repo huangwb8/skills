@@ -134,8 +134,16 @@ def check_runtime(root: Path, runtime: dict, verifiers: list[dict], states: list
     from bensz_skill_kernel.states import SkillStateDeclaration
     from bensz_skill_kernel.verifiers import SkillVerifierDeclaration
 
+    kernel = runtime.get("kernel", {})
+    require(isinstance(kernel, dict), "invalid_runtime_kernel")
+    require(kernel.get("name") == "bensz-skill-kernel", "invalid_runtime_kernel")
+    require("version" not in kernel, "legacy_runtime_kernel_version_forbidden")
+    require(
+        "required_capabilities" not in kernel,
+        "legacy_runtime_kernel_capabilities_forbidden",
+    )
     try:
-        validate_kernel_runtime_declaration(runtime.get("kernel", {}), running_version=__version__)
+        validate_kernel_runtime_declaration(kernel, running_version=__version__)
     except ValueError:
         require(False, "runtime_kernel_mismatch")
     require("## 控制" in read_text(root / "SKILL.md", root), "missing_control_section")

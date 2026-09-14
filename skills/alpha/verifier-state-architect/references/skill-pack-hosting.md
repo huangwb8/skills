@@ -4,7 +4,7 @@
 
 本文件是 Skill 专用 Verifier / State Contract Pack 托管规范的唯一入口，随 `verifier-state-architect` 发布。它规定采用组件后的托管、声明和发现，不替代架构设计、命名或执行协议，也不要求普通 Skill 接入。其它文档只引用本文件；修改规范时同步检查脚本与引用。
 
-文中 `docs/`、`packages/` 路径是开发仓库维护依据，不是安装后依赖；仓库外按实际 Kernel 版本核对 API。
+文中 `docs/`、`packages/` 路径是开发仓库维护依据，不是安装后依赖；生产接入统一按 [BSK 最新生产版运行规范](bsk-managed-runtime.md) 确认运行时和 API。
 
 - 专属契约和组件随目标 Skill 发布，不塞入 Kernel 内置目录。
 - BSK 提供发现、索引、执行和证据底层；Skill 保留验证命题与状态语义。提升通用能力需另行评估。
@@ -76,7 +76,7 @@ frontmatter 只维护这些领域契约字段及说明，不重复索引身份/�
 
 - 使用领域 State 时，必须在 `config.yaml.runtime.state_roots` 显式声明 `references/states`，并通过 `initial_state`、`states` 使用 canonical State ID；入口条件和迁移边也使用 canonical ID。
 - 使用 Verifier 要求时，在 `config.yaml.runtime.verifiers` 声明 `id`、`version` 和布尔 `required`；专用集合通过 `runtime.verifier_roots` 声明，默认值为 `references/verifiers`，路径必须留在 Skill 根目录内。通用 Verifier 引用 Kernel 中的能力，专用 Verifier 引用本 Skill 集合，不把内置契约复制进 Skill。
-- 接入 Kernel 时核对 `runtime.kernel` 中的包名、版本与实际运行版本；当前声明加载器精确匹配版本，不接受版本区间。不能盲抄示例中的历史版本，不能以“文件存在”代替版本和解析检查。
+- 接入 Kernel 时，目标 `runtime.kernel` 只声明 `name: bensz-skill-kernel`；不得新写最低版本、精确版本、版本区间或 `required_capabilities`。实现和验证前按 [BSK 最新生产版运行规范](bsk-managed-runtime.md) 强制更新并核对固定入口，不能以“文件存在”或 PATH 中可执行代替托管版本和解析检查。Kernel 对旧字段的读取只用于历史兼容，不是新资产模板。
 - `SKILL.md` 的控制章节必须说明调用时机、证据来源、通过条件、失败恢复和人工介入，并引用本 Skill 内的配置或契约。领域规则归对应契约维护，不在 `SKILL.md` 再维护平行副本。
 - 同时采用 BSK 领域 State 与 required Verifier 时，必须按 [Skill 自有 BSK 编排入口](bsk-orchestration.md) 在 `runtime.orchestration` 声明一个 Skill 内命令入口与 action 的 current/target State 映射。入口统一读取 State、准备请求、运行 required Verifier、生成 Gate、放行后 transition 并严格检查回执；目标 `SKILL.md` 必须把它设为 Agent 正常执行受控 action 的唯一路径。
 
@@ -119,7 +119,7 @@ Verifier-only 优先用 `SkillVerifierDeclaration.from_skill_root()` 加载并�
 本清单指导变更验收，不表示仓库结构检查器已经自动覆盖全部要求。
 
 1. 核对领域职责与可选性，只新增确有需要的专用 Pack，不修改内置注册表来绕过接入问题。
-2. 用目标版本的加载器验证索引、契约、canonical / alias 解析和目录边界；确认 State 声明及 Verifier 要求能解析到预期定义。
+2. 用托管环境中的最新生产版加载器验证索引、契约、canonical / alias 解析和目录边界；确认 State 声明及 Verifier 要求能解析到预期定义。
 3. 验证实际调用入口，而不只做目录检查；适用时检查单一 BSK 编排入口的完整成功链和 fail-closed 反例。脚本组件检查成功、失败与非法输入，Agent / 人工组件检查待处理与结果回传路径。未执行项明确留痕。
 4. 核对迁移规则与证据判定，保证缺失或不可观察证据不会被默认为通过，状态不会因“有结果文件”就自动放行。
 5. 从仓库约定的临时目录验证复制后的资产仍可发现，组件不依赖开发路径，不产生源码目录缓存；无需为验证而覆盖系统级安装副本。

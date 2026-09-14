@@ -4,7 +4,7 @@
 
 ## 1. 先建立执行契约
 
-确认目标是用户授权的开发源码目录，固定实际使用的 Python 3.11+、PyYAML 与 `bensz-skill-kernel` 环境。用 `bensz_skill_kernel.__file__` 和 `__version__` 在内存中定位包与版本；日志仅保留版本和相对来源，不记录机器私密路径。已有计划核验后可直接复用；保存计划后继续实施，不请求人类审批计划。
+确认目标是用户授权的开发源码目录。目标采用 BSK 时，先读取并执行 [BSK 最新生产版运行规范](bsk-managed-runtime.md)，通过安装器强制确认最新生产版；CLI 固定使用 `~/.bensz-skills/bin/bsk`，Python API 与本 Skill 检查器固定使用托管 `benszapi` 环境，不采用项目或 PATH 中的同名包。日志只保留实际版本和相对来源，不记录机器私密路径。已有计划核验后可直接复用；保存计划后继续实施，不请求人类审批计划。
 
 实现前明确：选定组件、对应业务调用点、实际宿主/API、输入和证据、失败结果、最小回退、验收命令。宿主缺失时如实标记受阻；不能把建议的 API 当作已经调用。普通业务可以不接入两类组件，不能为满足加载器而添加无意义状态。
 
@@ -19,7 +19,9 @@
 从当前 Skill 所在位置运行 helper，不依赖目标工作目录：
 
 ```bash
-python3 /path/to/verifier-state-architect/scripts/check_integration.py /path/to/target-skill
+"$HOME/.bensz-skills/envs/benszapi/bin/python" \
+  /path/to/verifier-state-architect/scripts/check_integration.py \
+  /path/to/target-skill
 ```
 
 它只读取源码和调用加载器，不执行目标脚本或模型、不访问网络、不创建报告文件；JSON 输出重定向到任务工作区。退出码：0 为结构通过或零组件不适用，1 为确定性不符合，2 为依赖不可用。`execution: unchecked` 始终表示尚未由此工具验证业务执行。helper 拒绝兼容旧格式，属于新建/修改资产的严格检查，不改变 Kernel 兼容读取行为；不自动修复目标。

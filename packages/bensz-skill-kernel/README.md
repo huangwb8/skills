@@ -41,15 +41,15 @@ Kernel 只负责 State、Verifier、证据和 Gate；它不实现跨 Harness 的
 - 运行时仅依赖 PyYAML（读取 Skill 的 `config.yaml`）和 Python 标准库。
 - 新 Python 版本通过测试矩阵后才进入支持范围。
 
-Skill 的 `runtime.kernel.version` 表示可接受的最低 Kernel 版本，而不是必须精确相等的版本；较新的兼容 Kernel 可以直接运行旧 Skill。需要具体协议能力时，在同一声明中增加 `required_capabilities`，缺少能力仍会失败关闭：
+新建或修改的 Skill 只声明依赖 BSK；实际版本由 Bensz 托管运行时在执行前更新到最新生产版，不由各 Skill 分别选择最低版本、精确版本或 capability 门禁：
 
 ```yaml
 runtime:
   kernel:
     name: bensz-skill-kernel
-    version: 1.0.0
-    required_capabilities: [runtime_snapshot_binding]
 ```
+
+Kernel 仍可读取历史 Skill 的 `runtime.kernel.version` 与 `required_capabilities`，但这只是迁移兼容，不是新声明模板。生产 CLI 统一使用 `~/.bensz-skills/bin/bsk`；最新版本的检查和更新由 `install-bensz-skills --force-runtime-update` 完成。
 
 ## 目录化 Contract Pack
 

@@ -9,9 +9,6 @@ from pathlib import Path
 
 import yaml
 
-from bensz_skill_kernel import __version__
-
-
 CHECKER = (
     Path(__file__).parents[1]
     / "skills"
@@ -38,7 +35,6 @@ def test_verifier_only_skill_with_explicit_root_passes_integration_check(tmp_pat
         "runtime:\n"
         "  kernel:\n"
         "    name: bensz-skill-kernel\n"
-        f"    version: {__version__}\n"
         "  verifier_roots:\n"
         "    - references/verifiers\n"
         "  verifiers:\n"
@@ -101,3 +97,45 @@ def test_verifier_only_skill_with_explicit_root_passes_integration_check(tmp_pat
         "states": 0,
         "orchestration": {"status": "not_applicable", "execution": "unchecked"},
     }
+
+
+def test_new_integration_rejects_legacy_kernel_version(tmp_path: Path) -> None:
+    skill = tmp_path / "demo-skill"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text("# Demo\n\n## 控制\n", encoding="utf-8")
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  kernel:\n"
+        "    name: bensz-skill-kernel\n"
+        "    version: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    try:
+        runtime = yaml.safe_load((skill / "config.yaml").read_text(encoding="utf-8"))["runtime"]
+        checker.check_runtime(skill, runtime, [], [])
+    except checker.CheckFailure as exc:
+        assert str(exc) == "legacy_runtime_kernel_version_forbidden"
+    else:
+        raise AssertionError("legacy runtime Kernel version must be rejected")
+
+
+def test_new_integration_rejects_legacy_kernel_capability_gate(tmp_path: Path) -> None:
+    skill = tmp_path / "demo-skill"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text("# Demo\n\n## 控制\n", encoding="utf-8")
+    (skill / "config.yaml").write_text(
+        "runtime:\n"
+        "  kernel:\n"
+        "    name: bensz-skill-kernel\n"
+        "    required_capabilities: [runtime_snapshot_binding]\n",
+        encoding="utf-8",
+    )
+
+    try:
+        runtime = yaml.safe_load((skill / "config.yaml").read_text(encoding="utf-8"))["runtime"]
+        checker.check_runtime(skill, runtime, [], [])
+    except checker.CheckFailure as exc:
+        assert str(exc) == "legacy_runtime_kernel_capabilities_forbidden"
+    else:
+        raise AssertionError("legacy runtime Kernel capability gate must be rejected")

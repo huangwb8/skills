@@ -2,8 +2,12 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+- 升级至 `0.5.0`，新增 `references/bsk-managed-runtime.md` 作为目标 Skill 使用 BSK 的 latest-only 指南：目标只声明包名，实施和验证前由安装器强制更新最新生产版，CLI 固定使用 `~/.bensz-skills/bin/bsk`，Python API 与集成检查固定使用托管 `benszapi` 环境。
+- `SKILL.md`、托管规范、落地参考、编排入口和集成检查器统一拒绝新写最低/精确 Kernel 版本及 capability 门禁；Kernel 对这些字段的读取仅保留为历史迁移兼容。
+
 ### Fixed（修复）
-- 升级至 `0.4.1`，集成检查按 BSK 统一的最低版本/capability 契约验证目标 Skill，不再要求声明版本与当前 Kernel 精确相等。
+- `0.4.1` 曾将集成检查改为 BSK 最低版本/capability 契约；该过渡策略已由 `0.5.0` 的 latest-only 契约取代。
 - 同步 verifier-only 集成测试到当前 orchestration 报告契约，避免旧 scope/缺字段断言造成假失败。
 
 ### Added（新增）

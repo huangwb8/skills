@@ -40,23 +40,25 @@ def validate_kernel_runtime_declaration(
     running_version: str,
     available_capabilities: tuple[str, ...] = _CAPABILITIES,
 ) -> None:
-    """Validate the installed Kernel against a Skill's minimum contract.
+    """Validate a Skill's Kernel declaration against the running Kernel.
 
-    The legacy ``version`` field is interpreted as the minimum compatible
-    Kernel version.  This preserves old declarations while allowing a
-    centrally managed runtime to move forward.  Skills may additionally name
-    protocol capabilities that must be present in the running Kernel.
+    New Skills only declare ``name`` and use the centrally managed latest
+    production Kernel.  The legacy ``version`` and ``required_capabilities``
+    fields remain readable so existing Skills do not break during migration.
     """
     name = str(declaration.get("name", ""))
     if name != "bensz-skill-kernel":
         raise ValueError(f"unsupported runtime kernel: {name or '<missing>'}")
-    required_version = str(declaration.get("version", ""))
-    required = _release_tuple(required_version, label="runtime.kernel.version")
-    running = _release_tuple(running_version, label="running kernel version")
-    if running < required:
-        raise ValueError(
-            f"runtime requires bensz-skill-kernel>={required_version}, running {running_version}"
-        )
+    _release_tuple(running_version, label="running kernel version")
+    required_version = declaration.get("version")
+    if required_version is not None:
+        required_version = str(required_version)
+        required = _release_tuple(required_version, label="runtime.kernel.version")
+        running = _release_tuple(running_version, label="running kernel version")
+        if running < required:
+            raise ValueError(
+                f"runtime requires bensz-skill-kernel>={required_version}, running {running_version}"
+            )
     required_capabilities = declaration.get("required_capabilities", ())
     if not isinstance(required_capabilities, (list, tuple)) or not all(
         isinstance(item, str) and item for item in required_capabilities
