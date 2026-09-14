@@ -96,7 +96,8 @@ def test_verifier_only_skill_with_explicit_root_passes_integration_check(tmp_pat
     assert checker.check(skill, yaml) == {
         "status": "pass",
         "execution": "unchecked",
-        "scope": "hosting_and_loader_only",
+        "scope": "hosting_loader_and_orchestration_declaration_only",
         "verifiers": 1,
         "states": 0,
+        "orchestration": {"status": "not_applicable", "execution": "unchecked"},
     }

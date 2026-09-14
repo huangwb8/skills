@@ -1,6 +1,6 @@
 skill_info:
   name: verifier-state-architect
-  version: 0.4.0
+  version: 0.4.1
   description: 为 Agent Skill 设计并落地最小、可解释、AI 友好的 Verifier 与 State 组合
   author: Bensz Conan
   category: skill architecture

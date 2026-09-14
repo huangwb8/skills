@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+- 升级至 `0.4.1`，集成检查按 BSK 统一的最低版本/capability 契约验证目标 Skill，不再要求声明版本与当前 Kernel 精确相等。
+- 同步 verifier-only 集成测试到当前 orchestration 报告契约，避免旧 scope/缺字段断言造成假失败。
+
 ### Added（新增）
 - 当目标 Skill 同时采用 BSK State 与 required Verifier 时，强制交付 Skill 自有的单一编排命令，统一 action → State、状态读取、请求准备、required Verifier、Gate、放行后 transition 与严格返回校验；失败默认关闭。
 - 新增 `runtime.orchestration` 的最小声明与静态检查，缺入口、越界路径、空 action 或未声明 State 映射会拒绝；静态通过仍明确标记执行未验证。

@@ -130,11 +130,14 @@ def check_collection(root: Path, kind: str, yaml: object) -> list[dict]:
 
 
 def check_runtime(root: Path, runtime: dict, verifiers: list[dict], states: list[dict]) -> None:
-    from bensz_skill_kernel import __version__
+    from bensz_skill_kernel import __version__, validate_kernel_runtime_declaration
     from bensz_skill_kernel.states import SkillStateDeclaration
     from bensz_skill_kernel.verifiers import SkillVerifierDeclaration
 
-    require(runtime.get("kernel") == {"name": "bensz-skill-kernel", "version": __version__}, "runtime_kernel_mismatch")
+    try:
+        validate_kernel_runtime_declaration(runtime.get("kernel", {}), running_version=__version__)
+    except ValueError:
+        require(False, "runtime_kernel_mismatch")
     require("## 控制" in read_text(root / "SKILL.md", root), "missing_control_section")
     if states:
         require(runtime.get("state_roots") == ["references/states"], "nonstandard_state_roots")
