@@ -3,8 +3,8 @@
 - 更新
 
 ```
-repo-version = 5.0.8
-bsk-version = 2.1.2
+repo-version = 5.0.9
+bsk-version = 2.1.3
 
 请您：
 - 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
