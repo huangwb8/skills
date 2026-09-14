@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import tomllib
 from pathlib import Path
 
@@ -34,6 +35,10 @@ bootstrap = load_module(
 updater = load_module(
     "update_remote_skills",
     "skills/alpha/install-bensz-skills/scripts/update_remote_skills.py",
+)
+managed_runtime = load_module(
+    "managed_runtime_under_test",
+    "skills/alpha/install-bensz-skills/scripts/managed_runtime.py",
 )
 
 
@@ -68,6 +73,10 @@ def test_bootstrap_keeps_python_38_compatible_syntax_and_runtime_gate(monkeypatc
     monkeypatch.setattr(bootstrap.sys, "version_info", (3, 7, 17))
     with pytest.raises(SystemExit, match=r"use Python 3\.8 or newer"):
         bootstrap.ensure_python("en")
+
+    parser = bootstrap.build_parser()
+    assert parser.parse_args(["--ensure-runtime"]).ensure_runtime is True
+    assert parser.parse_args(["--runtime-status"]).runtime_status is True
 
 
 def make_skill(root: Path, name: str, body: str = "content") -> Path:
@@ -294,11 +303,17 @@ def test_local_cli_dry_run_does_not_create_target_and_real_run_reuses_md5(tmp_pa
 
 def test_silent_update_creates_state_for_empty_install_set(tmp_path, monkeypatch):
     monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(
+        install,
+        "ensure_managed_runtime",
+        lambda: {"ready": True, "packages": {"bensz-skill-kernel": "2.1.2"}},
+    )
     assert install._run_silent_update(t=install.get_translator()) == 0
     state_path = tmp_path / ".bensz-skills/installation/state/silent-update.json"
     data = json.loads(state_path.read_text(encoding="utf-8"))
     assert data["schema_version"] == 1
-    assert data["last_result"] == "empty-install-set"
+    assert data["last_result"] == "success"
+    assert data["runtime"]["ready"] is True
 
 
 def test_silent_update_respects_ttl_without_remote_call(tmp_path, monkeypatch):
@@ -310,6 +325,7 @@ def test_silent_update_respects_ttl_without_remote_call(tmp_path, monkeypatch):
 
 def test_silent_update_only_passes_installed_skills_and_never_blocks_on_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(install, "ensure_managed_runtime", lambda: {"ready": True})
     make_skill(tmp_path / ".codex/skills", "installed")
     captured = {}
 
@@ -322,3 +338,173 @@ def test_silent_update_only_passes_installed_skills_and_never_blocks_on_failure(
     assert captured["skill_filter"] == ["installed"]
     state = json.loads((tmp_path / ".bensz-skills/installation/state/silent-update.json").read_text(encoding="utf-8"))
     assert state["last_result"] == "failed"
+
+
+def test_managed_runtime_config_uses_owned_conda_prefix_and_latest_bsk():
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+
+    assert config["environment"] == {
+        "name": "benszapi",
+        "prefix": ".bensz-skills/envs/benszapi",
+        "python": "3.12",
+    }
+    assert config["update_ttl_hours"] == 72
+    assert config["packages"][0]["distribution"] == "bensz-skill-kernel"
+    assert config["packages"][0]["version_policy"] == "latest-production"
+
+
+def test_managed_runtime_prefix_cannot_escape_home(tmp_path):
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+    config["environment"]["prefix"] = "../outside"
+
+    with pytest.raises(managed_runtime.ManagedRuntimeError, match="escapes"):
+        managed_runtime.runtime_prefix(config, home=tmp_path)
+
+
+def test_managed_runtime_creates_updates_validates_and_installs_launcher(tmp_path, monkeypatch):
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+    prefix = managed_runtime.runtime_prefix(config, home=tmp_path)
+    calls = []
+
+    def completed(command, stdout=""):
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    def fake_checked_run(command, label, timeout=300):
+        command = [str(part) for part in command]
+        calls.append(command)
+        if "create" in command:
+            python = managed_runtime.runtime_python(prefix)
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            python.chmod(0o755)
+        elif command[1:4] == ["-m", "pip", "install"]:
+            bsk = managed_runtime.runtime_command(prefix, "bsk")
+            bsk.write_text("#!/bin/sh\nprintf 'managed-bsk\\n'\n", encoding="utf-8")
+            bsk.chmod(0o755)
+        if "-c" in command:
+            return completed(command, '{"bensz-skill-kernel": "2.1.2"}\n')
+        return completed(command)
+
+    monkeypatch.setattr(managed_runtime, "find_conda", lambda: "/fake/conda")
+    monkeypatch.setattr(managed_runtime, "_checked_run", fake_checked_run)
+
+    result = managed_runtime.ensure(config=config, home=tmp_path)
+
+    assert result["ready"] is True
+    assert result["created"] is True
+    assert result["updated"] is True
+    assert result["packages"] == {"bensz-skill-kernel": "2.1.2"}
+    assert calls[0][:5] == [
+        "/fake/conda", "create", "--yes", "--prefix", str(prefix)
+    ]
+    assert any("bensz-skill-kernel" in command for command in calls)
+    launcher = tmp_path / ".bensz-skills/bin/bsk"
+    assert launcher.is_file()
+    assert subprocess.check_output([launcher], text=True).strip() == "managed-bsk"
+    state = json.loads(managed_runtime.state_path(tmp_path).read_text(encoding="utf-8"))
+    assert state["prefix"] == "~/.bensz-skills/envs/benszapi"
+    assert str(tmp_path) not in json.dumps(state)
+
+
+def test_managed_runtime_reuses_healthy_environment_inside_ttl(tmp_path, monkeypatch):
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+    prefix = managed_runtime.runtime_prefix(config, home=tmp_path)
+    python = managed_runtime.runtime_python(prefix)
+    bsk = managed_runtime.runtime_command(prefix, "bsk")
+    python.parent.mkdir(parents=True)
+    python.touch()
+    bsk.touch()
+    managed_runtime._write_state(
+        {
+            "last_check_completed_at": int(time.time()),
+            "last_result": "success",
+            "packages": {"bensz-skill-kernel": "2.1.2"},
+        },
+        home=tmp_path,
+    )
+    calls = []
+
+    def fake_checked_run(command, label, timeout=300):
+        command = [str(part) for part in command]
+        calls.append(command)
+        stdout = '{"bensz-skill-kernel": "2.1.2"}\n' if "-c" in command else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(managed_runtime, "_checked_run", fake_checked_run)
+
+    result = managed_runtime.ensure(config=config, home=tmp_path)
+
+    assert result["ready"] is True
+    assert result["created"] is False
+    assert result["updated"] is False
+    assert not any(command[1:4] == ["-m", "pip", "install"] for command in calls)
+
+
+def test_managed_runtime_repairs_package_version_drift_inside_ttl(tmp_path, monkeypatch):
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+    prefix = managed_runtime.runtime_prefix(config, home=tmp_path)
+    python = managed_runtime.runtime_python(prefix)
+    bsk = managed_runtime.runtime_command(prefix, "bsk")
+    python.parent.mkdir(parents=True)
+    python.touch()
+    bsk.touch()
+    managed_runtime._write_state(
+        {
+            "last_check_completed_at": int(time.time()),
+            "last_result": "success",
+            "packages": {"bensz-skill-kernel": "2.1.2"},
+        },
+        home=tmp_path,
+    )
+    calls = []
+
+    def fake_checked_run(command, label, timeout=300):
+        command = [str(part) for part in command]
+        calls.append(command)
+        stdout = '{"bensz-skill-kernel": "1.0.0"}\n' if "-c" in command else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(managed_runtime, "_checked_run", fake_checked_run)
+
+    result = managed_runtime.ensure(config=config, home=tmp_path)
+
+    assert result["updated"] is True
+    assert any(command[1:4] == ["-m", "pip", "install"] for command in calls)
+
+
+def test_managed_runtime_dry_run_does_not_require_conda_or_write(tmp_path, monkeypatch):
+    config = managed_runtime.load_config(
+        ROOT / "skills/alpha/install-bensz-skills/scripts/managed-runtime.json"
+    )
+    monkeypatch.setattr(
+        managed_runtime,
+        "find_conda",
+        lambda: pytest.fail("dry-run must not resolve or execute Conda"),
+    )
+
+    result = managed_runtime.ensure(config=config, home=tmp_path, dry_run=True)
+
+    assert result["dry_run"] is True
+    assert result["would_create"] == "~/.bensz-skills/envs/benszapi"
+    assert not (tmp_path / ".bensz-skills").exists()
+
+
+def test_managed_runtime_lock_rejects_concurrent_update(tmp_path, monkeypatch):
+    lock = managed_runtime.state_path(tmp_path).with_name("managed-runtime.lock")
+    lock.parent.mkdir(parents=True)
+    lock.write_text("other-process", encoding="utf-8")
+    monkeypatch.setattr(managed_runtime, "LOCK_TIMEOUT_SECONDS", 0)
+
+    with pytest.raises(managed_runtime.ManagedRuntimeError, match="another process"):
+        with managed_runtime._runtime_lock(tmp_path):
+            pytest.fail("lock must not be acquired")

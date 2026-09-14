@@ -13,6 +13,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import shutil
 import sys
@@ -72,7 +73,7 @@ _configure_console_streams()
 
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.6.6"
+FALLBACK_CONFIG_VERSION = "0.7.0"
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 DOWNLOAD_RETRIES = 3
@@ -261,6 +262,35 @@ def _load_silent_state() -> dict:
         return {}
 
 
+def _installed_runtime_manager() -> Path | None:
+    for suffix in (
+        ".codex/skills/install-bensz-skills/scripts/managed_runtime.py",
+        ".claude/skills/install-bensz-skills/scripts/managed_runtime.py",
+    ):
+        candidate = Path.home() / suffix
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _managed_runtime_python() -> Path:
+    prefix = Path.home() / ".bensz-skills" / "envs" / "benszapi"
+    return prefix / ("python.exe" if os.name == "nt" else "bin/python")
+
+
+def _run_managed_runtime(command: str, *, force: bool = False, dry_run: bool = False) -> int:
+    manager = _installed_runtime_manager()
+    if manager is None:
+        print(json.dumps({"ready": False, "error": "managed runtime manager is not installed"}))
+        return 1
+    arguments = [sys.executable, str(manager), command]
+    if force:
+        arguments.append("--force-update")
+    if dry_run:
+        arguments.append("--dry-run")
+    return subprocess.run(arguments, check=False).returncode
+
+
 def _run_silent_update(lang: str) -> int:
     state = _load_silent_state()
     completed = state.get("last_check_completed_at")
@@ -276,15 +306,25 @@ def _run_silent_update(lang: str) -> int:
             continue
     installer = next((Path.home() / suffix for suffix in (".codex/skills/install-bensz-skills/scripts/install.py", ".claude/skills/install-bensz-skills/scripts/install.py") if (Path.home() / suffix).is_file()), None)
     if installer is not None:
+        manager = installer.with_name("managed_runtime.py")
+        if manager.is_file():
+            subprocess.run(
+                [sys.executable, str(manager), "ensure"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        managed_python = _managed_runtime_python()
+        installer_python = managed_python if managed_python.is_file() else Path(sys.executable)
         try:
             supports_silent = "--silent-update" in subprocess.check_output(
-                [sys.executable, str(installer), "--help"], text=True,
+                [str(installer_python), str(installer), "--help"], text=True,
                 stderr=subprocess.STDOUT, timeout=10,
             )
         except (OSError, subprocess.SubprocessError):
             supports_silent = False
         if supports_silent:
-            subprocess.run([sys.executable, str(installer), "--silent-update"],
+            subprocess.run([str(installer_python), str(installer), "--silent-update"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                            check=False)
             return 0
@@ -968,6 +1008,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skill", action="append", default=[], help="Install only selected skill names. Repeat or comma-separate values.")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Installer language. Default: en.")
     parser.add_argument("--silent-update", action="store_true", help="Refresh installed production skills after the 72-hour TTL.")
+    parser.add_argument("--ensure-runtime", action="store_true", help="Create or update the managed benszapi Conda runtime.")
+    parser.add_argument("--runtime-status", action="store_true", help="Inspect the managed benszapi runtime without changing it.")
+    parser.add_argument("--force-runtime-update", action="store_true", help="Ignore the runtime update TTL.")
     return parser
 
 
@@ -976,8 +1019,33 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     lang = args.lang
     ensure_python(lang)
+    if args.runtime_status:
+        if any((args.ensure_runtime, args.force_runtime_update, args.silent_update, args.codex,
+                args.claude, args.force, args.dry_run, args.check, args.source, args.skill)):
+            parser.error("--runtime-status cannot be combined with other operations")
+        return _run_managed_runtime("status")
+    if args.ensure_runtime or args.force_runtime_update:
+        if any((args.silent_update, args.codex, args.claude, args.force, args.check, args.source, args.skill)):
+            parser.error("managed runtime options cannot be combined with skill installation options")
+        if _installed_runtime_manager() is None:
+            if args.dry_run:
+                print(json.dumps({
+                    "ready": False,
+                    "dry_run": True,
+                    "would_install": "install-bensz-skills and managed benszapi runtime",
+                }))
+                return 0
+            install_code = main(["--source", "general", "--skill", "install-bensz-skills", "--lang", lang])
+            if install_code != 0:
+                return install_code
+        return _run_managed_runtime(
+            "ensure",
+            force=args.force_runtime_update,
+            dry_run=args.dry_run,
+        )
     if args.silent_update:
-        if any((args.codex, args.claude, args.force, args.dry_run, args.check, args.source, args.skill)):
+        if any((args.codex, args.claude, args.force, args.dry_run, args.check, args.source, args.skill,
+                args.ensure_runtime, args.runtime_status, args.force_runtime_update)):
             parser.error("--silent-update cannot be combined with install or filter options")
         return _run_silent_update(lang)
     dry_run = bool(args.dry_run or args.check)

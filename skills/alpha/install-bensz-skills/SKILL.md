@@ -1,7 +1,7 @@
 ---
 name: install-bensz-skills
 category: normal
-description: 当用户需要将本仓库的生产 Skill 安装或更新到系统级目录，使其可在任意项目或对话中发现和调用时使用。默认处理 alpha；只有用户明确指定时才处理 beta；支持 72 小时 TTL 到期后的静默增量更新。
+description: 当用户需要将生产 Skill 安装或更新到系统级目录，或需要创建、检查、更新统一的 benszapi Conda 运行环境与其中的 BSK 等托管 Python 工具时使用。默认处理 alpha；只有用户明确指定时才处理 beta；支持 72 小时 TTL 到期后的静默增量更新。
 metadata:
   author: Bensz Conan
   keywords:
@@ -32,7 +32,8 @@ metadata:
 - **安装选择**：可选 `--skill`、`--force`、`--dry-run`、`--source`，以及远程模式的 `--remote --check/--auto` 与源过滤参数。
 - **运行环境**：本地完整安装器要求 Python 3.11+；Python 3.8–3.10 仅支持标准库 bootstrap 的远程首次/应急安装。
 - **远程快速更新**：运行 `scripts/update_remote_skills.py`；它只影响远程安装，本地源码安装仍使用原有 MD5 策略。
-- **静默更新**：宿主在新任务/会话入口可调用 `python3 "$INSTALLER" --silent-update`；它只在 72 小时状态过期时检查，并且只更新已安装技能。
+- **托管运行时**：默认使用安装器独占的 `~/.bensz-skills/envs/benszapi` Conda prefix；当前托管最新版生产 BSK，包清单由 `scripts/managed-runtime.json` 定义。
+- **静默更新**：宿主在新任务/会话入口可调用 `python3 "$INSTALLER" --silent-update`；它只在 72 小时状态过期时检查，更新托管运行时，并增量更新已安装技能。
 
 ### 执行步骤
 
@@ -45,6 +46,28 @@ metadata:
 Python 3.8–3.10 只能使用标准库 bootstrap 进行远程首次/应急安装，不得调用本地完整安装器；若任务要求安装本地源码、显式 beta 目录或运行 Kernel，应说明必须升级到 Python 3.11+。Python 3.8 以下不受支持。
 
 本地安装器默认不会扫描历史 `pipelines/skills/alpha/`；仅迁移旧仓库时可显式传入 `--legacy-source`。bootstrap 最低支持 Python 3.8，仓库开发、本地完整安装器和 Kernel 统一要求 Python 3.11+。两入口写入同一 manifest 核心契约：`schema_version`、`source`、`target`、`target_root`、`skills[]`（名称、MD5、状态、原因）和运行时间；本地入口可附加实现细节。
+
+##### 托管 benszapi 运行时
+
+运行 BSK 前先确保系统级安装器可用，再执行：
+
+```bash
+# 创建缺失的 Conda 环境；超过 72 小时时更新到最新生产版并运行健康检查
+python3 "$INSTALLER" --ensure-runtime
+
+# 只读检查环境、已安装包版本和 BSK 健康状态
+python3 "$INSTALLER" --runtime-status
+
+# 忽略 TTL，立即检查并更新
+python3 "$INSTALLER" --force-runtime-update
+
+# 系统 Python 只有 3.8-3.10 或尚未安装完整安装器时，使用 bootstrap
+python3 /path/to/bootstrap_install.py --ensure-runtime
+```
+
+环境固定在 `~/.bensz-skills/envs/benszapi`，不采用或修改其它 Conda 安装中的同名环境。安装器依次查找 `BENSZ_CONDA_EXE`、`CONDA_EXE`、`conda`、`mamba`、`micromamba`；首次创建后直接使用该 prefix 的 Python 更新包，避免 PATH 和解释器错配。成功后生成 `~/.bensz-skills/bin/bsk`；Skill 与 AI 应调用这个固定入口，不调用 PATH 中来源不明的裸 `bsk`，也不通过系统 `python3` 导入 Kernel。
+
+`--ensure-runtime` 使用 72 小时 TTL；环境缺失、健康检查失败或实际包版本偏离上一次成功状态时不受 TTL 限制。更新完成后必须通过包版本读取、`bsk --version`、`bsk diagnostics` 和 `bsk capabilities`。更新失败时不删除已有环境；静默入口记录失败并继续当前任务，显式入口返回非零状态。
 
 ##### 本地安装
 
@@ -271,6 +294,9 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 | `--force` | 强制重新安装所有 skills（忽略 MD5 检查） |
 | `--skill` | 仅安装/更新指定 skill；可重复传入，也可用逗号分隔 |
 | `--source` | 指定额外的 skills 源目录路径 |
+| `--ensure-runtime` | 创建、按 TTL 更新并验证托管 benszapi 环境 |
+| `--runtime-status` | 只读检查托管环境，不联网、不写入 |
+| `--force-runtime-update` | 忽略 TTL，强制更新托管包 |
 
 ##### 远程安装参数
 
@@ -342,7 +368,7 @@ legacy_skill_names:
 
 ### 输出
 
-输出为目标平台安装/更新结果及 manifest（包含源、目标、Skill 名称、MD5、状态、原因和运行时间）；远程模式另保留远程仓库缓存并输出更新/安装报告。`--dry-run` 只报告计划不写入，默认仅处理 `skills/alpha`，beta 必须由 `--source` 显式指定。
+输出为目标平台安装/更新结果及 manifest（包含源、目标、Skill 名称、MD5、状态、原因和运行时间）；远程模式另保留远程仓库缓存并输出更新/安装报告。托管运行时输出环境就绪状态、脱敏 prefix、包版本和固定启动器路径，状态保存在 `~/.bensz-skills/installation/state/managed-runtime.json`。`--dry-run` 只报告计划不写入，默认仅处理 `skills/alpha`，beta 必须由 `--source` 显式指定。
 
 ### 输出管理
 
@@ -351,7 +377,7 @@ legacy_skill_names:
 
 ### 校验
 
-安装前校验 Python 版本、安装器来源、源目录和目标平台；安装后核对 manifest、MD5 状态、目标 `SKILL.md`/资源可发现性、legacy 清理结果以及 bootstrap 与本地入口的核心契约一致。失败或跳过项必须出现在报告中。
+安装前校验 Python 版本、安装器来源、源目录和目标平台；安装后核对 manifest、MD5 状态、目标 `SKILL.md`/资源可发现性、legacy 清理结果以及 bootstrap 与本地入口的核心契约一致。托管运行时还要核对固定 prefix、包元数据、启动器和 BSK 三项健康命令；失败或跳过项必须出现在报告中。
 
 ### 失败与恢复
 
@@ -364,6 +390,9 @@ legacy_skill_names:
 - **需要强制重装**：使用 `--force` 参数。
 - **Claude Code / Codex 都需要新会话**才会重新加载更新后的技能；安装后建议新建会话验证。
 - **如何回退到旧版本**：使用 Git 回退源代码后，重新运行安装脚本即可（不备份旧版本）。
+- **未找到 Conda/Mamba**：安装 Conda、Mamba 或 Micromamba，或通过 `BENSZ_CONDA_EXE` 显式指定可执行文件；不得回退到系统 Python 中的旧 BSK。
+- **托管 prefix 已存在但不是有效环境**：停止并报告，由用户确认该目录后再修复；不得自动删除未知内容。
+- **托管包更新失败**：保留现有环境和上一次成功状态。显式 `--ensure-runtime` 返回失败；`--silent-update` 只写入脱敏失败摘要，不阻塞当前业务任务。
 
 ##### 远程安装
 

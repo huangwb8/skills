@@ -115,11 +115,32 @@
 - 安装报告：显示哪些 skill 已安装/更新、哪些已跳过，以及跳过原因。
 - 平台级版本 manifest：`.skill-manifest.codex.json` 或 `.skill-manifest.claude.json`。
 - 安装历史记录：`~/.bensz-skills/installation/manifests/`。
+- Bensz 托管 Conda 环境：`~/.bensz-skills/envs/benszapi/`。
+- 固定工具入口：`~/.bensz-skills/bin/`；当前提供 `bsk`。
+- 托管运行时状态：`~/.bensz-skills/installation/state/managed-runtime.json`。
 - 远程安装临时目录：`~/.bensz-skills/installation/tmp-remote-install`，运行结束后会清理。
 - 远程仓库缓存：`~/.bensz-skills/installation/cache/remote-sources/`，重复远程更新时通过浅 fetch 增量更新；缓存损坏、GitHub reset 或 sparse 超时会自动重试，已有可用缓存时会复用 last-known-good 缓存完成本轮安装。
 - 远程源下载策略：`skills_path` 为 `.` 时浅克隆/浅 fetch 仓库根；`skills_path` 为子目录时优先 sparse checkout 该子目录；指定 `--skill` 时只 sparse checkout 目标 skill 目录。非 `--skill` 场景遇到 sparse/path 回退问题时才完整浅克隆。
 
 ## 参数速查
+
+### 托管 Python 工具
+
+```bash
+# 环境缺失时创建；超过 72 小时时更新 BSK；最后执行健康检查
+python3 "$INSTALLER" --ensure-runtime
+
+# 不联网、不写入，只检查环境和实际版本
+python3 "$INSTALLER" --runtime-status
+
+# 忽略 TTL，立即升级到最新生产版
+python3 "$INSTALLER" --force-runtime-update
+
+# 系统 Python 只有 3.8-3.10 或尚未安装完整安装器时
+python3 /path/to/bootstrap_install.py --ensure-runtime
+```
+
+安装器独占管理 `~/.bensz-skills/envs/benszapi`，不会采用或修改其它 Conda 发行版里的同名环境。它使用 Conda/Mamba/Micromamba 创建 Python 3.12 prefix，再由该环境自己的 Python 联合安装 `scripts/managed-runtime.json` 声明的最新生产包。当前只托管 `bensz-skill-kernel`；未来可在同一清单加入 BAC。成功后统一使用 `~/.bensz-skills/bin/bsk`，不依赖 `conda activate`、当前 PATH 或系统 `python3`。
 
 ### 通用参数
 
@@ -128,6 +149,9 @@
 | `--codex` | 只想更新 Codex | 只写入 `~/.codex/skills/` |
 | `--claude` | 只想更新 Claude Code | 只写入 `~/.claude/skills/` |
 | `--skill NAME` | 只想处理指定 skill | 可重复传入，也可用逗号分隔，如 `--skill a,b` |
+| `--ensure-runtime` | 创建或维护 Bensz Python 工具环境 | 按 TTL 更新并验证托管包 |
+| `--runtime-status` | 排查解释器或版本 | 只读输出实际环境状态 |
+| `--force-runtime-update` | 明确要求立即更新 | 忽略运行时 TTL |
 
 ### 本地安装参数
 
@@ -338,6 +362,14 @@ A：同名 skill 会按 MD5 对比并覆盖更新。想先看影响范围时，�
 
 A：在源仓库用 Git 回退到旧版本后重新运行安装器即可。安装器本身不备份旧目录。
 
+### Q：为什么不用用户已有的 `benszapi` 同名环境？
+
+A：同一台机器可能有多个 Conda 发行版，也可能存在用户自行维护的同名环境。安装器只管理固定 prefix `~/.bensz-skills/envs/benszapi`，避免误改未知依赖；“benszapi”是这个 prefix 的逻辑名称，不依赖 shell 激活。
+
+### Q：AI 应该怎样运行 BSK？
+
+A：先让系统级安装器执行 `--ensure-runtime`，随后使用 `~/.bensz-skills/bin/bsk`。不要调用 PATH 中来源不明的裸 `bsk`，也不要用系统 `python3` 导入 `bensz_skill_kernel`。
+
 ### 静默更新（后台入口）
 
 ```bash
@@ -346,4 +378,4 @@ python3 "$INSTALLER" --silent-update
 python3 /path/to/bootstrap_install.py --silent-update
 ```
 
-静默入口按 72 小时 TTL 限制远程检查，默认只更新 `general`/`skills/alpha` 中已安装的生产 Skill，并按 Codex 与 Claude Code 分别处理。它不会安装新 Skill、扫描 beta/legacy 或扩展用户额外源；旧版安装器会先由 bootstrap 安全升级自身。运行状态和失败摘要保存在 `~/.bensz-skills/installation/state/silent-update.json`。
+静默入口按 72 小时 TTL 限制远程检查，先创建或更新托管 benszapi 运行时，再更新 `general`/`skills/alpha` 中已安装的生产 Skill，并按 Codex 与 Claude Code 分别处理。它不会安装新的领域 Skill、扫描 beta/legacy 或扩展用户额外源；即使尚未安装其它 Skill，也会维护 BSK。旧版安装器会先由 bootstrap 安全升级自身。运行状态和脱敏失败摘要保存在 `~/.bensz-skills/installation/state/silent-update.json`。

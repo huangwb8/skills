@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "environment": {
+    "name": "benszapi",
+    "prefix": ".bensz-skills/envs/benszapi",
+    "python": "3.12"
+  },
+  "update_ttl_hours": 72,
+  "packages": [
+    {
+      "id": "bsk",
+      "distribution": "bensz-skill-kernel",
+      "command": "bsk",
+      "version_policy": "latest-production",
+      "health_checks": [
+        ["--version"],
+        ["diagnostics"],
+        ["capabilities"]
+      ]
+    }
+  ]
+}

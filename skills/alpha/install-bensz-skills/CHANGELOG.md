@@ -13,6 +13,9 @@
 ## [Unreleased]
 
 ### Added
+- 新增统一的 Bensz 托管 Conda 运行时：固定 prefix 为 `~/.bensz-skills/envs/benszapi`，当前按 72 小时 TTL 维护最新生产版 `bensz-skill-kernel`，并生成 `~/.bensz-skills/bin/bsk` 稳定入口。
+- 新增 `--ensure-runtime`、`--runtime-status` 与 `--force-runtime-update`；本地完整安装器和 Python 3.8+ bootstrap 均可进入该流程，后续可通过 `scripts/managed-runtime.json` 将 BAC 等包加入同一环境。
+- 新增创建、升级、健康检查、路径约束、状态脱敏、并发锁、版本漂移修复和 TTL 复用测试；静默更新即使没有其它已安装 Skill，也会维护托管 BSK，失败时保留当前环境并继续宿主任务。
 - 新增 `--silent-update` 静默入口：以 `~/.bensz-skills/installation/state/` 中的原子状态和 72 小时 TTL 控制检查频率，仅增量更新已安装 Skill；网络、缓存、安装或状态异常均保留 last-known-good 版本并不阻塞调用方。
 
 ### Added

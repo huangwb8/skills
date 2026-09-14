@@ -50,6 +50,7 @@ from remove_legacy_skills import (
     load_legacy_skill_names as _load_legacy_skill_names,
     remove_legacy_skills as _remove_legacy_skills,
 )
+from managed_runtime import ManagedRuntimeError, ensure as ensure_managed_runtime, status as managed_runtime_status
 
 _INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 MANIFEST_SCHEMA_VERSION = 1
@@ -227,12 +228,6 @@ def _run_silent_update(*, t: get_translator().__class__) -> int:
         if isinstance(completed, (int, float)) and time.time() - completed < SILENT_UPDATE_TTL_SECONDS:
             return 0
         platform_skills = {platform: _installed_skill_names(platform) for platform in ("codex", "claude")}
-        if not any(platform_skills.values()):
-            try:
-                _write_silent_update_state(result="empty-install-set", failure_kind="none", platforms=platform_skills)
-            except OSError:
-                pass
-            return 0
         output = io.StringIO()
         try:
             _write_silent_update_state(
@@ -242,18 +237,22 @@ def _run_silent_update(*, t: get_translator().__class__) -> int:
                 source={"id": "general", "repository": "https://github.com/huangwb8/skills", "branch": "main", "skills_path": "skills/alpha"},
             )
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-                code = _remote_install_main(
-                    auto_mode=True,
-                    install_codex=bool(platform_skills["codex"]),
-                    install_claude=bool(platform_skills["claude"]),
-                    source_filter=["general"],
-                    platform_skill_filters=platform_skills,
-                    skill_filter=sorted({name for names in platform_skills.values() for name in names}),
-                    t=t,
-                )
+                runtime = ensure_managed_runtime()
+                code = 0
+                if any(platform_skills.values()):
+                    code = _remote_install_main(
+                        auto_mode=True,
+                        install_codex=bool(platform_skills["codex"]),
+                        install_claude=bool(platform_skills["claude"]),
+                        source_filter=["general"],
+                        platform_skill_filters=platform_skills,
+                        skill_filter=sorted({name for names in platform_skills.values() for name in names}),
+                        t=t,
+                    )
             _write_silent_update_state(result="success" if code == 0 else "degraded",
                                        failure_kind="none" if code == 0 else "remote-or-install",
                                        error=output.getvalue(), platforms=platform_skills,
+                                       runtime=runtime,
                                        source={"id": "general", "skills_path": "skills/alpha"})
         except Exception as exc:
             try:
@@ -2112,6 +2111,21 @@ def main(argv: list[str]) -> int:
         action="store_true",
         help="在 72 小时 TTL 到期后静默增量更新已安装技能",
     )
+    parser.add_argument(
+        "--ensure-runtime",
+        action="store_true",
+        help="创建或更新 ~/.bensz-skills/envs/benszapi 托管运行时",
+    )
+    parser.add_argument(
+        "--runtime-status",
+        action="store_true",
+        help="只读检查 benszapi 托管运行时",
+    )
+    parser.add_argument(
+        "--force-runtime-update",
+        action="store_true",
+        help="忽略 72 小时 TTL，强制检查并更新托管运行时",
+    )
 
     # 加载配置以获取可用的源 ID（用于动态添加 --<id> 参数）
     config_path = Path(__file__).resolve().parents[1] / "config.yaml"
@@ -2140,8 +2154,29 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     selected_skill_names = _parse_skill_filter(args.skill)
 
+    if args.runtime_status:
+        if any((args.ensure_runtime, args.force_runtime_update, args.silent_update, args.remote,
+                args.check, args.auto, args.force, args.dry_run, args.source, selected_skill_names)):
+            print("错误: --runtime-status 不能与运行时写入参数组合使用")
+            return 1
+        runtime = managed_runtime_status()
+        print(json.dumps(runtime, ensure_ascii=False, indent=2))
+        return 0 if runtime.get("ready") else 1
+
+    if args.ensure_runtime or args.force_runtime_update:
+        if args.silent_update or args.remote or args.check or args.auto or args.force or args.source or selected_skill_names:
+            print("错误: 托管运行时参数不能与技能安装/筛选参数组合使用")
+            return 1
+        try:
+            runtime = ensure_managed_runtime(force_update=args.force_runtime_update, dry_run=args.dry_run)
+        except ManagedRuntimeError as exc:
+            print(f"错误: {exc}")
+            return 1
+        print(json.dumps(runtime, ensure_ascii=False, indent=2))
+        return 0
+
     if args.silent_update:
-        if args.remote or args.check or args.auto or args.force or args.source or selected_skill_names:
+        if args.remote or args.check or args.auto or args.force or args.source or selected_skill_names or args.dry_run:
             print("错误: --silent-update 不能与安装/检查/筛选参数组合使用")
             return 1
         return _run_silent_update(t=t)
