@@ -100,6 +100,9 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 # 只安装到 Codex 或 Claude Code
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
+
+# 创建或更新统一的 benszapi Conda 运行时与 BSK
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --ensure-runtime
 ```
 
 ### 本地安装与开发
@@ -117,11 +120,14 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --skill write-readm
 
 ### 更新已安装的技能
 
-本地安装器提供静默增量更新入口：`--silent-update` 在 72 小时 TTL 到期后更新已安装技能，不能与安装/检查/筛选参数组合使用。远程安装可改用快速版本检查脚本：它并发读取远端版本，仅在远程版本更高或本地缺失时才调用远程安装器，支持 `--check-only`、`--skill`、`--source-contains` 等参数。
+本地安装器提供静默增量更新入口：`--silent-update` 在 72 小时 TTL 到期后维护统一的 benszapi Conda 运行时并更新已安装技能，不能与安装/检查/筛选参数组合使用。远程安装可改用快速版本检查脚本：它并发读取远端版本，仅在远程版本更高或本地缺失时才调用远程安装器，支持 `--check-only`、`--skill`、`--source-contains` 等参数。
 
 ```bash
 # 静默增量更新（TTL 到期后执行）
 python3 skills/alpha/install-bensz-skills/scripts/install.py --silent-update
+
+# 显式创建或更新托管运行时；只读检查可改用 --runtime-status
+python3 skills/alpha/install-bensz-skills/scripts/install.py --ensure-runtime
 
 # 只检查远程版本差异，不安装
 python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --check-only
@@ -129,9 +135,11 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 ## Kernel
 
-`bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。它是独立包，不是安装 Skill 的前置依赖；已发布版本可通过 `python3 -m pip install bensz-skill-kernel` 直接安装。
+`bensz-skill-kernel` 要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。普通使用由安装器托管在 `~/.bensz-skills/envs/benszapi`，并通过 `~/.bensz-skills/bin/bsk` 固定入口调用，不依赖项目 Python、PATH 中的其它 `bsk` 或 `conda activate`。
 
 它提供 `bsk` 命令，帮助你管理任务阶段与分层运行身份、授权阶段内动作、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md)、[`docs/state-identity-protocol.md`](docs/state-identity-protocol.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
+
+源码开发仍使用仓库自己的隔离环境：
 
 ```bash
 python3 -m venv .bensz-api/.venv
@@ -143,11 +151,12 @@ python3 -m venv .bensz-api/.venv
 常用入口：
 
 ```bash
-bsk capabilities
-bsk state list
-bsk verifier list --tag citation
-bsk workspace init . --description citation-review
-bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
+BSK="$HOME/.bensz-skills/bin/bsk"
+"$BSK" capabilities
+"$BSK" state list
+"$BSK" verifier list --tag citation
+"$BSK" workspace init . --description citation-review
+"$BSK" workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
 ## 目录与工作区

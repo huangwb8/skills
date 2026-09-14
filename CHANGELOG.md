@@ -1,5 +1,8 @@
 # Changelog
 
+- `bensz-skill-kernel` 更新至 2.2.0：`config.yaml.runtime.kernel.version` 改为最低兼容版本语义，并支持 `required_capabilities` 门禁；新版 Kernel 可以运行声明旧最低版本的 Skill，低于最低版本或缺少明确能力时仍失败关闭。
+- `install-bensz-skills` 新增由安装器独占管理的 `~/.bensz-skills/envs/benszapi` Conda 运行时，当前统一维护最新生产版 BSK，并生成固定 `~/.bensz-skills/bin/bsk` 入口；本地完整安装器与 Python 3.8+ bootstrap 新增 ensure/status/force-update 入口，静默更新按 72 小时 TTL 同步维护运行时，避免 PATH 与系统 Python 加载不同 Kernel。
+
 All notable changes to the skills repository will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),

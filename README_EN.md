@@ -98,6 +98,9 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 # Install to Codex or Claude Code only
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --codex
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --claude
+
+# Create or update the shared benszapi Conda runtime and BSK
+python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --ensure-runtime
 ```
 
 ### Local installation and development
@@ -115,11 +118,14 @@ Install manifests, MD5 records, and remote caches live under `~/.bensz-skills/in
 
 ### Updating installed Skills
 
-The local installer ships a silent incremental update entry: `--silent-update` refreshes installed Skills once the 72-hour TTL has expired and cannot be combined with install/check/filter options. For remote installations, use the fast version checker instead: it reads remote versions concurrently and invokes the remote installer only when the remote version is newer or missing locally, with options such as `--check-only`, `--skill`, and `--source-contains`.
+The local installer ships a silent incremental update entry: `--silent-update` maintains the shared benszapi Conda runtime and refreshes installed Skills once the 72-hour TTL has expired. It cannot be combined with install/check/filter options. For remote installations, use the fast version checker instead: it reads remote versions concurrently and invokes the remote installer only when the remote version is newer or missing locally, with options such as `--check-only`, `--skill`, and `--source-contains`.
 
 ```bash
 # Silent incremental update (runs once the TTL has expired)
 python3 skills/alpha/install-bensz-skills/scripts/install.py --silent-update
+
+# Explicitly create or update the managed runtime; use --runtime-status for a read-only check
+python3 skills/alpha/install-bensz-skills/scripts/install.py --ensure-runtime
 
 # Check remote version drift only, without installing
 python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --check-only
@@ -127,9 +133,11 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 ## Kernel
 
-`bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. It is independent from Skill installation; published releases can be installed directly with `python3 -m pip install bensz-skill-kernel`.
+`bensz-skill-kernel` requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. For ordinary use, the installer manages it in `~/.bensz-skills/envs/benszapi` and exposes `~/.bensz-skills/bin/bsk`; this avoids project-Python, PATH, and shell-activation ambiguity.
 
 It provides the `bsk` command for managing task stages and layered run identities, authorizing in-stage actions, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), [`docs/state-identity-protocol.md`](docs/state-identity-protocol.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
+
+Source development still uses the repository's isolated environment:
 
 ```bash
 python3 -m venv .bensz-api/.venv
@@ -141,11 +149,12 @@ python3 -m venv .bensz-api/.venv
 Common entry points:
 
 ```bash
-bsk capabilities
-bsk state list
-bsk verifier list --tag citation
-bsk workspace init . --description citation-review
-bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
+BSK="$HOME/.bensz-skills/bin/bsk"
+"$BSK" capabilities
+"$BSK" state list
+"$BSK" verifier list --tag citation
+"$BSK" workspace init . --description citation-review
+"$BSK" workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
 ## Layout and workspaces
