@@ -119,17 +119,17 @@ B轮：质量原则检查 → 针对性优化 → 轻量验证
 为避免每轮手工创建目录与文档骨架，推荐使用：
 
 ```bash
-python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --id vYYYYMMDDHHMM --create-plan
+python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --kind a --id vYYYYMMDDHHMM --create-plan
 
 # 或：省略 --id 自动生成 vYYYYMMDDHHMM
-python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --create-plan
+python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --kind a --create-plan
 ```
 
 验证会话完整性（推荐，避免“空报告/占位符残留”）：
 
 ```bash
 # 在目标 skill 根目录内执行
-python3 /path/to/auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/vYYYYMMDDHHMM
+python3 /path/to/auto-test-skill/scripts/verify_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --require-plan /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description/auto-test-skill/output/tests/vYYYYMMDDHHMM
 ```
 
 说明：

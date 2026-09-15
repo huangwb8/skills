@@ -12,8 +12,8 @@ from pathlib import Path
 _TEST_ID_RE = re.compile(r"^v\d{12}$")
 
 _DEFAULT_DIRECTORIES = {
-    "plans": "plans",
-    "tests": "tests",
+    "plans": "output/plans",
+    "tests": "output/tests",
 }
 
 _DEFAULT_TEMPLATES = {
@@ -240,7 +240,12 @@ def main() -> int:
     parser.add_argument(
         "--skill-root",
         required=True,
-        help="Target Skill root directory (must contain SKILL.md).",
+        help="Target Skill source directory (must contain SKILL.md); never used for artifacts.",
+    )
+    parser.add_argument(
+        "--task-root",
+        required=True,
+        help="Locked project task root under .bensz-api/task-*; artifacts are written below its auto-test-skill/ child.",
     )
     parser.add_argument(
         "--kind",
@@ -280,6 +285,13 @@ def main() -> int:
     if not (skill_root / "SKILL.md").exists():
         _fail(parser, f"--skill-root is not a Skill directory (missing SKILL.md): {skill_root}")
 
+    task_root = Path(args.task_root).expanduser().resolve()
+    if not task_root.exists() or not task_root.is_dir() or task_root.is_symlink():
+        _fail(parser, f"--task-root must be an existing real directory: {task_root}")
+    bensz_root = task_root.parent
+    if bensz_root.name != ".bensz-api" or not task_root.name.startswith("task-"):
+        _fail(parser, f"--task-root must be a direct .bensz-api/task-* directory: {task_root}")
+
     try:
         kind = _normalize_kind(args.kind)
     except ValueError as exc:
@@ -293,21 +305,22 @@ def main() -> int:
         )
 
     bundled_skill_root = Path(__file__).resolve().parent.parent
-    # Read config from target skill first (if it provides directories/templates),
-    # otherwise fall back to auto-test-skill's own config.yaml.
+    # Artifact directories belong to this Skill's task workspace. Target Skill
+    # config may provide templates, but must not redirect test artifacts.
     target_cfg = _load_config_sections(skill_root / "config.yaml")
     bundled_cfg = _load_config_sections(bundled_skill_root / "config.yaml")
     directories = _merge_section(
         base=_DEFAULT_DIRECTORIES,
-        override=target_cfg.get("directories") or bundled_cfg.get("directories"),
+        override=bundled_cfg.get("directories"),
     )
     templates = _merge_section(
         base=_DEFAULT_TEMPLATES,
         override=target_cfg.get("templates") or bundled_cfg.get("templates"),
     )
 
-    plans_dir = skill_root / _safe_rel_path(directories.get("plans", ""), default=_DEFAULT_DIRECTORIES["plans"])
-    tests_dir = skill_root / _safe_rel_path(directories.get("tests", ""), default=_DEFAULT_DIRECTORIES["tests"])
+    workspace_root = task_root / bundled_skill_root.name
+    plans_dir = workspace_root / _safe_rel_path(directories.get("plans", ""), default=_DEFAULT_DIRECTORIES["plans"])
+    tests_dir = workspace_root / _safe_rel_path(directories.get("tests", ""), default=_DEFAULT_DIRECTORIES["tests"])
 
     def template_path(config_key: str) -> Path | None:
         rel = _safe_rel_path(templates.get(config_key, ""), default="")
@@ -319,8 +332,9 @@ def main() -> int:
             rel_path=rel,
         )
 
-    _ensure_dir_within_root(parser, skill_root=skill_root, path=plans_dir, label="plans directory")
-    _ensure_dir_within_root(parser, skill_root=skill_root, path=tests_dir, label="tests directory")
+    _ensure_dir_within_root(parser, skill_root=task_root, path=workspace_root, label="Skill workspace")
+    _ensure_dir_within_root(parser, skill_root=task_root, path=plans_dir, label="plans directory")
+    _ensure_dir_within_root(parser, skill_root=task_root, path=tests_dir, label="tests directory")
 
     template_values: dict[str, str] = {
         "TEST_ID": test_id,
@@ -358,10 +372,10 @@ def main() -> int:
 
     template_values["ROUND_KIND"] = round_kind
     template_values["SESSION_NAME"] = session_name
-    template_values["PLAN_DOC_PATH"] = plan_doc_path.relative_to(skill_root).as_posix()
+    template_values["PLAN_DOC_PATH"] = plan_doc_path.relative_to(task_root).as_posix()
 
     # Provide session-relative paths to avoid hardcoding "tests/" in templates.
-    session_dir_rel = (tests_dir / session_name).relative_to(skill_root).as_posix()
+    session_dir_rel = (tests_dir / session_name).relative_to(task_root).as_posix()
     template_values["SESSION_DIR_REL"] = session_dir_rel
     template_values["TEST_PLAN_REL"] = f"{session_dir_rel}/TEST_PLAN.md"
     template_values["TEST_REPORT_REL"] = f"{session_dir_rel}/TEST_REPORT.md"
@@ -387,7 +401,7 @@ def main() -> int:
             )
 
     session_dir = tests_dir / session_name
-    _ensure_dir_within_root(parser, skill_root=skill_root, path=session_dir, label="session directory")
+    _ensure_dir_within_root(parser, skill_root=task_root, path=session_dir, label="session directory")
     _ensure_dir(session_dir / "_artifacts")
     _ensure_dir(session_dir / "_scripts")
 

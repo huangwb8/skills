@@ -23,17 +23,6 @@ def _fail(message: str) -> typing.NoReturn:
     raise SystemExit(2)
 
 
-def _find_skill_root(start: Path) -> Path | None:
-    p = start
-    for _ in range(20):
-        if (p / "SKILL.md").exists():
-            return p
-        if p.parent == p:
-            return None
-        p = p.parent
-    return None
-
-
 def _strip_inline_comment(value: str) -> str:
     if "#" not in value:
         return value
@@ -83,10 +72,7 @@ def _load_directories(config_path: Path) -> dict[str, str]:
     return {str(k): str(v) for k, v in out.items()}
 
 
-def _load_effective_directories(skill_root: Path) -> dict[str, str]:
-    target_dirs = _load_directories(skill_root / "config.yaml")
-    if target_dirs:
-        return target_dirs
+def _load_effective_directories() -> dict[str, str]:
     bundled_root = Path(__file__).resolve().parent.parent
     return _load_directories(bundled_root / "config.yaml")
 
@@ -140,6 +126,7 @@ def verify_test_session(
     *,
     session_dir: Path,
     skill_root: Path,
+    task_root: Path,
     require_plan: bool,
 ) -> list[Issue]:
     issues: list[Issue] = []
@@ -147,15 +134,22 @@ def verify_test_session(
     if not session_dir.exists() or not session_dir.is_dir():
         return [Issue("P0", f"session_dir is not a directory: {session_dir}")]
 
-    directories = _load_effective_directories(skill_root)
-    tests_dir = skill_root / _safe_rel_path(directories.get("tests", ""), default="tests")
-    if tests_dir.exists():
+    directories = _load_effective_directories()
+    workspace_root = task_root / Path(__file__).resolve().parent.parent.name
+    tests_dir = workspace_root / _safe_rel_path(directories.get("tests", ""), default="output/tests")
+    if not tests_dir.exists():
+        issues.append(Issue("P0", f"configured tests directory does not exist: {tests_dir}"))
+    else:
         if tests_dir.is_symlink():
             issues.append(Issue("P1", f"tests directory is a symlink (discouraged): {tests_dir}"))
         try:
             session_dir.resolve().relative_to(tests_dir.resolve())
         except Exception:
             issues.append(Issue("P1", f"session_dir is not under configured tests directory: {tests_dir}"))
+    try:
+        session_dir.resolve().relative_to(task_root)
+    except ValueError:
+        issues.append(Issue("P0", f"session_dir resolves outside task_root: {session_dir}"))
 
     kind_info = _classify_session(session_dir)
     if kind_info is None:
@@ -183,7 +177,7 @@ def verify_test_session(
 
     plan_path: Path | None = None
     if require_plan and kind in {"a", "b"} and test_id:
-        plans_dir = skill_root / _safe_rel_path(directories.get("plans", ""), default="plans")
+        plans_dir = workspace_root / _safe_rel_path(directories.get("plans", ""), default="output/plans")
         if kind == "a":
             plan_path = plans_dir / f"{test_id}.md"
         else:
@@ -247,11 +241,11 @@ def verify_test_session(
             if ref_path.is_absolute() or ".." in ref_path.parts:
                 issues.append(Issue("P0", f"{label} has unsafe plan path: {ref}"))
                 continue
-            abs_ref = (skill_root / ref_path).resolve()
+            abs_ref = (task_root / ref_path).resolve()
             try:
-                abs_ref.relative_to(skill_root)
+                abs_ref.relative_to(task_root)
             except ValueError:
-                issues.append(Issue("P0", f"{label} plan path resolves outside skill_root: {ref} -> {abs_ref}"))
+                issues.append(Issue("P0", f"{label} plan path resolves outside task_root: {ref} -> {abs_ref}"))
                 continue
             if not abs_ref.exists():
                 issues.append(Issue("P0", f"{label} references missing plan doc: {ref}"))
@@ -266,12 +260,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an auto-test-skill test session directory for completeness.")
     parser.add_argument(
         "session_dir",
-        help="Session directory path (e.g. .bensz-api/skills/auto-test-skill/output/tests/vYYYYMMDDHHMM or .bensz-api/skills/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM).",
+        help="Session directory under .bensz-api/task-*/auto-test-skill/output/tests/.",
     )
     parser.add_argument(
         "--skill-root",
-        default="",
-        help="Explicit skill root (must contain SKILL.md). If omitted, auto-detect by walking up from session_dir.",
+        required=True,
+        help="Target Skill source directory (must contain SKILL.md).",
+    )
+    parser.add_argument(
+        "--task-root",
+        required=True,
+        help="Locked project task root under .bensz-api/task-*.",
     )
     parser.add_argument(
         "--require-plan",
@@ -281,17 +280,19 @@ def main() -> int:
     args = parser.parse_args()
 
     session_dir = Path(args.session_dir).expanduser()
-    if args.skill_root.strip():
-        skill_root = Path(args.skill_root).expanduser().resolve()
-        if not (skill_root / "SKILL.md").exists():
-            _fail(f"--skill-root is not a Skill directory (missing SKILL.md): {skill_root}")
-    else:
-        resolved_session = session_dir.resolve()
-        skill_root = _find_skill_root(resolved_session) or _fail(f"could not locate skill root from: {resolved_session}")
+    skill_root = Path(args.skill_root).expanduser().resolve()
+    if not (skill_root / "SKILL.md").exists():
+        _fail(f"--skill-root is not a Skill directory (missing SKILL.md): {skill_root}")
+    task_root = Path(args.task_root).expanduser().resolve()
+    if not task_root.exists() or not task_root.is_dir() or task_root.is_symlink():
+        _fail(f"--task-root must be an existing real directory: {task_root}")
+    if task_root.parent.name != ".bensz-api" or not task_root.name.startswith("task-"):
+        _fail(f"--task-root must be a direct .bensz-api/task-* directory: {task_root}")
 
     issues = verify_test_session(
         session_dir=session_dir.resolve(),
         skill_root=skill_root,
+        task_root=task_root,
         require_plan=args.require_plan,
     )
 

@@ -15,7 +15,7 @@ metadata:
 
 ## 目标
 
-当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。通过多轮 A 轮批判性测试 + B 轮质量原则检查，系统化发现、记录、修复问题，并沉淀可追溯的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 文档。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问技能问题（应直接回答）、没有明确"测试"意图。
+当用户明确要求"测试技能"、"运行 auto-test"或"进行批判性测试"时使用。通过多轮 A 轮批判性测试 + B 轮质量原则检查，系统化发现、记录、修复问题，并将中间产物写入调用方锁定的 `.bensz-api/task-*/auto-test-skill/` 工作区。⚠️ 不适用：用户只是想优化功能（应直接修改）、只是询问技能问题（应直接回答）、没有明确"测试"意图。
 
 ## 流程
 
@@ -54,16 +54,16 @@ B轮：质量原则检查 → 针对性优化 → 轻量验证
 
 ###### A.1 初始化会话（生成测试 ID + 目录）
 
-目标：创建本轮的 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/plans/` 与 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/` 骨架。
+目标：在已锁定的 `--task-root` 下创建本轮 `auto-test-skill/output/plans/` 与 `auto-test-skill/output/tests/` 骨架，不向被测 Skill 源目录写入产物。
 
 推荐使用确定性脚本（避免 AI 每次手动拼目录/文件名）：
 
 ```bash
-# 方式1：在目标 skill 根目录内执行（--skill-root .）
-python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . --kind a --id vYYYYMMDDHHMM --create-plan
+# 复用已锁定的项目任务目录
+python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --kind a --id vYYYYMMDDHHMM --create-plan
 
 # 方式2：在任意位置执行（--skill-root 指向目标 skill 根目录）
-python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --kind a --id vYYYYMMDDHHMM --create-plan
+python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --kind a --id vYYYYMMDDHHMM --create-plan
 ```
 
 说明：
@@ -136,7 +136,7 @@ python3 auto-test-skill/scripts/create_test_session.py --skill-root /path/to/tar
 可选增强（推荐，确定性自检）：
 
 ```bash
-python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/vYYYYMMDDHHMM
+python3 auto-test-skill/scripts/verify_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --require-plan /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description/auto-test-skill/output/tests/vYYYYMMDDHHMM
 ```
 
 ###### A.4 是否进入下一轮
@@ -193,7 +193,7 @@ python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api
 可选增强（推荐，确定性自检）：
 
 ```bash
-python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM
+python3 auto-test-skill/scripts/verify_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --require-plan /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM
 ```
 
 **完成条件**：
@@ -207,7 +207,7 @@ python3 auto-test-skill/scripts/verify_test_session.py --require-plan .bensz-api
 推荐创建独立会话目录：
 
 ```bash
-python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root . --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM --create-plan
+python3 /path/to/auto-test-skill/scripts/create_test_session.py --skill-root /path/to/target-skill --task-root /path/to/project/.bensz-api/task-YYYYMMDD-HHMM-description --kind b --id vYYYYMMDDHHMM --a-test-id vYYYYMMDDHHMM --create-plan
 ```
 
 输出：`.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-test-skill/output/tests/B轮-vYYYYMMDDHHMM/TEST_REPORT.md`

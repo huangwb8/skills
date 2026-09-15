@@ -20,10 +20,9 @@ skill_info:
 # ============================================================================
 
 directories:
-  # 规划文档目录（相对于 skill 根目录）
-  plans: ".bensz-api/skills/auto-test-skill/output/plans"
-  # 测试目录（相对于 skill 根目录）
-  tests: ".bensz-api/skills/auto-test-skill/output/tests"
+  # 相对于 <task-root>/auto-test-skill/；不写入被测 Skill 源目录
+  plans: "output/plans"
+  tests: "output/tests"
 
 # ============================================================================
 # 文档模板配置（脚本会读取）

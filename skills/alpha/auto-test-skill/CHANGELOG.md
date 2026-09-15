@@ -5,6 +5,9 @@
 ## [Unreleased]
 
 ### Changed（变更）
+- 计划与测试会话改由显式 `--task-root` 托管到项目根 `.bensz-api/task-*/auto-test-skill/output/`；`--skill-root` 仅作为被测源目录，不再承载中间产物。
+- `directories.plans/tests` 改为相对于任务内 `auto-test-skill/` 的 `output/plans` 与 `output/tests`，验证脚本同步采用同一解析基准。
+
 - 版本升级：2.3.0 → 2.3.1；将计划与测试会话默认目录从目标 skill 根 `plans/` / `tests/` 收敛到 `.bensz-api/skills/auto-test-skill/output/plans/` 与 `.bensz-api/skills/auto-test-skill/output/tests/`，同步更新 `SKILL.md`、README、references 与脚本说明。
 
 ### Added（新增）
