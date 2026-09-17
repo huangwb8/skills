@@ -45,14 +45,18 @@ def _extract_frontmatter(text: str) -> str | None:
 def main() -> int:
     root = _skill_root()
     config_path = root / "config.yaml"
-    tmpl_path = root / "templates" / "Rmd_template.Rmd"
+    tmpl_paths = [
+        root / "templates" / "Rmd_template.Rmd",
+        root / "templates" / "Rmd_simple_template.Rmd",
+    ]
 
     if not config_path.exists():
         print(f"[FAIL] missing: {config_path}", file=sys.stderr)
         return 2
-    if not tmpl_path.exists():
-        print(f"[FAIL] missing: {tmpl_path}", file=sys.stderr)
-        return 2
+    for tmpl_path in tmpl_paths:
+        if not tmpl_path.exists():
+            print(f"[FAIL] missing: {tmpl_path}", file=sys.stderr)
+            return 2
 
     cfg = _load_yaml(config_path) or {}
     if not isinstance(cfg, dict):
@@ -68,29 +72,27 @@ def main() -> int:
         print("[FAIL] missing config.yaml:rmd_template.yaml_header mapping.", file=sys.stderr)
         return 2
 
-    fm = _extract_frontmatter(tmpl_path.read_text(encoding="utf-8", errors="replace"))
-    if fm is None:
-        print("[FAIL] templates/Rmd_template.Rmd does not start with YAML frontmatter.", file=sys.stderr)
-        return 1
+    for tmpl_path in tmpl_paths:
+        fm = _extract_frontmatter(tmpl_path.read_text(encoding="utf-8", errors="replace"))
+        if fm is None:
+            print(f"[FAIL] {tmpl_path.name} does not start with YAML frontmatter.", file=sys.stderr)
+            return 1
+        try:
+            tmpl_header = yaml.safe_load(fm) or {}
+        except Exception as e:
+            print(f"[FAIL] failed to parse {tmpl_path.name} frontmatter as YAML: {e}", file=sys.stderr)
+            return 1
+        if tmpl_header != cfg_header:
+            dumped_cfg = yaml.safe_dump(cfg_header, sort_keys=True, allow_unicode=False)
+            dumped_tmpl = yaml.safe_dump(tmpl_header, sort_keys=True, allow_unicode=False)
+            print(f"[FAIL] YAML header mismatch: {tmpl_path.name}", file=sys.stderr)
+            print("--- config.yaml:rmd_template.yaml_header", file=sys.stderr)
+            print(dumped_cfg, file=sys.stderr)
+            print(f"--- {tmpl_path.name} frontmatter", file=sys.stderr)
+            print(dumped_tmpl, file=sys.stderr)
+            return 1
 
-    try:
-        tmpl_header = yaml.safe_load(fm) or {}
-    except Exception as e:
-        print(f"[FAIL] failed to parse template frontmatter as YAML: {e}", file=sys.stderr)
-        return 1
-
-    if tmpl_header != cfg_header:
-        # Human-friendly diff-ish output (YAML dumps).
-        dumped_cfg = yaml.safe_dump(cfg_header, sort_keys=True, allow_unicode=False)
-        dumped_tmpl = yaml.safe_dump(tmpl_header, sort_keys=True, allow_unicode=False)
-        print("[FAIL] YAML header mismatch between config.yaml and templates/Rmd_template.Rmd.", file=sys.stderr)
-        print("--- config.yaml:rmd_template.yaml_header", file=sys.stderr)
-        print(dumped_cfg, file=sys.stderr)
-        print("--- templates/Rmd_template.Rmd frontmatter", file=sys.stderr)
-        print(dumped_tmpl, file=sys.stderr)
-        return 1
-
-    print("[PASS] YAML header matches config.yaml:rmd_template.yaml_header")
+    print("[PASS] Rmd template YAML headers match config.yaml:rmd_template.yaml_header")
     return 0
 
 

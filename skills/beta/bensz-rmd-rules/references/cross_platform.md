@@ -1,143 +1,69 @@
-# 跨平台兼容性最佳实践
+# 跨平台路径与文件 I/O
 
-## 核心规则
+## 新项目边界
 
-始终使用相对路径，避免绝对路径。
-
-## 路径拼接
-
-使用 `file.path()` 自动处理路径分隔符：
+从项目根目录构造相对路径，并用 `file.path()` 适配 Windows、macOS 与 Linux：
 
 ```r
-# 推荐：file.path() 自动适配平台
-input_path <- file.path("data", "raw", "expression.csv")
-output_path <- file.path("tmp", "results", "figure1.png")
-
-# 避免：手动拼接路径分隔符
-# input_path <- "data/raw/expression.csv"  # 仅适用于当前系统
-# input_path <- "data\\raw\\expression.csv"  # Windows 专用
+input_path <- file.path("raw", "expression.tsv")
+product_path <- file.path("products", "main", "01.00.00. 数据整理", "main.rds")
+figure_path <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")
 ```
 
-## 文件 I/O 最佳实践
+- `raw/` 只读；不得把清洗结果或缓存写回。
+- 完整可恢复数据写 `products/`，正式图表/表格写 `reports/`。
+- Rmd 与同名 HTML 位于项目根目录。
+- AI 日志、预览和检查结果写当前 `.bensz-api/task-*`，由宿主传入任务根目录。
 
-### 读取文件
+编号单元名称同时作为文件名和产品目录名，必须兼容 Windows：不得包含 `< > : " / \\ | ? *` 或控制字符，不得以点/空格结尾，也不得使用 `CON`、`PRN`、`AUX`、`NUL`、`COM1`–`COM9`、`LPT1`–`LPT9` 等设备保留名。
 
-```r
-# 推荐：相对路径 + file.path()
-data <- read.csv(file.path("data", "input.csv"))
+不要手写 `/` 或 `\\` 拼接路径，也不要硬编码用户名、盘符、`/tmp` 或本机绝对路径。
 
-# 推荐：使用 here/here 包（如已安装）
-if (requireNamespace("here", quietly = TRUE)) {
-  data <- read.csv(here::here("data", "input.csv"))
-}
-```
-
-### 写入文件
+## 读取与写入
 
 ```r
-# 推荐：输出到临时文件夹
-output_dir <- file.path("tmp", "analysis")
+if (!file.exists(input_path)) stop("Missing raw input: ", input_path)
+data <- utils::read.delim(input_path, check.names = FALSE, fileEncoding = "UTF-8")
+
+output_dir <- file.path("reports", "tables")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-output_file <- file.path(output_dir, "result.csv")
-write.csv(data, output_file)
+utils::write.table(
+  data,
+  file.path(output_dir, "02.00.00. 主要结果.tsv"),
+  sep = "\t",
+  row.names = FALSE,
+  quote = TRUE,
+  fileEncoding = "UTF-8"
+)
 ```
 
-### 可选：安全写入/读取封装（统一分隔符与编码）
+checkpoint 不要自行实现通用写入；复用 `templates/checkpoint_helpers.R`，由完成标记保证半成品不会命中。
+
+## 项目根与 Skill 根
+
+用户分析代码以项目根为当前目录。Skill 自带脚本和资产必须从 Skill 文件自身位置解析，文档命令用 `<skill-root>/scripts/...` 表示，不假设用户当前目录是 Skill 根。
+
+验证项目路径：
+
+```bash
+Rscript <skill-root>/scripts/validate_paths.R /path/to/project
+```
+
+## 旧 `tmp/` 项目
+
+只有检测到现有脚本/Rmd 实际引用 `tmp/{主脚本名}/`，或用户显式声明 legacy 模式时，才继续使用旧路径。此时只做非破坏维护，不把下面写法复制到新项目：
 
 ```r
-# 安全写入 CSV 函数示例
-.dvmut_safe_write_csv <- function(data, path, ...) {
-  # 规范化路径（统一使用正斜杠）
-  path <- normalizePath(path, winslash = "/", mustWork = FALSE)
-  # 确保目录存在
-  dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
-  # 写入数据（统一使用 UTF-8 编码）
-  utils::write.csv(data, path, row.names = FALSE, fileEncoding = "UTF-8", ...)
-  invisible(path)
-}
-
-# 安全读取 CSV 函数示例
-.dvmut_safe_read_csv <- function(path, ...) {
-  if (!file.exists(path)) return(NULL)
-  tryCatch(
-    utils::read.csv(path, stringsAsFactors = FALSE, ...),
-    error = function(e) {
-      warning("Failed to read ", path, ": ", e$message)
-      NULL
-    }
-  )
-}
+# Legacy only
+legacy_output <- file.path("tmp", "existing-analysis", "result.rds")
 ```
 
-使用示例：
+## 检查清单
 
-```r
-.dvmut_safe_write_csv(micro_data, "output/micro_continuous.csv")
-data <- .dvmut_safe_read_csv("output/micro_continuous.csv")
-if (is.null(data)) stop("Failed to load data")
-```
-
-### 路径存在性检查
-
-```r
-# 推荐：先检查再使用
-if (file.exists("00.Environment.R")) {
-  source("00.Environment.R")
-} else {
-  stop("Required file not found: 00.Environment.R")
-}
-```
-
-## 路径验证工具（可选）
-
-为确保跨平台兼容性，可使用路径验证脚本：
-
-```r
-# 方式 1：在 R 中运行
-source("bensz-rmd-rules/scripts/validate_paths.R")
-validate_project_paths(project_dir = ".")
-
-# 方式 2：从命令行运行
-Rscript bensz-rmd-rules/scripts/validate_paths.R /path/to/project
-```
-
-## 平台差异处理
-
-### 换行符处理
-
-```r
-# 读取文件时统一换行符
-data <- read.csv(file.path("data", "input.csv"),
-                 fileEncoding = "UTF-8")
-
-# 写出文件时指定换行符
-write.csv(data, file.path("tmp", "output.csv"),
-          fileEncoding = "UTF-8")
-```
-
-### 环境变量
-
-```r
-# 如需使用环境变量，跨平台获取路径
-# Rproj_root <- Sys.getenv("R_PROJECT_ROOT")
-# if (Rproj_root == "") {
-#   Rproj_root <- getwd()
-# }
-```
-
-## 常见陷阱
-
-| 陷阱 | 问题 | 解决方案 |
-|------|------|----------|
-| 硬编码用户名 | `/Users/username/...` 不可移植 | 使用相对路径或项目根目录 |
-| 混用路径分隔符 | Windows 用 `\`，Unix 用 `/` | 始终使用 `file.path()` |
-| 绝对路径 | 代码无法在其他设备运行 | 从项目根目录的相对路径开始 |
-| 路径大小写 | Windows 不敏感，Unix 敏感 | 统一使用小写文件名和目录 |
-
-## 跨平台测试清单
-
-- [ ] 所有路径是否使用相对路径？
-- [ ] 路径拼接是否使用 `file.path()`？
-- [ ] 文件 I/O 是否检查了路径存在性？
-- [ ] 是否避免了硬编码用户名或系统路径？
-- [ ] 文件名是否统一使用小写（避免大小写问题）？
+- [ ] 路径由 `file.path()` 构造，且从项目根或已解析的 Skill 根开始。
+- [ ] `raw/` 只有读取，没有写入、移动、覆盖或删除。
+- [ ] `products/`、`reports/`、`.bensz-api/task-*` 职责没有混用。
+- [ ] 文件名大小写一致，不依赖 Windows 的大小写不敏感行为。
+- [ ] 文本显式使用 UTF-8；Windows 控制台状态前缀使用 ASCII。
+- [ ] 元数据和日志只记录相对路径，不泄露用户名、盘符或绝对私有路径。
+- [ ] 旧 `tmp/` 用法被明确标为兼容路径，而非新项目默认。

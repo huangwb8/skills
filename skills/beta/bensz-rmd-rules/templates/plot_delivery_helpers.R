@@ -23,20 +23,28 @@
 
 bensz_run_dir <- function(root_dir = NULL, prefix = "bensz-rmd-rules") {
   # root_dir:
-  # - NULL/"" => default to ./.bensz-api/skills
-  # - non-empty => use it as the parent directory (do not hardcode /tmp in user code)
+  # - NULL/"" => read the current task root from BENSZ_TASK_ROOT
+  # - non-empty => current .bensz-api/task-* root
   if (!is.character(prefix) || length(prefix) != 1 || !nzchar(prefix)) {
     stop("prefix must be a non-empty string.")
   }
 
   if (is.null(root_dir) || (is.character(root_dir) && length(root_dir) == 1 && !nzchar(root_dir))) {
-    root_dir <- file.path(getwd(), ".bensz-api", "skills")
+    root_dir <- Sys.getenv("BENSZ_TASK_ROOT", unset = "")
+    if (!nzchar(root_dir)) {
+      stop("Set BENSZ_TASK_ROOT or params.plot_run_dir to the current .bensz-api/task-* root.")
+    }
   }
   if (!is.character(root_dir) || length(root_dir) != 1 || !nzchar(root_dir)) {
     stop("root_dir must be NULL or a non-empty string.")
   }
 
-  base_dir <- file.path(root_dir, prefix)
+  root_dir <- normalizePath(root_dir, winslash = "/", mustWork = TRUE)
+  if (!startsWith(basename(root_dir), "task-") || basename(dirname(root_dir)) != ".bensz-api") {
+    stop("root_dir must be a .bensz-api/task-* directory.")
+  }
+
+  base_dir <- file.path(root_dir, prefix, "output")
   if (!dir.exists(base_dir)) dir.create(base_dir, recursive = TRUE, showWarnings = FALSE)
 
   ts <- format(Sys.time(), "%Y%m%d%H%M%S")

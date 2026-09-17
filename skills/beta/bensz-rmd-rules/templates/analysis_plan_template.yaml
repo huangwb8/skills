@@ -1,0 +1,33 @@
+workflow: "main"
+requirements:
+  - id: "REQ-01"
+    description: "说明用户目标或交付要求"
+    units: ["01.00.00"]
+units:
+  - id: "01.00.00"
+    name: "数据整理"
+    purpose: "读取 raw 输入并形成可审查的完整数据产品"
+    depends_on: []
+    inputs:
+      - "raw/input.tsv"
+    code:
+      - "01.00.00. 数据整理.R"
+    products:
+      - "products/main/01.00.00. 数据整理/main.rds"
+    cache: true
+    reports: []
+    completion: "完整对象、可读摘要、metadata.yaml 与 SUCCESS 均通过验证"
+  - id: "02.00.00"
+    name: "结果报告"
+    purpose: "从完整产品应用报告层阈值并生成图表与解读"
+    depends_on: ["01.00.00"]
+    inputs:
+      - "products/main/01.00.00. 数据整理/main.rds"
+    code:
+      - "02.00.00. 结果报告.Rmd"
+    products: []
+    cache: false
+    reports:
+      - "02.00.00. 结果报告.html"
+      - "reports/figures/02.00.00. 主要结果.pdf"
+    completion: "Rmd、HTML、正式图表、数字追溯与解读门禁通过"

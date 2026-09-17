@@ -1,43 +1,50 @@
-# 工作流检查清单（内部自检）
+# 工作流检查清单
 
-以下为内部自检参考（用于生成交付自检报告）。
+## 规划
 
-- [ ] 是否采用了 .R + .Rmd 混合架构？
-- [ ] 文件命名是否一致（.R、.Rmd、.html 除后缀外完全相同）？
-- [ ] .R 脚本是否包含了数据处理和计算逻辑？
-- [ ] .R 脚本是否保存了未经阈值筛选的完整数据到 `tmp/{主脚本名}/`？
-- [ ] .R 脚本是否未应用任何阈值筛选（方便用户审查原始状态）？
-- [ ] .Rmd 脚本是否加载了 .R 生成的完整数据？
-- [ ] .Rmd 脚本是否根据业务需求应用阈值筛选？
-- [ ] .Rmd 脚本是否专注于可视化和解读，而非重复计算？
-- [ ] 是否优先使用了 lucky 系列/ccs/GSClassifier 等现有资源？
-- [ ] 代码是否简洁、可读，避免过度嵌套？
-- [ ] 中间函数是否正确添加到 `{主脚本名}_functions.R`？
-- [ ] 是否避免了过度保护性代码？
-- [ ] 是否避免了占位性代码模式（try-catch 后赋值 NULL/NA）？
-- [ ] 功能是否切实落地（而非跳过/降级到占位符）？
-- [ ] 是否使用相对路径而非绝对路径？
-- [ ] 路径拼接是否使用 `file.path()`？
-- [ ] 文件 I/O 是否检查了路径存在性？
-- [ ] 每个主要代码块前是否有“为什么”的解释？
-- [ ] 是否按 `config.yaml:metric_explanation` 盘点常用/不常用指标，无法确定者按不常用处理？
-- [ ] 存在不常用指标时，是否在分析模块前提供“指标导读”表（尺度/参考点/趋势/不确定性/理由/边界）？
-- [ ] 不常用指标首次出现是否完整解释定义、原理、选用理由、价值与本次结果，后续是否避免重复教学？
-- [ ] 重要输出是否包含四层解读（数据描述+统计见解+领域见解+局限与后续）？
-- [ ] 是否通过图表/表格解读覆盖检验（`python3 bensz-rmd-rules/scripts/check_figure_table_interpretation.py your.Rmd --strict`）？
-- [ ] 是否避免了仅有“是什么”而无“意味着什么”的浅层描述？
-- [ ] 解读图表时，是否基于代码和原始数据而非“看图说话”？
-- [ ] 图表是否默认达到 Nature 级别可读性（字体/线宽/配色/尺寸/图例/标签不重叠）？
-- [ ] 静态图是否优先导出为 PDF（矢量）？位图是否说明理由与 dpi？
-- [ ] 是否使用色盲友好配色（Nature 调色板或 viridis），避免彩虹色？
-- [ ] 解读中的数值是否使用 `r ...` 动态嵌入（而非硬编码）？
-- [ ] 解读中的每个数值是否都能在代码/数据中找到对应来源？
-- [ ] 是否完成“解读-代码一致性自检”（并给出可追溯证据）？
-- [ ] 解读是否包含具体的效应大小、方向解释和验证建议，而非空泛套话？
-- [ ] 统计见解是否给出 1-3 个 Top 信号（对象明确 + 可追溯指标）？
-- [ ] 统计见解是否包含不确定性/稳定性证据（CI/SE/Bootstrap/CV 等）？
-- [ ] 是否检查并替换“反套话黑名单”句式（见 `references/four_tier_interpretation_framework.md`）？
-- [ ] 后续建议是否至少 2 条，且每条包含：方法 + 输入 + 判据，并与当前结果绑定？
-- [ ] 末尾是否包含“讨论与分析”章节（含主要发现+局限+后续建议）？
-- [ ] YAML 头部是否符合规范（见 config.yaml）？
-- [ ] YAML 头与 `config.yaml:rmd_template.yaml_header` 是否一致（可用 `scripts/check_rmd_template_yaml.py` 校验）？
+- [ ] 目标、输入、数据字典、统计边界、报告用途和重跑成本已确认。
+- [ ] 每项需求映射到分析单元或明确排除。
+- [ ] 单元使用 `AA.BB.CC. 名称`，无重复、前向依赖或循环。
+- [ ] 简单任务未被强拆；昂贵/复用/高风险边界已评估缓存。
+
+## 目录与实现
+
+- [ ] `00.Environment.R` 默认唯一，未吸收单元专属逻辑。
+- [ ] `raw/` 只读；完整产品在 `products/`；正式材料在 `reports/`。
+- [ ] `_functions.R` 未被视为执行节点；Rmd/HTML 留在根目录。
+- [ ] 旧 `tmp/` 项目未被自动迁移或覆盖。
+- [ ] 包经 `luckyBase::Plus.library()` 管理；基因 ID 转换使用 `luckyBase::convert()`。
+
+## 缓存与恢复
+
+- [ ] identity 覆盖输入、参数、代码、上游和输出契约，不含时间戳。
+- [ ] 完整对象、可读副本/摘要、`metadata.yaml`、`SUCCESS` 职责齐全。
+- [ ] `SUCCESS` 最后写；半成品、损坏输出和身份变化均为 miss。
+- [ ] 首次运行、相同输入命中、参数/代码/上游失效、中途失败和恢复已测试。
+- [ ] 只改报告阈值/配色不会重算重型产品。
+
+## 审查与报告
+
+- [ ] 三轮独立只读审查按序完成，或明确记录能力降级。
+- [ ] 每轮读取前轮修正后的最新版本，只有主 Agent 修改文件。
+- [ ] 图表 PDF、JPG 预览、HTML widget、图表/表格解读覆盖均通过。
+- [ ] 不常用指标首次解释，关键数字可追溯，结论未越过不确定性边界。
+
+## 交付命令
+
+多阶段编号计算流：
+
+```bash
+python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml --strict
+python3 <skill-root>/scripts/run_analysis_workflow.py <项目根> --dry-run
+python3 <skill-root>/scripts/check_rmd_template_yaml.py
+```
+
+旧 `tmp/` 项目：`python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --legacy --strict`，不补 plan、不调用 runner。简单单报告跳过工作流/runner 检查。所有 Rmd 继续执行：
+
+```bash
+python3 <skill-root>/scripts/check_figure_table_interpretation.py <报告.Rmd> --strict
+python3 <skill-root>/scripts/check_interpretation_quality.py <报告.Rmd> --strict
+python3 <skill-root>/scripts/check_htmlwidget_visibility.py <报告.Rmd>
+Rscript <skill-root>/scripts/check_plot_readability.R <正式图.pdf> --render-jpg --out-dir <任务根>/bensz-rmd-rules/output/plot-check
+```

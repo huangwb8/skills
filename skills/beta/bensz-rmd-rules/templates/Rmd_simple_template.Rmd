@@ -1,0 +1,64 @@
+---
+# NOTE: keep this convenience copy aligned with config.yaml:rmd_template.yaml_header.
+title: "AA.BB.CC. 报告标题"
+author: "Bensz Conan"
+date: "`r Sys.Date()`"
+params:
+  plot_language: "en"
+  top_n: 3
+  q_cutoff: 0.05
+  min_sample_n: 30
+  interpret_top_n: 3
+  interpret_min_stratum_n: 30
+  interpret_min_consistent_prop: 0.70
+  interpret_min_boot_prop: 0.70
+  # Current .bensz-api/task-* root; default reads BENSZ_TASK_ROOT.
+  plot_run_dir: ~
+  plot_preview_dpi: 200
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    theme: default
+    highlight: tango
+    code_folding: show
+    includes:
+      after_body: "templates/liquid_glass_lightbox.html"
+    css: "templates/liquid_glass_theme.css"
+---
+
+```{r load-data, message=FALSE, warning=FALSE}
+# 简单、低成本、单报告路径：直接只读 raw/，不创建 analysis-plan 或 checkpoint。
+if (!file.exists("00.Environment.R")) stop("Missing 00.Environment.R in project root.")
+source("00.Environment.R")
+input_path <- file.path("raw", "input.tsv")
+if (!file.exists(input_path)) stop("Missing raw input: ", input_path)
+raw_data <- utils::read.delim(input_path, check.names = FALSE)
+dir.create(file.path("reports", "figures"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path("reports", "tables"), recursive = TRUE, showWarnings = FALSE)
+```
+
+## 数据概览
+
+```{r data-overview}
+summary(raw_data)
+```
+
+## 结果
+
+```{r analysis}
+# 在此完成低成本分析与报告层筛选。
+# 若后续计算变得昂贵、被多处复用或需要恢复，再升级为编号 .R + products 工作流。
+```
+
+## 结果解读
+
+基于当前数据补充对象、方向/对比、可追溯数字、量级含义与不确定性边界。
+
+## 数字准确性验证
+
+| 数字描述 | 来源变量/计算 | 位置 |
+| --- | --- | --- |
+| 样本量 | `nrow(raw_data)` | 数据概览 |

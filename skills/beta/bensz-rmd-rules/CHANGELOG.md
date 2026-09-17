@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-09-17
+
 ### Added
 
+- `templates/analysis_plan_template.yaml`：新增需求、依赖、产品、缓存与报告关系的机器可读分析图模板。
+- `templates/checkpoint_helpers.R`：新增项目内相对路径、输入/参数/代码/上游身份、完整性复验、最后写入 `SUCCESS`、强制重算与恢复控制。
+- `scripts/check_analysis_workflow.py`、`scripts/run_analysis_workflow.py` 与 `qa/test_analysis_workflow.py`：新增编号、依赖、目录边界、checkpoint 元数据、输出摘要、旧 `tmp/` 兼容和 `raw/` 只读检查，并提供按编号运行、强制重算与恢复入口。
+- `references/analysis_workflow_cache.md` 与 `references/serial_review_protocol.md`：新增缓存选择/失效/恢复及三轮串行只读审查契约。
 - `references/metric_explanation_protocol.md`：新增面向弱背景读者的指标解释协议，定义常用指标白名单、不常用指标兜底判定、指标导读表及首次出现完整解释规则。
 - `plans/TOC移动支持-v202603011129.md`：新增 Liquid Glass 的 TOC 移动端支持优化计划（sticky 折叠目录条、跳转后自动收起、锚点偏移与触控可用性等）。
 - `tests/TOC移动支持-v202603011129/`：新增对应轻量测试会话（PLAN/REPORT + demo.Rmd/render.sh + 静态断言脚本 + 3 组 viewport 截图证据，含“存储不可用”模拟）。
@@ -17,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- `SKILL.md`：重组为“理解—规划—实现—审查—运行/恢复—交付”主链；新项目默认使用根目录编号分析单元和 `raw/products/reports/.bensz-api` 边界，简单任务保留最小路径。
+- `config.yaml`：以三段式编号、多分析单元、数据产品、缓存身份、报告目录和串行审查替代单主脚本默认；删除未落地的 `analysis_mode`，版本更新至 `0.23.0`。
+- `templates/00.Environment.R`、`R_data_template.R`、`functions_template.R`、`Rmd_template.Rmd`：改为单编号分析单元模板，Rmd 从完整 products 读取并将正式材料写入 reports。
+- `README.md`、混合架构指南、示例、检查清单和交付验证：同步新项目默认与旧 `tmp/` 非破坏兼容，移除未实现的 `dv_mut_mode` 和 README 版本字面值。
 - `SKILL.md` / `README.md` / `templates/Rmd_template.Rmd` / `references/four_tier_interpretation_framework.md` / `references/workflow_checklist.md` / `references/delivery_verification.md`：专家级解读默认假定读者背景较弱；存在不常用指标时，要求先给“指标导读”表，首次出现解释定义、原理、选用理由、判读方向与不确定性，后续出现改为简洁结果解读。
 - `scripts/check_interpretation_quality.py` / `config.yaml`：教学口吻检测移除“用于评估/反映关系/当……时……”等中性指标解释表达，只保留模板化提示语；新增 `qa/test_metric_explanation_protocol.py` 防止必要的首次解释被误拦截。
 - `config.yaml`：新增 `metric_explanation` 默认分类与解释策略，并将版本号 `0.21.3 → 0.22.0`。

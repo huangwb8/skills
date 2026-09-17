@@ -1,74 +1,79 @@
-# {主脚本名}.R - 数据处理与计算脚本
-# 用途：[简要说明数据处理目的]
-# 目的：[一句话概括代码块目的]
-# 输入：[关键输入数据或路径]
-# 参数：[来自 YAML params / 全局变量的关键参数]
-# 输出：[关键变量或输出文件]
-#
-# 核心功能：
-# - 数据加载与预处理
-# - 耗时计算（统计检验、模型训练等）
-# - 结果保存（供 .Rmd 使用）
-#
-# 使用方法：
-#   source("{主脚本名}.R")
-#
-# 输出位置：
-#   tmp/{主脚本名}/
+# AA.BB.CC. 名称.R - 单个分析单元的计算脚本
+# 目的：[本单元解决的问题]
+# 上游：[更早编号的单元；没有则写 raw 输入]
+# 输入：[raw/ 或 products/ 中的相对路径]
+# 参数：[只列影响本单元科学结果的参数]
+# 输出：products/<流程>/AA.BB.CC. 名称/
 
-# ==== 环境初始化 ====
 source("00.Environment.R")
-source("{主脚本名}_functions.R")
+source(file.path("templates", "checkpoint_helpers.R"))
 
-# 创建输出目录
-output_dir <- file.path("tmp", "{主脚本名}")
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+unit_id <- "01.00.00"
+unit_stem <- "01.00.00. 数据整理"
+workflow <- "main"
+product_dir <- bensz_product_dir(workflow, unit_stem)
+unit_functions <- paste0(unit_stem, "_functions.R")
+if (file.exists(unit_functions)) source(unit_functions)
 
-# ==== 1. 数据加载 ====
-# Step 1: 数据加载
-cat("=== 步骤 1/4: 加载数据 ===\n")
+# 只把会改变本单元结果的参数纳入缓存身份；报告阈值与配色属于 Rmd。
+unit_parameters <- list(example_parameter = "replace-me")
+input_files <- c(file.path("raw", "input.tsv"))
+code_files <- c(paste0(unit_stem, ".R"), unit_functions, file.path("templates", "checkpoint_helpers.R"))
+code_files <- code_files[file.exists(code_files)]
+# 下游单元应使用实际产品身份，而非上游静态 cache identity：
+# upstream_dir <- bensz_product_dir("main", "00.50.00. 上游单元")
+# upstream_identities <- c(bensz_product_identity(upstream_dir))
+upstream_identities <- character()
+output_contract_version <- 1L
 
-# 示例：加载数据
-# raw_data <- read.csv(file.path("data", "input.csv"))
-# str(raw_data)
+cache_identity <- bensz_cache_identity(
+  input_files = input_files,
+  parameters = unit_parameters,
+  code_files = code_files,
+  upstream_identities = upstream_identities,
+  output_contract_version = output_contract_version
+)
+status <- bensz_checkpoint_status(product_dir, expected_identity = cache_identity)
+decision <- bensz_run_decision(unit_id, status)
 
-# ==== 2. 数据预处理 ====
-# Step 2: 数据预处理
-cat("=== 步骤 2/4: 数据预处理 ===\n")
+if (identical(decision, "hit")) {
+  message("[CACHE HIT] ", unit_stem)
+  result <- readRDS(file.path(product_dir, "main.rds"))
+} else {
+  message("[RUN] ", unit_stem, " - ", status$reason)
+  started_at <- proc.time()[["elapsed"]]
 
-# 示例：数据清洗
-# processed_data <- raw_data %>%
-#   filter(!is.na(key_column)) %>%
-#   mutate(new_column = ...)
+  # ==== 数据加载（raw/ 只读）====
+  # raw_data <- utils::read.delim(input_files[[1]], check.names = FALSE)
 
-# ==== 3. 核心计算 ====
-# Step 3: 核心计算
-cat("=== 步骤 3/4: 核心计算 ===\n")
+  # ==== 本单元计算 ====
+  # result <- .unit_prepare_data(raw_data, unit_parameters)
+  stop("Replace the template computation with a real implementation before running.")
 
-# 示例：统计检验
-# computation_results <- list(
-#   test1 = t.test(...),
-#   test2 = wilcox.test(...),
-#   model1 = lm(...)
-# )
+  # 重要矩形数据提供受控预览；复杂对象至少提供结构与统计摘要。
+  preview <- if (is.data.frame(result)) utils::head(result, 100L) else NULL
+  summary_lines <- bensz_summary_lines(
+    object = result,
+    unit_stem = unit_stem,
+    purpose = "Replace with the real analysis purpose.",
+    downstream_notes = "Record exclusions, assumptions, anomalies and constraints for downstream units."
+  )
 
-# ==== 4. 结果保存 ====
-# Step 4: 结果保存
-cat("=== 步骤 4/4: 保存结果 ===\n")
-
-# 保存处理后的数据（供 .Rmd 使用）
-saveRDS(processed_data, file.path(output_dir, "processed_data.rds"))
-
-# 保存计算结果（供 .Rmd 可视化）
-saveRDS(computation_results, file.path(output_dir, "computation_results.rds"))
-
-# （可选）保存原始数据备份
-# saveRDS(raw_data, file.path(output_dir, "raw_data.rds"))
-
-cat("\n")
-cat("[PASS] 数据处理完成！\n")
-cat("📁 结果已保存到:", output_dir, "\n")
-cat("- processed_data.rds: 处理后的数据\n")
-cat("- computation_results.rds: 计算结果\n")
-cat("\n")
-cat("下一步：在 RStudio 中打开 {主脚本名}.Rmd 进行可视化分析\n")
+  bensz_write_checkpoint(
+    object = result,
+    product_dir = product_dir,
+    unit_id = unit_id,
+    cache_identity = cache_identity,
+    summary_lines = summary_lines,
+    preview = preview,
+    elapsed_seconds = proc.time()[["elapsed"]] - started_at,
+    output_contract_version = output_contract_version,
+    extra_metadata = list(
+      inputs = bensz_file_signatures(input_files),
+      parameters = unit_parameters,
+      code = bensz_file_signatures(code_files),
+      upstream_products = upstream_identities
+    )
+  )
+  message("[PASS] checkpoint committed: ", file.path("products", workflow, unit_stem))
+}

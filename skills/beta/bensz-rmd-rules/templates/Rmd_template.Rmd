@@ -9,11 +9,11 @@
 # - Smooth transitions (no infinite animations)
 # - Automatic dark mode support
 # - Enhanced readability with modern typography
-title: "分析标题"
+title: "AA.BB.CC. 报告标题"
 author: "Bensz Conan"
 date: "`r Sys.Date()`"
 params:
-  analysis_mode: "full"
+  plot_language: "en"
   top_n: 3
   q_cutoff: 0.05
   min_sample_n: 30
@@ -22,7 +22,7 @@ params:
   interpret_min_consistent_prop: 0.70
   interpret_min_boot_prop: 0.70
   # Plot delivery helpers (optional):
-  # - plot_run_dir: parent directory for run_* previews; default uses .bensz-api/skills/bensz-rmd-rules
+  # - plot_run_dir: current .bensz-api/task-* root; default reads BENSZ_TASK_ROOT
   # - plot_preview_dpi: raster preview DPI (higher => clearer but larger files)
   plot_run_dir: ~
   plot_preview_dpi: 200
@@ -41,8 +41,8 @@ output:
 ---
 
 ```{r load-data, message=FALSE, warning=FALSE}
-# 目的：加载 .R 脚本产物，准备后续分析
-# 输入：tmp/{主脚本名}/ 下的 .rds 文件
+# 目的：加载上游编号单元的完整产品，准备报告层筛选与解释
+# 输入：products/<流程>/<上游编号名称>/main.rds
 # 参数：无需（依赖 00.Environment.R 的统一配置）
 # 输出：processed_data / computation_results
 
@@ -50,21 +50,20 @@ output:
 # 加载 .R 脚本生成的数据
 if (!file.exists("00.Environment.R")) stop("Missing 00.Environment.R in project root.")
 source("00.Environment.R")
+dir.create(file.path("reports", "figures"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path("reports", "tables"), recursive = TRUE, showWarnings = FALSE)
 
-# Step 2: 数据目录检查
-# 检查 .R 脚本是否已运行
-data_dir <- file.path("tmp", "{主脚本名}")
-if (!dir.exists(data_dir)) {
-  stop("数据目录不存在: ", data_dir, "\n",
-       "请先运行 {主脚本名}.R 生成数据！")
+# Step 2: 产品完成状态检查
+upstream_stem <- "01.00.00. 数据整理"
+data_dir <- file.path("products", "main", upstream_stem)
+if (!file.exists(file.path(data_dir, "SUCCESS"))) {
+  stop("上游产品未完成或不存在: ", data_dir, "\n",
+       "请先运行对应编号的 .R 单元并通过 checkpoint 验证。")
 }
 
 # Step 3: 数据加载
 # 加载处理后的数据
-processed_data <- readRDS(file.path(data_dir, "processed_data.rds"))
-
-# 加载计算结果
-computation_results <- readRDS(file.path(data_dir, "computation_results.rds"))
+processed_data <- readRDS(file.path(data_dir, "main.rds"))
 
 options(stringsAsFactors = FALSE)
 ```
@@ -91,8 +90,7 @@ if (file.exists(file.path("templates", "plot_delivery_helpers.R"))) {
   run_dir <- bensz_run_dir(root_dir = plot_run_root)
   message("Plot preview run dir: ", run_dir)
 } else {
-  run_dir <- file.path(getwd(), ".bensz-api", "skills", "bensz-rmd-rules", paste0("run_", format(Sys.time(), "%Y%m%d%H%M%S")))
-  dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+  stop("Missing templates/plot_delivery_helpers.R; copy it from the installed bensz-rmd-rules Skill.")
 }
 ```
 
@@ -127,13 +125,13 @@ render_dt_output(processed_data, n = 100, scrollX = TRUE, pageLength = 10)  # �
 - 关键的分析过程（按顺序）
 - 用了哪些关键函数（推荐写成 `pkg::fn()`）
 - 函数的关键参数是什么；为什么要这么设置（绑定本次数据/假设/阈值）
-- 源代码在哪个文件的第几行（建议用 `相对路径:行号`，例如 `{主脚本名}.R:42`、`{主脚本名}_functions.R:120`、`{主脚本名}.Rmd:88`）
+- 源代码在哪个文件的第几行（建议用 `相对路径:行号`，例如 `01.00.00. 数据整理.R:42`、`01.00.00. 数据整理_functions.R:120`、`02.00.00. 结果报告.Rmd:88`）
 
 | 分析过程/产物 | 关键函数/对象 | 关键参数（是什么） | 为什么这样设置（理由） | 源代码位置（文件:行号） |
 |---|---|---|---|---|
-| 数据加载与整理 | `readRDS()` / `dplyr::mutate()` | `path=...` / `na.rm=TRUE` | 读取主脚本产物；避免 NA 影响统计量 | `{主脚本名}.R:42` / `{主脚本名}.Rmd:28` |
-| 主要统计分析 | `survival::coxph()` | `formula=...` / `ties="efron"` | 选择 Cox 模型；ties 处理与数据规模匹配 | `{主脚本名}_functions.R:85` |
-| 可视化输出 | `ggplot2::ggplot()` / `ggplot2::ggsave()` | `width/height/base_size` | 确保 Nature 级别可读性与打印清晰 | `{主脚本名}.Rmd:92` |
+| 数据加载与整理 | `readRDS()` / `dplyr::mutate()` | `path=...` / `na.rm=TRUE` | 读取上游完整产品；避免 NA 影响统计量 | `01.00.00. 数据整理.R:42` / `02.00.00. 结果报告.Rmd:28` |
+| 主要统计分析 | `survival::coxph()` | `formula=...` / `ties="efron"` | 选择 Cox 模型；ties 处理与数据规模匹配 | `01.00.00. 数据整理_functions.R:85` |
+| 可视化输出 | `ggplot2::ggplot()` / `ggplot2::ggsave()` | `width/height/base_size` | 确保 Nature 级别可读性与打印清晰 | `02.00.00. 结果报告.Rmd:92` |
 
 <!-- 仅当报告存在不常用、任务自定义或采用非标准定义的指标时保留本节；否则删除。 -->
 ## 指标导读
@@ -177,7 +175,7 @@ render_dt_output(processed_data, n = 100, scrollX = TRUE, pageLength = 10)  # �
 #   ggplot2::scale_color_manual(values = nature_colors) +
 #   ggplot2::labs(x = "X", y = "Y", color = "Group")
 #
-# out_pdf <- file.path("tmp", "{主脚本名}", "figure_scatter.pdf")  # 正式交付唯一格式：矢量 PDF
+# out_pdf <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")  # 正式交付：矢量 PDF
 # ggplot2::ggsave(filename = out_pdf, plot = p, width = fig1$width_in, height = fig1$height_in, device = grDevices::cairo_pdf)
 #
 # # 保存 PDF 后，自动生成 JPG 预览图用于视觉自检（不作为正式交付）
@@ -191,14 +189,14 @@ render_dt_output(processed_data, n = 100, scrollX = TRUE, pageLength = 10)  # �
 #
 # 示例 2：ComplexHeatmap（Nature 级别）
 # ht <- make_heatmap_nature(mat = as.matrix(processed_data[1:50, 1:10]), name = "Value")
-# out_pdf <- file.path("tmp", "{主脚本名}", "heatmap.pdf")  # 正式交付：矢量 PDF
+# out_pdf <- file.path("reports", "figures", "02.00.00. 热图.pdf")
 # save_heatmap_pdf(ht, out_pdf, width = 7, height = 7)
 # if (exists("bensz_pdf_to_jpg")) bensz_pdf_to_jpg(out_pdf, file.path(run_dir, "heatmap.jpg"), dpi = dpi)
 #
 # 示例 3：plotly（交互式，Nature 级别）
 # fig <- make_plotly_nature(processed_data, x = ~x, y = ~y, color = ~group,
 #   x_title = "X", y_title = "Y")
-# save_plotly_html(fig, file.path("tmp", "{主脚本名}", "plotly_figure.html"))
+# save_plotly_html(fig, file.path("reports", "supplementary", "02.00.00. 交互图.html"))
 ```
 
 ## 结果解读

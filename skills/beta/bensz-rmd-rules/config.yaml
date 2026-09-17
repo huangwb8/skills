@@ -3,14 +3,14 @@
 #
 # 注意：
 # - Rmd 的 YAML 头（含 author）以 `rmd_template.yaml_header` 为准（单一真相来源）。
-#   为了便于“复制即用”，`templates/Rmd_template.Rmd` 内会保留一份 YAML header 的拷贝；
-#   维护者修改本节后，应同步更新模板（可用 `scripts/check_rmd_template_yaml.py` 做一致性校验）。
+#   为了便于“复制即用”，两个 Rmd 模板会保留 YAML header 的拷贝；
+#   维护者修改本节后，应同步更新模板（用 `scripts/check_rmd_template_yaml.py` 校验）。
 # - luckyBase 是本 skill 的硬前提：包加载统一通过 `luckyBase::Plus.library()` 完成。
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.22.1"
-  description: "规范 AI 开发 R Markdown 分析脚本的行为准则。核心原则：遵循主业与副业分离架构（.R 保留完整数据，.Rmd 应用业务阈值），优先使用用户已有 R 包资源。图表默认按 Nature 级别可读性与出版质量生成（PDF 矢量优先、色盲友好配色、字体/线宽自适应）。专家级解读默认假定读者相关背景较弱：提供四层解读框架、指标导读和不常用指标首次解释协议，在保持数字可追溯与论文级准确性的同时增强学习友好度。路径验证：提供自动化验证脚本确保跨平台兼容性。前提：luckyBase 为硬依赖"
+  version: "0.23.0"
+  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：编号分析单元负责完整计算与数据产品，Rmd 负责报告层筛选、论文级图表和证据锚定解读；通过缓存身份、完成标记与确定性检查支持局部失效和断点恢复。前提：luckyBase 为硬依赖"
   author: "Bensz Conan"
   category: "开发规范"
 
@@ -43,11 +43,11 @@ r_packages:
 # Rmd 模板配置
 rmd_template:
   yaml_header:
-    title: "分析标题"
+    title: "AA.BB.CC. 报告标题"
     author: "Bensz Conan"
     date: "`r Sys.Date()`"
     params:
-      analysis_mode: "full"
+      plot_language: "en"
       top_n: 3
       q_cutoff: 0.05
       min_sample_n: 30
@@ -56,7 +56,7 @@ rmd_template:
       interpret_min_consistent_prop: 0.70
       interpret_min_boot_prop: 0.70
       # Plot delivery helpers (optional):
-      # - plot_run_dir: parent directory for run_* previews; default uses .bensz-api/skills/bensz-rmd-rules
+      # - plot_run_dir: current .bensz-api/task-* root; default reads BENSZ_TASK_ROOT
       # - plot_preview_dpi: raster preview DPI (higher => clearer but larger files)
       plot_run_dir: ~
       plot_preview_dpi: 200
@@ -107,32 +107,62 @@ plot_readability:
   # Heatmap 行/列名建议最大长度；超过后优先截断并保留前缀
   heatmap_max_label_chars: 15
 
-# 文件结构配置（核心约定，不建议修改）
+# 文件结构配置（新项目默认；旧 tmp 项目非破坏兼容）
 file_structure:
-  # 主脚本：数据计算与处理
-  data_script: "{主脚本名}.R"
-  # 主脚本：可视化与分析
-  main_script: "{主脚本名}.Rmd"
-  # 函数脚本：中间函数
-  functions_script: "{主脚本名}_functions.R"
-  # 环境脚本：全局配置
+  unit_stem: "AA.BB.CC. 名称"
+  data_script: "{分析单元}.R"
+  report_script: "{分析单元}.Rmd"
+  functions_script: "{分析单元}_functions.R"
+  rendered_report: "{分析单元}.html"
   environment_script: "00.Environment.R"
-  # 临时文件夹：局部分析与结果缓存
-  temp_folder: "tmp/{主脚本名}"
+  checkpoint_helper: "templates/checkpoint_helpers.R"
+  raw_dir: "raw"
+  products_dir: "products"
+  reports_dir: "reports"
+  legacy_temp_pattern: "tmp/{主脚本名}"
 
 # 文件命名约定
 naming_convention:
-  # 核心约定：.R、.Rmd、.html 除后缀外名称完全一致
+  unit_pattern: '^\d{2}\.\d{2}\.\d{2}\. .+$'
   core_files_same_name: true
-  # 示例：cf01.R, cf01.Rmd, cf01.html
-  example_prefix: "cf01"
+  functions_suffix: "_functions.R"
+  example_stem: "01.00.00. 数据整理"
 
 # 输出配置
 output:
-  # 使用 knit-rmd-html skill 输出 HTML
   html_skill: "knit-rmd-html"
-  # HTML 保存在 Rmd 同级目录
-  html_location: "same_directory"
+  html_location: "project_root"
+  figures_dir: "reports/figures"
+  tables_dir: "reports/tables"
+  supplementary_dir: "reports/supplementary"
+
+# 多分析单元、缓存和恢复的稳定默认值
+analysis_workflow:
+  plan_file: "analysis-plan.yaml"
+  default_workflow: "main"
+  product_path: "products/{workflow}/{unit_stem}"
+  contract_version: 1
+  required_checkpoint_files:
+    - "metadata.yaml"
+    - "summary.md"
+    - "SUCCESS"
+  cache_identity:
+    - "inputs"
+    - "parameters"
+    - "code"
+    - "upstream_products"
+    - "output_contract_version"
+  include_runtime_versions_when_result_affecting: true
+  controls:
+    force_step_env: "BENSZ_FORCE_STEP"
+    resume_from_env: "BENSZ_RESUME_FROM"
+  validation:
+    default_mode: "report"
+    delivery_mode: "strict"
+  serial_reviews:
+    - "structure-dataflow"
+    - "r-implementation-recovery"
+    - "scientific-statistical"
 
 # 指标解释协议：常用指标使用白名单；未命中、无法确定或非标准定义时按不常用指标处理。
 metric_explanation:

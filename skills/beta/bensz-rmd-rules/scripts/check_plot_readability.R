@@ -38,8 +38,13 @@ args <- commandArgs(trailingOnly = TRUE)
 }
 
 .default_run_dir <- function(prefix = "bensz-rmd-rules") {
-  root <- file.path(getwd(), ".bensz-api", "skills")
-  base <- file.path(root, prefix)
+  root <- Sys.getenv("BENSZ_TASK_ROOT", unset = "")
+  if (!nzchar(root)) stop("Set BENSZ_TASK_ROOT or pass --out-dir inside the current .bensz-api/task-* root.")
+  root <- normalizePath(root, winslash = "/", mustWork = TRUE)
+  if (!startsWith(basename(root), "task-") || basename(dirname(root)) != ".bensz-api") {
+    stop("BENSZ_TASK_ROOT must be a .bensz-api/task-* directory.")
+  }
+  base <- file.path(root, prefix, "output", "plot-check")
   if (!dir.exists(base)) dir.create(base, recursive = TRUE, showWarnings = FALSE)
   run_dir <- file.path(base, paste0("run_", format(Sys.time(), "%Y%m%d%H%M%S")))
   dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
@@ -175,7 +180,7 @@ args <- commandArgs(trailingOnly = TRUE)
     "",
     "Notes:",
     "  - This checker is intentionally lightweight and deterministic.",
-    "  - When --render-jpg is enabled, it renders page 1 into a JPG preview in --out-dir (or a temp run dir).",
+    "  - When --render-jpg is enabled, pass --out-dir in the current task workspace or set BENSZ_TASK_ROOT.",
     sep = "\n"
   )
 }

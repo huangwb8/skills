@@ -87,6 +87,15 @@
    - 文字是否清晰可读（屏幕 + 打印）
    - 修复是否引入新问题（如旋转后边距不足、图例挤压数据）
 
+确定性 PDF/JPG 入口：
+
+```bash
+Rscript <skill-root>/scripts/check_plot_readability.R path/to/figure.pdf \
+  --render-jpg --out-dir <任务根>/bensz-rmd-rules/output/plot-check
+```
+
+`<任务根>` 必须是当前 `.bensz-api/task-*`；未提供 `--out-dir` 时脚本读取 `BENSZ_TASK_ROOT`，不会回退到共享缓存或系统临时目录。
+
 ## 常见场景处理示例（最小可复用）
 
 说明：以下 ggplot2 示例默认已 `source("templates/nature_theme.R")`（提供 `theme_nature()` / `theme_nature_readable()`）。
