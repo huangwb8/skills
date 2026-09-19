@@ -413,6 +413,28 @@ SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}
 
 # Skill开发
 
+## skills/beta/bensz-r-developer
+
+开发一个skill，名为 bensz-r-developer ，保存在 skills/beta 。它的功能是：根据一些习惯/约定辅助用户开发R语言的函数和Package。 一般来说，我有这些习惯：
+
+- 定义一个有用的类，然后在它的上面开发函数。这个你看一下 /Volumes/2T01/winE/RCloud/RFactory/ccs 就知道了
+- 假设函数有要自动保存的文件，一般会给函数指定输出文件夹（比如 output.dir ）。如果函数工作时有一些重要的中间文件（但又不是需要给用户展示的最终文件），一般会指定缓存文件夹（比如 cache.dir ）
+- 函数的开始，一般会有这样的测试用代码，它里面会构建测试数据或引用一些已经存在的R内置数据，然后定义一些参数。加载里面的内容，人类可以很方便地进行手动测试：
+
+```R
+# Test
+if(F){
+  ...
+}
+```
+
+- 像优秀的R语言高手，不局限于能运行的代码，还要优雅、易读、可维护性强
+- 对并行、加速运算有有着严格的规范、管理，最好是用高效、主流的方案，不要自己造轮子； 预备着可以随时榨干用户的设备。
+- 如果是开发R包， devtools，roxygen2之类的主流R管理平台都是需要用上的。 这个你看 /Volumes/2T01/winE/RCloud/RFactory/ccs 和 /Volumes/2T01/winE/RCloud/RFactory/GSClassifier 就知道了
+- 有时候可能需要很高性能的计算，这个时候R是不够的。C++或某些与R良好兼容的语言通常是不错的选择，你也要仔细地考量。
+
+请你把demo做出来，然后使用 auto-test-skills 迭代优化1次。 使用 compact-bensz-skills 压缩该skill的md。 使用 write-readme 为该skill写readme。
+
 ## skills/beta/bensz-rmd-rules
 
 skills/beta/bensz-rmd-rules 优化：
