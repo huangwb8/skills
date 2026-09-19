@@ -1,0 +1,20 @@
+Package: benszRdemo
+Title: Demonstrate Maintainable Class-Driven R Development
+Version: 0.0.0.9000
+Authors@R: person("Demo", "Maintainer", email = "demo@example.org", role = c("aut", "cre"))
+Description: A minimal demonstration of a class-driven R API with explicit
+    output and cache directories, reproducible future-based parallelism, and
+    testthat coverage. Replace the demonstration domain before real use.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    digest,
+    filelock,
+    future.apply
+Suggests:
+    future,
+    parallelly,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

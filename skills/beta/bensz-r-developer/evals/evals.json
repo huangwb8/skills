@@ -1,0 +1,24 @@
+{
+  "skill_name": "bensz-r-developer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "把这个处理 data.frame 的 R 函数重构为类驱动 API；结果写 output.dir，中间分块写 cache.dir，并保留可手动跑的 if (FALSE) 测试块。",
+      "expected_output": "给出合适的类选择、输出/缓存契约、实现与自动测试，并且不把手测块当成 testthat。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "为现有 R 包增加一个可并行的批量预测方法，要求 reproducible、不能污染调用方 future plan，并评估是否值得改成 Rcpp。",
+      "expected_output": "先 profile，再设计受控 future 并行、RNG 和串并行等价测试；只有证据充分时才采用原生扩展。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "请把这份 R Markdown 分析报告改成更漂亮的 HTML，并补齐论文级图表和结果解读。",
+      "expected_output": "不应触发 bensz-r-developer，应转交 R Markdown/科研分析专用 Skill。",
+      "files": []
+    }
+  ]
+}
+
