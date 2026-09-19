@@ -3,8 +3,8 @@
 - 更新
 
 ```
-repo-version = 5.0.9
-bsk-version = 2.1.3
+repo-version = 5.0.10
+bsk-version = 2.1.4
 
 请您：
 - 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
@@ -414,6 +414,15 @@ SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}
 # Skill开发
 
 ## skills/beta/bensz-rmd-rules
+
+skills/beta/bensz-rmd-rules 优化：
+
+- 我希望加入R生态里的target（流程管理）和renv（环境管理）机制。因为这个skill本来就是为了流程而生的，因此这个设计是好的
+- 假设正在优化一个已经存在的流程，尽量维持它原有的架构，除非用户主动要求按 bensz-rmd-rules 的规范重构
+
+这是我的初步想法。 你有什么建议？
+
+---
 
 其实，我希望依赖skills/beta/bensz-rmd-rules工作时， ai可以像人类那样比较机智地做分析。 打个比方，我希望它这样：
 

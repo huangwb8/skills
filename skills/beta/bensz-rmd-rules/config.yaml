@@ -9,36 +9,53 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.23.0"
-  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：编号分析单元负责完整计算与数据产品，Rmd 负责报告层筛选、论文级图表和证据锚定解读；通过缓存身份、完成标记与确定性检查支持局部失效和断点恢复。前提：luckyBase 为硬依赖"
+  version: "0.24.0"
+  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：新项目统一使用 targets 编排步骤、renv 锁定环境，编号分析单元负责完整计算与数据产品，Rmd 负责报告层筛选、论文级图表和证据锚定解读；已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
 
 # R 包资源配置
-# 优先级：user_developed > candidate_r > CRAN/Bioconductor > 自定义函数
+# 固定依赖仅保留 luckyBase；其它包由项目声明并由 renv.lock 锁定。
 r_packages:
-  # 用户开发的核心包（优先级最高）
-  user_developed:
-    - name: ccs
-      description: "Cohort Congress System，泛癌症基因组分类"
-    - name: GSClassifier
-      description: "Gene Signature Classifier，转录组分类"
-    - name: lucky
-      description: "常规 R 函数集合（生存分析、差异表达、可视化）"
+  fixed:
     - name: luckyBase
-      description: "lucky 系列基础包（包管理 Plus.library）"
-    - name: luckyExperiment
-      description: "生物学实验数据处理"
-    - name: luckyGEO
-      description: "GEO 数据下载与处理"
-    - name: luckyModel
-      description: "第三方生物信息学模型集成"
+      description: "Bensz 基础包：包加载、项目初始化与稳定通用辅助能力"
+  project_managed:
+    description: "具体分析所需的 CRAN、Bioconductor 或用户自有包；必须写入项目 renv.lock，不在 Skill 中预设"
 
-  # candidate_r 函数库
-  # - 默认：仅当 source("00.Environment.R") 后相关函数已存在时才使用（不猜路径、不扫描磁盘）
-  # - 可选：用户可在环境设置代码块中定义 `candidate_r_path`，AI 再按该路径 source() 需要的脚本
-  candidate_r:
-    description: "独立分析脚本集合（特征选择、聚类、生存分析等）"
+# 项目状态与生命周期契约
+project_strategy:
+  state_detection:
+    new_project: "空目录或用户明确声明新建"
+    existing_project: "存在 R/Rmd、raw、products、reports、runner、_targets.R 或 renv/renv.lock"
+    ambiguous: "只读盘点后请求澄清，不猜测迁移意图"
+  new_project:
+    require_targets: true
+    require_renv: true
+    allow_single_target: true
+    legacy_runner_fallback: false
+  existing_project:
+    create_missing_targets: false
+    create_missing_renv: false
+    migrate_layout: false
+    preserve_existing_runner: true
+
+targets:
+  entrypoint: "_targets.R"
+  store_dir: "_targets"
+  required_for_new_project: true
+  output_contract: "targets 只编排依赖与增量重建；products/、metadata.yaml 与 SUCCESS 仍由产品 helper 负责"
+
+renv:
+  lockfile: "renv.lock"
+  activation: "renv/activate.R"
+  required_for_new_project: true
+  initialize_once: true
+  silent_install_or_snapshot_during_run: false
+  excluded_paths:
+    - "renv/library"
+    - "renv/staging"
+    - "renv/cache"
 
 # Rmd 模板配置
 rmd_template:
@@ -163,6 +180,9 @@ analysis_workflow:
     - "structure-dataflow"
     - "r-implementation-recovery"
     - "scientific-statistical"
+  legacy_runner:
+    status: "existing-project-only"
+    new_project_fallback: false
 
 # 指标解释协议：常用指标使用白名单；未命中、无法确定或非标准定义时按不常用指标处理。
 metric_explanation:

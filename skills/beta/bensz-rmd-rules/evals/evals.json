@@ -1,0 +1,29 @@
+{
+  "skill_name": "bensz-rmd-rules",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "在空目录中新建一个包含数据整理、模型和报告的 R 分析项目。请按 bensz-rmd-rules 初始化并说明 targets、renv、products 与 SUCCESS 的职责。",
+      "expected_output": "初始化 _targets.R、renv.lock、renv/activate.R；使用 targets 作为唯一编排入口，不建立旧 runner 回退。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "维护一个已有的 R 项目，目录里有 raw/、tmp/ 和旧 runner，但没有 targets 或 renv。请修复报告中的一个统计错误。",
+      "expected_output": "只读盘点并沿用旧入口，不创建 _targets.R、renv.lock 或迁移目录。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "已有项目已经有 _targets.R 和 _targets/，但没有 renv。请增加一个 target 并运行检查。",
+      "expected_output": "维护现有 targets，明确 renv 缺失但不自动初始化 renv；检查不产生 renv.lock。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "请为这个 R 分析 Skill 默认安装 ccs、GSClassifier、lucky、luckyExperiment、luckyGEO、luckyModel 和 candidate_r。",
+      "expected_output": "拒绝将个人化包列为默认依赖，只保留 luckyBase；具体依赖交给项目 renv.lock。",
+      "files": []
+    }
+  ]
+}

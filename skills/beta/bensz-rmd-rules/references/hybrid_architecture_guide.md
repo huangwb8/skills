@@ -1,5 +1,9 @@
 # 多分析单元的 R + Rmd 架构
 
+## 项目策略
+
+先区分新项目与已有项目。新项目必须同时使用 `targets` 和 `renv`，即使只有一个分析步骤；已有项目对两者独立兼容，缺失机制不自动补齐，不建立旧 runner 与 targets 的双入口。`_targets.R` 负责依赖图、增量重建和执行顺序，`products/`、`metadata.yaml` 与 `SUCCESS` 仍由产品契约负责。`renv.lock` 是环境身份的一部分，`renv/library/`、staging 和缓存不属于交付。
+
 ## 适用模式
 
 新项目默认使用编号分析单元；已有 `tmp/{主脚本名}/` 项目进入兼容模式，除非用户明确要求，不迁移、不重命名、不覆盖。
@@ -26,7 +30,7 @@
     └── supplementary/                # 按需
 ```
 
-四类编号文件均位于项目根目录，但不要求每个单元都有四类文件。`.R` 是 runner 遍历的计算节点；`.Rmd` 是由 `knit-rmd-html` 或项目既有入口渲染的报告节点；两者都可出现在分析计划中。同词干 `_functions.R` 只由本单元加载，不是节点；HTML 是同名渲染结果。`00.Environment.R` 全项目默认唯一。
+四类编号文件均位于项目根目录，但不要求每个单元都有四类文件。`.R` 与 `.Rmd` 由 `_targets.R` 声明为 target；旧项目中才可能由历史 runner 遍历。同词干 `_functions.R` 只由本单元加载，不是节点；HTML 是同名渲染结果。`00.Environment.R` 全项目默认唯一。
 
 ## 编号语义
 
@@ -57,7 +61,7 @@
 
 ## 简单任务与复杂任务
 
-简单、低成本分析可以只有：
+新项目的最小形态也包含 `_targets.R`、`renv.lock`、`renv/activate.R` 和一个 target：
 
 ```text
 00.Environment.R
@@ -67,7 +71,7 @@ raw/
 reports/
 ```
 
-此路径使用 `templates/Rmd_simple_template.Rmd` 直接只读 `raw/`，不创建 `analysis-plan.yaml`、checkpoint 或 runner 流程；仍执行 Rmd 图表、解读、HTML 和数字检查。多阶段昂贵分析才拆成多个 `.R` 计算单元和持久产品。拆分依据是独立失败边界、复用价值、重算成本和人工审查需要，不是代码行数。
+此路径使用 `templates/Rmd_simple_template.Rmd` 直接只读 `raw/`，但仍通过 targets 编排报告入口并由 renv 锁定包环境。多阶段昂贵分析再拆成多个 target 与持久产品。拆分依据是独立失败边界、复用价值、重算成本和人工审查需要，不是代码行数。
 
 ## 旧项目兼容与显式迁移
 

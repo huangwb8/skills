@@ -17,9 +17,9 @@ metadata:
 
 ## 目标
 
-先理解研究目标与数据，再把任务组织为可审查、可恢复的 R 分析单元。`.R` 负责完整数据、重型计算和持久数据产品；`.Rmd` 负责报告层筛选、可视化与证据锚定的专家解读。新项目默认使用编号根文件及 `raw/`、`products/`、`reports/`；已有 `tmp/` 项目保持原布局，除非用户明确要求迁移。
+先理解研究目标与数据，再把任务组织为可审查、可恢复的 R 分析单元。`.R` 负责完整数据、重型计算和持久数据产品；`.Rmd` 负责报告层筛选、可视化与证据锚定的专家解读。新项目无论只有一个分析步骤还是多阶段流程，都必须从一开始启用 `targets` 与 `renv`；已有项目按实际状态独立兼容，缺什么就保持什么，不自动补齐或迁移。
 
-本 Skill 还负责 Nature 级图表、弱背景读者的指标导读、数字追溯、HTML widget 可见性和跨平台路径。`luckyBase` 是硬依赖。它不替代领域统计判断，不缓存每个临时变量，不默认引入 `targets`/`drake`，也不自动接入 State、Verifier、Pack 或 Gate。
+本 Skill 还负责 Nature 级图表、弱背景读者的指标导读、数字追溯、HTML widget 可见性和跨平台路径。`luckyBase` 是唯一固定 Bensz 生态依赖。具体分析包由项目声明并写入 `renv.lock`；`targets` 是新项目唯一流程编排入口，`renv` 是新项目唯一环境锁定入口。本 Skill 不自动接入 State、Verifier、Pack 或 Gate。
 
 ## 流程
 
@@ -30,12 +30,12 @@ metadata:
 - 研究问题、报告用途、正式交付物和可接受的统计边界；
 - 原始输入、数据字典、样本/变量含义、隐私限制与只读范围；
 - 重算成本、外部请求、随机性、关键参数与已有项目布局；
-- 现有 `.R`、`.Rmd`、`00.Environment.R`、`products/` 或旧 `tmp/` 产物；
-- 用户已有 R 包与函数。优先 `ccs`、`GSClassifier`、`lucky*`；`candidate_r` 仅在用户已加载或显式给出路径时使用。
+- 现有 `.R`、`.Rmd`、`00.Environment.R`、`products/`、旧 `tmp/`、`_targets.R`、`renv.lock` 或 `renv/` 资产；
+- 用户已有 R 包与函数，以及项目是否已有 `targets`/`renv`。固定加载入口只有 `luckyBase`，其它包由项目 `renv.lock` 决定。
 
 读取 `config.yaml`。按任务选择 references：
 
-- 新建/重构数据流：[`references/hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md)、[`references/hybrid_architecture_examples.md`](references/hybrid_architecture_examples.md)、[`references/analysis_workflow_cache.md`](references/analysis_workflow_cache.md)；
+- 新建/重构数据流：[`references/hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md)、[`references/hybrid_architecture_examples.md`](references/hybrid_architecture_examples.md)、[`references/analysis_workflow_cache.md`](references/analysis_workflow_cache.md)；新项目初始化还需读取 `templates/_targets.R` 与 `templates/renv/activate.R`。
 - 审查流程：[`references/serial_review_protocol.md`](references/serial_review_protocol.md)；
 - R 实现：[`references/code_style_guide.md`](references/code_style_guide.md)、[`references/no_overdefensive_code.md`](references/no_overdefensive_code.md)、[`references/cross_platform.md`](references/cross_platform.md)；
 - 指标与解读：[`references/metric_explanation_protocol.md`](references/metric_explanation_protocol.md)、[`references/four_tier_interpretation_framework.md`](references/four_tier_interpretation_framework.md)、[`references/interpretation_templates.md`](references/interpretation_templates.md)、[`references/interpretation_narrative_examples.md`](references/interpretation_narrative_examples.md)、[`references/expert_discussion_template.md`](references/expert_discussion_template.md)；
@@ -66,7 +66,13 @@ AA.BB.CC. 名称.html
 
 同一单元只创建实际需要的文件；`_functions.R` 不是执行节点。数字元组升序是默认执行顺序。`00.Environment.R` 默认全项目唯一，只负责包加载、项目根路径、全局选项和真正跨单元的配置。
 
-#### 2. 确定目录与兼容模式
+#### 2. 判定项目状态并选择唯一策略
+
+先运行 `<skill-root>/scripts/check_targets_renv.py <项目根> --mode auto` 做只读盘点。空目录或用户明确声明新建时进入新项目策略；发现任一 R/Rmd、产品目录、runner、`_targets.R`、`renv/` 或 `renv.lock` 时进入已有项目策略；信号冲突或半成品状态不明确时先请求澄清。
+
+新项目必须复制最小 `_targets.R`、初始化 `renv` 并生成 `renv.lock` 与 `renv/activate.R`，即使只有一个分析步骤。`targets` 负责依赖图、增量重建和执行顺序；产品 helper 仍负责 `products/`、`metadata.yaml` 和 `SUCCESS`。已有项目对 `targets` 与 `renv` 独立判断：已有哪个就维护哪个，缺失哪个就不创建哪个；旧 runner 只作为已有项目的历史入口，不与 targets 共写一套产品，也不是新项目回退入口。
+
+#### 3. 确定目录与兼容模式
 
 新项目使用以下边界：
 
@@ -80,7 +86,7 @@ AA.BB.CC. 名称.html
 
 若现有项目仍以 `tmp/{主脚本名}/` 工作，先识别并保留，不迁移、不覆盖；只有用户明确要求迁移时才建立映射、保留原路径并提供回退。详见架构指南。
 
-#### 3. 设计缓存边界
+#### 4. 设计缓存边界
 
 边界在以下任一条件下通常值得缓存：计算昂贵；被多个下游复用；经历高风险/有损转换；需要人工审查；依赖可变外部请求；中断后重做代价高。毫秒内可重建、只服务下一行或纯展示格式的对象不默认缓存。
 
@@ -93,7 +99,7 @@ AA.BB.CC. 名称.html
 
 缓存身份至少覆盖输入摘要、影响本步骤的参数、相关代码摘要、上游产品身份和输出契约版本；必要时加入会改变结果的 R/包版本。时间戳不得进入身份。使用 `templates/checkpoint_helpers.R` 提供的路径、摘要、命中判断和“临时文件 → 验证 → 正式文件 → SUCCESS”协议，不即席复制一套 helper。
 
-#### 4. 实现计算层与报告层
+#### 5. 实现计算层与报告层
 
 - 所有包在 `00.Environment.R` 中经 `luckyBase::Plus.library()` 加载；分析脚本优先用 `pkg::fn()`。基因 ID 转换使用 `luckyBase::convert()`。
 - `.R` 读取 `raw/` 或上游 `products/`，保留未经报告阈值筛选的完整结果，并写入自己的产品目录。
@@ -102,9 +108,9 @@ AA.BB.CC. 名称.html
 - 只在 I/O 边界和硬前提做明确检查；不以占位代码、静默降级或过度防御掩盖失败。
 - 涉及不常用、任务自定义或非标准定义指标时，先写指标导读，首次完整解释，后续只解释当前证据；同名指标定义变化时重新解释。
 
-简单单报告从 `templates/Rmd_simple_template.Rmd` 起步，直接只读 `raw/`，不创建 plan、checkpoint 或 runner 链路。多阶段分析再使用 `analysis_plan_template.yaml`、`R_data_template.R`、`functions_template.R`、`Rmd_template.Rmd` 和 `00.Environment.R`，并把 `templates/checkpoint_helpers.R` 复制到用户项目同名路径；可用 `bootstrap_liquid_glass.py --with-extras` 安全复制，默认不覆盖。已有文件只增量修改。图表、DT、plotly 和主题 helper 按需复制，不创建未使用的模板文件。
+新项目从 `templates/_targets.R`、`templates/renv/activate.R` 和 `00.Environment.R` 起步；先执行一次 `renv::init(bare = TRUE)` 或等价初始化，确认 `renv.lock` 已生成，再运行 `targets::tar_make()`。单报告也保留一个最小 target，不为形式拆出多个节点。多阶段项目再使用 `analysis_plan_template.yaml`、`R_data_template.R`、`functions_template.R`、`Rmd_template.Rmd` 和 `templates/checkpoint_helpers.R`。已有项目只增量维护已经存在的机制，不能因模板缺失就创建 `_targets.R`、`renv.lock` 或迁移目录。图表、DT、plotly 和主题 helper 按需复制，不创建未使用的模板文件。
 
-#### 5. 在真实昂贵运行前串行审查
+#### 6. 在真实昂贵运行前串行审查
 
 主 Agent 完成全部初稿后，按顺序启动三个新的、彼此独立且只读的子 Agent：
 
@@ -114,9 +120,9 @@ AA.BB.CC. 名称.html
 
 每轮读取主 Agent 修正后的最新版本，只输出问题、证据和建议；只有主 Agent 修改文件。记录“通过”也是有效结论，不制造形式性修改。完整权限与降级规则见串行审查协议。
 
-#### 6. 运行、缓存命中与恢复
+#### 7. 运行、缓存命中与恢复
 
-存在 `analysis-plan.yaml` 和编号 `.R` 计算节点时，先从已安装 Skill 根目录运行 `<skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml`；首次正式运行或交付前使用 `--strict`。获得真实运行授权后，用 `<skill-root>/scripts/run_analysis_workflow.py` 按编号遍历计算节点。简单无缓存报告跳过本步骤；旧 `tmp/` 项目不补 plan、不调用 runner，只运行不带 `--plan` 的 checker 并沿用原项目入口。
+新项目先运行 `<skill-root>/scripts/check_targets_renv.py <项目根> --mode new`，再由 `targets::tar_make()` 统一执行；`_targets/` 是 targets 的内部状态目录，不进入正式交付。`analysis-plan.yaml` 可作为需求与产品契约，但不再驱动第二个 runner。旧 `run_analysis_workflow.py` 与编号 checker 仅用于已有项目中已经采用该历史入口的维护和只读检查；已有项目不补 plan、不创建 targets/renv，也不建立双入口。
 
 编号计算流遵循：
 
@@ -133,7 +139,7 @@ python3 <skill-root>/scripts/run_analysis_workflow.py <项目根> --resume-from 
 
 严禁仅因文件存在就命中缓存。失败单元不得留下 `SUCCESS`，已成功的前序产品保留。
 
-#### 7. 完成报告与交付
+#### 8. 完成报告与交付
 
 图表默认英文；中文期刊等场景通过 `params.plot_language` 显式切换。静态正式图保存矢量 PDF，生成 JPG 预览并逐图检查裁切、字体、线点、图例、密度与配色；预览进入任务工作区，不进入正式报告目录。
 
@@ -152,7 +158,9 @@ python3 <skill-root>/scripts/run_analysis_workflow.py <项目根> --resume-from 
 交付前按适用模式完成检查。编号计算流额外执行：
 
 ```bash
-python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml --strict
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --mode new
+Rscript -e 'renv::status()'
+targets::tar_make()
 python3 <skill-root>/scripts/check_rmd_template_yaml.py
 ```
 
@@ -175,11 +183,15 @@ Rscript <skill-root>/scripts/check_plot_readability.R <正式图.pdf> --render-j
 - 修改报告阈值/配色不触发重型计算；
 - 删除 `.bensz-api/` 不影响正式流程重跑；
 - 旧 `tmp/` 项目未被隐式迁移；
+- 新项目只有一个分析步骤时仍存在一个可运行 target；
+- `renv.lock` 变化纳入环境身份，`renv/library/`、staging 和缓存不进入交付；
 - 三轮审查及轮间修正可追溯，或按规则明确披露降级。
 
 ### 失败与恢复
 
 - 缺少 `luckyBase`：立即停止并说明安装前提，不改用另一套包管理逻辑。
+- 新项目缺少 `_targets.R`、`renv.lock` 或 `renv/activate.R`：在初始化阶段停止，补齐并验证后再运行；运行中不得静默安装、snapshot 或 restore。
+- 已有项目缺少 targets 或 renv：保持缺失状态，继续维护现有入口，不把兼容任务变成迁移任务。
 - 需求、数据字典或统计边界不足：完成安全的只读盘点与待确认分析图，不启动昂贵计算。
 - 缓存不完整、哈希不符或无法解析：视为 miss，保留证据，重算该单元及必要下游；不手工伪造 `SUCCESS`。
 - Rmd 渲染失败：保留 `.Rmd`、计算层产品和日志，从报告层恢复，不重跑无关计算。

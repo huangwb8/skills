@@ -2,6 +2,9 @@
 
 ## 规划
 
+- [ ] 已通过 `check_targets_renv.py --mode auto` 判定新项目或已有项目；状态不明确时已请求澄清。
+- [ ] 新项目已初始化 `_targets.R`、`renv.lock` 和 `renv/activate.R`；已有项目未因检查新增缺失机制。
+
 - [ ] 目标、输入、数据字典、统计边界、报告用途和重跑成本已确认。
 - [ ] 每项需求映射到分析单元或明确排除。
 - [ ] 单元使用 `AA.BB.CC. 名称`，无重复、前向依赖或循环。
@@ -13,6 +16,7 @@
 - [ ] `raw/` 只读；完整产品在 `products/`；正式材料在 `reports/`。
 - [ ] `_functions.R` 未被视为执行节点；Rmd/HTML 留在根目录。
 - [ ] 旧 `tmp/` 项目未被自动迁移或覆盖。
+- [ ] 新项目只有一个步骤时仍使用一个 target；旧 runner 未作为新项目回退入口。
 - [ ] 包经 `luckyBase::Plus.library()` 管理；基因 ID 转换使用 `luckyBase::convert()`。
 
 ## 缓存与恢复
@@ -32,7 +36,17 @@
 
 ## 交付命令
 
-多阶段编号计算流：
+新项目 targets + renv：
+
+```bash
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --mode new
+Rscript -e 'renv::status()'
+Rscript -e 'targets::tar_make()'
+```
+
+已有项目先使用 `--mode existing` 做只读检查，再沿用项目已有入口。
+
+历史编号计算流（仅已有项目兼容维护）：
 
 ```bash
 python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml --strict

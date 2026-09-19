@@ -2,7 +2,7 @@
 
 为 R 与 R Markdown 数据分析提供“先规划、再计算、可恢复、可审查”的工作流。它把复杂任务拆成编号分析单元，只缓存值得保留的科学数据产品，并让报告阈值、配色和解读迭代不重复昂贵计算。
 
-版本号以 [config.yaml](config.yaml) 的 `skill_info.version` 为唯一来源。
+版本号以 [config.yaml](config.yaml) 的 `skill_info.version` 为唯一来源。新项目统一采用 `targets + renv`；已有项目按现状兼容，不自动迁移。
 
 ## 什么时候使用
 
@@ -23,7 +23,7 @@
 昂贵结果应支持缓存命中和中途恢复。
 ```
 
-Skill 会先盘点目标、输入、数据字典、统计边界、报告用途和重跑成本，再决定需要多少分析单元；简单任务不会被强拆成复杂流水线。
+Skill 会先只读盘点项目状态。空目录或明确新建的项目必须初始化 `targets + renv`，单步骤也保留一个 target；已有项目的 targets 与 renv 独立维护，缺失机制不自动补齐。
 
 ## 进阶 Prompt
 
@@ -55,12 +55,15 @@ Skill 会先盘点目标、输入、数据字典、统计边界、报告用途�
 ```text
 项目根目录/
 ├── 00.Environment.R
-├── analysis-plan.yaml
+├── _targets.R
+├── renv.lock
+├── renv/activate.R
+├── analysis-plan.yaml              # 需求/产品契约，可选
 ├── 01.00.00. 数据整理.R
 ├── 01.00.00. 数据整理_functions.R   # 按需
 ├── 02.00.00. 结果报告.Rmd
 ├── 02.00.00. 结果报告.html
-├── templates/checkpoint_helpers.R   # 多阶段缓存流必需
+├── templates/checkpoint_helpers.R   # 需要产品 checkpoint 时复制
 ├── raw/                              # 原始输入，只读
 ├── products/main/01.00.00. 数据整理/
 │   ├── main.rds
@@ -142,9 +145,10 @@ python3 <skill-root>/scripts/check_analysis_workflow.py /path/to/project --plan 
 python3 <skill-root>/scripts/run_analysis_workflow.py /path/to/project --dry-run
 ```
 
-简单单报告不需要 `analysis-plan.yaml`、products 或 runner。旧 `tmp/` 项目沿用原运行入口，可运行不带 plan 的检查：
+新项目即使只有一个报告也必须存在 `_targets.R`、`renv.lock` 和 `renv/activate.R`；可用一个 target 表示整个报告。已有项目不因检查而新增这些文件，旧 `tmp/` 项目沿用原运行入口：
 
 ```bash
+python3 <skill-root>/scripts/check_targets_renv.py /path/to/legacy-project --mode existing
 python3 <skill-root>/scripts/check_analysis_workflow.py /path/to/legacy-project --legacy --strict
 ```
 
@@ -174,14 +178,14 @@ python3 <skill-root>/scripts/check_rmd_template_yaml.py
 
 ## R 包与函数资源
 
-`luckyBase` 是硬依赖。包加载集中在 `00.Environment.R` 并使用：
+`luckyBase` 是唯一固定 Bensz 生态依赖。具体分析包由项目声明并写入 `renv.lock`，不会由 Skill 预装个人化包。包加载集中在 `00.Environment.R` 并使用：
 
 ```r
 luckyBase::Plus.library("ggplot2")
 luckyBase::Plus.library("yaml")
 ```
 
-涉及基因 ID 转换时使用 `luckyBase::convert()`。`candidate_r` 仅在用户已加载或明确给出路径时使用；Skill 不猜路径、不扫描磁盘。
+涉及基因 ID 转换时使用 `luckyBase::convert()`。用户已有的自定义函数只能按明确路径或已加载对象使用；Skill 不猜路径、不扫描磁盘。
 
 ## 与相邻 Skill 的区别
 
@@ -194,9 +198,9 @@ luckyBase::Plus.library("yaml")
 
 ## 常见问题
 
-### 简单任务也必须创建 products 吗？
+### 单报告项目也必须使用 targets 和 renv 吗？
 
-不必。低成本、单报告任务可以只有一个编号 Rmd/HTML；只有昂贵、复用、高风险、需人工审查或中断重做代价高的边界才值得 checkpoint。
+新项目必须使用。一个 `tar_target()` 就足以表达单报告，产品是否写入 `products/` 仍按实际交付和复用需求决定。已有项目保持原有机制，不因 Skill 更新自动补齐。
 
 ### 可以把 Rmd 和 HTML 放进 reports 吗？
 
@@ -206,9 +210,9 @@ luckyBase::Plus.library("yaml")
 
 保留 RDS 作为完整主对象，同时提供全量矩形表，或在体量很大时提供 schema、列级统计、结构摘要和有限预览。
 
-### 能自动迁移旧 tmp 项目吗？
+### 能自动迁移旧项目或补齐缺失机制吗？
 
-不会。默认非破坏维护旧布局。只有明确要求迁移时，才建立映射、校验新旧结果、保留原路径并提供回退。
+不会。已有项目按 targets 与 renv 各自的实际状态维护；只有明确要求迁移时，才建立映射、校验新旧结果并保留原路径。旧 runner 只服务已有项目，不是新 targets 项目的回退入口。
 
 ### 宿主没有子 Agent 怎么办？
 

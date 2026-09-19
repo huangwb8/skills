@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-19
+
+### Added
+
+- 新项目生命周期契约：统一使用 `targets` 编排（含单步骤项目）与 `renv` 锁定环境。
+- `templates/_targets.R`、`templates/renv/activate.R` 和 `scripts/check_targets_renv.py`，支持最小初始化与只读状态检查。
+
+### Changed
+
+- `SKILL.md`、`README.md`、架构指南与检查清单同步“新项目强制、已有项目独立兼容、不自动迁移、不建立旧 runner 回退入口”。
+- `config.yaml` 的固定 R 依赖收缩为 `luckyBase`；具体分析包改由项目 `renv.lock` 管理。
+
 ## [0.23.0] - 2026-09-17
 
 ### Added
