@@ -106,6 +106,20 @@ _ACTION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 ACTION_AUTHORIZATION_PROTOCOL = "bensz-action-authorization-v1"
 
 
+def _evidence_binding(result: Mapping[str, Any]) -> tuple[str | None, tuple[str, ...]]:
+    """Return the optional content binding carried by a verifier result."""
+    raw_hash = result.get("evidence_hash")
+    evidence_hash = str(raw_hash) if raw_hash is not None else None
+    if evidence_hash is not None and not (
+        _SHA256_RE.fullmatch(evidence_hash) or _RAW_SHA256_RE.fullmatch(evidence_hash)
+    ):
+        raise ValueError("evidence_hash must be a sha256 digest")
+    refs = result.get("evidence_refs", ())
+    if not isinstance(refs, (list, tuple)) or not all(isinstance(item, str) and item for item in refs):
+        raise ValueError("evidence_refs must be a non-empty string list")
+    return evidence_hash, tuple(refs)
+
+
 def _component_bound_gate(
     result: Mapping[str, Any],
     *,
@@ -928,6 +942,12 @@ def _guard_completion(
             raise CompletionError("verifier gate does not match Kernel recomputation")
         if set(declared_refs) != refs or len(declared_refs) != len(verifications):
             raise CompletionError("verifier gate is not bound to recorded results")
+        bound_hashes = {str(item["evidence_hash"]) for item in verifications if item.get("evidence_hash") is not None}
+        gate_hash = gate.get("evidence_hash")
+        if bound_hashes and (len(bound_hashes) != 1 or gate_hash not in bound_hashes):
+            raise CompletionError("verifier gate evidence hash binding mismatch")
+        if gate_hash is not None and not _SHA256_RE.fullmatch(str(gate_hash)) and not _RAW_SHA256_RE.fullmatch(str(gate_hash)):
+            raise CompletionError("verifier gate evidence hash is invalid")
         result_event_id = gate.get("result_event_id")
         if not result_event_id or result_event_id != verifications[-1].get("_event_id"):
             raise CompletionError("verifier gate is bound to a different result event")
@@ -1037,6 +1057,20 @@ class EventLog:
                 raise IntegrityError("action authorization events must be emitted by action authorization APIs")
             if event_type in {"effect.applied", "effect.reconciled"} and not (auth.get("scope") or auth.get("approval_ref") or auth.get("policy_version")):
                 raise AuthorizationError(f"{event_type} requires explicit authorization")
+            if event_type == "state.transition" and data.get("gate_event_id"):
+                gate = next((item for item in reversed(events) if item.event_type == "verification.gate" and item.event_id == data["gate_event_id"]), None)
+                if gate is None:
+                    raise IntegrityError("gate event not found")
+                if (gate.run_id, gate.state_visit_id, gate.attempt_id) != (run_id, state_visit_id, attempt_id):
+                    raise IntegrityError("gate identity mismatch")
+                if gate.payload.get("decision") not in {"allow", "allow_with_warnings"}:
+                    raise IntegrityError("transition requires an allowing gate")
+                expected_hash = gate.payload.get("evidence_hash")
+                if data.get("evidence_hash") != expected_hash:
+                    raise IntegrityError("gate evidence hash mismatch")
+                expected_refs = tuple(gate.payload.get("evidence_refs", gate.evidence_refs))
+                if tuple(data.get("evidence_refs", ())) != expected_refs:
+                    raise IntegrityError("gate evidence refs mismatch")
             if idempotency_key:
                 for existing in events:
                     if existing.idempotency_key == idempotency_key:
@@ -1108,6 +1142,42 @@ class EventLog:
 
     def projection(self) -> dict[str, Any]:
         return reduce_events(self.read())
+
+    def query_verifications(
+        self,
+        *,
+        run_id: str | None = None,
+        state_visit_id: str | None = None,
+        attempt_id: str | None = None,
+    ) -> list[EventEnvelope]:
+        """Return recorded verifier result events for one execution identity."""
+        return self._query_events("verification.result", run_id=run_id, state_visit_id=state_visit_id, attempt_id=attempt_id)
+
+    def query_gates(
+        self,
+        *,
+        run_id: str | None = None,
+        state_visit_id: str | None = None,
+        attempt_id: str | None = None,
+    ) -> list[EventEnvelope]:
+        """Return Kernel-computed Gate events for one execution identity."""
+        return self._query_events("verification.gate", run_id=run_id, state_visit_id=state_visit_id, attempt_id=attempt_id)
+
+    def _query_events(
+        self,
+        event_type: str,
+        *,
+        run_id: str | None,
+        state_visit_id: str | None,
+        attempt_id: str | None,
+    ) -> list[EventEnvelope]:
+        return [
+            event for event in self.read()
+            if event.event_type == event_type
+            and (run_id is None or event.run_id == run_id)
+            and (state_visit_id is None or event.state_visit_id == state_visit_id)
+            and (attempt_id is None or event.attempt_id == attempt_id)
+        ]
 
     def start_attempt(
         self,
@@ -1567,10 +1637,17 @@ class EventLog:
         state_visit_id: str | None = None,
         authorization: Mapping[str, Any] | None = None,
         snapshot: Mapping[str, Any] | None = None,
+        gate_event_id: str | None = None,
+        evidence_hash: str | None = None,
+        evidence_refs: Iterable[str] = (),
         **payload: Any,
     ) -> EventEnvelope:
         """Append a state transition using the canonical event type."""
         payload["to"] = to
+        if gate_event_id is not None:
+            payload["gate_event_id"] = gate_event_id
+            payload["evidence_hash"] = evidence_hash
+            payload["evidence_refs"] = list(evidence_refs)
         return self.append(
             "state.transition",
             payload=payload,
@@ -1582,6 +1659,7 @@ class EventLog:
             state_visit_id=state_visit_id,
             authorization=authorization,
             snapshot=snapshot,
+            evidence_refs=evidence_refs,
         )
 
     def record_artifact(self, artifact_id: str, *, required: bool = False, **metadata: Any) -> EventEnvelope:
@@ -1615,6 +1693,10 @@ class EventLog:
             return self.record_verification_batch(tuple(result), gate, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=idempotency_key, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, requirements=requirements)
         refs = tuple(result.get("evidence_refs", ()))
         result_data = dict(result)
+        evidence_hash: str | None = None
+        evidence_refs: tuple[str, ...] = refs
+        if gate is not None:
+            evidence_hash, evidence_refs = _evidence_binding(result_data)
         verifier_id = result_data.get("verifier_id")
         verifier_version = result_data.get("verifier_version")
         computed: Any = None
@@ -1667,6 +1749,9 @@ class EventLog:
             if identity_valid:
                 gate_payload = computed.to_dict() if hasattr(computed, "to_dict") else dict(computed)
                 gate_payload.update({"computed_by": "kernel", "result_event_id": verification.event_id})
+                if evidence_hash is not None:
+                    gate_payload["evidence_hash"] = evidence_hash
+                gate_payload["evidence_refs"] = list(evidence_refs)
             else:
                 # Legacy callers may persist non-canonical IDs; retain their
                 # historical gate shape, which is never eligible for
@@ -1710,6 +1795,12 @@ class EventLog:
         if not items:
             raise ValueError("verification result list cannot be empty")
         with self._locked():
+            bindings = []
+            if gate is not None:
+                for item in items:
+                    evidence_hash, refs = _evidence_binding(item)
+                    if evidence_hash is not None:
+                        bindings.append({"evidence_hash": evidence_hash, "evidence_refs": list(refs)})
             result_events: list[EventEnvelope] = []
             for index, item in enumerate(items):
                 event, _ = self.record_verification(item, None, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:{index}" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, requirements=requirements, _lock_held=True)
@@ -1739,6 +1830,12 @@ class EventLog:
             gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
             if computed is not None:
                 gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
+            if bindings:
+                if len({item["evidence_hash"] for item in bindings}) != 1:
+                    gate_payload = {"decision": "reject", "reason": "evidence hash binding mismatch", "result_refs": (), "unresolved": ("evidence_binding",)}
+                else:
+                    gate_payload["evidence_hash"] = bindings[0]["evidence_hash"]
+                    gate_payload["evidence_bindings"] = bindings
             return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
 
     def record_audit(self, event_type: str, *, payload: Mapping[str, Any] | None = None, run_id: str | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:

@@ -2,6 +2,8 @@
 
 Lightweight lifecycle kernel for Agent Skill states, workspaces, and Verifier execution.
 
+Current release: `2.1.4`
+
 [中文](README.md) · English: `README_EN.md`
 
 ## Who it is for
@@ -169,6 +171,15 @@ The run snapshot stores Skill/Kernel versions, the identity policy, State contra
 Pack helpers run as trusted local processes by default. The kernel limits input, stdout/stderr size, environment variables, and execution time, and terminates the full process group on timeout. Passing `trusted=False` for an untrusted Pack fails closed; this is a process-level resource boundary, not a container or OS sandbox. stdio subprocesses set `PYTHONDONTWRITEBYTECODE=1` by default so no `__pycache__` is written into Pack directories; an explicit `PYTHONPYCACHEPREFIX` is still passed through so caches can be archived elsewhere.
 
 The append-only ledger retains optional contract snapshots, authorization chains, and execution audit trails. `reduce_events()` performs offline projection replay and never calls a model or tool. `verification-v2` rechecks component uniqueness, hashes, evidence references, run identity, executor/model, and human confirmation at recording and completion gates; a caller-reported aggregate pass cannot override a required failure or missing run. `summarize_metrics()` also reports component binding and executor identity coverage.
+
+A Gate can also bind the content hash of a business evidence index. Add `evidence_hash`
+(`sha256:<64 hexadecimal digits>`) to a result passed to `record_verification()` or
+`record_verification_batch()` and the Kernel stores it on the computed Gate. A
+`transition(..., gate_event_id=..., evidence_hash=..., evidence_refs=...)` accepts only an
+allowing Gate with matching run/State-visit/attempt identity and evidence bindings. Skills can
+use `EventLog.query_verifications()` and `EventLog.query_gates()` to read original ledger
+receipts instead of relying on a projection that may later be rewritten. Legacy results without
+this field remain read-only compatible but do not gain a new evidence-hash binding.
 
 ## Development, testing, and release
 

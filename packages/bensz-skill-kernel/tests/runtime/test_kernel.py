@@ -606,3 +606,55 @@ def test_completion_guard_rejects_artifact_path_and_hash_violations(tmp_path: Pa
     outside_log.transition("delivering")
     with pytest.raises(CompletionError, match="not a file|outside allowed root"):
         outside_log.transition("completed", outcome="success")
+
+
+def test_gate_binds_business_evidence_hash_and_replay_query(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    result, gate = log.record_verification(
+        {
+            "verifier_id": "bensz.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+            "evidence_refs": ["completion-index"],
+            "evidence_hash": "sha256:" + "a" * 64,
+        },
+        {"decision": "allow"},
+        run_id="run-1",
+        state_visit_id="visit-1",
+        attempt_id="attempt-1",
+    )
+    assert gate is not None
+    assert gate.payload["evidence_hash"] == "sha256:" + "a" * 64
+    assert gate.payload["evidence_refs"] == ["completion-index"]
+    assert log.query_gates(run_id="run-1", state_visit_id="visit-1", attempt_id="attempt-1")[0].event_id == gate.event_id
+    assert log.query_verifications(run_id="run-1", state_visit_id="visit-1", attempt_id="attempt-1")[0].event_id == result.event_id
+
+
+def test_transition_rejects_stale_gate_evidence_binding(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    _, gate = log.record_verification(
+        {
+            "verifier_id": "bensz.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+            "evidence_refs": ["completion-index"],
+            "evidence_hash": "sha256:" + "b" * 64,
+        },
+        {"decision": "allow"},
+        run_id="run-1",
+        state_visit_id="visit-1",
+        attempt_id="attempt-1",
+    )
+    assert gate is not None
+    with pytest.raises(IntegrityError, match="gate evidence hash mismatch"):
+        log.transition(
+            "active",
+            run_id="run-1",
+            state_visit_id="visit-1",
+            attempt_id="attempt-1",
+            gate_event_id=gate.event_id,
+            evidence_hash="sha256:" + "c" * 64,
+            evidence_refs=["completion-index"],
+        )

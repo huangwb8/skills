@@ -2,6 +2,8 @@
 
 轻量的 Agent Skill 状态、工作区与 Verifier 生命周期内核。
 
+当前发布版本：`2.1.4`
+
 [English](README_EN.md)
 
 ## 适合谁
@@ -169,6 +171,13 @@ bsk workspace initialize . skill-name org.example.skill.collecting \
 Pack helper 默认以受信本地进程运行；Kernel 限制输入、stdout/stderr 体积、环境变量和执行时长，超时终止整个进程组。对不可信 Pack 传入 `trusted=False` 会 fail-closed；这是进程级资源边界，不等同于容器或操作系统沙箱。stdio 子进程默认设置 `PYTHONDONTWRITEBYTECODE=1`，不会向 Pack 目录写入 `__pycache__`；显式提供的 `PYTHONPYCACHEPREFIX` 仍会透传，便于把缓存归档到指定目录。
 
 追加式账本保留可选契约快照、授权链和执行审计。`reduce_events()` 只做离线投影重放，不重新调用模型或工具。`verification-v2` 在记录和完成门禁处复核组件唯一性、哈希、证据引用、运行身份、执行者/模型及人工确认；调用方自报的 aggregate pass 不能覆盖 required 失败或漏跑。`summarize_metrics()` 额外汇总组件绑定率和执行者身份覆盖率。
+
+Gate 还可以绑定一次业务证据索引的内容哈希。向 `record_verification()` 或
+`record_verification_batch()` 的结果加入 `evidence_hash`（`sha256:<64 位十六进制>`）后，
+Kernel 会把它固化到 Kernel 计算的 Gate；`transition(..., gate_event_id=..., evidence_hash=...,
+evidence_refs=...)` 只接受同一 run/State visit/attempt、允许放行且证据绑定完全一致的 Gate。
+Skill 可用 `EventLog.query_verifications()` 与 `EventLog.query_gates()` 从事件账本读取原始回执，
+避免依赖可被后来改写的摘要投影。旧结果不含该字段时保持只读兼容，但不会获得新的证据哈希绑定。
 
 ## 开发、测试与发布
 

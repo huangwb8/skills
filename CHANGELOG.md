@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.10] - 2026-09-19
+
+### Added（新增）
+
+- `bensz-skill-kernel` 更新至 2.1.4：Gate 支持绑定业务证据内容哈希与引用；transition 消费 Gate 时校验运行身份、证据哈希和引用，防止 Gate 后索引漂移被重新包装为合法迁移。
+- 新增 `EventLog.query_verifications()` / `query_gates()` 只读回放接口，供上层 Skill 对账原始 Kernel 回执。
+- 根仓库与 Kernel 中英文 README 同步当前源代码、发布版本和证据绑定能力。
+
 ## [5.0.9] - 2026-09-14
 
 ### Added（新增）
