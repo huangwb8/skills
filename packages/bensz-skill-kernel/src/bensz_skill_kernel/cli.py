@@ -20,7 +20,7 @@ from typing import Any, Mapping
 
 from .runtime import EventLog, IntegrityError, KernelError
 from .identity import STRICT_IDENTITY_POLICY, STATE_IDENTITY_PROTOCOL, kernel_capabilities, kernel_diagnostics, normalize_state_identity
-from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state
+from .states import META_STATE_PROTOCOL_VERSION, SkillStateDeclaration, StateMachine, build_state_registry, check_state_invariants, execute_state, state_requires_gate_binding
 from .workspace import TaskWorkspace, WORKSPACE_KINDS, state_snapshot_hash
 from .verifiers import GateDecision, SkillVerifierDeclaration, apply_gate, build_verifier_registry, normalize_result, summarize_metrics
 from . import __version__
@@ -237,6 +237,9 @@ def build_parser() -> argparse.ArgumentParser:
     state_transition.add_argument("--state-visit-id", help="source State visit identity used when checking invariants")
     state_transition.add_argument("--target-state-visit-id", help="target State visit identity; generated when target attempt is supplied")
     state_transition.add_argument("--target-attempt-id", help="initial attempt identity for the target State visit")
+    state_transition.add_argument("--gate-event-id", help="allowing source Gate event consumed by this transition")
+    state_transition.add_argument("--evidence-hash", help="sha256 digest bound by the source Gate")
+    state_transition.add_argument("--evidence-ref", action="append", default=[], help="canonical evidence reference bound by the source Gate; repeatable")
     state_transition.add_argument("--idempotency-key", help="stable key for replaying the same transition request")
     state_transition.add_argument("--timeout", type=int, default=10)
     _add_state_source(state_transition)
@@ -355,7 +358,7 @@ def _state_registry(args: argparse.Namespace):
     return build_state_registry(*roots), None
 
 
-def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None, reason_code: str | None = None, source_identity: Mapping[str, Any] | None = None, target_identity: Mapping[str, Any] | None = None, identity_mode: str | None = None, downgrade_policy: str | None = None, warnings: list[str] | None = None) -> dict[str, Any]:
+def _state_response(operation: str, status: str, *, current_state: str | None = None, target_state: str | None = None, definition: Any = None, execution: Any = None, snapshot: Any = None, reason: str | None = None, reason_code: str | None = None, source_identity: Mapping[str, Any] | None = None, target_identity: Mapping[str, Any] | None = None, identity_mode: str | None = None, downgrade_policy: str | None = None, warnings: list[str] | None = None, gate_binding: Mapping[str, Any] | None = None) -> dict[str, Any]:
     output: dict[str, Any] = {
         "protocol": META_STATE_PROTOCOL_VERSION,
         "operation": operation,
@@ -383,6 +386,8 @@ def _state_response(operation: str, status: str, *, current_state: str | None = 
         output["downgrade_policy"] = downgrade_policy
     if warnings:
         output["warnings"] = list(warnings)
+    if gate_binding is not None:
+        output["gate_binding"] = dict(gate_binding)
     return output
 
 
@@ -558,6 +563,9 @@ def _run_state_command(args: argparse.Namespace) -> int:
                             and existing_source.get("attempt_id") == args.attempt_id
                         )
                     )
+                    and existing.payload.get("gate_event_id") == args.gate_event_id
+                    and existing.payload.get("evidence_hash") == args.evidence_hash
+                    and tuple(existing.payload.get("evidence_refs", ())) == tuple(args.evidence_ref)
                 )
                 if existing.event_type != "state.transition" or not requested_target_matches:
                     raise ValueError(f"idempotency key conflict: {args.idempotency_key}")
@@ -573,6 +581,7 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     identity_mode=identity_mode,
                     downgrade_policy=downgrade_policy,
                     warnings=["legacy_state_write"] if identity_mode == "legacy" else None,
+                    gate_binding=EventLog(workspace.events).inspect_transition_binding(existing.event_id),
                 ), pretty=True)
                 return 0
         if not machine.can_transition(args.target_state):
@@ -618,6 +627,41 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     source_identity=source_identity,
                 ), pretty=True)
                 return 0
+        binding_complete = bool(args.gate_event_id and args.evidence_hash and args.evidence_ref)
+        binding_partial = any((args.gate_event_id, args.evidence_hash, args.evidence_ref)) and not binding_complete
+        binding_required = bool(
+            strict_identity
+            and source_identity is not None
+            and state_requires_gate_binding(registry.resolve(current))
+        )
+        if binding_partial or (binding_required and not binding_complete):
+            reason_code = "gate_binding_incomplete" if binding_partial else "gate_binding_required"
+            reason = (
+                "gate_event_id, evidence_hash and at least one evidence_ref must be provided together."
+                if binding_partial
+                else "A strict-v2 protected transition must consume its source Gate and evidence binding."
+            )
+            _print(_state_response(
+                "transition",
+                "rejected",
+                current_state=current,
+                target_state=target.id,
+                definition=target,
+                snapshot=previous,
+                reason=reason,
+                reason_code=reason_code,
+                source_identity=source_identity,
+                identity_mode=identity_mode,
+                downgrade_policy=downgrade_policy,
+            ), pretty=True)
+            return 2
+        if binding_complete:
+            EventLog(workspace.events).validate_transition_gate_binding(
+                gate_event_id=args.gate_event_id,
+                source_identity=source_identity or {},
+                evidence_hash=args.evidence_hash,
+                evidence_refs=args.evidence_ref,
+            )
         v2_requested = strict_identity or requested_v2
         target_identity = None
         run_snapshot = None
@@ -737,13 +781,19 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     "run_snapshot_id": run_snapshot["snapshot_id"],
                     "run_snapshot_hash": run_snapshot["snapshot_hash"],
                 })
+        if binding_complete:
+            event_payload.update({
+                "gate_event_id": args.gate_event_id,
+                "evidence_hash": args.evidence_hash,
+                "evidence_refs": list(args.evidence_ref),
+            })
         event_run_id = target_identity["run_id"] if target_identity is not None else args.run_id
         event_attempt_id = target_identity["attempt_id"] if target_identity is not None else args.attempt_id
         event_visit_id = target_identity["state_visit_id"] if target_identity is not None else None
         log = EventLog(workspace.events)
         with log._locked():
             pending_tmp, pending_target = workspace.prepare_meta_state(args.skill, snapshot)
-            log.append(
+            event = log.append(
                 "state.transition",
                 payload=event_payload,
                 scope="skill",
@@ -756,13 +806,15 @@ def _run_state_command(args: argparse.Namespace) -> int:
                     if event_run_id else None
                 )),
                 snapshot={"skill": args.skill, "state_hash": snapshot_hash},
+                evidence_refs=args.evidence_ref if binding_complete else (),
                 event_id=state_event_id,
                 _lock_held=True,
             )
             path = workspace.commit_meta_state(pending_tmp, pending_target)
         snapshot["path"] = str(path)
         warnings = ["legacy_state_write"] if identity_mode == "legacy" else None
-        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot, source_identity=source_identity, target_identity=target_identity, identity_mode=identity_mode, downgrade_policy=downgrade_policy, warnings=warnings), pretty=True)
+        gate_binding = log.inspect_transition_binding(event.event_id)
+        _print(_state_response("transition", "transitioned", current_state=current, target_state=target.id, definition=target, execution=execution, snapshot=snapshot, source_identity=source_identity, target_identity=target_identity, identity_mode=identity_mode, downgrade_policy=downgrade_policy, warnings=warnings, gate_binding=gate_binding), pretty=True)
     else:
         build_parser().parse_args(["state", "--help"])
     return 0
@@ -804,6 +856,9 @@ def _run_workspace_command(args: argparse.Namespace) -> int:
             state_visit_id=None,
             target_state_visit_id=args.state_visit_id,
             target_attempt_id=args.attempt_id,
+            gate_event_id=None,
+            evidence_hash=None,
+            evidence_ref=[],
             idempotency_key=args.idempotency_key,
             timeout=args.timeout,
         )

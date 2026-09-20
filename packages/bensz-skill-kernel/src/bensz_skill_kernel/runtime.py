@@ -104,6 +104,7 @@ _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RAW_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ACTION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 ACTION_AUTHORIZATION_PROTOCOL = "bensz-action-authorization-v1"
+GATE_TRANSITION_BINDING_PROTOCOL = "bensz-gate-transition-binding-v1"
 
 
 def _evidence_binding(result: Mapping[str, Any]) -> tuple[str | None, tuple[str, ...]]:
@@ -117,7 +118,156 @@ def _evidence_binding(result: Mapping[str, Any]) -> tuple[str | None, tuple[str,
     refs = result.get("evidence_refs", ())
     if not isinstance(refs, (list, tuple)) or not all(isinstance(item, str) and item for item in refs):
         raise ValueError("evidence_refs must be a non-empty string list")
+    if evidence_hash is not None and not refs:
+        raise ValueError("evidence_refs must be non-empty when evidence_hash is present")
     return evidence_hash, tuple(refs)
+
+
+def _transition_source_identity(
+    payload: Mapping[str, Any],
+    *,
+    run_id: str | None,
+    state_visit_id: str | None,
+    attempt_id: str,
+) -> dict[str, str] | None:
+    """Resolve the identity whose Gate is consumed by a transition.
+
+    Skill transition envelopes describe the *target* visit, while their Gate
+    belongs to ``payload.source_identity``.  Direct lifecycle transitions keep
+    the historical envelope-bound identity.  Keeping this distinction here
+    prevents callers from accidentally validating a source Gate against the
+    target visit.
+    """
+    if payload.get("state_domain") == "skill":
+        source = payload.get("source_identity")
+        if source is None:
+            return None
+        return normalize_state_identity(source, label="transition source identity")
+    if run_id is None or state_visit_id is None:
+        return None
+    return normalize_state_identity(
+        {"run_id": run_id, "state_visit_id": state_visit_id, "attempt_id": attempt_id},
+        label="transition source identity",
+    )
+
+
+def _gate_evidence_refs(gate: "EventEnvelope") -> tuple[str, ...]:
+    raw = gate.payload.get("evidence_refs", gate.evidence_refs)
+    if not isinstance(raw, (list, tuple)) or not all(isinstance(item, str) and item for item in raw):
+        return ()
+    return tuple(raw)
+
+
+def _check_transition_gate_binding(
+    events: Iterable["EventEnvelope"],
+    *,
+    gate_event_id: Any,
+    source_identity: Mapping[str, Any] | None,
+    evidence_hash: Any,
+    evidence_refs: Any,
+) -> tuple["EventEnvelope" | None, str | None]:
+    """Check one Gate-to-transition binding and return a stable reason code."""
+    if not isinstance(gate_event_id, str) or not gate_event_id:
+        return None, "gate_event_id_required"
+    if source_identity is None:
+        return None, "source_identity_required"
+    try:
+        source = normalize_state_identity(source_identity, label="transition source identity")
+    except ValueError:
+        return None, "source_identity_invalid"
+    if not isinstance(evidence_hash, str) or not (
+        _SHA256_RE.fullmatch(evidence_hash) or _RAW_SHA256_RE.fullmatch(evidence_hash)
+    ):
+        return None, "evidence_hash_required"
+    if not isinstance(evidence_refs, (list, tuple)) or not evidence_refs or not all(
+        isinstance(item, str) and item for item in evidence_refs
+    ):
+        return None, "evidence_refs_required"
+    gate = next(
+        (
+            item
+            for item in reversed(tuple(events))
+            if item.event_type == "verification.gate" and item.event_id == gate_event_id
+        ),
+        None,
+    )
+    if gate is None:
+        return None, "gate_event_not_found"
+    if (gate.run_id, gate.state_visit_id, gate.attempt_id) != (
+        source["run_id"], source["state_visit_id"], source["attempt_id"],
+    ):
+        return gate, "gate_identity_mismatch"
+    if gate.payload.get("decision") not in {"allow", "allow_with_warnings"}:
+        return gate, "gate_not_allowing"
+    gate_hash = gate.payload.get("evidence_hash")
+    if not isinstance(gate_hash, str) or not (
+        _SHA256_RE.fullmatch(gate_hash) or _RAW_SHA256_RE.fullmatch(gate_hash)
+    ):
+        return gate, "gate_evidence_hash_missing"
+    if evidence_hash != gate_hash:
+        return gate, "gate_evidence_hash_mismatch"
+    if tuple(evidence_refs) != _gate_evidence_refs(gate):
+        return gate, "gate_evidence_refs_mismatch"
+    return gate, None
+
+
+def _transition_binding_record(
+    events: Iterable["EventEnvelope"],
+    transition: "EventEnvelope",
+) -> dict[str, Any]:
+    """Normalize the replayable Gate binding for one transition event."""
+    payload = transition.payload
+    source_identity = _transition_source_identity(
+        payload,
+        run_id=transition.run_id,
+        state_visit_id=transition.state_visit_id,
+        attempt_id=transition.attempt_id,
+    )
+    target_identity = payload.get("target_identity")
+    gate_event_id = payload.get("gate_event_id")
+    record: dict[str, Any] = {
+        "protocol": GATE_TRANSITION_BINDING_PROTOCOL,
+        "status": "legacy_unbound",
+        "reason_code": "gate_event_id_required",
+        "strictly_bound": False,
+        "transition_event_id": transition.event_id,
+        "gate_event_id": gate_event_id,
+        "skill": payload.get("skill"),
+        "from_state": payload.get("from_state"),
+        "to_state": payload.get("to_state", payload.get("to")),
+        "source_identity": source_identity,
+        "target_identity": target_identity,
+        "transition_evidence_hash": payload.get("evidence_hash"),
+        "transition_evidence_refs": list(payload.get("evidence_refs", ())),
+        "gate_evidence_hash": None,
+        "gate_evidence_refs": [],
+        "decision": None,
+        "result_refs": [],
+    }
+    if gate_event_id is None and source_identity is None:
+        record.update({"status": "not_applicable", "reason_code": "initial_transition"})
+        return record
+    gate, reason_code = _check_transition_gate_binding(
+        events,
+        gate_event_id=gate_event_id,
+        source_identity=source_identity,
+        evidence_hash=payload.get("evidence_hash"),
+        evidence_refs=payload.get("evidence_refs", ()),
+    )
+    if gate is not None:
+        record.update({
+            "gate_evidence_hash": gate.payload.get("evidence_hash"),
+            "gate_evidence_refs": list(_gate_evidence_refs(gate)),
+            "decision": gate.payload.get("decision"),
+            "result_refs": list(gate.payload.get("result_refs", ())),
+        })
+    if reason_code is None:
+        record.update({"status": "bound", "reason_code": None, "strictly_bound": True})
+    elif gate_event_id is not None:
+        record.update({"status": "invalid", "reason_code": reason_code})
+    else:
+        record["reason_code"] = reason_code
+    return record
 
 
 def _component_bound_gate(
@@ -554,6 +704,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
     }
     if initial:
         projection.update(dict(initial))
+    seen_events: list[EventEnvelope] = []
     for event in events:
         target, payload = _event_state(event)
         current = projection["current_state"]
@@ -670,6 +821,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "run_snapshot_hash": payload.get("run_snapshot_hash"),
                     **identity_fields,
                 }
+                binding = _transition_binding_record((*seen_events, event), event)
                 projection["skill_state_transitions"].append({
                     "skill": skill,
                     "from_state": payload.get("from_state"),
@@ -685,6 +837,10 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
                     "snapshot_hash": payload.get("snapshot_hash"),
                     "run_snapshot_id": payload.get("run_snapshot_id"),
                     "run_snapshot_hash": payload.get("run_snapshot_hash"),
+                    "gate_event_id": payload.get("gate_event_id"),
+                    "evidence_hash": payload.get("evidence_hash"),
+                    "evidence_refs": list(payload.get("evidence_refs", ())),
+                    "gate_binding": binding,
                 })
                 for authorization in projection["action_authorizations"].values():
                     if authorization.get("skill") == skill and authorization.get("status") == "granted":
@@ -783,6 +939,7 @@ def reduce_events(events: Iterable[EventEnvelope], *, initial: Mapping[str, Any]
         projection["last_seq"] = event.seq
         projection["last_event_id"] = event.event_id
         projection["event_count"] += 1
+        seen_events.append(event)
     return projection
 
 
@@ -1057,20 +1214,6 @@ class EventLog:
                 raise IntegrityError("action authorization events must be emitted by action authorization APIs")
             if event_type in {"effect.applied", "effect.reconciled"} and not (auth.get("scope") or auth.get("approval_ref") or auth.get("policy_version")):
                 raise AuthorizationError(f"{event_type} requires explicit authorization")
-            if event_type == "state.transition" and data.get("gate_event_id"):
-                gate = next((item for item in reversed(events) if item.event_type == "verification.gate" and item.event_id == data["gate_event_id"]), None)
-                if gate is None:
-                    raise IntegrityError("gate event not found")
-                if (gate.run_id, gate.state_visit_id, gate.attempt_id) != (run_id, state_visit_id, attempt_id):
-                    raise IntegrityError("gate identity mismatch")
-                if gate.payload.get("decision") not in {"allow", "allow_with_warnings"}:
-                    raise IntegrityError("transition requires an allowing gate")
-                expected_hash = gate.payload.get("evidence_hash")
-                if data.get("evidence_hash") != expected_hash:
-                    raise IntegrityError("gate evidence hash mismatch")
-                expected_refs = tuple(gate.payload.get("evidence_refs", gate.evidence_refs))
-                if tuple(data.get("evidence_refs", ())) != expected_refs:
-                    raise IntegrityError("gate evidence refs mismatch")
             if idempotency_key:
                 for existing in events:
                     if existing.idempotency_key == idempotency_key:
@@ -1078,6 +1221,24 @@ class EventLog:
                         if existing_hash != request_hash:
                             raise IdempotencyConflict(f"idempotency key conflict: {idempotency_key}")
                         return existing
+            if event_type == "state.transition" and any(
+                key in data for key in ("gate_event_id", "evidence_hash", "evidence_refs")
+            ):
+                source_identity = _transition_source_identity(
+                    data,
+                    run_id=run_id,
+                    state_visit_id=state_visit_id,
+                    attempt_id=attempt_id,
+                )
+                _, reason_code = _check_transition_gate_binding(
+                    events,
+                    gate_event_id=data.get("gate_event_id"),
+                    source_identity=source_identity,
+                    evidence_hash=data.get("evidence_hash"),
+                    evidence_refs=data.get("evidence_refs", ()),
+                )
+                if reason_code is not None:
+                    raise IntegrityError(f"invalid gate transition binding: {reason_code}")
             event = EventEnvelope(seq=len(events) + 1, event_id=event_id or str(uuid.uuid4()), scope=scope, actor=actor, attempt_id=attempt_id, event_type=event_type, summary=safe_summary, path=safe_path, evidence_refs=refs, idempotency_key=idempotency_key, payload=data, prev_hash=events[-1].event_hash if events else "", occurred_at=_utc_now(), request_hash=request_hash, protocol="bensz-event-v2" if state_visit_id is not None else "bensz-event-v1", run_id=run_id, state_visit_id=state_visit_id, authorization=auth, snapshot=snap).with_hash()
             target, _ = _event_state(event)
             current = reduce_events(events)["current_state"]
@@ -1162,6 +1323,78 @@ class EventLog:
     ) -> list[EventEnvelope]:
         """Return Kernel-computed Gate events for one execution identity."""
         return self._query_events("verification.gate", run_id=run_id, state_visit_id=state_visit_id, attempt_id=attempt_id)
+
+    def query_transitions(
+        self,
+        *,
+        run_id: str | None = None,
+        skill: str | None = None,
+    ) -> list[EventEnvelope]:
+        """Return State transition events, optionally filtered by run/Skill."""
+        return [
+            event
+            for event in self.read()
+            if event.event_type == "state.transition"
+            and (run_id is None or event.run_id == run_id)
+            and (skill is None or event.payload.get("skill") == skill)
+        ]
+
+    def inspect_transition_binding(self, transition_event_id: str) -> dict[str, Any]:
+        """Return a normalized, read-only Gate binding for one transition.
+
+        Historical transitions without a binding remain queryable and are
+        reported as ``legacy_unbound``.  Atomic initial transitions are
+        reported as ``not_applicable`` rather than being promoted to a strict
+        completion proof.
+        """
+        events = self.read()
+        transition = next(
+            (
+                event
+                for event in events
+                if event.event_type == "state.transition" and event.event_id == transition_event_id
+            ),
+            None,
+        )
+        if transition is None:
+            raise ValueError(f"transition event not found: {transition_event_id}")
+        return _transition_binding_record(events, transition)
+
+    def validate_transition_gate_binding(
+        self,
+        *,
+        gate_event_id: str,
+        source_identity: Mapping[str, Any],
+        evidence_hash: str,
+        evidence_refs: Iterable[str],
+    ) -> EventEnvelope:
+        """Validate a proposed source Gate binding without writing an event."""
+        gate, reason_code = _check_transition_gate_binding(
+            self.read(),
+            gate_event_id=gate_event_id,
+            source_identity=source_identity,
+            evidence_hash=evidence_hash,
+            evidence_refs=tuple(evidence_refs),
+        )
+        if reason_code is not None or gate is None:
+            raise IntegrityError(f"invalid gate transition binding: {reason_code or 'gate_event_not_found'}")
+        return gate
+
+    def query_transition_bindings(
+        self,
+        *,
+        run_id: str | None = None,
+        skill: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return normalized Gate bindings for matching transition events."""
+        events = self.read()
+        return [
+            _transition_binding_record(events, event)
+            for event in events
+            if event.event_type == "state.transition"
+            and (run_id is None or event.run_id == run_id)
+            and (skill is None or event.payload.get("skill") == skill)
+        ]
 
     def _query_events(
         self,
@@ -1644,10 +1877,14 @@ class EventLog:
     ) -> EventEnvelope:
         """Append a state transition using the canonical event type."""
         payload["to"] = to
+        binding_refs = tuple(evidence_refs)
+        binding_values = (gate_event_id is not None, evidence_hash is not None, bool(binding_refs))
+        if any(binding_values) and not all(binding_values):
+            raise ValueError("gate_event_id, evidence_hash and evidence_refs must be provided together")
         if gate_event_id is not None:
             payload["gate_event_id"] = gate_event_id
             payload["evidence_hash"] = evidence_hash
-            payload["evidence_refs"] = list(evidence_refs)
+            payload["evidence_refs"] = list(binding_refs)
         return self.append(
             "state.transition",
             payload=payload,
@@ -1659,7 +1896,7 @@ class EventLog:
             state_visit_id=state_visit_id,
             authorization=authorization,
             snapshot=snapshot,
-            evidence_refs=evidence_refs,
+            evidence_refs=binding_refs,
         )
 
     def record_artifact(self, artifact_id: str, *, required: bool = False, **metadata: Any) -> EventEnvelope:
@@ -1830,13 +2067,20 @@ class EventLog:
             gate_payload = computed.to_dict() if computed is not None else dict(gate or {"decision": "reject", "reason": "invalid verifier result identity or status"})
             if computed is not None:
                 gate_payload.update({"computed_by": "kernel", "result_event_id": result_events[-1].event_id})
+            gate_refs = tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ())))
             if bindings:
-                if len({item["evidence_hash"] for item in bindings}) != 1:
-                    gate_payload = {"decision": "reject", "reason": "evidence hash binding mismatch", "result_refs": (), "unresolved": ("evidence_binding",)}
+                distinct_bindings = {
+                    (item["evidence_hash"], tuple(item["evidence_refs"]))
+                    for item in bindings
+                }
+                if len(bindings) != len(items) or len(distinct_bindings) != 1:
+                    gate_payload = {"decision": "reject", "reason": "evidence binding mismatch", "result_refs": (), "unresolved": ("evidence_binding",)}
                 else:
                     gate_payload["evidence_hash"] = bindings[0]["evidence_hash"]
+                    gate_payload["evidence_refs"] = list(bindings[0]["evidence_refs"])
                     gate_payload["evidence_bindings"] = bindings
-            return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=tuple(dict.fromkeys(ref for item in items for ref in item.get("evidence_refs", ()))), scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
+                    gate_refs = tuple(bindings[0]["evidence_refs"])
+            return result_events[-1], self.append("verification.gate", payload=gate_payload, evidence_refs=gate_refs, scope=scope, actor=actor, attempt_id=attempt_id, idempotency_key=f"{idempotency_key}:gate" if idempotency_key else None, run_id=run_id, state_visit_id=state_visit_id, authorization=authorization, snapshot=snapshot, _kernel_gate=_KERNEL_GATE_TOKEN, _lock_held=True)
 
     def record_audit(self, event_type: str, *, payload: Mapping[str, Any] | None = None, run_id: str | None = None, actor: str = "runtime", authorization: Mapping[str, Any] | None = None, evidence_refs: Iterable[str] = (), idempotency_key: str | None = None, snapshot: Mapping[str, Any] | None = None) -> EventEnvelope:
         """Record a redacted execution-audit event without changing lifecycle state."""

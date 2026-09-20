@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added
+
+- 新增 `workflow_modes.md` 与 `lightweight_testing.md`，把项目状态、simple/complex 模式、人工覆盖、两种测试风格、隔离与失败分类固化为独立契约。
+- 新增 `templates/tests/` 的 synthetic fixture、project subset、simple smoke 与 complex smoke 骨架；`evals/evals.json` 扩展到模式选择、人工覆盖、已有项目兼容、测试风格、自定义产品路径、目录职责和失败闭环。
+- 新增 Skill `qa/` 双模式 R 集成回归，真实执行 simple Rmd render 和 complex target 图，验证唯一 run root、测试 store、真实子集清理、subject identity、raw 与正式输出不被污染。
+
 ### Changed
 
 - `SKILL.md` 以主要交付物与验收标准明确和 `bensz-r-developer` 的兄弟边界：分析流程、结果、报告及分析本地 helper 由本 Skill 主导；可独立复用的 API/类/Package 交给 `bensz-r-developer`。
 - 补充混合任务的“分析定义组件契约 → 组件工程实现 → 分析集成验证”协作顺序、README 分流说明和近邻触发用例，版本更新至 `0.24.1`。
+- 新项目从“全部 targets”改为 simple/complex 双模式：两者都强制 renv 与真实轻量测试，只有 complex 使用 targets；已有项目仍不自动迁移或补齐。
+- `check_targets_renv.py` 分离 `--project-state` 与 `--workflow-mode`，保留旧 `--mode` 兼容别名；existing 固定为 `preserved-existing` 并报告观察机制，同时校验 simple 无 targets、complex 唯一 run root 下的隔离 test store 和测试入口。
+- 新项目目录职责调整为样式在 `templates/`、共享 helper 在 `scripts/lib/`、测试代码在 `scripts/tests/`、运行现场在 `tmp/tests/`；版本更新至 `0.25.0`。
+- products 根目录支持通过单一 `BENSZ_PRODUCTS_DIR` 项目设置安全覆盖；checkpoint helper、工作流 checker/runner 和 Rmd 模板同步使用统一路径并拒绝越界与保留目录。
+
+### Fixed
+
+- 不再把 checker、`--dry-run` 或 target 图解析误作端到端测试通过；交付证据要求实际 R/Rmd/target 执行、断言和重跑记录。
+- 不再把 `products/` 描述为普通技术缓存，也不再把 checkpoint helper 生成到用户项目的样式目录。
 
 ## [0.24.0] - 2026-09-19
 

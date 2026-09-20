@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.11] - 2026-09-20
+
+### Added（新增）
+
+- `bensz-skill-kernel` 更新至 2.1.5：`state transition` 新增 `--gate-event-id`、`--evidence-hash` 与可重复 `--evidence-ref`，并提供 transition 查询及标准化 Gate binding 重放接口。
+- `bensz-rmd-rules` 更新至 0.25.0：新增 simple/complex 双模式、synthetic/project subset 真实轻量测试协议、隔离 targets store 回归和可配置安全 products 路径；已有项目继续非破坏兼容。
+- 根仓库与 Kernel 中英文 README 同步当前源代码与发布版本。
+
+### Changed（变更）
+
+- strict-v2 State 的受保护迁移按 State invariant 声明强制消费 source identity 的 allow Gate；初始化边按无 source identity 的契约豁免，未引入领域 State/边名称硬编码。
+- Verifier batch 只有在所有结果携带完全相同的 evidence hash/refs 时才生成可消费的证据绑定；幂等 transition 重试同时比较 Gate 与 evidence binding。
+
+### Fixed（修复）
+
+- 修复 Skill State CLI 只校验 Gate 存在却未把同一 evidence binding 写入并消费到 transition 的控制链缺口；历史无绑定事件继续可读，但查询结果显式标记为 `legacy_unbound`。
+
 ## [5.0.10] - 2026-09-19
 
 ### Added（新增）

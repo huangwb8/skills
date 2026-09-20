@@ -648,7 +648,7 @@ def test_transition_rejects_stale_gate_evidence_binding(tmp_path: Path):
         attempt_id="attempt-1",
     )
     assert gate is not None
-    with pytest.raises(IntegrityError, match="gate evidence hash mismatch"):
+    with pytest.raises(IntegrityError, match="gate_evidence_hash_mismatch"):
         log.transition(
             "active",
             run_id="run-1",
@@ -658,3 +658,257 @@ def test_transition_rejects_stale_gate_evidence_binding(tmp_path: Path):
             evidence_hash="sha256:" + "c" * 64,
             evidence_refs=["completion-index"],
         )
+
+
+def test_skill_transition_consumes_source_gate_and_replays_binding(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    source_identity = {
+        "run_id": "run-1",
+        "state_visit_id": "visit-checking-1",
+        "attempt_id": "checking-1",
+    }
+    target_identity = {
+        "run_id": "run-1",
+        "state_visit_id": "visit-reported-1",
+        "attempt_id": "reported-1",
+    }
+    log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "from_state": "bensz.workspace.ready",
+            "to_state": "test.demo.checking",
+            "state_version": "1.0.0",
+            "identity_protocol": "bensz-state-identity-v2",
+            "source_identity": None,
+            "target_identity": source_identity,
+        },
+        scope="skill",
+        run_id="run-1",
+        state_visit_id="visit-checking-1",
+        attempt_id="checking-1",
+    )
+    _, gate = log.record_verification_batch(
+        (
+            {
+                "verifier_id": "bensz.demo.first",
+                "verifier_version": "1.0.0",
+                "verdict": "pass",
+                "execution_status": "completed",
+                "evidence_hash": "sha256:" + "d" * 64,
+                "evidence_refs": ["completion-index"],
+            },
+            {
+                "verifier_id": "bensz.demo.second",
+                "verifier_version": "1.0.0",
+                "verdict": "pass",
+                "execution_status": "completed",
+                "evidence_hash": "sha256:" + "d" * 64,
+                "evidence_refs": ["completion-index"],
+            },
+        ),
+        {"decision": "allow"},
+        **source_identity,
+    )
+    assert gate is not None
+    assert gate.payload["evidence_refs"] == ["completion-index"]
+
+    transition = log.transition(
+        "test.demo.reported",
+        state_domain="skill",
+        skill="demo-skill",
+        from_state="test.demo.checking",
+        to_state="test.demo.reported",
+        state_version="1.0.0",
+        identity_protocol="bensz-state-identity-v2",
+        source_identity=source_identity,
+        target_identity=target_identity,
+        run_id="run-1",
+        state_visit_id="visit-reported-1",
+        attempt_id="reported-1",
+        gate_event_id=gate.event_id,
+        evidence_hash="sha256:" + "d" * 64,
+        evidence_refs=["completion-index"],
+        idempotency_key="checking-to-reported",
+    )
+
+    binding = log.inspect_transition_binding(transition.event_id)
+    assert binding["status"] == "bound"
+    assert binding["strictly_bound"] is True
+    assert binding["source_identity"] == source_identity
+    assert binding["target_identity"] == target_identity
+    assert binding["gate_evidence_hash"] == binding["transition_evidence_hash"]
+    projected = log.projection()["skill_state_transitions"][-1]
+    assert projected["gate_binding"] == binding
+    assert log.query_transition_bindings(run_id="run-1", skill="demo-skill")[-1] == binding
+
+    with pytest.raises(IdempotencyConflict, match="idempotency key conflict"):
+        log.transition(
+            "test.demo.reported",
+            state_domain="skill",
+            skill="demo-skill",
+            from_state="test.demo.checking",
+            to_state="test.demo.reported",
+            state_version="1.0.0",
+            identity_protocol="bensz-state-identity-v2",
+            source_identity=source_identity,
+            target_identity=target_identity,
+            run_id="run-1",
+            state_visit_id="visit-reported-1",
+            attempt_id="reported-1",
+            gate_event_id=gate.event_id,
+            evidence_hash="sha256:" + "e" * 64,
+            evidence_refs=["completion-index"],
+            idempotency_key="checking-to-reported",
+        )
+
+
+def test_verification_batch_rejects_non_identical_evidence_bindings(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    _, gate = log.record_verification_batch(
+        (
+            {
+                "verifier_id": "bensz.demo.first",
+                "verifier_version": "1.0.0",
+                "verdict": "pass",
+                "execution_status": "completed",
+                "evidence_hash": "sha256:" + "a" * 64,
+                "evidence_refs": ["completion-index"],
+            },
+            {
+                "verifier_id": "bensz.demo.second",
+                "verifier_version": "1.0.0",
+                "verdict": "pass",
+                "execution_status": "completed",
+                "evidence_hash": "sha256:" + "a" * 64,
+                "evidence_refs": ["different-index"],
+            },
+        ),
+        {"decision": "allow"},
+        run_id="run-1",
+        state_visit_id="visit-1",
+        attempt_id="attempt-1",
+    )
+    assert gate is not None
+    assert gate.payload["decision"] == "reject"
+    assert gate.payload["unresolved"] == ["evidence_binding"]
+    assert "evidence_hash" not in gate.payload
+
+
+def test_evidence_hash_requires_at_least_one_reference(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    with pytest.raises(ValueError, match="non-empty when evidence_hash is present"):
+        log.record_verification(
+            {
+                "verifier_id": "bensz.demo.check",
+                "verifier_version": "1.0.0",
+                "verdict": "pass",
+                "execution_status": "completed",
+                "evidence_hash": "sha256:" + "a" * 64,
+                "evidence_refs": [],
+            },
+            {"decision": "allow"},
+            run_id="run-1",
+            state_visit_id="visit-1",
+            attempt_id="attempt-1",
+        )
+
+
+def test_transition_gate_binding_rejects_wrong_source_refs_and_non_allowing_gate(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    source_identity = {
+        "run_id": "run-1",
+        "state_visit_id": "visit-1",
+        "attempt_id": "attempt-1",
+    }
+    _, allowing_gate = log.record_verification(
+        {
+            "verifier_id": "bensz.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+            "evidence_hash": "sha256:" + "f" * 64,
+            "evidence_refs": ["completion-index"],
+        },
+        {"decision": "allow"},
+        **source_identity,
+    )
+    assert allowing_gate is not None
+
+    with pytest.raises(IntegrityError, match="gate_identity_mismatch"):
+        log.validate_transition_gate_binding(
+            gate_event_id=allowing_gate.event_id,
+            source_identity={**source_identity, "attempt_id": "attempt-2"},
+            evidence_hash="sha256:" + "f" * 64,
+            evidence_refs=["completion-index"],
+        )
+    with pytest.raises(IntegrityError, match="gate_evidence_refs_mismatch"):
+        log.validate_transition_gate_binding(
+            gate_event_id=allowing_gate.event_id,
+            source_identity=source_identity,
+            evidence_hash="sha256:" + "f" * 64,
+            evidence_refs=["other-index"],
+        )
+    with pytest.raises(IntegrityError, match="gate_event_not_found"):
+        log.validate_transition_gate_binding(
+            gate_event_id="missing-gate",
+            source_identity=source_identity,
+            evidence_hash="sha256:" + "f" * 64,
+            evidence_refs=["completion-index"],
+        )
+
+    _, denied_gate = log.record_verification(
+        {
+            "verifier_id": "bensz.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "fail",
+            "execution_status": "completed",
+            "evidence_hash": "sha256:" + "f" * 64,
+            "evidence_refs": ["completion-index"],
+        },
+        {"decision": "reject"},
+        idempotency_key="denied",
+        **source_identity,
+    )
+    assert denied_gate is not None
+    with pytest.raises(IntegrityError, match="gate_not_allowing"):
+        log.validate_transition_gate_binding(
+            gate_event_id=denied_gate.event_id,
+            source_identity=source_identity,
+            evidence_hash="sha256:" + "f" * 64,
+            evidence_refs=["completion-index"],
+        )
+
+
+def test_legacy_transition_query_does_not_promote_unbound_history(tmp_path: Path):
+    log = EventLog(tmp_path / "events.ndjson")
+    initial = log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "demo-skill",
+            "to_state": "test.demo.checking",
+            "source_identity": None,
+        },
+        scope="skill",
+    )
+    legacy = log.append(
+        "state.transition",
+        payload={
+            "state_domain": "skill",
+            "skill": "legacy-skill",
+            "from_state": "test.demo.checking",
+            "to_state": "test.demo.reported",
+            "source_identity": {
+                "run_id": "run-legacy",
+                "state_visit_id": "visit-legacy",
+                "attempt_id": "attempt-legacy",
+            },
+        },
+        scope="skill",
+    )
+    assert log.inspect_transition_binding(initial.event_id)["status"] == "not_applicable"
+    legacy_binding = log.inspect_transition_binding(legacy.event_id)
+    assert legacy_binding["status"] == "legacy_unbound"
+    assert legacy_binding["strictly_bound"] is False

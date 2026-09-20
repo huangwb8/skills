@@ -9,8 +9,8 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.24.1"
-  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：新项目统一使用 targets 编排步骤、renv 锁定环境，编号分析单元负责完整计算与数据产品，Rmd 负责报告层筛选、论文级图表和证据锚定解读；已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
+  version: "0.25.0"
+  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：新项目按复杂度选择 simple 或 complex，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 额外使用 targets 编排依赖。已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
 
@@ -30,11 +30,15 @@ project_strategy:
     existing_project: "存在 R/Rmd、raw、products、reports、runner、_targets.R 或 renv/renv.lock"
     ambiguous: "只读盘点后请求澄清，不猜测迁移意图"
   new_project:
-    require_targets: true
     require_renv: true
-    allow_single_target: true
+    default_workflow_mode: "simple"
+    workflow_modes:
+      - "simple"
+      - "complex"
+    human_override_precedence: true
     legacy_runner_fallback: false
   existing_project:
+    workflow_mode: "preserved-existing"
     create_missing_targets: false
     create_missing_renv: false
     migrate_layout: false
@@ -43,7 +47,9 @@ project_strategy:
 targets:
   entrypoint: "_targets.R"
   store_dir: "_targets"
-  required_for_new_project: true
+  required_for_workflow_modes:
+    - "complex"
+  test_store_dir: "tmp/tests/{run_id}/_targets"
   output_contract: "targets 只编排依赖与增量重建；products/、metadata.yaml 与 SUCCESS 仍由产品 helper 负责"
 
 renv:
@@ -56,6 +62,46 @@ renv:
     - "renv/library"
     - "renv/staging"
     - "renv/cache"
+
+# 新建或实质修改的分析流程都必须真实执行一种轻量测试。
+lightweight_testing:
+  required_for_new_or_materially_changed_flow: true
+  styles:
+    - "synthetic_fixture"
+    - "project_subset"
+  default_without_authorized_data: "synthetic_fixture"
+  preferred_with_authorized_existing_data: "project_subset"
+  entrypoint: "scripts/tests/smoke_test.R"
+  source_dir: "scripts/tests"
+  run_dir: "tmp/tests/{run_id}"
+  path_overrides:
+    input: "BENSZ_ANALYSIS_INPUT"
+    products: "BENSZ_PRODUCTS_DIR"
+    reports: "BENSZ_REPORTS_DIR"
+    run_root_guard: "BENSZ_TEST_RUN_ROOT"
+  require_same_formal_entrypoint: true
+  forbid_business_logic_test_flags: true
+  required_attempt_fields:
+    - "command"
+    - "exit_status"
+    - "failure_category"
+    - "fix_summary"
+    - "assertions"
+    - "remaining_risks"
+  failure_categories:
+    - "environment_dependency"
+    - "fixture_or_subset"
+    - "path_isolation"
+    - "analysis_code"
+    - "scientific_assertion"
+    - "report_rendering"
+    - "external_service"
+  execution_statuses:
+    - "preflight"
+    - "lightweight_execution"
+    - "full_data_execution"
+  default_full_data_execution: "NOT_RUN"
+  cleanup_project_subset_by_default: true
 
 # Rmd 模板配置
 rmd_template:
@@ -132,11 +178,29 @@ file_structure:
   functions_script: "{分析单元}_functions.R"
   rendered_report: "{分析单元}.html"
   environment_script: "00.Environment.R"
-  checkpoint_helper: "templates/checkpoint_helpers.R"
+  checkpoint_helper: "scripts/lib/checkpoint_helpers.R"
   raw_dir: "raw"
   products_dir: "products"
   reports_dir: "reports"
+  styles_dir: "templates"
+  operations_dir: "scripts/operations"
+  library_dir: "scripts/lib"
+  tests_dir: "scripts/tests"
+  test_runs_dir: "tmp/tests/{run_id}"
+  scratch_dir: "tmp/scratch"
   legacy_temp_pattern: "tmp/{主脚本名}"
+
+product_storage:
+  default_dir: "products"
+  environment_override: "BENSZ_PRODUCTS_DIR"
+  require_single_project_setting: true
+  stay_inside_project: true
+  forbidden_roots:
+    - "raw"
+    - "reports"
+    - "tmp"
+    - "_targets"
+    - ".bensz-api"
 
 # 文件命名约定
 naming_convention:
@@ -157,7 +221,7 @@ output:
 analysis_workflow:
   plan_file: "analysis-plan.yaml"
   default_workflow: "main"
-  product_path: "products/{workflow}/{unit_stem}"
+  product_path: "{products_dir}/{workflow}/{unit_stem}"
   contract_version: 1
   required_checkpoint_files:
     - "metadata.yaml"

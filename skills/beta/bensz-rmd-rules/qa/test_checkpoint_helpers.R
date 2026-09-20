@@ -40,6 +40,37 @@ for (bad_stem in c("01.00.00. CON", "01.00.00. trailing.", "01.00.00. bad:name")
 }
 stopifnot(!file.exists(file.path(test_root, "raw", "evil")))
 
+# 产品目录只通过一个项目设置覆盖，且仍受项目边界与保留目录保护。
+options(bensz.products_dir = file.path("derived", "products"))
+custom_product_dir <- bensz_product_dir("main", "01.00.00. 数据整理")
+stopifnot(identical(
+  custom_product_dir,
+  normalizePath(file.path(test_root, "derived", "products", "main", "01.00.00. 数据整理"), winslash = "/", mustWork = FALSE)
+))
+for (unsafe_products_dir in c("../outside", "raw/products", "tmp/products", "/outside")) {
+  options(bensz.products_dir = unsafe_products_dir)
+  unsafe_error <- tryCatch({
+    bensz_product_dir("main", "01.00.00. 数据整理")
+    FALSE
+  }, error = function(e) TRUE)
+  stopifnot(unsafe_error)
+}
+options(bensz.products_dir = "products")
+
+# 测试期 products 覆盖只能精确绑定到声明的唯一 run root。
+Sys.setenv(BENSZ_TEST_RUN_ROOT = file.path("tmp", "tests", "checkpoint-test"))
+options(bensz.products_dir = file.path("tmp", "tests", "checkpoint-test", "products"))
+isolated_product_dir <- bensz_product_dir("main", "01.00.00. 数据整理")
+stopifnot(grepl("/tmp/tests/checkpoint-test/products/main/", isolated_product_dir, fixed = TRUE))
+options(bensz.products_dir = file.path("tmp", "tests", "other-run", "products"))
+mismatched_test_root_error <- tryCatch({
+  bensz_product_dir("main", "01.00.00. 数据整理")
+  FALSE
+}, error = function(e) TRUE)
+stopifnot(mismatched_test_root_error)
+Sys.unsetenv("BENSZ_TEST_RUN_ROOT")
+options(bensz.products_dir = "products")
+
 identity <- bensz_cache_identity(
   input_files = file.path("raw", "input.tsv"),
   parameters = list(alpha = 1),

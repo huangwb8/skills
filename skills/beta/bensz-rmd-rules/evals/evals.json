@@ -3,38 +3,127 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "在空目录中新建一个包含数据整理、模型和报告的 R 分析项目。请按 bensz-rmd-rules 初始化并说明 targets、renv、products 与 SUCCESS 的职责。",
-      "expected_output": "初始化 _targets.R、renv.lock、renv/activate.R；使用 targets 作为唯一编排入口，不建立旧 runner 回退。",
+      "prompt": "在空目录新建一个低成本描述性 Rmd 报告，只读取一张小表并生成一个 HTML。数据不能外传，也没有授权真实样本用于测试。",
+      "expected_output": "选择 new + simple，使用 renv，不创建 _targets.R；选择 synthetic_fixture，并从正式 Rmd 入口真实 render 到唯一 tmp/tests/<run-id>/，记录 full_data_execution=NOT_RUN。",
+      "assertions": [
+        "明确写出 project_state=new、workflow_mode=simple 及理由",
+        "包含 renv.lock、renv/activate.R 与 scripts/tests/smoke_test.R",
+        "不创建或要求 _targets.R",
+        "fixture 覆盖 schema、类型、关键分组、缺失和边缘条件",
+        "运行记录绑定 subject identity 且不把轻量测试冒充全量通过"
+      ],
       "files": []
     },
     {
       "id": 2,
-      "prompt": "维护一个已有的 R 项目，目录里有 raw/、tmp/ 和旧 runner，但没有 targets 或 renv。请修复报告中的一个统计错误。",
-      "expected_output": "只读盘点并沿用旧入口，不创建 _targets.R、renv.lock 或迁移目录。",
+      "prompt": "新建一个线性小分析：清洗后立刻画图，整个流程几十秒可重跑。我明确要求 simple。请给出实现和验收入口。",
+      "expected_output": "遵循人工 simple 覆盖，使用明确 R/Rmd 入口与 renv，不开发 targets 或自制 runner；真实 smoke test 通过后交付。",
+      "assertions": [
+        "人工指定 simple 优先",
+        "没有 targets 资产或自制调度框架",
+        "checker/dry-run 未被当作端到端通过"
+      ],
       "files": []
     },
     {
       "id": 3,
-      "prompt": "已有项目已经有 _targets.R 和 _targets/，但没有 renv。请增加一个 target 并运行检查。",
-      "expected_output": "维护现有 targets，明确 renv 缺失但不自动初始化 renv；检查不产生 renv.lock。",
+      "prompt": "空目录中建立清洗、外部注释、昂贵模型和两个下游报告。已有授权真实数据，模型结果会被两个报告复用，需要断点恢复。",
+      "expected_output": "选择 new + complex；使用 targets + renv + products；选择 project_subset；同一 target 图在唯一 tmp/tests/<run-id>/_targets 真实运行，清理真实子集，正式 _targets/products/reports 不被测试污染。",
+      "assertions": [
+        "complex 理由包含昂贵步骤、复用或恢复",
+        "project_subset 有确定且代表性的抽样规则而非无理由 head(n)",
+        "测试 store 明确位于唯一 tmp/tests/<run-id>/_targets",
+        "真实子集默认清理且只保留不可还原证据",
+        "区分 targets store 与正式 products"
+      ],
       "files": []
     },
     {
       "id": 4,
-      "prompt": "请为这个 R 分析 Skill 默认安装 ccs、GSClassifier、lucky、luckyExperiment、luckyGEO、luckyModel 和 candidate_r。",
-      "expected_output": "拒绝将个人化包列为默认依赖，只保留 luckyBase；具体依赖交给项目 renv.lock。",
+      "prompt": "我坚持新项目用 simple，但任务含一次高成本 API 请求和三个下游报告。请按我的模式做。",
+      "expected_output": "优先遵循人工 simple，同时明确高成本与多下游复用风险，不静默改为 complex；不通过自制 runner 伪装 complex，给出可审查的升级建议。",
+      "assertions": [
+        "不静默覆盖人工模式",
+        "披露 simple 的重跑/恢复风险",
+        "不创建第二套轻量调度器"
+      ],
       "files": []
     },
     {
       "id": 5,
-      "prompt": "为当前转录组项目增加一个只在 01.00.00 数据整理单元使用的 normalize_counts() helper，并把下游图表和解读接入 Rmd。",
-      "expected_output": "应由 bensz-rmd-rules 主导完整分析；helper 保留为分析本地实现，不因函数开发而切换到 bensz-r-developer。",
+      "prompt": "维护已有 R 项目：有 raw/、tmp/ 和旧 runner，但没有 targets 或 renv。只修复报告统计错误。",
+      "expected_output": "判为 existing + preserved-existing，只读盘点并沿用旧入口；不创建 _targets.R、renv.lock、scripts 新布局或迁移产品；修复后沿原入口做可隔离轻量试跑，无法隔离则明确阻塞。",
+      "assertions": [
+        "existing 兼容优先",
+        "只报告复现性/恢复风险",
+        "没有隐式迁移或补建机制",
+        "实质修改仍有沿原入口的测试或 path_isolation 阻塞证据"
+      ],
       "files": []
     },
     {
       "id": 6,
-      "prompt": "把多个研究项目重复复制的 normalize_counts() 抽成带稳定公开 API、roxygen2 文档和 testthat 的 R Package。",
-      "expected_output": "主要交付物已变为可复用 Package，应转交 bensz-r-developer；若仍有分析流程，由 bensz-rmd-rules 定义集成需求并在组件完成后验证。",
+      "prompt": "已有项目已经有 _targets.R 和 _targets/，但没有 renv。请增加一个 target 并运行检查。",
+      "expected_output": "使用 existing + preserved-existing，维护现有 targets，说明 renv 缺失但不自动初始化；existing 检查不产生 renv.lock。",
+      "assertions": [
+        "保留现有 target 图与正式 store",
+        "不自动新增 renv",
+        "测试如适用时使用隔离 store"
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "新 complex 项目的正式派生产品必须写到 derived/stable，而不是 products。请确保所有计算和报告一致。",
+      "expected_output": "通过单一项目设置覆盖 products 路径，所有 helper/R/Rmd/checker 使用同一路径；规范化并限制在项目内，不散落硬编码。",
+      "assertions": [
+        "使用 BENSZ_PRODUCTS_DIR 或等价单一项目入口",
+        "路径保持在项目内且不与 raw/reports/tmp/_targets 重叠",
+        "targets store 仍与正式派生产品分离"
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "请搭建一个 complex R 项目，并说明 checkpoint helper、CSS、测试代码、测试数据副本和正式结果各放哪里。",
+      "expected_output": "helper 在 scripts/lib，CSS/渲染资产在 templates，测试代码在 scripts/tests，运行副本在 tmp/tests，正式产品在 products，正式图表在 reports；只创建实际使用目录。",
+      "assertions": [
+        "templates 不包含 checkpoint helper",
+        "scripts/tests 与 tmp/tests 职责分开",
+        "tmp 发现成为正式依据时需要晋升并补测试"
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "轻量测试第一次因为 fixture 缺少一个关键分组而失败，修正后报告又因缺包失败；审查随后还修改了执行代码。请给出交付记录。",
+      "expected_output": "分别分类为 fixture_or_subset 与 environment_dependency；记录命令、退出状态、最小修正和真实链重跑；审查修改使旧 subject identity 证据过期，最新版本必须重跑；未跑全量时 full_data_execution=NOT_RUN。",
+      "assertions": [
+        "两次失败类别准确且分开记录",
+        "修正只作用于对应层",
+        "包含最终断言、subject identity、三层执行状态与剩余风险"
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "把多个研究项目重复复制的 normalize_counts() 抽成带稳定 API、roxygen2 文档和 testthat 的 R Package。",
+      "expected_output": "主要交付物是可复用 Package，应转交 bensz-r-developer；若仍有分析流程，本 Skill 只定义集成需求并在组件完成后验证。",
+      "assertions": [
+        "不因请求包含 R 文件而错误触发分析实现",
+        "明确组件工程与分析集成边界"
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "已有项目的旧入口硬编码绝对输出路径，轻量测试会覆盖正式报告；我只要求修一个分析 bug，没有授权迁移或重构路径。",
+      "expected_output": "使用 existing + preserved-existing，不强行运行有污染风险的测试，也不补建新版架构；将轻量执行记为 BLOCKED、失败类别记为 path_isolation，并请求人类决定是否授权最小可测试性改造。",
+      "assertions": [
+        "没有把 checker 通过写成轻量执行通过",
+        "没有擅自迁移、覆盖正式报告或改造旧目录",
+        "记录 path_isolation 阻塞、未验证项和可选最小改造"
+      ],
       "files": []
     }
   ]

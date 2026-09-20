@@ -42,7 +42,7 @@ output:
 
 ```{r load-data, message=FALSE, warning=FALSE}
 # 目的：加载上游编号单元的完整产品，准备报告层筛选与解释
-# 输入：products/<流程>/<上游编号名称>/main.rds
+# 输入：统一 products_dir/<流程>/<上游编号名称>/main.rds
 # 参数：无需（依赖 00.Environment.R 的统一配置）
 # 输出：processed_data / computation_results
 
@@ -55,7 +55,7 @@ dir.create(file.path("reports", "tables"), recursive = TRUE, showWarnings = FALS
 
 # Step 2: 产品完成状态检查
 upstream_stem <- "01.00.00. 数据整理"
-data_dir <- file.path("products", "main", upstream_stem)
+data_dir <- file.path(products_dir, "main", upstream_stem)
 if (!file.exists(file.path(data_dir, "SUCCESS"))) {
   stop("上游产品未完成或不存在: ", data_dir, "\n",
        "请先运行对应编号的 .R 单元并通过 checkpoint 验证。")

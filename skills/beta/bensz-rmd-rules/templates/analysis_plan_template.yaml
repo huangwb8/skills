@@ -1,4 +1,5 @@
 workflow: "main"
+products_dir: "products"
 requirements:
   - id: "REQ-01"
     description: "说明用户目标或交付要求"

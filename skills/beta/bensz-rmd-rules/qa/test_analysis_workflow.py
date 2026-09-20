@@ -104,6 +104,27 @@ class AnalysisWorkflowTests(unittest.TestCase):
             self.assertEqual(report["findings"], [])
             self.assertEqual(len(report["numbered_units"]), 2)
 
+    def test_custom_products_dir_is_read_from_single_plan_setting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            plan_path = root / "analysis-plan.yaml"
+            plan = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+            plan["products_dir"] = "derived/stable"
+            for unit in plan["units"]:
+                unit["inputs"] = [str(value).replace("products/", "derived/stable/") for value in unit["inputs"]]
+                unit["products"] = [str(value).replace("products/", "derived/stable/") for value in unit["products"]]
+            plan_path.write_text(yaml.safe_dump(plan, allow_unicode=True), encoding="utf-8")
+            destination = root / "derived" / "stable"
+            destination.parent.mkdir(parents=True)
+            (root / "products").replace(destination)
+
+            result = self.run_checker(root, "--strict")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["products_dir"], "derived/stable")
+            self.assertEqual(report["findings"], [])
+
     def test_forward_dependency_is_blocking(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -388,7 +409,7 @@ class AnalysisWorkflowTests(unittest.TestCase):
         self.assertNotIn("analysis_mode", config)
         self.assertNotIn("analysis_mode", rmd)
         self.assertNotIn("dv_mut_mode", config)
-        self.assertIn('file.path("products", "main", upstream_stem)', rmd)
+        self.assertIn('file.path(products_dir, "main", upstream_stem)', rmd)
         self.assertIn('plot_language: "en"', config)
         self.assertIn('plot_language: "en"', rmd)
         simple_rmd = (SKILL_ROOT / "templates" / "Rmd_simple_template.Rmd").read_text(encoding="utf-8")
@@ -422,6 +443,7 @@ class AnalysisWorkflowTests(unittest.TestCase):
                 "Path('runner-env.json').write_text(json.dumps({\n"
                 "  'force': os.environ.get('BENSZ_FORCE_STEP'),\n"
                 "  'resume': os.environ.get('BENSZ_RESUME_FROM'),\n"
+                "  'products': os.environ.get('BENSZ_PRODUCTS_DIR'),\n"
                 "}), encoding='utf-8')\n",
                 encoding="utf-8",
             )
@@ -440,7 +462,7 @@ class AnalysisWorkflowTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             observed = json.loads((root / "runner-env.json").read_text(encoding="utf-8"))
-            self.assertEqual(observed, {"force": None, "resume": None})
+            self.assertEqual(observed, {"force": None, "resume": None, "products": None})
 
             result = subprocess.run(
                 [
@@ -460,7 +482,40 @@ class AnalysisWorkflowTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             observed = json.loads((root / "runner-env.json").read_text(encoding="utf-8"))
-            self.assertEqual(observed, {"force": "01.00.00", "resume": None})
+            self.assertEqual(observed, {"force": "01.00.00", "resume": None, "products": None})
+
+    def test_runner_propagates_plan_products_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_project(root)
+            plan_path = root / "analysis-plan.yaml"
+            plan = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+            plan["products_dir"] = "derived/stable"
+            for unit in plan["units"]:
+                unit["inputs"] = [str(value).replace("products/", "derived/stable/") for value in unit["inputs"]]
+                unit["products"] = [str(value).replace("products/", "derived/stable/") for value in unit["products"]]
+            plan_path.write_text(yaml.safe_dump(plan, allow_unicode=True), encoding="utf-8")
+            destination = root / "derived" / "stable"
+            destination.parent.mkdir(parents=True)
+            (root / "products").replace(destination)
+            fake_rscript = root / "fake-rscript"
+            fake_rscript.write_text(
+                "#!/usr/bin/env python3\n"
+                "import os\n"
+                "from pathlib import Path\n"
+                "Path('runner-products.txt').write_text(os.environ.get('BENSZ_PRODUCTS_DIR', ''), encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            fake_rscript.chmod(0o755)
+            result = subprocess.run(
+                [sys.executable, str(RUNNER), str(root), "--rscript", str(fake_rscript)],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual((root / "runner-products.txt").read_text(encoding="utf-8"), "derived/stable")
 
 
 if __name__ == "__main__":

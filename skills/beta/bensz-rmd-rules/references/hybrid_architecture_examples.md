@@ -35,7 +35,7 @@
 
 ```r
 # 完整产品由上游 .R 生成；阈值只影响当前报告。
-all_results <- readRDS(file.path("products", "main", "02.00.00. 模型拟合", "main.rds"))
+all_results <- readRDS(file.path(products_dir, "main", "02.00.00. 模型拟合", "main.rds"))
 report_results <- all_results |>
   dplyr::filter(q_value <= params$q_cutoff) |>
   dplyr::slice_head(n = params$top_n)

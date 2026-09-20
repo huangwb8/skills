@@ -23,6 +23,7 @@
 - simple 不使用 targets，但强制使用 renv，并具有可重复的项目专用测试代码和真实轻量试跑。
 - complex 在 simple 的环境与测试底线上增加 targets，用于依赖图、增量重建、局部失效、恢复和按需并行。
 - 每个新建或实质修改的分析流程必须选择 `synthetic_fixture` 或 `project_subset`，使用与正式流程一致的入口完整运行适用步骤和报告。
+- 每次轻量测试必须具有显式运行根、输入来源、输出边界和环境来源；测试可以改变输入规模，但不能改走另一套分析逻辑，也不能把测试通过表述为全量数据已通过。
 - 既有项目继续按实际架构维护；缺少 targets 或 renv 时不自动补齐，只有人类明确要求规范化或迁移时才采用新布局。
 - 项目目录职责稳定：`raw/` 只读，`products/` 保存可恢复派生产品，`reports/` 保存正式材料，`templates/` 只保存项目运行所需样式，`scripts/` 保存项目专用操作/helper，`scripts/tests/` 保存可重复测试代码，`tmp/` 保存可丢弃运行现场与临时探索。
 - 保留 renv 与 targets 的标准入口位置，不默认新增 `env/` 包裹层，避免破坏工具发现、IDE 支持和常用命令。
@@ -41,6 +42,8 @@
 
 先判断项目是新建还是已有，再判断新项目采用 simple 或 complex。已有项目的兼容政策高于新版默认布局：AI 可以描述其结构接近哪种模式，但不能据此改造项目。
 
+因此这两个维度不能共用一个枚举：`project_state` 取 `new` 或 `existing`；只有新项目在初始化时选择 `simple` 或 `complex`。已有项目统一记为 `workflow_mode: preserved-existing`，并另行报告实际观察到的 renv、targets、旧 runner 和目录机制，避免一个分类标签被误解为迁移授权。
+
 决策优先级固定为：人类显式要求 → 已有项目兼容边界 → AI 按复杂度自主选择。没有复杂信号的新项目默认 simple；出现实质复杂信号时选择 complex。选择结果与理由写入分析计划或交付摘要，避免“AI 自主判断”变成不可解释的随机选择。
 
 complex 信号主要包括：非线性依赖或多个有真实失败边界的计算阶段；昂贵计算、外部请求或高失败代价；中间产品被多个下游复用；需要局部失效、断点恢复、数据血缘或并行。脚本数量和代码行数只能作为线索，不能单独决定模式。
@@ -49,7 +52,7 @@ complex 信号主要包括：非线性依赖或多个有真实失败边界的计
 
 ### 二、建立 simple 与 complex 的稳定契约
 
-simple 适用于线性、低成本、整体重跑可接受的小分析或小报告。它必须初始化和检查 renv，但不创建 `_targets.R` 或 `_targets/`；正式执行采用明确的 Rscript、Rmd render 或项目专用 `scripts/` 入口。simple 若后来出现复用、昂贵步骤或恢复需求，可以在新项目范围内升级到 complex，但不得无理由自动降级。
+simple 适用于线性、低成本、整体重跑可接受的小分析或小报告。它必须初始化和检查 renv，但不创建 `_targets.R` 或 `_targets/`；正式执行采用明确的 Rscript、Rmd render 或项目专用 `scripts/` 入口。在首次交付前，若实现过程中出现复用、昂贵步骤或恢复需求，AI 可以把仍在创建中的 simple 提升为 complex，并记录触发信号与目录变化。首次交付后，该项目已属于 existing；simple/complex 互转均按迁移处理，只有人类明确要求时才执行，不得借“自动升级”绕过已有项目兼容边界，也不得自动降级。
 
 complex 继承 simple 的 renv、目录、测试和交付要求，并增加 `_targets.R` 与 targets store。targets 负责依赖和增量执行；`products/` 仍负责可审查、可恢复、可作为下游输入的正式派生产品。两者不能被写成同一层技术缓存。
 
@@ -64,13 +67,21 @@ complex 继承 simple 的 renv、目录、测试和交付要求，并增加 `_ta
 
 两种风格都在隔离测试空间中执行。测试专用 wrapper/helper 只存在于测试代码或隔离副本，不向正式分析逻辑加入 `analysis_mode`、`test_mode` 等分支。测试必须使用与正式交付相同的入口；checker 和 `--dry-run` 只能算预检，不能算通过。
 
-测试结果至少断言：输入契约、行列与类型、主键和关键分组、重要数值范围或统计不变量、预期产品、报告/图表生成和禁止写入 `raw/`。不同领域的科学断言由任务补充，Skill 不硬编码业务阈值。
+“相同入口”指调用同一个正式 R 脚本、Rmd 或 target 图，而不是要求测试与正式运行使用完全相同的输入和输出路径。项目通过唯一的路径配置层解析输入、products、reports 和 targets store：正式运行使用默认路径，测试 harness 只把这些路径重定向到本次隔离运行根。不得复制一份删减后的分析脚本作为测试入口；若正式代码无法在不加入测试分支的前提下注入隔离路径，应先修正路径边界，再运行轻量测试。
+
+每次测试建立唯一运行根，例如 `tmp/tests/<run-id>/`，最少包含输入副本或 fixture、隔离的 products/reports/store、渲染结果和日志。运行前记录正式 `raw/`、正式 products/reports、正式 `_targets/` 及相关代码/配置的基线清单；运行后核对 `raw/` 与正式运行目录未被测试写入。complex 可以在隔离运行根中继续使用标准 `_targets` 名称，也可以显式传入独立 store，但不得指向正式 `_targets/`。simple 与 complex 都必须在项目 renv 环境中执行，并记录实际 R 与包环境来源。
+
+“已有项目不自动迁移”不等于“已有项目修改后不测试”。对实质修改的 existing 项目，AI 仍应沿用其原入口做可行的轻量试跑，但不得为了满足新版测试目录而补建 renv、targets、编号布局或持久测试框架。可以在本轮任务工作区或项目既有临时边界中建立一次性隔离副本；若旧入口硬编码绝对路径、会直接覆盖正式结果或无法隔离副作用，应把它记为测试阻塞或剩余风险，请人类决定是否授权最小可测试性改造，不能带着已知污染风险强行运行。
+
+测试结果至少断言：输入契约、行列与类型、主键和关键分组、重要数值范围或统计不变量、预期产品、报告/图表生成和禁止写入 `raw/`。不同领域的科学断言由任务补充，Skill 不硬编码业务阈值。测试报告必须区分 `preflight`、`lightweight_execution` 与 `full_data_execution`：只有真实运行完轻量输入及适用报告才能记为 `lightweight_execution: PASS`；除非确实运行过全量正式数据，否则 `full_data_execution` 必须记为 `NOT_RUN`，不得用轻量测试替代。
 
 ### 四、建立“执行—诊断—修正—重跑”的开发期闭环
 
-轻量测试失败后，先区分环境/依赖、fixture/子集、分析代码、科学断言、报告渲染和外部服务问题，再做最小范围修正并重跑受影响路径。循环持续到通过，或遇到权限、网络、缺失依赖、数据授权等明确外部阻塞；不能无限重试，也不能把跳过步骤写成成功。
+轻量测试失败后，先区分环境/依赖、fixture/子集、路径隔离、分析代码、科学断言、报告渲染和外部服务问题，再做最小范围修正并重跑受影响路径。循环持续到通过，或遇到权限、网络、缺失依赖、数据授权等明确外部阻塞；不能无限重试，也不能把跳过步骤写成成功。
 
-simple 重跑真实 R/Rmd 链；complex 使用同一 target 图但采用独立测试输入和独立 store，不能污染正式 `_targets/`。每次尝试记录命令、退出状态、失败类别、修正摘要、断言和剩余风险。
+simple 重跑真实 R/Rmd 链；complex 使用同一 target 图但采用独立测试输入和独立 store，不能污染正式 `_targets/`。每次尝试记录入口、参数或路径覆盖、环境来源、退出状态、失败类别、修正摘要、断言和剩余风险。预检失败只需重跑预检；执行或断言失败必须重跑相应真实链，不能只补跑 checker 后宣告成功。
+
+轻量测试可以先于三轮审查用于尽早发现运行问题，但最后一次通过证据必须绑定到审查修正后的代码、配置与 lockfile 版本。任何会影响执行、输出或断言的审查修正，都使先前对应测试失效；主 Agent 必须重跑受影响的预检和轻量真实链。只有“最新审查版本”同时具有通过证据时，才进入昂贵正式运行。
 
 这使“测试失败”能够进一步区分是程序真的错了，还是测试数据、测试断言或运行环境有问题。
 
@@ -110,7 +121,7 @@ simple 重跑真实 R/Rmd 链；complex 使用同一 target 图但采用独立�
 
 产品路径的优先级固定为：人类显式指定 → 已有项目既定路径 → 项目统一配置 → 默认 `products/`。所有脚本通过唯一项目配置或路径 helper 读取，不在多个 R 文件中重复硬编码。自定义路径必须规范化并限制在授权项目范围内。
 
-`scripts/tests/` 中的测试代码应进入版本控制；`tmp/tests/` 中的真实数据子集、运行副本、日志和临时报告默认加入 `.gitignore`。`tmp/scratch/` 中的探索若成为正式依据，必须将代码、产品和报告分别晋升到正式目录，并补齐 renv 与轻量测试证据。
+`scripts/tests/` 中的测试代码应进入版本控制；`tmp/tests/` 中的运行副本、日志和临时报告默认加入 `.gitignore`。真实数据子集只在已有授权范围内按最小字段和最少样本复制，不使用链接回原始文件，不在日志中记录原始值；断言和不变性检查完成后默认删除子集，仅保留抽样规则、schema、行列数、非敏感摘要、哈希或其它不可还原证据。只有用户明确要求且项目具备合适访问控制时才保留子集。`tmp/scratch/` 中的探索若成为正式依据，必须将代码、产品和报告分别晋升到正式目录，并补齐 renv 与轻量测试证据。
 
 ### 七、保留标准 renv/targets 入口，不默认新增 env 包裹层
 
@@ -124,14 +135,14 @@ simple 重跑真实 R/Rmd 链；complex 使用同一 target 图但采用独立�
 
 检查脚本需要把“新建/已有”和“simple/complex”拆成两个参数或结果字段，并兼容当前公开 CLI。simple 检查 renv 与测试入口但不得要求 targets；complex 同时检查 renv、targets 与隔离 store；已有项目检查保持只读，不因验证生成缺失文件。
 
-README、CHANGELOG、架构指南、示例、清单、交付验证和 evals 必须同步。2026-09-17 计划中的多分析单元、产品身份、缓存恢复和审查原则继续有效；2026-09-19 计划中的“所有新项目强制 targets”由本计划替代。
+README、CHANGELOG、架构指南、示例、清单、交付验证和 evals 必须同步。Skill 脚本、模板和契约的定向单元/集成测试继续放在现有 `skills/beta/bensz-rmd-rules/qa/`，运行产物写入仓库规定的临时目录；只有安装器、仓库公开入口或跨包集成测试才放根级 `tests/`，避免扩大根级测试职责。2026-09-17 计划中的多分析单元、产品身份、缓存恢复和审查原则继续有效；2026-09-19 计划中的“所有新项目强制 targets”由本计划替代。
 
 ## 实施范围与顺序
 
 1. **冻结概念与兼容边界：** 明确项目状态、工作流模式、测试风格、产品/技术缓存和正式/临时目录术语，标注旧计划中被继承与被替代的决策。
 2. **重写主契约与定向 references：** 先让 `SKILL.md`、模式指南、轻量测试协议和目录指南形成无矛盾的单一行为定义，再调整配置与示例。
 3. **更新模板与确定性工具：** 建立 simple/complex 最小模板，移动生成项目中非样式 helper 的职责，扩展项目状态/模式检查，并保持已有 CLI 和旧项目入口可用。
-4. **补齐真实轻量测试：** 为两种测试风格、两种新项目模式、已有项目兼容、自定义 products 路径、失败分类与原项目不变性增加可执行回归。
+4. **补齐真实轻量测试：** 为两种测试风格、两种新项目模式、已有项目兼容、自定义 products 路径、失败分类、敏感子集清理与原项目不变性增加可执行回归。
 5. **扩展行为评测：** 更新 `evals/evals.json`，验证 AI 能自主选择模式、遵守人类覆盖、选择合适测试风格、拒绝隐式迁移和正确安排目录。
 6. **同步文档与发布记录：** 更新 README、CHANGELOG、版本和 BAC，运行结构、约束块、R/Python 测试、行为评测及 beta 安装发现回归。
 
@@ -141,15 +152,19 @@ README、CHANGELOG、架构指南、示例、清单、交付验证和 evals 必�
 
 | 场景 | 应观察到的结果 |
 | --- | --- |
-| 新建低成本单报告 | AI 选择 simple；存在 renv 和测试代码；没有 `_targets.R`；真实 Rmd render 通过。 |
+| 新建低成本单报告 | AI 选择 simple；存在 renv 和测试代码；没有 `_targets.R`；同一正式 Rmd 在隔离输入/输出下真实 render 通过。 |
 | 新建线性小分析 | AI 选择 simple；按明确 R/Rmd 入口执行；不创建自制调度框架。 |
-| 新建多阶段昂贵分析 | AI 选择 complex；renv、targets、产品和轻量测试均存在；测试 store 与正式 store 隔离。 |
+| 新建多阶段昂贵分析 | AI 选择 complex；renv、targets、产品和轻量测试均存在；同一 target 图使用隔离输入，测试 store 与正式 store 隔离。 |
 | 人类显式指定模式 | 在可执行且不违反安全边界时覆盖 AI 默认选择；若存在明显风险则披露，不静默改回。 |
 | 已有项目缺少 renv/targets | 保持原入口和目录，不自动补建；报告复现性或恢复能力缺口。 |
 | 已有项目只启用其中一个 | 只维护已存在机制，不为了“完整”补另一个。 |
+| 已有项目实质修改 | 沿用原入口完成可隔离的轻量试跑；不为测试目的补建新版架构，无法隔离时明确阻塞或风险。 |
 | 模拟数据测试 | fixture 保留 schema、类型、关键分组、缺失和边缘条件；固定随机性；完整流程通过。 |
 | 真实数据子集测试 | 使用授权且有代表性的小子集；测试 helper 只在隔离空间；原始项目和 `raw/` 不变。 |
-| 测试首次失败 | 正确区分 fixture、断言、代码、环境或外部依赖；最小修正后有重跑证据。 |
+| 测试首次失败 | 正确区分 fixture、断言、路径隔离、代码、环境或外部依赖；最小修正后有真实链重跑证据。 |
+| 审查后发生修改 | 先前证据被标记为过期；修改后的代码身份重新通过受影响的轻量真实链。 |
+| 轻量测试交付结论 | 分别报告预检、轻量执行和全量执行；未跑全量时明确为 `NOT_RUN`。 |
+| simple 后续变复杂 | 首次交付前可记录理由后提升；交付后视为已有项目迁移，不自动改造。 |
 | 自定义产品目录 | 全流程只使用统一配置路径；默认 `products/` 不再被散落硬编码；路径不能逃逸项目边界。 |
 | 项目模板目录 | 生成项目的 `templates/` 只有样式/渲染资产；checkpoint helper 位于 `scripts/lib/`。 |
 | 临时分析晋升 | `tmp/` 不成为正式结论唯一来源；重要代码、产品和报告迁入对应正式目录并补测试。 |
@@ -159,7 +174,7 @@ README、CHANGELOG、架构指南、示例、清单、交付验证和 evals 必�
 - 结构检查和公共约束块同步通过，SKILL 固定正文骨架未破坏。
 - 当前 30 个 Python QA 与 R checkpoint 测试继续通过，且新增测试不只验证文件存在。
 - 新增 simple 集成测试实际执行 Rscript/Rmd；新增 complex 集成测试在标准开发环境中实际执行 target 图，不能用 dry-run 冒充。缺少 targets/renv 时应先补齐测试环境或把实施标记为未完成，不能作为验收通过。
-- 新增 `synthetic_fixture` 和 `project_subset` 两类测试，核验原始项目未变化、`raw/` 无写入、正式 products/reports 未被测试污染。
+- 新增 `synthetic_fixture` 和 `project_subset` 两类测试，核验 `raw/` 无写入、正式 products/reports/_targets 未被测试污染；真实子集按默认清理策略处理。
 - `evals/evals.json` 至少覆盖模式自动选择、人类覆盖、已有项目兼容、两种测试风格、自定义产品路径和目录职责。
 - README、SKILL、config、references、templates、scripts、测试和 CHANGELOG 的术语及默认值一致；版本仍只由 config 声明。
 - beta 安装后从任意项目仍能发现 Skill、读取所需资源并运行路径感知脚本。
@@ -181,15 +196,35 @@ README、CHANGELOG、架构指南、示例、清单、交付验证和 evals 必�
 | 模板 | simple 不生成 targets；complex 生成 targets；生成项目的样式资产、helper 和测试代码进入各自目录。 |
 | 项目状态检查脚本 | 分离 project state 与 workflow mode；simple/complex 使用不同新项目门禁；existing 保持只读。 |
 | runner/checker | 保留旧 runner 的已有项目兼容身份；避免为 simple 新建第二套通用调度器。 |
-| 仓库根级 `tests/` | 增加模式选择、真实 R 执行、两类测试风格、路径覆盖、原项目不变性和失败分类回归。 |
+| Skill `qa/` 与仓库根级 `tests/` | 模式选择、真实 R 执行、两类测试风格、路径覆盖、原项目不变性和失败分类主要进入 Skill 现有 `qa/`；仅公开入口、安装发现或跨包集成进入根级 `tests/`。 |
 | `evals/evals.json` | 增加行为评测及可客观判断的 expected output/assertions。 |
 | README / CHANGELOG | 面向用户解释模式、目录、测试和迁移边界，并记录破坏性语义变化。 |
 
 ### 检查脚本兼容建议
 
-现有 `check_targets_renv.py --mode auto|new|existing` 把“项目状态”称作 mode。实现时宜增加更明确的 `--project-state` 与独立的 `--workflow-mode auto|simple|complex`，在过渡期保留旧 `--mode` 作为兼容别名并给出稳定提示。不要同时悄悄改变旧参数含义。
+现有 `check_targets_renv.py --mode auto|new|existing` 把“项目状态”称作 mode。实现时宜增加更明确的 `--project-state` 与独立的 `--workflow-mode auto|simple|complex|preserved-existing`；`preserved-existing` 只能与 existing 搭配，并输出实际观察到的机制。在过渡期保留旧 `--mode` 作为兼容别名并给出稳定提示。不要同时悄悄改变旧参数含义。
 
 simple 的新项目门禁应要求 `renv.lock`、`renv/activate.R` 和项目测试入口存在，不要求 `_targets.R`；complex 额外要求 `_targets.R`，并验证测试 store 不指向正式 `_targets/`。existing 只报告已观察到的机制和风险，不创建任何资产。
+
+### 轻量测试运行记录最小契约
+
+每次运行至少记录以下字段，具体载体可以是 YAML、JSON 或结构稳定的 Markdown，不必为此引入新框架：
+
+- `project_state`：`new` 或 `existing`；
+- `workflow_mode`：新项目为 `simple` 或 `complex`，已有项目为 `preserved-existing`；
+- `observed_mechanisms`：已有项目实际存在的 renv、targets、旧 runner、产品和目录入口；新项目可省略；
+- `test_style`：`synthetic_fixture` 或 `project_subset`；
+- `formal_entrypoint`：实际调用的正式 R/Rmd/targets 入口；
+- `run_root` 与 `path_overrides`：只记录项目内相对路径，不记录私有绝对路径；
+- `environment`：renv 项目、R 版本和 lockfile 摘要；
+- `subject_identity`：本次证据所绑定的分析代码、配置、模板和 lockfile 摘要；
+- `preflight`、`lightweight_execution`、`full_data_execution`：分别取 `PASS`、`FAIL`、`BLOCKED` 或 `NOT_RUN`，并附退出状态；
+- `assertions`：输入、关键不变量、预期产品、报告与不写入检查的结论；
+- `mutation_check`：`raw/`、正式 products/reports 与正式 targets store 的前后对照；
+- `attempts`：失败类别、最小修正和重跑结果；
+- `cleanup`：隔离运行根和真实子集是已删除、保留还是因阻塞未清理，并说明非敏感原因。
+
+运行记录只证明其实际覆盖范围。`synthetic_fixture` 或 `project_subset` 通过可以证明代码路径、契约和指定不变量在轻量输入上成立，不能证明全量数据的资源消耗、全部罕见值、外部服务稳定性或最终科学结论已经通过。
 
 ## 风险与待确认事项
 

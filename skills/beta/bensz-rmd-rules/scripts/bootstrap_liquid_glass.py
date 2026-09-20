@@ -82,7 +82,6 @@ def main(argv: list[str]) -> int:
 
     if args.with_extras:
         for name in [
-            "checkpoint_helpers.R",
             "datatables_helper.R",
             "nature_colors.R",
             "nature_theme.R",
@@ -90,6 +89,12 @@ def main(argv: list[str]) -> int:
             "plotly_template.R",
         ]:
             tasks.append((src_templates / name, project_root / "templates" / name))
+        tasks.append(
+            (
+                src_templates / "checkpoint_helpers.R",
+                project_root / "scripts" / "lib" / "checkpoint_helpers.R",
+            )
+        )
         tasks.append((src_templates / "analysis_plan_template.yaml", project_root / "analysis-plan.yaml"))
 
     ok = 0

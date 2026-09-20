@@ -618,6 +618,8 @@ def test_capability_api_and_cli_advertise_identity_protocol(capsys):
         "atomic_target_identity_handoff",
         "attempt_supersede",
         "state_bound_verifier_gate",
+        "gate_transition_evidence_binding",
+        "transition_binding_query",
         "state_bound_action_authorization",
         "legacy_event_read",
     }
@@ -1064,3 +1066,113 @@ def test_cli_transition_hands_off_target_identity_and_attempt_start_updates_snap
     projection = EventLog(workspace.events).projection()
     assert projection["skill_states"]["demo-skill"]["state_visit_id"] == "visit-reported-1"
     assert projection["skill_states"]["demo-skill"]["active_attempt_id"] == "reported-1"
+
+
+def test_strict_cli_protected_transition_requires_and_consumes_gate_binding(tmp_path: Path, capsys):
+    workspace = TaskWorkspace.open(tmp_path, description="strict-gate-binding")
+    skill = _make_strict_transition_skill(tmp_path)
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "states: [test.demo.checking]",
+            "states: [test.demo.checking, test.demo.reported]",
+        ),
+        encoding="utf-8",
+    )
+    checking = skill / "states" / "checking" / "STATE.md"
+    checking.write_text(
+        checking.read_text(encoding="utf-8").replace(
+            "entry_conditions: bensz.workspace.ready\n",
+            "entry_conditions: bensz.workspace.ready\n"
+            "invariants: verifier-result-recorded, verifier-gate-allow\n"
+            "transitions: test.demo.reported\n",
+        ),
+        encoding="utf-8",
+    )
+    reported_state = skill / "states" / "reported" / "STATE.md"
+    reported_state.parent.mkdir(parents=True)
+    reported_state.write_text(
+        "---\nid: test.demo.reported\nversion: 1.0.0\n"
+        "entry_conditions: test.demo.checking\n---\n\n# Reported\n",
+        encoding="utf-8",
+    )
+
+    assert main([
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.checking",
+        "--skill-root", str(skill), "--run-id", "run-1",
+        "--target-state-visit-id", "visit-checking-1", "--target-attempt-id", "checking-1",
+    ]) == 0
+    capsys.readouterr()
+    log = EventLog(workspace.events)
+    _, gate = log.record_verification(
+        {
+            "verifier_id": "test.demo.check",
+            "verifier_version": "1.0.0",
+            "verdict": "pass",
+            "execution_status": "completed",
+            "evidence_hash": "sha256:" + "a" * 64,
+            "evidence_refs": ["completion-index"],
+        },
+        {"decision": "allow"},
+        run_id="run-1",
+        state_visit_id="visit-checking-1",
+        attempt_id="checking-1",
+    )
+    assert gate is not None
+    base_args = [
+        "state", "transition", str(workspace.task_root), "demo-skill", "test.demo.reported",
+        "--skill-root", str(skill), "--run-id", "run-1",
+        "--state-visit-id", "visit-checking-1", "--attempt-id", "checking-1",
+        "--target-state-visit-id", "visit-reported-1", "--target-attempt-id", "reported-1",
+        "--idempotency-key", "checking-to-reported",
+    ]
+
+    before = len(log.read())
+    assert main(base_args) == 2
+    missing = json.loads(capsys.readouterr().out)
+    assert missing["reason_code"] == "gate_binding_required"
+    assert len(log.read()) == before
+
+    wrong_binding = [
+        *base_args,
+        "--gate-event-id", gate.event_id,
+        "--evidence-hash", "sha256:" + "a" * 64,
+        "--evidence-ref", "other-index",
+    ]
+    assert main(wrong_binding) == 2
+    assert "gate_evidence_refs_mismatch" in capsys.readouterr().err
+    assert len(log.read()) == before
+    meta_state = workspace.paths("demo-skill").meta_state
+    assert not meta_state.with_name(meta_state.name + ".tmp").exists()
+    assert workspace.read_meta_state("demo-skill")["current_state"] == "test.demo.checking"
+
+    bound_args = [
+        *base_args,
+        "--gate-event-id", gate.event_id,
+        "--evidence-hash", "sha256:" + "a" * 64,
+        "--evidence-ref", "completion-index",
+    ]
+    assert main(bound_args) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["gate_binding"]["status"] == "bound"
+    assert response["gate_binding"]["source_identity"] == _identity(
+        "run-1", "visit-checking-1", "checking-1"
+    )
+    transition = log.query_transitions(run_id="run-1", skill="demo-skill")[-1]
+    assert transition.state_visit_id == "visit-reported-1"
+    assert transition.payload["gate_event_id"] == gate.event_id
+    assert transition.payload["evidence_refs"] == ["completion-index"]
+
+    event_count = len(log.read())
+    assert main(bound_args) == 0
+    replay = json.loads(capsys.readouterr().out)
+    assert replay["gate_binding"]["status"] == "bound"
+    assert len(log.read()) == event_count
+
+    conflicting = [
+        item if item != "sha256:" + "a" * 64 else "sha256:" + "b" * 64
+        for item in bound_args
+    ]
+    assert main(conflicting) == 2
+    assert "idempotency key conflict" in capsys.readouterr().err
+    assert len(log.read()) == event_count

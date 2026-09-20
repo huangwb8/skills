@@ -2,7 +2,7 @@
 
 Lightweight lifecycle kernel for Agent Skill states, workspaces, and Verifier execution.
 
-Current release: `2.1.4`
+Current release: `2.1.5`
 
 [中文](README.md) · English: `README_EN.md`
 
@@ -86,6 +86,25 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
   --skill-root path/to/skill --run-id run-1 --target-attempt-id collecting-1 \
   --context-json '{"input":"report.md"}'
 ```
+
+When a strict-v2 State declares `verifier-result-recorded`, `verifier-gate-allow`, or
+`required-verifiers-pass`, leaving that State must consume an allowing Gate from the active
+source identity:
+
+```bash
+bsk state transition TASK_ROOT SKILL TARGET_STATE \
+  --skill-root SKILL_ROOT --run-id run-1 \
+  --state-visit-id visit-a --attempt-id attempt-a2 \
+  --target-state-visit-id visit-b --target-attempt-id attempt-b1 \
+  --gate-event-id GATE_EVENT_ID \
+  --evidence-hash sha256:... --evidence-ref completion-index \
+  --idempotency-key transition-a-b
+```
+
+Atomic initialization has no source identity and is exempt by contract; the Kernel does not
+branch on domain State names. All three binding arguments must be supplied together and remain
+identical on idempotent retries. The transition envelope still binds the target identity, while
+Gate validation explicitly uses `payload.source_identity`.
 
 The new identity protocol separates `run_id` (the whole run), `state_visit_id` (one entry into a State), and `attempt_id` (one verification attempt inside that visit). A transition validates the current State with `source_identity` and atomically creates `target_identity`; the CLI returns the target identity for the next stage. Use `bsk attempt start` for a retry inside the same State. Once the new attempt is active, old Gates, handoffs, and authorizations cannot satisfy the current window. See the [identity protocol](../../docs/state-identity-protocol.md) for the state graph, stable reason codes, and legacy rules.
 
@@ -176,10 +195,12 @@ A Gate can also bind the content hash of a business evidence index. Add `evidenc
 (`sha256:<64 hexadecimal digits>`) to a result passed to `record_verification()` or
 `record_verification_batch()` and the Kernel stores it on the computed Gate. A
 `transition(..., gate_event_id=..., evidence_hash=..., evidence_refs=...)` accepts only an
-allowing Gate with matching run/State-visit/attempt identity and evidence bindings. Skills can
-use `EventLog.query_verifications()` and `EventLog.query_gates()` to read original ledger
-receipts instead of relying on a projection that may later be rewritten. Legacy results without
-this field remain read-only compatible but do not gain a new evidence-hash binding.
+allowing Gate with matching source run/State-visit/attempt identity and evidence bindings. Skills
+can use `EventLog.query_verifications()`, `query_gates()`, `query_transitions()`, and
+`query_transition_bindings()` to read original ledger receipts, or
+`inspect_transition_binding()` for one transition. Query results classify a new strict binding
+as `bound`, an older transition without a binding as `legacy_unbound`, and atomic initialization
+without a source identity as `not_applicable`; readability does not confer strict completion.
 
 ## Development, testing, and release
 

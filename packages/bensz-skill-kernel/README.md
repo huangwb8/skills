@@ -2,7 +2,7 @@
 
 轻量的 Agent Skill 状态、工作区与 Verifier 生命周期内核。
 
-当前发布版本：`2.1.4`
+当前发布版本：`2.1.5`
 
 [English](README_EN.md)
 
@@ -86,6 +86,23 @@ bsk state transition .bensz-api/task-YYYYMMDD-HHMM-citation-review skill-name or
   --skill-root path/to/skill --run-id run-1 --target-attempt-id collecting-1 \
   --context-json '{"input":"report.md"}'
 ```
+
+strict-v2 State 若声明了 `verifier-result-recorded`、`verifier-gate-allow` 或
+`required-verifiers-pass`，离开该 State 时必须消费当前 source identity 的允许 Gate：
+
+```bash
+bsk state transition TASK_ROOT SKILL TARGET_STATE \
+  --skill-root SKILL_ROOT --run-id run-1 \
+  --state-visit-id visit-a --attempt-id attempt-a2 \
+  --target-state-visit-id visit-b --target-attempt-id attempt-b1 \
+  --gate-event-id GATE_EVENT_ID \
+  --evidence-hash sha256:... --evidence-ref completion-index \
+  --idempotency-key transition-a-b
+```
+
+首次原子初始化没有 source identity，按契约豁免；Kernel 不按领域 State 名称判断。三个
+binding 参数必须同时提供，幂等重试也必须完全一致。transition 事件信封仍绑定目标 identity，
+Gate 校验则明确使用 `payload.source_identity`。
 
 新身份协议把 `run_id`（整次运行）、`state_visit_id`（一次进入 State）和 `attempt_id`（该访问内的一次验证尝试）分层。transition 用 `source_identity` 验收当前 State，同时原子创建 `target_identity`；CLI 返回目标身份供下一阶段直接使用。同一 State 内重试使用 `bsk attempt start`，新 attempt 启用后旧 Gate、handoff 与 authorization 均不能满足当前窗口。完整协议、状态图、稳定错误码和 legacy 规则见[身份协议说明](../../docs/state-identity-protocol.md)。
 
@@ -175,9 +192,11 @@ Pack helper 默认以受信本地进程运行；Kernel 限制输入、stdout/std
 Gate 还可以绑定一次业务证据索引的内容哈希。向 `record_verification()` 或
 `record_verification_batch()` 的结果加入 `evidence_hash`（`sha256:<64 位十六进制>`）后，
 Kernel 会把它固化到 Kernel 计算的 Gate；`transition(..., gate_event_id=..., evidence_hash=...,
-evidence_refs=...)` 只接受同一 run/State visit/attempt、允许放行且证据绑定完全一致的 Gate。
-Skill 可用 `EventLog.query_verifications()` 与 `EventLog.query_gates()` 从事件账本读取原始回执，
-避免依赖可被后来改写的摘要投影。旧结果不含该字段时保持只读兼容，但不会获得新的证据哈希绑定。
+evidence_refs=...)` 只接受同一 source run/State visit/attempt、允许放行且证据绑定完全一致的 Gate。
+Skill 可用 `EventLog.query_verifications()`、`query_gates()`、`query_transitions()` 与
+`query_transition_bindings()` 从事件账本读取原始回执，或用 `inspect_transition_binding()`
+检查单条迁移。查询结果将新强绑定标为 `bound`，旧的无绑定迁移标为 `legacy_unbound`，
+无 source identity 的原子初始化标为 `not_applicable`；可读取不等于获得严格完成资格。
 
 ## 开发、测试与发布
 

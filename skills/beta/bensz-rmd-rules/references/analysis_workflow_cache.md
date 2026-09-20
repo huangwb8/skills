@@ -4,7 +4,7 @@
 
 以 `templates/analysis_plan_template.yaml` 为起点。计划是需求映射和依赖检查入口，不是调度框架。每个单元包含：稳定 ID、名称、目的、依赖、输入、代码、产品、是否缓存、报告和完成判据。
 
-含缓存单元时，先把 Skill 的 `templates/checkpoint_helpers.R` 复制到项目 `templates/`；该 helper 是代码 identity 的一部分。缺失时 strict checker 会阻断运行。
+含缓存单元时，把 Skill 的 `templates/checkpoint_helpers.R` 复制到项目 `scripts/lib/checkpoint_helpers.R`；该 helper 是代码 identity 的一部分。旧项目原有 `templates/checkpoint_helpers.R` 继续兼容，不因维护任务移动。缺失时 strict checker 会阻断运行。
 
 计划完成后运行：
 
@@ -29,7 +29,7 @@ python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analy
 ## 3. 产品最小契约
 
 ```text
-products/<workflow>/<AA.BB.CC. 名称>/
+<products_dir>/<workflow>/<AA.BB.CC. 名称>/
 ├── main.rds          # 完整主对象，可替换为领域所需完整格式
 ├── preview.tsv       # 矩形数据按需；巨大对象允许仅受控预览
 ├── summary.md        # 人类可读结构、统计摘要与注意事项
@@ -56,7 +56,9 @@ products/<workflow>/<AA.BB.CC. 名称>/
 
 ## 5. 写入与命中
 
-`templates/checkpoint_helpers.R` 的顺序是：
+产品根默认 `products/`，只通过项目统一的 `BENSZ_PRODUCTS_DIR`/`00.Environment.R` 设置覆盖；`bensz_product_dir()` 会拒绝项目外路径、保留目录与 symlink 逃逸。正式产品可恢复、可审查，不是可以无条件删除的技术缓存；`_targets/`、renv library 等才是运行缓存。
+
+`scripts/lib/checkpoint_helpers.R` 的顺序是：
 
 1. 删除旧 `SUCCESS`；
 2. 写同目录临时文件；
@@ -71,7 +73,7 @@ products/<workflow>/<AA.BB.CC. 名称>/
 
 ## 6. 失效与恢复
 
-`scripts/run_analysis_workflow.py` 先执行严格检查，再按编号遍历全部 `.R` 计算节点。直接上游的 product identity 是下游 cache identity 的一部分，因此即使上游在相同静态输入下被强制重算，只要实际产品改变，也会传播到必要下游；没有依赖关系的单元不应被连带重算。
+已有项目已经采用历史 runner 时，`scripts/run_analysis_workflow.py` 先执行严格检查，再按编号遍历全部 `.R` 计算节点。新项目不使用该 runner：simple 直接运行正式入口，complex 使用 targets。直接上游的 product identity 是下游 cache identity 的一部分，因此即使上游在相同静态输入下被强制重算，只要实际产品改变，也会传播到必要下游；没有依赖关系的单元不应被连带重算。
 
 - `--force-step 02.00.00`：通过环境传给各 R 单元，强制指定单元运行；它的新身份/产品会决定下游是否失效。
 - `--resume-from 03.00.00`：编号更早的单元必须有效并记录命中，否则停止；从失败边界继续。

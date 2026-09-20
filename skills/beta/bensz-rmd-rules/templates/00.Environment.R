@@ -24,8 +24,66 @@ luckyBase::Plus.library("yaml")
 # --- 项目目录（raw 只读；只创建可写输出目录）---
 project_root <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
 raw_dir <- file.path(project_root, "raw")
-products_dir <- file.path(project_root, "products")
-reports_dir <- file.path(project_root, "reports")
+
+.bensz_test_output_path <- function(setting, leaf) {
+  test_root <- gsub("\\\\", "/", Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = ""))
+  test_parts <- strsplit(test_root, "/", fixed = TRUE)[[1]]
+  nzchar(test_root) &&
+    length(test_parts) >= 3L &&
+    identical(test_parts[1:2], c("tmp", "tests")) &&
+    !any(test_parts %in% c("", ".", "..")) &&
+    identical(gsub("\\\\", "/", setting), paste0(test_root, "/", leaf))
+}
+
+.bensz_project_output_path <- function(setting, label, reserved, test_leaf = NULL) {
+  portable <- gsub("\\\\", "/", setting)
+  parts <- strsplit(portable, "/", fixed = TRUE)[[1]]
+  is_test_output <- !is.null(test_leaf) && .bensz_test_output_path(portable, test_leaf)
+  if (
+    !is.character(setting) || length(setting) != 1L || !nzchar(setting) ||
+      grepl("^(?:/|[A-Za-z]:[/\\\\]|\\\\\\\\)", setting, perl = TRUE) ||
+      any(parts %in% c("", ".", "..")) ||
+      (!is_test_output && parts[[1]] %in% reserved)
+  ) {
+    stop(label, " must be a safe project-relative output directory.")
+  }
+  candidate <- normalizePath(file.path(project_root, portable), winslash = "/", mustWork = FALSE)
+  if (!startsWith(candidate, paste0(project_root, "/"))) {
+    stop(label, " must stay inside the project root.")
+  }
+  current <- project_root
+  for (part in parts) {
+    current <- file.path(current, part)
+    link <- Sys.readlink(current)
+    if (file.exists(current) && !is.na(link) && nzchar(link)) {
+      stop(label, " cannot contain symlinks: ", part)
+    }
+  }
+  candidate
+}
+
+reports_dir_setting <- Sys.getenv("BENSZ_REPORTS_DIR", unset = "reports")
+if (!identical(gsub("\\\\", "/", reports_dir_setting), "reports") &&
+    !.bensz_test_output_path(reports_dir_setting, "reports")) {
+  stop("BENSZ_REPORTS_DIR is reserved for the isolated test run root.")
+}
+reports_dir <- .bensz_project_output_path(
+  reports_dir_setting,
+  "BENSZ_REPORTS_DIR",
+  c("raw", "products", "tmp", "_targets", ".bensz-api"),
+  test_leaf = "reports"
+)
+
+# 产品目录只有一个项目级入口：显式环境变量覆盖默认 products/。
+# 必须是项目内相对路径，且不能与原始输入、报告、临时区或 targets store 重叠。
+products_dir_setting <- Sys.getenv("BENSZ_PRODUCTS_DIR", unset = "products")
+products_dir <- .bensz_project_output_path(
+  products_dir_setting,
+  "BENSZ_PRODUCTS_DIR",
+  c("raw", "reports", "tmp", "_targets", ".bensz-api"),
+  test_leaf = "products"
+)
+options(bensz.products_dir = products_dir_setting)
 
 # --- fonts (CJK-safe defaults for plots) ---
 # Purpose:

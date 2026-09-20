@@ -33,11 +33,11 @@ output:
 # 简单、低成本、单报告路径：直接只读 raw/，不创建 analysis-plan 或 checkpoint。
 if (!file.exists("00.Environment.R")) stop("Missing 00.Environment.R in project root.")
 source("00.Environment.R")
-input_path <- file.path("raw", "input.tsv")
+input_path <- Sys.getenv("BENSZ_ANALYSIS_INPUT", unset = file.path("raw", "input.tsv"))
 if (!file.exists(input_path)) stop("Missing raw input: ", input_path)
 raw_data <- utils::read.delim(input_path, check.names = FALSE)
-dir.create(file.path("reports", "figures"), recursive = TRUE, showWarnings = FALSE)
-dir.create(file.path("reports", "tables"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(reports_dir, "figures"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(reports_dir, "tables"), recursive = TRUE, showWarnings = FALSE)
 ```
 
 ## 数据概览

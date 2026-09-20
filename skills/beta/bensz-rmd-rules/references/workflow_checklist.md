@@ -1,64 +1,59 @@
 # 工作流检查清单
 
-## 规划
+## 状态、模式与环境
 
-- [ ] 已通过 `check_targets_renv.py --mode auto` 判定新项目或已有项目；状态不明确时已请求澄清。
-- [ ] 新项目已初始化 `_targets.R`、`renv.lock` 和 `renv/activate.R`；已有项目未因检查新增缺失机制。
+- [ ] 已分开记录 `project_state` 与 `workflow_mode`，并说明选择理由。
+- [ ] 人类显式模式优先；existing 未被按新默认重构。
+- [ ] 新 simple 有 renv 和测试入口，无 `_targets.R`；新 complex 额外有 `_targets.R`。
+- [ ] 已有项目未因检查新增 targets、renv、目录或 runner。
+- [ ] 目标、输入、授权、数据字典、统计边界、报告用途和重跑成本已确认。
 
-- [ ] 目标、输入、数据字典、统计边界、报告用途和重跑成本已确认。
-- [ ] 每项需求映射到分析单元或明确排除。
-- [ ] 单元使用 `AA.BB.CC. 名称`，无重复、前向依赖或循环。
-- [ ] 简单任务未被强拆；昂贵/复用/高风险边界已评估缓存。
+## 目录与产品
 
-## 目录与实现
+- [ ] `raw/` 只读；正式派生产品与 targets store 没有混淆。
+- [ ] `templates/` 只有样式/渲染资产；共享 helper 在 `scripts/lib/`。
+- [ ] 测试代码在 `scripts/tests/`；每次运行现场在唯一 `tmp/tests/<run-id>/` 并默认忽略。
+- [ ] products 路径来自一个项目设置，留在授权项目范围内，无散落硬编码。
+- [ ] `tmp/scratch/` 的正式发现已晋升到代码、产品和报告并补测试。
+- [ ] 只创建实际使用的目录；旧 `tmp/` 项目未自动迁移或覆盖。
 
-- [ ] `00.Environment.R` 默认唯一，未吸收单元专属逻辑。
-- [ ] `raw/` 只读；完整产品在 `products/`；正式材料在 `reports/`。
-- [ ] `_functions.R` 未被视为执行节点；Rmd/HTML 留在根目录。
-- [ ] 旧 `tmp/` 项目未被自动迁移或覆盖。
-- [ ] 新项目只有一个步骤时仍使用一个 target；旧 runner 未作为新项目回退入口。
-- [ ] 包经 `luckyBase::Plus.library()` 管理；基因 ID 转换使用 `luckyBase::convert()`。
+## 轻量测试
 
-## 缓存与恢复
+- [ ] 明确选择 `synthetic_fixture` 或 `project_subset`，并记录理由。
+- [ ] fixture/子集覆盖 schema、类型、主键、关键分组、缺失和边缘条件。
+- [ ] simple 真实执行正式 R/Rmd 入口；complex 真实执行同一 target 图。
+- [ ] complex test store 是 `tmp/tests/<run-id>/_targets`，未接触正式 `_targets/`。
+- [ ] 未向业务逻辑加入 `analysis_mode`/`test_mode` 分支。
+- [ ] 输入、主键/分组、统计不变量、产品、报告/图表与 raw 不变性断言通过。
+- [ ] 每次尝试有命令、退出状态、失败分类、修正、断言和剩余风险。
+- [ ] 运行记录绑定最新 subject identity，并区分 preflight/lightweight/full-data；未跑全量时明确 `NOT_RUN`。
+- [ ] project subset 已默认删除，或有明确保留授权与访问控制。
+- [ ] 审查后若代码、配置或 lockfile 改变，受影响轻量真实链已重跑。
+
+## 缓存、审查与报告
 
 - [ ] identity 覆盖输入、参数、代码、上游和输出契约，不含时间戳。
-- [ ] 完整对象、可读副本/摘要、`metadata.yaml`、`SUCCESS` 职责齐全。
-- [ ] `SUCCESS` 最后写；半成品、损坏输出和身份变化均为 miss。
-- [ ] 首次运行、相同输入命中、参数/代码/上游失效、中途失败和恢复已测试。
-- [ ] 只改报告阈值/配色不会重算重型产品。
-
-## 审查与报告
-
-- [ ] 三轮独立只读审查按序完成，或明确记录能力降级。
-- [ ] 每轮读取前轮修正后的最新版本，只有主 Agent 修改文件。
-- [ ] 图表 PDF、JPG 预览、HTML widget、图表/表格解读覆盖均通过。
-- [ ] 不常用指标首次解释，关键数字可追溯，结论未越过不确定性边界。
+- [ ] 完整对象、可读摘要、`metadata.yaml` 与最后写入的 `SUCCESS` 齐全。
+- [ ] 半成品、损坏输出和身份变化都不会误命中。
+- [ ] 三项只读审查按序完成，或明确记录非独立降级。
+- [ ] PDF/JPG、HTML widget、图表/表格解读覆盖、数字追溯均通过。
 
 ## 交付命令
 
-新项目 targets + renv：
-
 ```bash
-python3 <skill-root>/scripts/check_targets_renv.py <项目根> --mode new
+# simple
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state new --workflow-mode simple
 Rscript -e 'renv::status()'
+Rscript <项目根>/scripts/tests/smoke_test.R
+
+# complex：smoke_test 内部使用 tmp/tests/<run-id>/_targets
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state new --workflow-mode complex
+Rscript -e 'renv::status()'
+Rscript <项目根>/scripts/tests/smoke_test.R
 Rscript -e 'targets::tar_make()'
+
+# existing
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state existing --workflow-mode preserved-existing
 ```
 
-已有项目先使用 `--mode existing` 做只读检查，再沿用项目已有入口。
-
-历史编号计算流（仅已有项目兼容维护）：
-
-```bash
-python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml --strict
-python3 <skill-root>/scripts/run_analysis_workflow.py <项目根> --dry-run
-python3 <skill-root>/scripts/check_rmd_template_yaml.py
-```
-
-旧 `tmp/` 项目：`python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --legacy --strict`，不补 plan、不调用 runner。简单单报告跳过工作流/runner 检查。所有 Rmd 继续执行：
-
-```bash
-python3 <skill-root>/scripts/check_figure_table_interpretation.py <报告.Rmd> --strict
-python3 <skill-root>/scripts/check_interpretation_quality.py <报告.Rmd> --strict
-python3 <skill-root>/scripts/check_htmlwidget_visibility.py <报告.Rmd>
-Rscript <skill-root>/scripts/check_plot_readability.R <正式图.pdf> --render-jpg --out-dir <任务根>/bensz-rmd-rules/output/plot-check
-```
+历史编号 runner 仅用于已经采用该入口的项目。所有 Rmd 继续执行解读覆盖、解读质量、widget 可见性和图表可读性检查。checker/`--dry-run` 不替代上面的真实轻量运行。

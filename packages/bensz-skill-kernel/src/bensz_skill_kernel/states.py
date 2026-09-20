@@ -32,6 +32,11 @@ _SCRIPT_VERDICTS = frozenset({"pass", "fail", "uncertain", "unchecked", "error",
 _INVARIANT_EVENT_REQUIREMENTS = {
     "verifier-result-recorded": frozenset({"verification.result", "verification.gate"}),
 }
+_GATE_BINDING_INVARIANTS = frozenset({
+    "verifier-result-recorded",
+    "verifier-gate-allow",
+    "required-verifiers-pass",
+})
 
 
 class StateDefinitionError(ValueError):
@@ -44,6 +49,16 @@ class StateTransitionError(StateDefinitionError):
 
 class StateExecutionError(StateDefinitionError):
     """A state helper could not be run or returned an invalid response."""
+
+
+def state_requires_gate_binding(definition: "StateDefinition") -> bool:
+    """Return whether a State contract protects its exit with a verifier Gate.
+
+    The decision is derived only from Kernel-defined invariants declared by the
+    State Pack.  It deliberately does not inspect domain State IDs or edge
+    names, so system/initialization edges remain governed by their contracts.
+    """
+    return bool(_GATE_BINDING_INVARIANTS.intersection(definition.invariants))
 
 
 def check_state_invariants(definition: "StateDefinition", events: Iterable[Any] = (), *, context: Mapping[str, Any] | None = None) -> tuple[str, ...]:

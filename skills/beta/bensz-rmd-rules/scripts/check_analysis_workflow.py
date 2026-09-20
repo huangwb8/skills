@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -78,6 +79,24 @@ def unsafe_portable_name(value: str) -> bool:
     )
 
 
+def normalize_products_dir(root: Path, value: str) -> tuple[str, Path]:
+    path = Path(value.replace("\\", "/"))
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError("products directory must be a normalized project-relative path")
+    if path.parts[0] in {"raw", "reports", "tmp", "_targets", ".bensz-api"}:
+        raise ValueError("products directory cannot overlap raw/reports/tmp/_targets/.bensz-api")
+    resolved = (root / path).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("products directory must stay inside project root") from exc
+    return path.as_posix(), resolved
+
+
+def has_prefix(path: Path, prefix: Path) -> bool:
+    return path.parts[: len(prefix.parts)] == prefix.parts
+
+
 def detect_legacy_project(root: Path) -> bool:
     if not (root / "tmp").is_dir():
         return False
@@ -126,7 +145,15 @@ def check_root_files(root: Path, findings: list[Finding], *, legacy: bool) -> di
     return stems
 
 
-def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings: list[Finding]) -> None:
+def check_plan(
+    root: Path,
+    plan_path: Path,
+    stems: dict[str, set[str]],
+    findings: list[Finding],
+    *,
+    products_dir: str,
+    products_root: Path,
+) -> None:
     if not plan_path.exists():
         findings.append(Finding("error", "missing-plan", relative(plan_path, root), "analysis plan does not exist"))
         return
@@ -234,8 +261,16 @@ def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings
                     continue
                 if field == "inputs" and rel.parts and rel.parts[0] == "raw" and not candidate.exists():
                     findings.append(Finding("error", "missing-raw-input", rel.as_posix(), "planned raw input does not exist"))
-                if field == "inputs" and (not rel.parts or rel.parts[0] not in {"raw", "products"}):
-                    findings.append(Finding("error", "input-boundary", rel.as_posix(), "inputs must come from raw/ or products/"))
+                from_products = has_prefix(rel, Path(products_dir))
+                if field == "inputs" and (not rel.parts or (rel.parts[0] != "raw" and not from_products)):
+                    findings.append(
+                        Finding(
+                            "error",
+                            "input-boundary",
+                            rel.as_posix(),
+                            f"inputs must come from raw/ or {products_dir}/",
+                        )
+                    )
                 if field == "reports":
                     root_html = rel.parent == Path(".") and rel.name == f"{stem}.html"
                     formal_report = (
@@ -248,8 +283,8 @@ def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings
                         findings.append(Finding("error", "report-boundary", rel.as_posix(), "report path does not match the unit/root/report boundary"))
 
         products = raw.get("products", [])
-        expected_prefix = f"products/{workflow}/{stem}/"
-        expected_dir = (root / "products" / workflow / stem).resolve()
+        expected_prefix = f"{products_dir}/{workflow}/{stem}/"
+        expected_dir = (products_root / workflow / stem).resolve()
         product_locations_valid = True
         if isinstance(products, list):
             for item in products:
@@ -312,19 +347,21 @@ def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings
             continue
         for item in inputs:
             parts = str(item).replace("\\", "/").split("/")
-            if not parts or parts[0] != "products":
+            product_prefix_parts = list(Path(products_dir).parts)
+            if parts[: len(product_prefix_parts)] != product_prefix_parts:
                 continue
-            if len(parts) < 4 or parts[1] != workflow:
+            suffix = parts[len(product_prefix_parts) :]
+            if len(suffix) < 3 or suffix[0] != workflow:
                 findings.append(
                     Finding(
                         "error",
                         "invalid-product-input",
                         location,
-                        f"product input must use products/{workflow}/<unit-stem>/<file>: {item}",
+                        f"product input must use {products_dir}/{workflow}/<unit-stem>/<file>: {item}",
                     )
                 )
                 continue
-            upstream = unit_stems.get(parts[2])
+            upstream = unit_stems.get(suffix[1])
             if upstream is None:
                 findings.append(
                     Finding("error", "unknown-product-input", location, f"product input has no planned unit: {item}")
@@ -363,9 +400,10 @@ def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings
         visit(node)
 
     if any(unit.get("cache") is True for unit in units.values()):
-        helper = root / "templates" / "checkpoint_helpers.R"
-        templates = root / "templates"
-        helper_is_safe = helper.is_file() and not helper.is_symlink() and not templates.is_symlink()
+        preferred_helper = root / "scripts" / "lib" / "checkpoint_helpers.R"
+        legacy_helper = root / "templates" / "checkpoint_helpers.R"
+        helper = preferred_helper if preferred_helper.is_file() else legacy_helper
+        helper_is_safe = helper.is_file() and not helper.is_symlink() and not helper.parent.is_symlink()
         if helper_is_safe:
             try:
                 helper.resolve().relative_to(root)
@@ -376,7 +414,7 @@ def check_plan(root: Path, plan_path: Path, stems: dict[str, set[str]], findings
                 Finding(
                     "error",
                     "unsafe-checkpoint-helper",
-                    "templates/checkpoint_helpers.R",
+                    "scripts/lib/checkpoint_helpers.R",
                     "cached workflows need a regular in-project copy of the Skill checkpoint helper",
                 )
             )
@@ -470,7 +508,13 @@ def check_checkpoint(path: Path, root: Path, findings: list[Finding], *, stale_s
             findings.append(Finding(stale_severity, "success-identity-mismatch", relative(success_path, root), "SUCCESS does not match cache_identity"))
 
 
-def check_boundaries(root: Path, findings: list[Finding], *, allow_stale_checkpoints: bool) -> None:
+def check_boundaries(
+    root: Path,
+    findings: list[Finding],
+    *,
+    allow_stale_checkpoints: bool,
+    products_root: Path,
+) -> None:
     reports = root / "reports"
     if reports.is_dir():
         for path in reports.rglob("*"):
@@ -479,7 +523,7 @@ def check_boundaries(root: Path, findings: list[Finding], *, allow_stale_checkpo
             if path.is_file() and path.suffix == ".html" and path.parent.name != "supplementary":
                 findings.append(Finding("error", "report-html-location", relative(path, root), "rendered Rmd HTML belongs in project root"))
 
-    products = root / "products"
+    products = products_root
     if products.is_dir():
         for path in products.rglob("*"):
             if path.is_file() and path.suffix in {".R", ".Rmd", ".html"}:
@@ -514,6 +558,11 @@ def main(argv: list[str] | None = None) -> int:
         help="downgrade recoverable checkpoint integrity findings to warnings",
     )
     parser.add_argument("--json", action="store_true", help="emit JSON")
+    parser.add_argument(
+        "--products-dir",
+        default=None,
+        help="single project-relative product root; defaults to plan, BENSZ_PRODUCTS_DIR, then products",
+    )
     args = parser.parse_args(argv)
 
     root = Path(args.project_root).expanduser().resolve()
@@ -524,6 +573,21 @@ def main(argv: list[str] | None = None) -> int:
     findings: list[Finding] = []
     legacy = args.legacy or detect_legacy_project(root)
     stems = check_root_files(root, findings, legacy=legacy)
+    plan_data = None
+    if args.plan:
+        candidate_plan = (root / args.plan).resolve()
+        if candidate_plan.is_file():
+            try:
+                plan_data = load_yaml(candidate_plan)
+            except Exception:
+                plan_data = None
+    plan_products_dir = plan_data.get("products_dir") if isinstance(plan_data, dict) else None
+    products_setting = args.products_dir or os.getenv("BENSZ_PRODUCTS_DIR") or plan_products_dir or "products"
+    try:
+        products_dir, products_root = normalize_products_dir(root, str(products_setting))
+    except ValueError as exc:
+        print(f"[FAIL] invalid products directory: {exc}", file=sys.stderr)
+        return 2
     if args.plan:
         plan_path = (root / args.plan).resolve()
         try:
@@ -531,14 +595,27 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError:
             print("[FAIL] --plan must stay inside project root", file=sys.stderr)
             return 2
-        check_plan(root, plan_path, stems, findings)
-    check_boundaries(root, findings, allow_stale_checkpoints=args.allow_stale_checkpoints)
+        check_plan(
+            root,
+            plan_path,
+            stems,
+            findings,
+            products_dir=products_dir,
+            products_root=products_root,
+        )
+    check_boundaries(
+        root,
+        findings,
+        allow_stale_checkpoints=args.allow_stale_checkpoints,
+        products_root=products_root,
+    )
 
     payload = {
         "project_root": ".",
         "mode": "strict" if args.strict else "report",
         "numbered_units": sorted(stems),
         "legacy_mode": legacy,
+        "products_dir": products_dir,
         "findings": [asdict(item) for item in findings],
         "status": "pass" if not findings else "findings",
     }

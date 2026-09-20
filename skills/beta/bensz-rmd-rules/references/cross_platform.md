@@ -6,7 +6,7 @@
 
 ```r
 input_path <- file.path("raw", "expression.tsv")
-product_path <- file.path("products", "main", "01.00.00. 数据整理", "main.rds")
+product_path <- file.path(products_dir, "main", "01.00.00. 数据整理", "main.rds")
 figure_path <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")
 ```
 
@@ -37,7 +37,7 @@ utils::write.table(
 )
 ```
 
-checkpoint 不要自行实现通用写入；复用 `templates/checkpoint_helpers.R`，由完成标记保证半成品不会命中。
+checkpoint 不要自行实现通用写入；新项目复用 `scripts/lib/checkpoint_helpers.R`（源自 Skill 的模板），由完成标记保证半成品不会命中。旧项目保持原 helper 位置。
 
 ## 项目根与 Skill 根
 

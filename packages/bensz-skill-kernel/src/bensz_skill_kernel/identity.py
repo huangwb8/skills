@@ -18,6 +18,8 @@ _CAPABILITIES = (
     "atomic_target_identity_handoff",
     "attempt_supersede",
     "state_bound_verifier_gate",
+    "gate_transition_evidence_binding",
+    "transition_binding_query",
     "state_bound_action_authorization",
     "legacy_event_read",
     "strict_identity_policy",

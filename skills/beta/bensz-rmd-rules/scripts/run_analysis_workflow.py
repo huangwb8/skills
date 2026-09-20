@@ -43,14 +43,17 @@ def compute_script(unit: dict[str, Any]) -> str | None:
     return candidates[0] if candidates else None
 
 
-def execution_environment(force_step: str, resume_from: str) -> dict[str, str]:
+def execution_environment(force_step: str, resume_from: str, products_dir: str | None) -> dict[str, str]:
     env = os.environ.copy()
     env.pop("BENSZ_FORCE_STEP", None)
     env.pop("BENSZ_RESUME_FROM", None)
+    env.pop("BENSZ_PRODUCTS_DIR", None)
     if force_step:
         env["BENSZ_FORCE_STEP"] = force_step
     if resume_from:
         env["BENSZ_RESUME_FROM"] = resume_from
+    if products_dir:
+        env["BENSZ_PRODUCTS_DIR"] = products_dir
     return env
 
 
@@ -62,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--force-step", default="")
     parser.add_argument("--resume-from", default="")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--products-dir", default=None)
     args = parser.parse_args(argv)
 
     root = Path(args.project_root).expanduser().resolve()
@@ -79,12 +83,16 @@ def main(argv: list[str] | None = None) -> int:
         "--strict",
         "--allow-stale-checkpoints",
     ]
+    if args.products_dir:
+        validation_args.extend(["--products-dir", args.products_dir])
     if checker.main(validation_args) != 0:
         print("[FAIL] workflow validation failed; no R units were run", file=sys.stderr)
         return 1
 
     try:
         units = load_units(plan_path)
+        plan_data = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+        plan_products_dir = plan_data.get("products_dir") if isinstance(plan_data, dict) else None
         scripts = [(str(unit["id"]), compute_script(unit)) for unit in units]
     except (KeyError, TypeError, ValueError) as exc:
         print(f"[FAIL] cannot build execution plan: {exc}", file=sys.stderr)
@@ -107,7 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[FAIL] Rscript executable not found: {args.rscript}", file=sys.stderr)
         return 2
 
-    env = execution_environment(args.force_step, args.resume_from)
+    effective_products_dir = args.products_dir or os.getenv("BENSZ_PRODUCTS_DIR") or plan_products_dir
+    env = execution_environment(args.force_step, args.resume_from, effective_products_dir)
     for unit_id, script in scripts:
         print(f"[EXEC] {unit_id}: {script}", flush=True)
         result = subprocess.run([rscript, script], cwd=root, env=env, check=False)

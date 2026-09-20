@@ -3,8 +3,8 @@
 - 更新
 
 ```
-repo-version = 5.0.10
-bsk-version = 2.1.4
+repo-version = 5.0.11
+bsk-version = 2.1.5
 
 请您：
 - 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
@@ -436,6 +436,10 @@ if(F){
 请你把demo做出来，然后使用 auto-test-skills 迭代优化1次。 使用 compact-bensz-skills 压缩该skill的md。 使用 write-readme 为该skill写readme。
 
 ## skills/beta/bensz-rmd-rules
+
+基于 docs/plans/2026-09-20-bensz-rmd-rules-双模式与轻量测试优化计划.md 优化skill。跳过计划与根因核验步骤， 直接开始落实计划。 计划里的所有阶段的问题（p0-p2级）都要解决。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
+
+---
 
 skills/beta/bensz-rmd-rules 优化：
 

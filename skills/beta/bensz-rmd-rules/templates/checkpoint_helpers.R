@@ -24,6 +24,47 @@ if (TRUE) {
     invisible(name)
   }
 
+  .bensz_products_root <- function(
+    root = getwd(),
+    products_dir = getOption(
+      "bensz.products_dir",
+      Sys.getenv("BENSZ_PRODUCTS_DIR", unset = "products")
+    )
+  ) {
+    project_root <- normalizePath(root, winslash = "/", mustWork = TRUE)
+    if (!is.character(products_dir) || length(products_dir) != 1L || !nzchar(products_dir)) {
+      stop("products_dir must be one non-empty project-relative path.")
+    }
+    portable <- gsub("\\\\", "/", products_dir)
+    parts <- strsplit(portable, "/", fixed = TRUE)[[1]]
+    test_root <- gsub("\\\\", "/", Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = ""))
+    test_parts <- strsplit(test_root, "/", fixed = TRUE)[[1]]
+    is_test_products <- nzchar(test_root) &&
+      length(test_parts) >= 3L &&
+      identical(test_parts[1:2], c("tmp", "tests")) &&
+      !any(test_parts %in% c("", ".", "..")) &&
+      identical(portable, paste0(test_root, "/products"))
+    if (
+      grepl("^(?:/|[A-Za-z]:[/\\\\]|\\\\\\\\)", products_dir, perl = TRUE) ||
+        any(parts %in% c("", ".", "..")) ||
+        (!is_test_products && parts[[1]] %in% c("raw", "reports", "tmp", "_targets", ".bensz-api"))
+    ) {
+      stop("products_dir must be a safe project-relative product directory.")
+    }
+    candidate <- normalizePath(file.path(project_root, portable), winslash = "/", mustWork = FALSE)
+    if (!startsWith(candidate, paste0(project_root, "/"))) {
+      stop("products_dir must stay inside the project root.")
+    }
+    current <- project_root
+    for (part in parts) {
+      current <- file.path(current, part)
+      if (file.exists(current) && .bensz_is_symlink(current)) {
+        stop("Product root cannot contain symlinks: ", part)
+      }
+    }
+    candidate
+  }
+
   .bensz_normalize_relative <- function(paths, root = getwd()) {
     root <- normalizePath(root, winslash = "/", mustWork = TRUE)
     normalized <- normalizePath(paths, winslash = "/", mustWork = TRUE)
@@ -35,20 +76,15 @@ if (TRUE) {
   }
 
   .bensz_assert_product_dir <- function(product_dir, root = getwd()) {
-    project_root <- normalizePath(root, winslash = "/", mustWork = TRUE)
-    products_path <- file.path(project_root, "products")
-    if (file.exists(products_path) && .bensz_is_symlink(products_path)) {
-      stop("products/ cannot be a symlink.")
-    }
+    products_root <- .bensz_products_root(root = root)
     raw_candidate <- gsub("\\\\", "/", path.expand(product_dir))
     raw_parts <- strsplit(raw_candidate, "/", fixed = TRUE)[[1]]
     if (any(raw_parts %in% c(".", ".."))) {
       stop("product_dir cannot contain dot or parent path segments.")
     }
-    products_root <- normalizePath(products_path, winslash = "/", mustWork = FALSE)
     candidate <- normalizePath(product_dir, winslash = "/", mustWork = FALSE)
     if (!startsWith(candidate, paste0(products_root, "/"))) {
-      stop("product_dir must stay inside the project products/ directory.")
+      stop("product_dir must stay inside the configured project products directory.")
     }
     relative_parts <- strsplit(substring(candidate, nchar(products_root) + 2L), "/", fixed = TRUE)[[1]]
     current <- products_root
@@ -143,7 +179,7 @@ if (TRUE) {
       stop("unit_stem must use 'AA.BB.CC. name'.")
     }
     .bensz_assert_portable_name(sub("^[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\. ", "", unit_stem), "unit name")
-    product_dir <- file.path(root, "products", workflow, unit_stem)
+    product_dir <- file.path(.bensz_products_root(root = root), workflow, unit_stem)
     .bensz_assert_product_dir(product_dir, root = root)
   }
 
