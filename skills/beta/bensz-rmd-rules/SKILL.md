@@ -1,6 +1,6 @@
 ---
 name: bensz-rmd-rules
-description: 当用户要求编写或维护 R Markdown、R 分析脚本、可复现数据分析，尤其涉及多阶段计算、缓存复用、断点恢复或论文级图表与解读时使用。负责规划分析单元、组织 R/Rmd 数据流、验证缓存与交付质量；不用于仅渲染既有 Rmd 或其它语言的数据分析。
+description: 当主要交付物是基于 R 的数据分析流程、科学结果、可复现数据产品、R Markdown/HTML 报告或论文级图表与解读时使用；即使流程中包含 `.R` 脚本和仅服务当前分析的辅助函数，也由本 Skill 主导。⚠️ 不适用：主要交付物是可独立复用的 R 函数、稳定公共 API、类或 R Package；这些任务使用 bensz-r-developer。也不用于仅渲染既有 Rmd 或其它语言的数据分析。
 metadata:
   author: Bensz Conan
   short-description: R/Rmd 多阶段分析、可恢复数据产品与论文级报告规范
@@ -19,6 +19,16 @@ metadata:
 
 先理解研究目标与数据，再把任务组织为可审查、可恢复的 R 分析单元。`.R` 负责完整数据、重型计算和持久数据产品；`.Rmd` 负责报告层筛选、可视化与证据锚定的专家解读。新项目无论只有一个分析步骤还是多阶段流程，都必须从一开始启用 `targets` 与 `renv`；已有项目按实际状态独立兼容，缺什么就保持什么，不自动补齐或迁移。
 
+本 Skill 关注的是“分析怎样可靠地跑完并形成可信结果”，而不是“R 软件组件怎样形成稳定公共 API”。触发依据是主要交付物和验收标准，不是文件扩展名：
+
+| 场景 | 主导 Skill |
+| --- | --- |
+| 主要交付物是分析数据流、统计结果、可恢复产品、Rmd/HTML 报告、图表与解释 | `bensz-rmd-rules` |
+| 主要交付物是可独立测试、文档化、版本化或跨项目复用的函数、类、API、Package | `bensz-r-developer` |
+| 分析流程需要一个可复用组件 | 本 Skill 先定义分析需求、输入输出与集成证据，`bensz-r-developer` 实现组件，本 Skill 再接回流程验证结果与报告 |
+
+本 Skill 可以创建只服务当前分析单元的 `_functions.R` 和 helper，但不为追求“通用”而把它们扩展成公共 Package。若用户的主要验收标准转为 API 稳定性、Package 结构、roxygen2/testthat 或跨项目复用，应将该组件交给 `bensz-r-developer`。
+
 本 Skill 还负责 Nature 级图表、弱背景读者的指标导读、数字追溯、HTML widget 可见性和跨平台路径。`luckyBase` 是唯一固定 Bensz 生态依赖。具体分析包由项目声明并写入 `renv.lock`；`targets` 是新项目唯一流程编排入口，`renv` 是新项目唯一环境锁定入口。本 Skill 不自动接入 State、Verifier、Pack 或 Gate。
 
 ## 流程
@@ -28,6 +38,7 @@ metadata:
 确认以下信息；已有上下文足够时直接提取，不重复询问：
 
 - 研究问题、报告用途、正式交付物和可接受的统计边界；
+- 主要验收对象，以及函数的复用范围是当前分析、当前项目还是跨项目公共 API；
 - 原始输入、数据字典、样本/变量含义、隐私限制与只读范围；
 - 重算成本、外部请求、随机性、关键参数与已有项目布局；
 - 现有 `.R`、`.Rmd`、`00.Environment.R`、`products/`、旧 `tmp/`、`_targets.R`、`renv.lock` 或 `renv/` 资产；
@@ -46,9 +57,11 @@ metadata:
 
 ### 执行步骤
 
-#### 1. 建立需求—分析图
+#### 1. 判定主交付物并建立需求—分析图
 
-先列出需求与交付物，再形成分析单元表。每行至少包含：`AA.BB.CC` 编号、目的、上游、输入、主要数据产品、缓存决定、报告关系与完成判据。只有在以下条件成立后才生成代码：
+先判断验收标准是否以分析结果、数据流、恢复能力和报告为中心。若任务只要求设计可复用函数/API/类/Package，而没有分析流程交付，本 Skill 不应主导，应转交 `bensz-r-developer`。若两类交付同时存在，记录主 Skill、组件边界和交接点；分析主导时，本 Skill 拥有需求与集成验收，`bensz-r-developer` 只负责被明确划出的可复用组件。
+
+随后列出需求与交付物，再形成分析单元表。每行至少包含：`AA.BB.CC` 编号、目的、上游、输入、主要数据产品、缓存决定、报告关系与完成判据。只有在以下条件成立后才生成代码：
 
 - 每项需求至少映射到一个单元或明确说明不处理；
 - 依赖无环，且上游编号严格早于下游；
@@ -103,6 +116,7 @@ AA.BB.CC. 名称.html
 
 - 所有包在 `00.Environment.R` 中经 `luckyBase::Plus.library()` 加载；分析脚本优先用 `pkg::fn()`。基因 ID 转换使用 `luckyBase::convert()`。
 - `.R` 读取 `raw/` 或上游 `products/`，保留未经报告阈值筛选的完整结果，并写入自己的产品目录。
+- `_functions.R` 只承载当前分析单元或当前项目的 helper，不要求公共 API、独立版本或跨项目兼容；达到这些复用条件时，明确契约后交给 `bensz-r-developer`。
 - 报告阈值、Top N、配色和展示策略放在 `.Rmd` YAML `params`；修改这些参数只重渲染报告，不使重型产品失效。
 - `.Rmd` 从 `products/` 读取全量结果；正式图表写 `reports/`，同名 HTML 留在根目录。图表标题由 Rmd 小节与图注承担，默认不在图内重复标题。
 - 只在 I/O 边界和硬前提做明确检查；不以占位代码、静默降级或过度防御掩盖失败。
@@ -147,7 +161,7 @@ python3 <skill-root>/scripts/run_analysis_workflow.py <项目根> --resume-from 
 
 ### 输出
 
-按复杂度交付：分析单元表、唯一 `00.Environment.R`、必要的编号 `.R`/`_functions.R`/`.Rmd`、同名 HTML、`reports/` 正式材料，以及验证摘要。只有多阶段计算流才交付 `analysis-plan.yaml` 和 `products/` 数据产品；简单任务只产生最小必要集合。
+按复杂度交付：分析单元表、唯一 `00.Environment.R`、必要的编号 `.R`/`_functions.R`/`.Rmd`、同名 HTML、`reports/` 正式材料，以及验证摘要。只有多阶段计算流才交付 `analysis-plan.yaml` 和 `products/` 数据产品；简单任务只产生最小必要集合。若协作开发可复用组件，还要记录组件来源、版本或接口契约及集成验证，但组件自身的公共 API、Package 文档和独立测试由 `bensz-r-developer` 负责。
 
 ### 输出管理
 

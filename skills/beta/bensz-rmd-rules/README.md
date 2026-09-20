@@ -9,11 +9,12 @@
 适合：
 
 - 新建或维护 R Markdown 分析、R 数据脚本和可复现报告；
+- 交付科学结果和分析流程，即使其中包含只服务当前项目的 `_functions.R` 或 helper；
 - 多阶段、昂贵或容易中断的分析，需要缓存命中、局部失效和断点恢复；
 - 需要 Nature 级图表、弱背景读者的指标导读、数字追溯和专家解读；
 - 需要在 macOS、Linux、Windows 间保持相对路径与输出一致。
 
-不适合：仅把已有 Rmd 渲染为 HTML（使用 `knit-rmd-html`）、其它语言的数据分析，或只做图片格式转换。
+不适合：主要交付物是可独立测试、文档化、版本化或跨项目复用的 R 函数、稳定 API、类或 Package（使用 `bensz-r-developer`）；也不适合仅把已有 Rmd 渲染为 HTML（使用 `knit-rmd-html`）、其它语言的数据分析，或只做图片格式转换。
 
 ## 最短用法
 
@@ -191,7 +192,9 @@ luckyBase::Plus.library("yaml")
 
 | 需求 | 入口 |
 | --- | --- |
-| 设计/开发 R + Rmd 分析 | `bensz-rmd-rules` |
+| 设计/开发 R + Rmd 分析、交付结果与报告、维护分析本地 helper | `bensz-rmd-rules` |
+| 设计可跨分析复用的 R 函数、稳定 API、类或 Package | `bensz-r-developer` |
+| 分析流程同时需要可复用组件 | 本 Skill 定义需求与集成验收 → `bensz-r-developer` 实现组件 → 本 Skill 验证分析结果 |
 | 只渲染已有 Rmd 为 HTML | `knit-rmd-html` |
 | 项目级代码测试或审查 | 对应测试/审查 Skill |
 | 修改图片格式 | 图片格式转换 Skill |

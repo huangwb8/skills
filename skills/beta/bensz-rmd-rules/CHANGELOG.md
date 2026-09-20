@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed
+
+- `SKILL.md` 以主要交付物与验收标准明确和 `bensz-r-developer` 的兄弟边界：分析流程、结果、报告及分析本地 helper 由本 Skill 主导；可独立复用的 API/类/Package 交给 `bensz-r-developer`。
+- 补充混合任务的“分析定义组件契约 → 组件工程实现 → 分析集成验证”协作顺序、README 分流说明和近邻触发用例，版本更新至 `0.24.1`。
+
 ## [0.24.0] - 2026-09-19
 
 ### Added

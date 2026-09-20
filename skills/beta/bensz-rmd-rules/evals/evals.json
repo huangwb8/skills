@@ -24,6 +24,18 @@
       "prompt": "请为这个 R 分析 Skill 默认安装 ccs、GSClassifier、lucky、luckyExperiment、luckyGEO、luckyModel 和 candidate_r。",
       "expected_output": "拒绝将个人化包列为默认依赖，只保留 luckyBase；具体依赖交给项目 renv.lock。",
       "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "为当前转录组项目增加一个只在 01.00.00 数据整理单元使用的 normalize_counts() helper，并把下游图表和解读接入 Rmd。",
+      "expected_output": "应由 bensz-rmd-rules 主导完整分析；helper 保留为分析本地实现，不因函数开发而切换到 bensz-r-developer。",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "把多个研究项目重复复制的 normalize_counts() 抽成带稳定公开 API、roxygen2 文档和 testthat 的 R Package。",
+      "expected_output": "主要交付物已变为可复用 Package，应转交 bensz-r-developer；若仍有分析流程，由 bensz-rmd-rules 定义集成需求并在组件完成后验证。",
+      "files": []
     }
   ]
 }

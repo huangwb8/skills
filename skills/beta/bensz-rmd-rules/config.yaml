@@ -9,7 +9,7 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.24.0"
+  version: "0.24.1"
   description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：新项目统一使用 targets 编排步骤、renv 锁定环境，编号分析单元负责完整计算与数据产品，Rmd 负责报告层筛选、论文级图表和证据锚定解读；已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
