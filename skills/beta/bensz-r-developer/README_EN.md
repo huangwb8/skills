@@ -5,7 +5,7 @@
   <p><a href="README.md">中文 README.md</a> · English README_EN.md · <a href="#quick-start">Quick Start</a> · <a href="templates/demo-package/">Demo Package</a> · <a href="references/">Design references</a></p>
 </div>
 
-`bensz-r-developer` turns a set of R development preferences into a reusable engineering contract: model the domain first, separate final outputs from rebuildable caches, keep an `if (FALSE)` manual-test block near the function, and set explicit gates for parallelism, performance work, and C++ escalation. It supports both standalone code and complete R packages.
+`bensz-r-developer` turns a set of R development preferences into a reusable engineering contract: model the domain first, separate final outputs from rebuildable caches, keep an `if (FALSE)` manual-test block near the function, and set explicit gates for parallelism, performance work, and C++ escalation. It targets R software components that deserve independent tests, documentation, versioning, or cross-project reuse—not every `.R` file in an analysis workflow.
 
 ## Scope
 
@@ -16,7 +16,7 @@ Use it to:
 - define `output.dir`, `cache.dir`, overwrite, and recovery semantics;
 - implement reproducible parallelism or evaluate `cpp11`/`Rcpp` acceleration.
 
-Do not use it merely to run existing code or when the main deliverable is an R Markdown report, research-analysis workflow, or publication figure; use `bensz-rmd-rules` for those tasks.
+Do not use it merely to run existing code or when the main deliverable is an R Markdown report, research-analysis workflow, scientific result, or publication figure. Analysis-local `_functions.R` files and helpers remain under `bensz-rmd-rules`. Use this Skill only for a component that needs cross-analysis reuse or a stable public API, then return it to the analysis workflow for integration.
 
 ## Quick Start
 
@@ -77,8 +77,9 @@ The demo passes testthat and `R CMD check --no-manual`. After copying it, replac
 
 | Need | Use |
 |---|---|
-| R functions, classes, packages, parallelism, native performance | `bensz-r-developer` |
-| R Markdown, research orchestration, cache recovery, publication figures, interpretation | `bensz-rmd-rules` |
+| Reusable R functions, stable APIs, classes, packages, component-level parallelism or native performance | `bensz-r-developer` |
+| R Markdown, research orchestration, cache recovery, figures, interpretation, and analysis-local helpers | `bensz-rmd-rules` |
+| An analysis workflow that also needs a reusable component | `bensz-rmd-rules` defines the contract → `bensz-r-developer` implements the component → the analysis workflow validates integration |
 | Only render an `.Rmd` file to HTML | `knit-rmd-html` |
 | Explicitly test an Agent Skill | `auto-test-skill` |
 

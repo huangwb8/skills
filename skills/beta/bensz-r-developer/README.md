@@ -5,7 +5,7 @@
   <p>中文 README.md · <a href="README_EN.md">English README_EN.md</a> · <a href="#快速开始">快速开始</a> · <a href="templates/demo-package/">Demo Package</a> · <a href="references/">设计参考</a></p>
 </div>
 
-`bensz-r-developer` 把个人开发习惯整理成可复用的工程契约：对象先行、最终输出与缓存分离、函数内保留 `if (FALSE)` 手测块，并对并行、性能和 C++ 升级设置明确门槛。它适合直接开发代码，也适合维护完整 R Package。
+`bensz-r-developer` 把个人开发习惯整理成可复用的工程契约：对象先行、最终输出与缓存分离、函数内保留 `if (FALSE)` 手测块，并对并行、性能和 C++ 升级设置明确门槛。它面向可独立测试、文档化、版本化或跨项目复用的 R 软件组件，而不是一次分析流程中的所有 `.R` 代码。
 
 ## 适用范围
 
@@ -16,7 +16,7 @@
 - 设计 `output.dir`、`cache.dir`、覆盖和恢复语义；
 - 实现可复现并行，或评估 `cpp11`/`Rcpp` 原生加速。
 
-不用于单纯运行现有代码，也不用于以 R Markdown 报告、科研分析编排或论文级图表为主的任务；后者使用 `bensz-rmd-rules`。
+不用于单纯运行现有代码，也不用于以 R Markdown 报告、科研分析编排、科学结果或论文级图表为主要交付物的任务；只服务当前分析的 `_functions.R`/helper 仍归 `bensz-rmd-rules`。分析流程中确需跨项目复用或形成公共 API 的组件，才交由本 Skill 实现，再返回分析流程集成。
 
 ## 快速开始
 
@@ -77,8 +77,9 @@ devtools::check("templates/demo-package", cran = FALSE)
 
 | 需求 | 使用 |
 |---|---|
-| R 函数、类、Package、并行、原生性能 | `bensz-r-developer` |
-| R Markdown、科研分析编排、缓存恢复、论文级图表与解读 | `bensz-rmd-rules` |
+| 可复用 R 函数、稳定 API、类、Package、组件级并行与原生性能 | `bensz-r-developer` |
+| R Markdown、科研分析编排、缓存恢复、论文级图表、解读及分析本地 helper | `bensz-rmd-rules` |
+| 分析流程同时需要可复用组件 | `bensz-rmd-rules` 定义需求与集成验收 → `bensz-r-developer` 实现组件 → 返回分析流程验证 |
 | 只把 `.Rmd` 渲染成 HTML | `knit-rmd-html` |
 | 明确要求测试某个 Agent Skill | `auto-test-skill` |
 

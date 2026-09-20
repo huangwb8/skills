@@ -1,6 +1,6 @@
 ---
 name: bensz-r-developer
-description: 当用户要求开发、重构或审查 R 函数与 R Package，并希望采用类驱动 API、显式 output.dir/cache.dir、可手测 if (FALSE) 块、规范并行与性能优化、devtools/roxygen2 工具链或评估 Rcpp/cpp11 原生加速时使用。⚠️ 不适用：以 R Markdown 报告与科研分析工作流为主的任务。
+description: 当主要交付物是可复用的 R 函数、稳定 API、S3/S4/R6 类或 R Package，需要设计、开发、重构或审查其接口、测试、文档、并行与性能边界时使用。分析项目中只有需要跨分析复用或形成公共 API 的组件才进入本 Skill。⚠️ 不适用：主要交付物是数据分析流程、科学结果、R Markdown 报告或仅服务当前分析的辅助函数；这些任务使用 bensz-rmd-rules。
 metadata:
   author: Bensz Conan
   keywords:
@@ -20,21 +20,31 @@ metadata:
 
 ## 目标
 
-开发优雅、可维护的 R 函数或 Package：用领域对象承载不变量和生命周期，分开最终输出与可重建缓存，保留 `if (FALSE)` 手测块，并以成熟工具管理文档、测试、并行和性能。
+开发优雅、可维护且可复用的 R 软件组件：以明确的输入、返回、错误和副作用契约设计函数与公共 API，用领域对象承载真实不变量和生命周期，并以成熟工具管理文档、测试、并行和性能。
 
-适用于 R 函数重构、S3/S4/R6 API、Package、文件/缓存、并行、profile 和原生扩展决策。不负责单纯运行代码，也不负责以 `.Rmd` 报告、科研分析编排或论文图表为主的任务；后者使用 `bensz-rmd-rules`。
+本 Skill 关注的是“R 代码怎样稳定地被调用”，而不是“某次分析怎样可靠地跑完”。触发依据是主要交付物和复用边界，不是任务里是否出现 `.R` 文件或函数：
+
+| 场景 | 主导 Skill |
+| --- | --- |
+| 主要交付物是可独立测试、文档化、版本化或跨项目复用的函数、类、API、Package | `bensz-r-developer` |
+| 主要交付物是数据流、统计结果、Rmd/HTML 报告、论文图表，函数只服务当前分析 | `bensz-rmd-rules` |
+| 同时交付分析流水线与可复用组件 | 由主要交付物决定主 Skill；分析主导时先由 `bensz-rmd-rules` 定义组件契约，再由本 Skill 实现组件，最后回到分析流程集成验证 |
+
+不负责单纯运行既有代码，也不把分析项目中的每个 `_functions.R` 或 helper 都泛化成 Package。若主要验收标准是科学结果正确、缓存可恢复或报告可交付，应交给 `bensz-rmd-rules`；仅在其中出现具有独立复用价值的组件时参与协作。
 
 ## 流程
 
 ### 输入
 
-确认任务类型（函数/脚本/Package、新建/兼容修改）、数据与公开 API、对象生命周期、返回/错误、`output.dir`/`cache.dir` 职责、R/平台/依赖/硬件/复现约束，并读取现有 `DESCRIPTION`、`NAMESPACE`、`R/`、`tests/`、`src/`、`renv.lock` 与项目指令。不得读取凭据、环境文件或无关数据。保守默认不得改变公共 API；会改变类系统、覆盖、依赖或性能语义时先声明假设。
+确认主要交付物、复用范围（当前分析/当前项目/跨项目/公开 Package）、任务类型（函数/脚本/Package、新建/兼容修改）、数据与公开 API、对象生命周期、返回/错误、`output.dir`/`cache.dir` 职责、R/平台/依赖/硬件/复现约束，并读取现有 `DESCRIPTION`、`NAMESPACE`、`R/`、`tests/`、`src/`、`renv.lock` 与项目指令。不得读取凭据、环境文件或无关数据。保守默认不得改变公共 API；会改变类系统、覆盖、依赖或性能语义时先声明假设。
 
 ### 执行步骤
 
 #### 1. 盘点现状与定义契约
 
-先读调用链和测试，列出不变量、I/O、错误、副作用、并行及兼容边界。已有项目保持命名、类系统和公开 API，除非用户授权迁移。
+先判定主要验收对象：是“函数/API/Package 自身的可复用契约”，还是“分析结果、数据流与报告”。再确认目标代码是否需要独立版本、稳定公共接口、跨项目复用或独立测试；仅服务当前分析单元的 helper 即使写在 `.R` 文件中，也仍由 `bensz-rmd-rules` 管理。
+
+确认本 Skill 应主导后，读取调用链和测试，列出不变量、I/O、错误、副作用、并行及兼容边界。已有项目保持命名、类系统和公开 API，除非用户授权迁移。混合任务记录主 Skill、组件边界与交接点，避免两个 Skill 同时改写同一层职责。
 
 #### 2. 选择类系统并建立最小对象模型
 
@@ -109,7 +119,7 @@ devtools::check("path/to/package", cran = FALSE)
 
 ### 输出
 
-按规模交付 R 源码、类/泛型/方法、roxygen2、`testthat`、手测块与 demo；Package 同步 `DESCRIPTION`/`NAMESPACE`/README/CHANGELOG；性能任务附基准、等价证据与回退；摘要公开 API、副作用、依赖、验证和风险。
+按规模交付可复用的 R 源码、类/泛型/方法、roxygen2、`testthat`、手测块与 demo；Package 同步 `DESCRIPTION`/`NAMESPACE`/README/CHANGELOG；性能任务附基准、等价证据与回退；摘要公开 API、副作用、依赖、验证和风险。若由分析流程发起协作，还要返回可供 `bensz-rmd-rules` 集成的调用契约和最小示例，但不接管分析编排、科学解释或报告交付。
 
 ### 输出管理
 

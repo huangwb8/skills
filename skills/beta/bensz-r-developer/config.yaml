@@ -1,7 +1,7 @@
 skill_info:
   name: bensz-r-developer
-  version: "0.1.0"
-  description: "类驱动、可测试、可维护并具备受控并行与原生加速决策的 R 函数和 Package 开发规范"
+  version: "0.2.0"
+  description: "面向可复用 R 函数、稳定 API、类与 Package 的工程规范，与 R/Rmd 分析流程主责明确分离"
   author: "Bensz Conan"
   category: "R development"
 

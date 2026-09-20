@@ -18,7 +18,18 @@
       "prompt": "请把这份 R Markdown 分析报告改成更漂亮的 HTML，并补齐论文级图表和结果解读。",
       "expected_output": "不应触发 bensz-r-developer，应转交 R Markdown/科研分析专用 Skill。",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "给当前生存分析项目补一个 02.00.00. 模型_functions.R，只供同项目的 Rmd 调用，并把结果接入报告。",
+      "expected_output": "不应因出现 R 函数而由 bensz-r-developer 主导；这是分析本地 helper，应由 bensz-rmd-rules 管理。",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "把三个队列项目重复使用的生存模型封装成稳定的 R Package API，补 roxygen2、testthat 和兼容性测试，再由各项目 Rmd 调用。",
+      "expected_output": "应由 bensz-r-developer 主导可复用 Package 组件，并给分析流程返回清晰的调用契约；各 Rmd 的分析集成仍归 bensz-rmd-rules。",
+      "files": []
     }
   ]
 }
-
