@@ -5,7 +5,17 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
+## [5.0.12] - 2026-09-21
+
+### Added（新增）
+
+- `bensz-skill-kernel` 更新至 2.1.6：strict-v2 原子 `workspace initialize` 的首个 State identity 可直接进入声明的领域初始 State，不限于 `bensz.workspace.ready`；192 项包内测试通过后 sdist/wheel 经 `twine check` 发布至 PyPI，`benszapi` 托管运行时已更新并验证 `bsk --version`、`capabilities` 与 `diagnostics`。
+- `bensz-rmd-rules` 更新至 0.26.0：complex 统一解释为 targets-first pipeline，计算函数转入 `R/`、Rmd 通过 `tar_read()`/`tar_load()` 消费结果，`products/` 与 `_targets/` 职责重新分离；新增 `scripts/check_pipeline_contract.py` 只读契约检查，以及 targets 恢复验收、`tar_poll()`/`tar_watch()` 观测、crew/autometric 可选观测与嵌套并行防护契约。
+- 根仓库与 Kernel 中英文 README 同步当前源代码与发布版本。
+
+### Fixed（修复）
+
+- 修复 strict-v2 原子 `workspace initialize` 仅在声明初始 State 恰好为 `bensz.workspace.ready` 时成功的问题；首次进入声明的领域初始 State 现在可从新建 workspace 建立 v2 身份，已有非初始 legacy 快照仍保持 fail-closed。
 
 ## [5.0.11] - 2026-09-20
 

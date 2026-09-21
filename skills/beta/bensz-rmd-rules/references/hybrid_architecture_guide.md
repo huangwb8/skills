@@ -1,81 +1,46 @@
 # R + Rmd 双模式架构
 
-## 项目策略
-
-项目状态与工作流模式是两个维度。新项目先按 [workflow_modes.md](workflow_modes.md) 选择 simple 或 complex；两者都使用 renv 和真实轻量测试，只有 complex 使用 targets。已有项目按现状维护，缺失机制不自动补齐。
-
 ## 新项目目录职责
-
-只创建实际需要的目录和文件：
 
 ```text
 项目根目录/
 ├── 00.Environment.R
-├── AA.BB.CC. 名称.R / _functions.R / .Rmd / .html
-├── raw/                         # 只读原始输入
-├── products/                    # 默认正式派生产品，可统一改路径
-├── reports/                     # 正式图、表与补充材料
-├── templates/                   # 仅样式和渲染资产
-├── scripts/
-│   ├── operations/              # 项目重跑、导出、恢复操作
-│   ├── lib/checkpoint_helpers.R # 按需，共享基础 helper
-│   └── tests/                   # 可重复测试代码
-├── tmp/
-│   ├── tests/<run-id>/          # 每次运行的隔离现场，默认忽略
-│   └── scratch/                 # 可丢弃探索
-├── renv/activate.R
+├── R/                         # targets 调用的计算函数
+├── reports/                   # 正式图、表、HTML 与补充材料
+├── products/                  # 可选科学产品，不是缓存命中协议
+├── raw/                       # 只读原始输入
+├── templates/                 # 样式/渲染资产
+├── scripts/tests/             # 可版本化测试代码
+├── tmp/tests/<run-id>/        # 隔离测试现场与 test store
 ├── renv.lock
-├── _targets.R                   # 仅 complex
-└── _targets/                    # 仅 complex 的正式运行状态
+├── renv/activate.R
+├── _targets.R                 # complex 的唯一 DAG 入口
+└── _targets/                  # complex 的正式 targets store
 ```
-
-标准 renv/targets 入口留在项目根，不新增 `env/` 包裹层。编号分析单元继续留在根目录；`scripts/` 不用于隐式重排已有分析代码。
-
-## 组件职责
 
 | 组件 | 负责 | 不负责 |
 | --- | --- | --- |
-| `00.Environment.R` | 包加载、项目根、单一 products 设置、跨单元配置 | 单元统计逻辑 |
-| 编号 `.R` | 原始/上游读取、完整计算、checkpoint | 报告阈值、展示 Top N |
-| 编号 `_functions.R` | 当前单元/项目 helper | 独立执行、公共 Package API |
-| 编号 `.Rmd` | 报告筛选、图表、表格、解读 | 重复昂贵计算、改写 raw |
-| `products/` | 可恢复、可审查、供下游复用的正式派生产品 | targets 状态或 AI 草稿 |
-| `_targets/` | targets 技术运行状态 | 正式数据产品 |
-| `reports/` | 论文可直接使用的正式材料 | Rmd/HTML、测试日志 |
-| `scripts/tests/` | 可版本化测试代码 | 测试数据副本和运行产物 |
-| `tmp/tests/<run-id>/` | 测试副本、日志、临时报告/store 与运行记录 | 正式结论唯一来源 |
-| `.bensz-api/` | Agent 草稿、审查、预览、任务日志 | 项目续算唯一数据 |
-
-完整产品与恢复契约见 [analysis_workflow_cache.md](analysis_workflow_cache.md)。Skill 内部仍在 `templates/` 托管脚手架；生成到用户项目时，checkpoint helper 放 `scripts/lib/`，测试模板放 `scripts/tests/`，样式资产才放 `templates/`。
+| `00.Environment.R` | 包加载、项目根、路径与全局配置 | 具体统计逻辑 |
+| `R/` | 可被 target 调用的计算函数 | DAG 编排、报告展示 |
+| `_targets.R` | 依赖、失效、增量执行与可选报告 target | 科学解释与自定义缓存协议 |
+| `.Rmd` | `tar_read()`/`tar_load()`、展示参数、图表和解读 | 从 raw 重做昂贵计算 |
+| `_targets/` | targets 机器计算状态 | 正式科学产品 |
+| `products/` | 审阅、复用或交付的科学对象 | SUCCESS/identity/恢复判断 |
+| `reports/` | 论文图、表、HTML、补充材料 | 源码、模型缓存、运行日志 |
+| `tmp/tests/<run-id>/` | 测试输入、隔离 store、日志与运行记录 | 正式结论唯一来源 |
 
 ## simple
 
-低成本单报告可只有：
+线性、低成本单报告使用 renv 和明确的 R/Rmd 入口，smoke test 真实 render；不创建 targets、编号执行图或自制缓存。
 
-```text
-00.Environment.R
-01.00.00. 描述性分析.Rmd
-01.00.00. 描述性分析.html
-scripts/tests/smoke_test.R
-tmp/tests/<run-id>/        # 运行时创建
-renv.lock
-renv/activate.R
-raw/
-reports/
-```
+## complex / pipeline
 
-使用 `templates/Rmd_simple_template.Rmd`，由 smoke test 真实 render；不创建 `_targets.R`。若后续需要局部失效、复用、恢复或并行，升级到 complex，不开发第二套调度器。
+复杂项目采用 `renv + _targets.R + R/ + Rmd`。普通 `tar_make()` 为默认执行；Rmd 只消费 target 结果。`products/` 按科学交付需要选择性导出，不能重新变成第二个 store。恢复验收必须真实证明中断后再次 `tar_make()` 会复用有效前序 target。
 
-## complex
+## 并行和观测
 
-复杂流程增加 `_targets.R`、按需 `analysis-plan.yaml`、多个编号单元与正式产品。targets 声明依赖和增量构建；checkpoint helper 负责产品身份、完整性和 `SUCCESS`。测试执行同一 target 图但使用 `tmp/tests/<run-id>/_targets`，正式运行才使用 `_targets/`。
+`crew`、集群插件和 `autometric` 都是项目级可选依赖。先以 targets 状态判断 DAG，再用 `tar_poll()`/`tar_watch()` 看进度，最后用 worker 日志或资源图诊断。限制 worker 与内部线程乘积；没有资源预算时保持串行。
 
-## 产品路径
+## existing 与迁移
 
-默认产品根为 `products/`。需要覆盖时只在项目级设置 `BENSZ_PRODUCTS_DIR`，由 `00.Environment.R` 和 `bensz_product_dir()` 统一解析。值必须是项目内安全相对路径，不能指向 `raw/`、`reports/`、`tmp/`、`_targets/` 或 `.bensz-api/`。不要在多个 R/Rmd 中分别硬编码替代路径。
-
-## 旧项目兼容与迁移
-
-现有脚本读取 `tmp/{主脚本名}/`、Rmd 依赖旧 RDS、已有 runner/自动化或历史结果时，保持原入口。可以修 bug、补图表与解读，但不能静默重排目录。
-
-人类明确要求迁移时：列出旧→新映射；复制或重生成并校验，不先删除旧路径；比对数量、关键摘要和报告数字；保留回退入口；清理旧路径前再次确认。
+已有编号脚本、旧 runner、`tmp` 产品或 checkpoint 的项目保持原入口并标注 legacy/preserved-existing。只有人类明确授权迁移时，才建立旧→新映射、结果比对、回退入口和清理计划；新默认不隐式迁移。

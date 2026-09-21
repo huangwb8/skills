@@ -50,7 +50,8 @@ summary(raw_data)
 
 ```{r analysis}
 # 在此完成低成本分析与报告层筛选。
-# 若后续计算变得昂贵、被多处复用或需要恢复，再升级为编号 .R + products 工作流。
+# 若后续计算变得昂贵、被多处复用或需要恢复，再显式升级为 targets-first
+# pipeline（_targets.R + R/ + Rmd）；不要在 simple 中添加第二套缓存。
 ```
 
 ## 结果解读

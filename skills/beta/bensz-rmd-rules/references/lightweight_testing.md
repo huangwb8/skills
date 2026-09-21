@@ -26,7 +26,7 @@
 ## 隔离与同入口
 
 - simple：测试 wrapper 准备隔离输入后，调用与正式运行相同的 Rscript 或 `rmarkdown::render()` 入口；输出重定向到本次 run root。
-- complex：同一 `_targets.R` 和 target 图接收隔离输入，`targets::tar_make(store = file.path(run_root, "_targets"))`；不得写正式 `_targets/`。
+- complex/pipeline：同一 `_targets.R` 和 target 图接收隔离输入，`targets::tar_make(store = file.path(run_root, "_targets"))`；不得写正式 `_targets/`。至少一次在前序 target 成功后中断下游，再次 `tar_make()`，用 `tar_meta()`/outdated 证明前序复用；不得用 SUCCESS 或自定义 checkpoint 替代。
 - 测试专用 helper 只存在于 `scripts/tests/` 或隔离副本。不得向业务逻辑添加长期 `analysis_mode`、`test_mode` 或两套科学行为。
 - harness 先设置 `BENSZ_TEST_RUN_ROOT`，再用正式入口已经识别的 `BENSZ_ANALYSIS_INPUT`、`BENSZ_PRODUCTS_DIR` 和 `BENSZ_REPORTS_DIR` 把输入、产品和报告绑定到同一 run root；`00.Environment.R` 只接受与该 run root 精确匹配的 `tmp/tests/<run-id>/{products,reports}`，不能借测试变量放宽任意 `tmp/` 写入。
 - 正式与测试必须调用同一计算函数和同一报告入口。若正式代码无法在不加入测试分支的情况下隔离路径，应先修正路径边界。
@@ -43,7 +43,7 @@ existing 项目实质修改后仍应沿用原入口做可行的轻量运行，�
 4. 预期产品、表格、图和报告确实生成且可读；
 5. `raw/` 内容摘要在运行前后不变；
 6. 测试未修改正式 products/reports/targets store 或代码/配置；
-7. 对 complex，隔离 store 中存在实际构建结果，而非仅图解析成功。
+7. 对 complex，隔离 store 中存在实际构建结果，且中断恢复复用仍有效 target，而非仅图解析成功。
 
 ## 执行—诊断—修正—重跑
 

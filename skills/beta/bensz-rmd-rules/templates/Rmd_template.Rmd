@@ -41,9 +41,9 @@ output:
 ---
 
 ```{r load-data, message=FALSE, warning=FALSE}
-# 目的：加载上游编号单元的完整产品，准备报告层筛选与解释
-# 输入：统一 products_dir/<流程>/<上游编号名称>/main.rds
-# 参数：无需（依赖 00.Environment.R 的统一配置）
+# 目的：消费 targets 已完成的完整结果，准备报告层筛选与解释
+# 输入：_targets/ 中的 analysis_results（由 _targets.R 声明）
+# 参数：无需（报告阈值与配色只属于本 Rmd）
 # 输出：processed_data / computation_results
 
 # Step 1: 环境与基础校验
@@ -53,17 +53,11 @@ source("00.Environment.R")
 dir.create(file.path("reports", "figures"), recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path("reports", "tables"), recursive = TRUE, showWarnings = FALSE)
 
-# Step 2: 产品完成状态检查
-upstream_stem <- "01.00.00. 数据整理"
-data_dir <- file.path(products_dir, "main", upstream_stem)
-if (!file.exists(file.path(data_dir, "SUCCESS"))) {
-  stop("上游产品未完成或不存在: ", data_dir, "\n",
-       "请先运行对应编号的 .R 单元并通过 checkpoint 验证。")
+# Step 2: 从 targets 读取计算结果；不要从 raw/ 重做昂贵计算。
+if (!requireNamespace("targets", quietly = TRUE)) {
+  stop("Rmd pipeline reports require the targets package from renv.lock.")
 }
-
-# Step 3: 数据加载
-# 加载处理后的数据
-processed_data <- readRDS(file.path(data_dir, "main.rds"))
+processed_data <- targets::tar_read(analysis_results, store = Sys.getenv("BENSZ_TARGETS_STORE", unset = "_targets"))
 
 options(stringsAsFactors = FALSE)
 ```

@@ -6,14 +6,14 @@
 | --- | --- | --- |
 | 项目状态与模式 | PASS/FAIL | `project_state`、`workflow_mode`、选择理由与人工覆盖 |
 | renv | PASS/FAIL/NA | lockfile、activation、`renv::status()`；existing 可为风险披露 |
-| 需求—单元映射 | PASS/FAIL/NA | 分析单元表或 `analysis-plan.yaml` |
-| 目录与产品路径 | PASS/FAIL | raw/products/reports/scripts/templates/tmp 边界与单一路径设置 |
+| 需求—target—报告映射 | PASS/FAIL/NA | targets 清单或 `analysis-plan.yaml` |
+| 目录与产品路径 | PASS/FAIL | raw/R/_targets/products/reports/scripts/templates/tmp 边界与单一路径设置 |
 | 测试风格 | PASS/FAIL | `synthetic_fixture` 或 `project_subset` 及选择理由 |
 | 真实轻量运行 | PASS/FAIL/BLOCKED | 正式入口、唯一 run root、命令、退出码；不得用 dry-run 替代 |
 | 测试隔离 | PASS/FAIL | raw/正式 products/reports/_targets 前后不变；test store 路径 |
 | 数据与科学断言 | PASS/FAIL | schema、主键/分组、范围/不变量、边缘条件 |
 | 预期交付生成 | PASS/FAIL | 产品、报告、图表可读性与数字追溯 |
-| 缓存与恢复 | PASS/FAIL/NA | identity、SUCCESS、损坏/失效/恢复用例 |
+| targets 恢复 | PASS/FAIL/NA | `tar_meta()`、outdated 集合、store 损坏/失效/中断恢复用例 |
 | 串行审查 | PASS/FAIL/DEGRADED | 三项只读结果与修正摘要 |
 | 旧项目兼容 | PASS/FAIL/NA | 未自动补机制、迁移或覆盖旧路径 |
 

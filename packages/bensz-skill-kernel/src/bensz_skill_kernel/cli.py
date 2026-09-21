@@ -524,7 +524,11 @@ def _run_state_command(args: argparse.Namespace) -> int:
                 return reject_identity("initial_attempt_required", "A strict-v2 Skill requires an explicit target attempt.")
             if args.target_attempt_id == "default":
                 return reject_identity("default_attempt_forbidden", "The legacy 'default' attempt is forbidden in strict-v2 mode.")
-            if not previous_is_v2 and current != declaration.initial_state:
+            if (
+                not previous_is_v2
+                and current != declaration.initial_state
+                and target.id != declaration.initial_state
+            ):
                 return reject_identity("legacy_snapshot_not_upgradable", "A legacy State snapshot cannot be upgraded in place; create a new workspace/task root.")
         events = EventLog(workspace.events).read()
         if args.idempotency_key:

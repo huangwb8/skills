@@ -6,7 +6,7 @@
 
 ```r
 input_path <- file.path("raw", "expression.tsv")
-product_path <- file.path(products_dir, "main", "01.00.00. 数据整理", "main.rds")
+product_path <- file.path(products_dir, "analysis_results.rds")
 figure_path <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")
 ```
 
@@ -15,7 +15,7 @@ figure_path <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")
 - Rmd 与同名 HTML 位于项目根目录。
 - AI 日志、预览和检查结果写当前 `.bensz-api/task-*`，由宿主传入任务根目录。
 
-编号单元名称同时作为文件名和产品目录名，必须兼容 Windows：不得包含 `< > : " / \\ | ? *` 或控制字符，不得以点/空格结尾，也不得使用 `CON`、`PRN`、`AUX`、`NUL`、`COM1`–`COM9`、`LPT1`–`LPT9` 等设备保留名。
+R/ 函数名、target 名称和报告文件名必须兼容 Windows：不得包含 `< > : " / \\ | ? *` 或控制字符，不得以点/空格结尾，也不得使用 `CON`、`PRN`、`AUX`、`NUL`、`COM1`–`COM9`、`LPT1`–`LPT9` 等设备保留名。
 
 不要手写 `/` 或 `\\` 拼接路径，也不要硬编码用户名、盘符、`/tmp` 或本机绝对路径。
 
@@ -37,7 +37,7 @@ utils::write.table(
 )
 ```
 
-checkpoint 不要自行实现通用写入；新项目复用 `scripts/lib/checkpoint_helpers.R`（源自 Skill 的模板），由完成标记保证半成品不会命中。旧项目保持原 helper 位置。
+新 pipeline 不自行实现通用缓存/完成标记；由 targets 管理 `_targets/` 状态。旧项目若已有 checkpoint helper，保持原位置并标记 legacy。
 
 ## 项目根与 Skill 根
 

@@ -1,85 +1,37 @@
-# 分析图、数据产品与缓存契约
+# Pipeline 状态、科学产品与恢复契约
 
-## 1. 分析计划
+## 1. 唯一计算事实来源
 
-以 `templates/analysis_plan_template.yaml` 为起点。计划是需求映射和依赖检查入口，不是调度框架。每个单元包含：稳定 ID、名称、目的、依赖、输入、代码、产品、是否缓存、报告和完成判据。
+在新 `complex/pipeline` 项目中，`_targets.R` 是唯一 DAG、依赖、失效和增量重建入口；`_targets/` 是 targets 自己管理的机器状态。不要再复制一套 `SUCCESS`、identity hash、metadata checkpoint 或编号 runner 来决定是否重算。
 
-含缓存单元时，把 Skill 的 `templates/checkpoint_helpers.R` 复制到项目 `scripts/lib/checkpoint_helpers.R`；该 helper 是代码 identity 的一部分。旧项目原有 `templates/checkpoint_helpers.R` 继续兼容，不因维护任务移动。缺失时 strict checker 会阻断运行。
+`analysis-plan.yaml` 只做需求映射、target/报告关系和验收记录，不是调度器。历史项目已有的 runner 或 checkpoint 只在 `existing/preserved-existing` 分支保留，迁移必须显式授权。
 
-计划完成后运行：
+## 2. 科学产品与报告
 
-```bash
-python3 <skill-root>/scripts/check_analysis_workflow.py <项目根> --plan analysis-plan.yaml
-```
+`products/` 只保存需要人工审阅、下游复用或正式交付的科学对象，例如完整结果 RDS、矩形表、数据字典或结果摘要；并非每个 target 都要导出。`reports/` 保存 PDF、图、表、HTML 和补充材料。二者不承担 targets 的缓存命中、失效或恢复。
 
-报告模式用于早期迭代；首次真实昂贵运行和交付前增加 `--strict`。
+产品元数据可以记录科学说明、数据字典和交付来源，但不得成为第二个缓存判定协议，也不应写入凭据、绝对私有路径或大体积原始数据。
 
-## 2. 选择 checkpoint
+## 3. R/ 与 Rmd 边界
 
-以下任一情况通常值得持久化：
+计算函数放在项目 `R/`，由 `_targets.R` 的 `tar_source("R")` 发现并调用。target 产出完整、未按展示阈值截断的结果。Rmd 通过 `tar_read()`/`tar_load()` 消费结果；若使用 `tarchetypes::tar_render()`，报告 target 必须在 DAG 中明确声明且不能形成循环。
 
-- 计算或外部请求昂贵；
-- 多个下游复用；
-- 高风险、有损或不可逆转换；
-- 需要人工审查；
-- 中断后重做代价高。
+Top N、阈值、配色和版式是报告参数。只改报告参数时，应只重渲染报告或报告 target，不触发无关重型 target；Rmd 不得从 `raw/` 绕过 DAG 重做昂贵计算。
 
-纯展示对象、毫秒内可重建的派生值、只服务下一行的中间变量不缓存。数据体量很大时，主对象保持完整高效格式，人类副本使用 schema、统计摘要和有限预览，不复制一份巨大 TSV。
+## 4. 中断与恢复验收
 
-## 3. 产品最小契约
+恢复不是“文件存在”检查，而是真实运行证据：
 
-```text
-<products_dir>/<workflow>/<AA.BB.CC. 名称>/
-├── main.rds          # 完整主对象，可替换为领域所需完整格式
-├── preview.tsv       # 矩形数据按需；巨大对象允许仅受控预览
-├── summary.md        # 人类可读结构、统计摘要与注意事项
-├── metadata.yaml     # 身份、输入、参数、代码、上游、输出、耗时
-└── SUCCESS           # 最后写入
-```
+1. 在隔离 `tmp/tests/<run-id>/_targets` store 中先让至少一个昂贵 target 成功；
+2. 让后续 target 中断或失败并保留 store；
+3. 在不改变输入、代码、参数和 renv 身份、且未显式强制重算的条件下再次执行 `targets::tar_make()`；
+4. 从 `tar_meta()`、outdated target 集合和执行日志确认前序 target 被跳过，仅未完成或失效部分继续；
+5. 删除 store、改变输入/代码/参数或显式请求重算时，确认 targets 重新计算必要节点。
 
-`metadata.yaml` 不记录绝对私有路径、凭据、原始个人信息或完整大体积输入。相对路径与摘要足以证明身份。
+恢复证据以 targets metadata 和实际执行记录为准，不手工补写标记，也不把 worker 日志当作 DAG 状态。
 
-## 4. 缓存身份
+## 5. 可选并行与观测
 
-最小身份组成：
+无 `crew` 时普通 `tar_make()` 必须正常运行。仅当独立昂贵 target 的收益覆盖 worker 启动和传输开销时，才在 `_targets.R` 中配置 crew controller；worker 内 BLAS/OpenMP/future/BiocParallel 线程数必须受资源预算约束。
 
-- 原始/外部输入的相对路径、大小和内容摘要；
-- 影响当前结果的参数；
-- 当前 `.R`、按需 `_functions.R` 和 checkpoint helper 的代码摘要；
-- 直接上游产品的 product identity；
-- 输出契约版本；
-- 只有确实改变结果时才纳入 R/关键包版本。
-
-不得纳入运行时间、文件修改时间或日志路径。报告层阈值与配色不进入上游重型单元身份。
-
-当前 helper 采用完整文件摘要作为可靠默认值。若真实大文件证明摘要成本不可接受，先测量，再由项目显式选择替代策略；不得以仅时间戳作为默认身份。
-
-## 5. 写入与命中
-
-产品根默认 `products/`，只通过项目统一的 `BENSZ_PRODUCTS_DIR`/`00.Environment.R` 设置覆盖；`bensz_product_dir()` 会拒绝项目外路径、保留目录与 symlink 逃逸。正式产品可恢复、可审查，不是可以无条件删除的技术缓存；`_targets/`、renv library 等才是运行缓存。
-
-`scripts/lib/checkpoint_helpers.R` 的顺序是：
-
-1. 删除旧 `SUCCESS`；
-2. 写同目录临时文件；
-3. 重新读取主对象、预览和元数据；
-4. 逐文件提交正式名称；
-5. 最后写 `SUCCESS`；
-6. 再次按元数据哈希验证。
-
-命中必须同时满足：`SUCCESS` 存在、元数据可读、本单元预期 cache identity 一致、所有声明输出存在且摘要一致。文件存在但任一条件不满足即为 miss。cache identity 决定本单元能否复用；根据实际输出摘要生成的 product identity 用于向下游传播内容变化。
-
-本版只保证单进程完成标记语义，不提供并发锁或分布式调度。若同一产品目录存在并发写入需求，应先停止并增加项目级串行约束；不要假装已支持并发。
-
-## 6. 失效与恢复
-
-已有项目已经采用历史 runner 时，`scripts/run_analysis_workflow.py` 先执行严格检查，再按编号遍历全部 `.R` 计算节点。新项目不使用该 runner：simple 直接运行正式入口，complex 使用 targets。直接上游的 product identity 是下游 cache identity 的一部分，因此即使上游在相同静态输入下被强制重算，只要实际产品改变，也会传播到必要下游；没有依赖关系的单元不应被连带重算。
-
-- `--force-step 02.00.00`：通过环境传给各 R 单元，强制指定单元运行；它的新身份/产品会决定下游是否失效。
-- `--resume-from 03.00.00`：编号更早的单元必须有效并记录命中，否则停止；从失败边界继续。
-
-不要把这两个控制放入 Rmd YAML。Rmd YAML 只包含展示、筛选与解读参数。
-
-## 7. 人类审查
-
-RDS 保持 R 对象保真，但不是人类审查界面。`summary.md` 至少说明目的、对象类型/维度、关键缺失或异常、主要统计摘要和下游注意事项。矩形数据优先提供全量可读表；体量不允许时写 schema、行列数、列级摘要和有限预览，并说明完整对象的位置。
+进度优先使用 `tar_poll()` 或 `tar_watch()`；worker 日志/指标使用 crew 能力；资源诊断按需使用 `autometric::log_start()`、`log_read()` 和 `log_plot()`。Skill 不定义新的调度器、事件字段、心跳、资源采样器、dashboard 或告警平台；缺少可选依赖时记录观测降级。

@@ -2,7 +2,7 @@
 
 Lightweight lifecycle kernel for Agent Skill states, workspaces, and Verifier execution.
 
-Current release: `2.1.5`
+Current release: `2.1.6`
 
 [中文](README.md) · English: `README_EN.md`
 
@@ -175,7 +175,7 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 
 Initialization creates `bensz.workspace.ready` (legacy alias: `workspace.ready`) and `shared/input|output|log` boundaries. The workspace manifest, lifecycle event ledger, and Skill metadata snapshot are separate and replayable.
 
-A strict-v2 Skill can initialize the workspace, immutable runtime snapshot, and first State identity through one entry point. The command accepts only a new task root. An explicit task root is created exclusively, while concurrent automatic naming atomically selects suffixes such as `-a` and `-b`. If any step fails, the command removes the newly created root only while its ownership token still matches:
+A strict-v2 Skill can initialize the workspace, immutable runtime snapshot, and first State identity through one entry point. The command accepts only a new task root. The first State identity may enter the declared domain initial State directly and is not limited to `bensz.workspace.ready`; existing non-initial legacy snapshots still cannot be upgraded in place and require a new task root. An explicit task root is created exclusively, while concurrent automatic naming atomically selects suffixes such as `-a` and `-b`. If any step fails, the command removes the newly created root only while its ownership token still matches:
 
 ```bash
 bsk workspace initialize . skill-name org.example.skill.collecting \

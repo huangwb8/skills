@@ -133,11 +133,11 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 ## Kernel
 
-`bensz-skill-kernel` is currently released as `2.1.5`. It requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. For ordinary use, the installer manages it in `~/.bensz-skills/envs/benszapi` and exposes `~/.bensz-skills/bin/bsk`; this avoids project-Python, PATH, and shell-activation ambiguity.
+`bensz-skill-kernel` is currently released as `2.1.6`. It requires Python 3.11+ and only needs PyYAML plus the Python standard library to run. For ordinary use, the installer manages it in `~/.bensz-skills/envs/benszapi` and exposes `~/.bensz-skills/bin/bsk`; this avoids project-Python, PATH, and shell-activation ambiguity.
 
 It provides the `bsk` command for managing task stages and layered run identities, authorizing in-stage actions, running checks, saving evidence, and replaying execution records. Ordinary users can start with the commands above; State, Verifier, and Workspace are internal concepts mainly useful to maintainers. See [`docs/state-id-naming.md`](docs/state-id-naming.md), [`docs/verifier-id-naming.md`](docs/verifier-id-naming.md), [`docs/state-identity-protocol.md`](docs/state-identity-protocol.md), and [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md) for details.
 
-Version 2.1.4 added business-evidence hash and reference bindings. Version 2.1.5 makes `bsk state transition` consume the source Gate explicitly and exposes read-only Gate/result/transition binding queries. Historical unbound events remain readable but do not gain strict-completion status.
+Version 2.1.4 added business-evidence hash and reference bindings. Version 2.1.5 makes `bsk state transition` consume the source Gate explicitly and exposes read-only Gate/result/transition binding queries. Version 2.1.6 lets the first State identity of an atomic `workspace initialize` enter the declared domain initial State directly. Historical unbound events remain readable but do not gain strict-completion status.
 
 Source development still uses the repository's isolated environment:
 

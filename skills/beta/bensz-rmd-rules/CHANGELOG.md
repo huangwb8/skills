@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Added
 
+- 新增 `scripts/check_pipeline_contract.py`，只读检查 targets-first pipeline 的 `_targets.R`、`R/`、Rmd target 消费、legacy checkpoint 禁用与 raw 绕过风险。
+- 新增 targets 恢复验收、`tar_poll()`/`tar_watch()`、crew/autometric 可选观测和嵌套并行防护契约；模板新增 `tar_source("R")`、target 函数与可重跑 smoke 证据。
+
 - 新增 `workflow_modes.md` 与 `lightweight_testing.md`，把项目状态、simple/complex 模式、人工覆盖、两种测试风格、隔离与失败分类固化为独立契约。
 - 新增 `templates/tests/` 的 synthetic fixture、project subset、simple smoke 与 complex smoke 骨架；`evals/evals.json` 扩展到模式选择、人工覆盖、已有项目兼容、测试风格、自定义产品路径、目录职责和失败闭环。
 - 新增 Skill `qa/` 双模式 R 集成回归，真实执行 simple Rmd render 和 complex target 图，验证唯一 run root、测试 store、真实子集清理、subject identity、raw 与正式输出不被污染。
 
 ### Changed
+
+- 版本更新至 `0.26.0`：complex 统一解释为 targets-first pipeline，计算函数转入 `R/`，Rmd 通过 `tar_read()`/`tar_load()` 消费结果；新项目不再生成第二套 SUCCESS/identity/checkpoint runner，existing 旧机制保留兼容。
+- `products/` 与 `_targets/` 职责重新分离：前者只保存需审阅、复用或交付的科学产物，后者由 targets 管理机器状态、失效与恢复。
 
 - `SKILL.md` 以主要交付物与验收标准明确和 `bensz-r-developer` 的兄弟边界：分析流程、结果、报告及分析本地 helper 由本 Skill 主导；可独立复用的 API/类/Package 交给 `bensz-r-developer`。
 - 补充混合任务的“分析定义组件契约 → 组件工程实现 → 分析集成验证”协作顺序、README 分流说明和近邻触发用例，版本更新至 `0.24.1`。

@@ -1,27 +1,43 @@
-# targets entrypoint for a new complex bensz-rmd-rules project.
-# Keep dependency orchestration here; product writing and SUCCESS verification stay
-# in the target functions/helpers so every product follows one contract.
+# targets-first pipeline entrypoint for bensz-rmd-rules.
+# _targets.R is the only execution graph. Functions live in R/ and reports
+# consume target values; do not add SUCCESS, identity hashes, or a second runner.
 
-if (!requireNamespace("targets", quietly = TRUE)) {
-  stop("This complex project requires the targets package from renv.lock.")
-}
 source("renv/activate.R")
-source("00.Environment.R")
+if (!requireNamespace("targets", quietly = TRUE)) {
+  stop("This pipeline requires the targets package from renv.lock.")
+}
 
-library(targets)
+targets::tar_source("R")
 
-tar_option_set(
+targets::tar_option_set(
   packages = character(),
-  format = "rds",
-  store = "_targets"
+  format = "rds"
 )
 
 list(
-  # Replace this placeholder with the smallest real analysis unit. If a new
-  # project does not need dependency/invalidation/recovery semantics, use simple
-  # mode and do not create this file.
-  tar_target(
-    analysis_product,
-    stop("Define analysis_product in _targets.R before running tar_make().")
+  targets::tar_target(
+    analysis_input,
+    file.path("raw", "input.tsv"),
+    format = "file"
+  ),
+  targets::tar_target(
+    prepared_data,
+    prepare_data(analysis_input)
+  ),
+  targets::tar_target(
+    analysis_results,
+    analyze_data(prepared_data)
+  ),
+  # Export only a scientific object that downstream users must review/reuse.
+  # targets::tar_target(scientific_product, write_product(analysis_results), format = "file"),
+  # Render outside the graph with an Rmd that calls tar_read("analysis_results"),
+  # or use tarchetypes::tar_render() only when it is locked in renv.lock.
+  targets::tar_target(
+    pipeline_contract,
+    list(
+      state = "targets-managed",
+      report_consumer = "Rmd uses tar_read/tar_load",
+      store_contract = "caller supplies _targets or isolated tmp/tests/<run-id>/_targets"
+    )
   )
 )

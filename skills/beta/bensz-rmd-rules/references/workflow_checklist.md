@@ -4,14 +4,14 @@
 
 - [ ] 已分开记录 `project_state` 与 `workflow_mode`，并说明选择理由。
 - [ ] 人类显式模式优先；existing 未被按新默认重构。
-- [ ] 新 simple 有 renv 和测试入口，无 `_targets.R`；新 complex 额外有 `_targets.R`。
+- [ ] 新 simple 有 renv 和测试入口，无 `_targets.R`；新 complex 额外有 `_targets.R`、`R/`，且 Rmd 消费 target。
 - [ ] 已有项目未因检查新增 targets、renv、目录或 runner。
 - [ ] 目标、输入、授权、数据字典、统计边界、报告用途和重跑成本已确认。
 
 ## 目录与产品
 
 - [ ] `raw/` 只读；正式派生产品与 targets store 没有混淆。
-- [ ] `templates/` 只有样式/渲染资产；共享 helper 在 `scripts/lib/`。
+- [ ] `templates/` 只有样式/渲染资产；新 pipeline 不复制 checkpoint helper。
 - [ ] 测试代码在 `scripts/tests/`；每次运行现场在唯一 `tmp/tests/<run-id>/` 并默认忽略。
 - [ ] products 路径来自一个项目设置，留在授权项目范围内，无散落硬编码。
 - [ ] `tmp/scratch/` 的正式发现已晋升到代码、产品和报告并补测试。
@@ -30,11 +30,11 @@
 - [ ] project subset 已默认删除，或有明确保留授权与访问控制。
 - [ ] 审查后若代码、配置或 lockfile 改变，受影响轻量真实链已重跑。
 
-## 缓存、审查与报告
+## targets、审查与报告
 
-- [ ] identity 覆盖输入、参数、代码、上游和输出契约，不含时间戳。
-- [ ] 完整对象、可读摘要、`metadata.yaml` 与最后写入的 `SUCCESS` 齐全。
-- [ ] 半成品、损坏输出和身份变化都不会误命中。
+- [ ] `_targets/` 由 targets 管理；`products/` 只保存需要审阅、复用或交付的科学对象。
+- [ ] 中断后再次 `tar_make()` 跳过仍有效前序 target；store/输入/代码/参数变化会正确失效。
+- [ ] Rmd 通过 `tar_read()`/`tar_load()` 消费结果，不从 raw/ 重做昂贵计算。
 - [ ] 三项只读审查按序完成，或明确记录非独立降级。
 - [ ] PDF/JPG、HTML widget、图表/表格解读覆盖、数字追溯均通过。
 
@@ -46,8 +46,9 @@ python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state n
 Rscript -e 'renv::status()'
 Rscript <项目根>/scripts/tests/smoke_test.R
 
-# complex：smoke_test 内部使用 tmp/tests/<run-id>/_targets
+# complex/pipeline：smoke_test 内部使用 tmp/tests/<run-id>/_targets
 python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state new --workflow-mode complex
+python3 <skill-root>/scripts/check_pipeline_contract.py <项目根>
 Rscript -e 'renv::status()'
 Rscript <项目根>/scripts/tests/smoke_test.R
 Rscript -e 'targets::tar_make()'

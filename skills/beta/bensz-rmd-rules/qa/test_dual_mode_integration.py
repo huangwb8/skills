@@ -96,18 +96,19 @@ class DualModeRealExecution(unittest.TestCase):
             check=False,
         )
 
-    def test_bootstrap_places_non_style_helper_under_scripts_lib(self):
+    def test_bootstrap_places_pipeline_assets_without_legacy_checkpoint(self):
         with tempfile.TemporaryDirectory(prefix="rmd-bootstrap-", dir=self.temp_parent) as tmp:
             root = Path(tmp)
             result = subprocess.run(
-                [sys.executable, str(THEME_BOOTSTRAP), "--project-root", str(root), "--with-extras"],
+                [sys.executable, str(THEME_BOOTSTRAP), "--project-root", str(root), "--with-extras", "--with-pipeline"],
                 text=True,
                 capture_output=True,
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertTrue((root / "scripts" / "lib" / "checkpoint_helpers.R").is_file())
-            self.assertFalse((root / "templates" / "checkpoint_helpers.R").exists())
+            self.assertTrue((root / "_targets.R").is_file())
+            self.assertTrue((root / "R" / "analysis_functions.R").is_file())
+            self.assertFalse((root / "scripts" / "lib" / "checkpoint_helpers.R").exists())
             self.assertTrue((root / "templates" / "liquid_glass_theme.css").is_file())
 
     @unittest.skipUnless(r_has(["renv", "rmarkdown"], require_pandoc=True), "R renv + rmarkdown + pandoc required")
@@ -203,6 +204,7 @@ class DualModeRealExecution(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="rmd-complex-", dir=self.temp_parent) as tmp:
             root = Path(tmp)
             self.add_renv_contract(root, ["targets"])
+            (root / "R").mkdir()
             (root / "raw").mkdir()
             raw_path = root / "raw" / "input.csv"
             raw_path.write_text(
@@ -215,6 +217,7 @@ class DualModeRealExecution(unittest.TestCase):
                     """\
                     source(file.path("renv", "activate.R"))
                     library(targets)
+                    tar_source("R")
                     input_path <- Sys.getenv("BENSZ_ANALYSIS_INPUT", unset = file.path("raw", "input.csv"))
                     output_root <- Sys.getenv("BENSZ_PRODUCTS_DIR", unset = "products")
                     list(
@@ -232,6 +235,10 @@ class DualModeRealExecution(unittest.TestCase):
                     )
                     """
                 ),
+                encoding="utf-8",
+            )
+            (root / "R" / "pipeline_functions.R").write_text(
+                "identity_data <- function(input_path) utils::read.csv(input_path, check.names = FALSE)\n",
                 encoding="utf-8",
             )
             smoke = root / "scripts" / "tests" / "smoke_test.R"

@@ -2,7 +2,7 @@
 
 轻量的 Agent Skill 状态、工作区与 Verifier 生命周期内核。
 
-当前发布版本：`2.1.5`
+当前发布版本：`2.1.6`
 
 [English](README_EN.md)
 
@@ -173,7 +173,7 @@ bsk workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 
 初始化会创建 `bensz.workspace.ready`（旧 alias：`workspace.ready`）和 `shared/input|output|log` 边界。工作区 manifest、生命周期事件账本和 Skill 元状态快照分层保存且可重放。
 
-strict-v2 Skill 可用单入口完成工作区、运行契约快照和首个 State identity 初始化；该命令只接受新的任务根。显式任务根采用排他创建；自动命名并发冲突会原子选择 `-a`、`-b` 等后缀。任一步失败都只会在 ownership token 匹配时回滚本次新建的任务目录：
+strict-v2 Skill 可用单入口完成工作区、运行契约快照和首个 State identity 初始化；该命令只接受新的任务根。首个 State identity 可以直接进入声明的领域初始 State，不限于 `bensz.workspace.ready`；已有非初始 legacy 快照仍不能原地升级，需新建任务根。显式任务根采用排他创建；自动命名并发冲突会原子选择 `-a`、`-b` 等后缀。任一步失败都只会在 ownership token 匹配时回滚本次新建的任务目录：
 
 ```bash
 bsk workspace initialize . skill-name org.example.skill.collecting \

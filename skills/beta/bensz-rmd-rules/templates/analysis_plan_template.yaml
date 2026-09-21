@@ -1,34 +1,32 @@
-workflow: "main"
-products_dir: "products"
+workflow: "pipeline"
+project_state: "new"
 requirements:
   - id: "REQ-01"
     description: "说明用户目标或交付要求"
-    units: ["01.00.00"]
-units:
-  - id: "01.00.00"
-    name: "数据整理"
-    purpose: "读取 raw 输入并形成可审查的完整数据产品"
-    depends_on: []
-    inputs:
-      - "raw/input.tsv"
-    code:
-      - "01.00.00. 数据整理.R"
-    products:
-      - "products/main/01.00.00. 数据整理/main.rds"
-    cache: true
-    reports: []
-    completion: "完整对象、可读摘要、metadata.yaml 与 SUCCESS 均通过验证"
-  - id: "02.00.00"
-    name: "结果报告"
-    purpose: "从完整产品应用报告层阈值并生成图表与解读"
-    depends_on: ["01.00.00"]
-    inputs:
-      - "products/main/01.00.00. 数据整理/main.rds"
-    code:
-      - "02.00.00. 结果报告.Rmd"
-    products: []
-    cache: false
-    reports:
-      - "02.00.00. 结果报告.html"
-      - "reports/figures/02.00.00. 主要结果.pdf"
-    completion: "Rmd、HTML、正式图表、数字追溯与解读门禁通过"
+    targets: ["prepared_data", "analysis_results"]
+targets:
+  - name: "prepared_data"
+    purpose: "从 raw 输入形成完整、可复用的分析数据"
+    depends_on: ["analysis_input"]
+    function: "R/analysis_functions.R::prepare_data"
+    inputs: ["raw/input.tsv"]
+    scientific_products: []
+    completion: "target 成功且 schema/主键/缺失断言通过"
+  - name: "analysis_results"
+    purpose: "执行模型或统计计算，输出未按报告阈值截断的结果"
+    depends_on: ["prepared_data"]
+    function: "R/analysis_functions.R::analyze_data"
+    inputs: ["prepared_data"]
+    scientific_products: ["products/analysis_results.rds"]
+    completion: "target 成功，关键数值与不变量断言通过"
+reports:
+  - path: "reports/"
+    consumer: "Rmd 使用 targets::tar_read('analysis_results')"
+    presentation_parameters: ["top_n", "q_cutoff", "plot_language"]
+recovery:
+  store: "_targets/"
+  test_store: "tmp/tests/<run-id>/_targets/"
+  acceptance: "中断后再次 tar_make() 跳过仍有效的前序 target"
+observability:
+  progress: ["targets::tar_poll", "targets::tar_watch"]
+  optional_workers: "crew"

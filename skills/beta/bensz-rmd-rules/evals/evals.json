@@ -125,6 +125,39 @@
         "记录 path_isolation 阻塞、未验证项和可选最小改造"
       ],
       "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "新建一个需要数小时运行的 targets 分析：清洗、模型和报告都要可恢复。请按最新 targets-first 架构设计目录、函数、Rmd 消费关系和中断恢复验收。",
+      "expected_output": "complex/pipeline 使用 _targets.R 作为唯一 DAG，计算函数在 R/，Rmd 用 tar_read()/tar_load()，_targets/ 只保存机器状态，products/reports 只保存科学产物；真实中断后 tar_make() 复用有效前序 target。",
+      "assertions": [
+        "没有第二套 SUCCESS/identity/checkpoint runner",
+        "明确 R/、_targets.R、Rmd 与 _targets/products/reports 职责",
+        "恢复验收包含真实中断、再次 tar_make 和 tar_meta/outdated 证据"
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "已有一个旧项目，里面有编号 R 脚本、checkpoint_helpers.R 和自定义 runner。我只想修复一个统计错误，不要迁移架构。",
+      "expected_output": "判为 existing/preserved-existing，保留旧入口与旧 checkpoint；不把新 targets-first 规则隐式套用，也不创建 R/ 或 _targets.R。",
+      "assertions": [
+        "旧 runner/checkpoint 被标记为 preserved-existing",
+        "没有隐式迁移或删除旧机制",
+        "只在授权范围内沿原入口修复并测试"
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "一个 complex 项目有 100 个相互独立的 cohort 模型，想用 crew 加速；每个模型还会启动 8 个 BLAS 线程。请给出安全配置和观测方案。",
+      "expected_output": "crew 作为可选增强，先评估任务成本与 worker 开销；限制 worker×内部线程不超过资源预算，并用 tar_poll/tar_watch、crew 日志/metrics、autometric 组合观测，不自制 dashboard。",
+      "assertions": [
+        "明确防止 worker 与 BLAS/OpenMP/future 嵌套 oversubscription",
+        "crew/autometric 被描述为项目级可选依赖",
+        "观测优先 targets 状态且不新增自定义事件协议"
+      ],
+      "files": []
     }
   ]
 }

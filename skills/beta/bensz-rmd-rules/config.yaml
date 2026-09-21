@@ -9,8 +9,8 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.25.0"
-  description: "规划并实现可审查、可恢复的 R/R Markdown 分析工作流：新项目按复杂度选择 simple 或 complex，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 额外使用 targets 编排依赖。已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
+  version: "0.26.0"
+  description: "规划并实现可复现的 R/R Markdown 分析流水线：新项目按复杂度选择 simple 或 targets-first complex/pipeline，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 以 _targets.R + R/ 为唯一计算编排，Rmd 只消费 targets 结果。已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
 
@@ -35,6 +35,8 @@ project_strategy:
     workflow_modes:
       - "simple"
       - "complex"
+    complex_alias: "pipeline"
+    pipeline_first: true
     human_override_precedence: true
     legacy_runner_fallback: false
   existing_project:
@@ -50,7 +52,12 @@ targets:
   required_for_workflow_modes:
     - "complex"
   test_store_dir: "tmp/tests/{run_id}/_targets"
-  output_contract: "targets 只编排依赖与增量重建；products/、metadata.yaml 与 SUCCESS 仍由产品 helper 负责"
+  output_contract: "targets 管理计算状态、依赖、失效与增量重建；products/ 与 reports/ 只保存需要审阅、复用或交付的科学产物"
+  function_dir: "R"
+  source_function_call: 'targets::tar_source("R")'
+  report_consumer: "Rmd 通过 tar_read()/tar_load() 或受控 tarchetypes::tar_render() 消费 target"
+  recovery_acceptance: "中断后再次 tar_make() 必须复用仍有效的前序 target"
+  legacy_checkpoint_allowed: false
 
 renv:
   lockfile: "renv.lock"
@@ -172,13 +179,12 @@ plot_readability:
 
 # 文件结构配置（新项目默认；旧 tmp 项目非破坏兼容）
 file_structure:
-  unit_stem: "AA.BB.CC. 名称"
-  data_script: "{分析单元}.R"
-  report_script: "{分析单元}.Rmd"
-  functions_script: "{分析单元}_functions.R"
-  rendered_report: "{分析单元}.html"
+  function_dir: "R"
+  pipeline_entrypoint: "_targets.R"
+  report_script: "{report}.Rmd"
+  rendered_report: "{report}.html"
   environment_script: "00.Environment.R"
-  checkpoint_helper: "scripts/lib/checkpoint_helpers.R"
+  r_dir: "R"
   raw_dir: "raw"
   products_dir: "products"
   reports_dir: "reports"
@@ -202,12 +208,11 @@ product_storage:
     - "_targets"
     - ".bensz-api"
 
-# 文件命名约定
+# 文件命名约定（pipeline 不要求编号脚本；existing 可保留旧命名）
 naming_convention:
-  unit_pattern: '^\d{2}\.\d{2}\.\d{2}\. .+$'
-  core_files_same_name: true
-  functions_suffix: "_functions.R"
-  example_stem: "01.00.00. 数据整理"
+  target_name_pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'
+  report_name_pattern: '^[A-Za-z0-9_. -]+$'
+  existing_unit_pattern: '^\d{2}\.\d{2}\.\d{2}\. .+$'
 
 # 输出配置
 output:
@@ -220,23 +225,17 @@ output:
 # 多分析单元、缓存和恢复的稳定默认值
 analysis_workflow:
   plan_file: "analysis-plan.yaml"
-  default_workflow: "main"
-  product_path: "{products_dir}/{workflow}/{unit_stem}"
-  contract_version: 1
-  required_checkpoint_files:
-    - "metadata.yaml"
-    - "summary.md"
-    - "SUCCESS"
-  cache_identity:
-    - "inputs"
-    - "parameters"
-    - "code"
-    - "upstream_products"
-    - "output_contract_version"
-  include_runtime_versions_when_result_affecting: true
+  default_workflow: "pipeline"
+  product_path: "{products_dir}/<scientific-product>"
+  contract_version: 2
+  cache_identity: "targets metadata and store only; no SUCCESS/identity runner"
+  report_dependency: "reports consume target values and must not read raw/ to repeat expensive computation"
+  recovery:
+    required: true
+    command: "targets::tar_make()"
+    evidence: ["tar_meta", "outdated target set", "execution log"]
   controls:
-    force_step_env: "BENSZ_FORCE_STEP"
-    resume_from_env: "BENSZ_RESUME_FROM"
+    force_rebuild: "targets::tar_make(callr_function = NULL) or explicit targets invalidation"
   validation:
     default_mode: "report"
     delivery_mode: "strict"
@@ -247,6 +246,21 @@ analysis_workflow:
   legacy_runner:
     status: "existing-project-only"
     new_project_fallback: false
+
+observability:
+  default: "targets"
+  progress: ["targets::tar_poll", "targets::tar_watch"]
+  worker_metrics: ["crew logging", "crew_options_metrics"]
+  resource_diagnostics: ["autometric::log_start", "autometric::log_read", "autometric::log_plot"]
+  policy: "Skill 只组合成熟组件，不定义新的事件字段、调度器、worker 状态机或 dashboard"
+
+parallel:
+  optional: true
+  controller: "crew"
+  enable_when: "存在足够多相互独立且昂贵的 target，收益覆盖 worker 启动与传输开销"
+  default_workers: 1
+  oversubscription_guard: "限制 worker 数与 BLAS/OpenMP/future/BiocParallel 内部线程数乘积不超过资源预算"
+  random_seed: "在 target 图中显式声明可复现随机数策略"
 
 # 指标解释协议：常用指标使用白名单；未命中、无法确定或非标准定义时按不常用指标处理。
 metric_explanation:

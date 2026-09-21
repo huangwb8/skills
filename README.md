@@ -135,11 +135,11 @@ python3 skills/alpha/install-bensz-skills/scripts/update_remote_skills.py --chec
 
 ## Kernel
 
-`bensz-skill-kernel` 当前发布版本为 `2.1.5`，要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。普通使用由安装器托管在 `~/.bensz-skills/envs/benszapi`，并通过 `~/.bensz-skills/bin/bsk` 固定入口调用，不依赖项目 Python、PATH 中的其它 `bsk` 或 `conda activate`。
+`bensz-skill-kernel` 当前发布版本为 `2.1.6`，要求 Python 3.11+，运行所需的依赖只有 PyYAML 和 Python 标准库。普通使用由安装器托管在 `~/.bensz-skills/envs/benszapi`，并通过 `~/.bensz-skills/bin/bsk` 固定入口调用，不依赖项目 Python、PATH 中的其它 `bsk` 或 `conda activate`。
 
 它提供 `bsk` 命令，帮助你管理任务阶段与分层运行身份、授权阶段内动作、执行检查、保存证据和重放执行记录。普通使用者可以直接使用上面的命令；内部的 State、Verifier、Workspace 等概念主要面向维护者，详细说明见 [`docs/state-id-naming.md`](docs/state-id-naming.md)、[`docs/verifier-id-naming.md`](docs/verifier-id-naming.md)、[`docs/state-identity-protocol.md`](docs/state-identity-protocol.md) 与 [`packages/bensz-skill-kernel/README.md`](packages/bensz-skill-kernel/README.md)。
 
-2.1.4 新增业务证据哈希与引用绑定；2.1.5 让 `bsk state transition` 显式消费 source Gate，并提供 Gate/result/transition 的只读绑定查询。历史无绑定事件仍可读取，但不会获得严格完成资格。
+2.1.4 新增业务证据哈希与引用绑定；2.1.5 让 `bsk state transition` 显式消费 source Gate，并提供 Gate/result/transition 的只读绑定查询；2.1.6 让原子 `workspace initialize` 的首个 State identity 可直接进入声明的领域初始 State。历史无绑定事件仍可读取，但不会获得严格完成资格。
 
 源码开发仍使用仓库自己的隔离环境：
 

@@ -760,6 +760,14 @@ def test_kernel_runtime_declaration_rejects_older_kernel_and_missing_capability(
 
 def test_workspace_initialize_atomically_creates_strict_v2_run(tmp_path: Path, capsys):
     skill = _make_strict_transition_skill(tmp_path)
+    config = skill / "config.yaml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "  initial_state: bensz.workspace.ready\n",
+            "  initial_state: test.demo.checking\n",
+        ),
+        encoding="utf-8",
+    )
     task_root = tmp_path / ".bensz-api" / "task-atomic-success"
 
     assert main([

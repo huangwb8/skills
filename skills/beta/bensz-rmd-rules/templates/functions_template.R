@@ -1,16 +1,15 @@
-# AA.BB.CC. 名称_functions.R
-# 仅保存同词干分析单元专用函数；本文件不是独立执行节点。
-# 跨多个不相邻单元复用且不含领域语义的 checkpoint 能力应复用模板 helper，
-# 不复制到每个函数文件。
+# R/analysis_functions.R
+# 复制到项目 R/；由 _targets.R 的 tar_source("R") 自动发现。
+# 这里保存 target 调用的计算函数，不是独立执行入口，也不实现缓存/恢复协议。
 
 if (TRUE) {
   # 数据整理函数：改成反映真实领域含义的名称。
-  .unit_prepare_data <- function(data, parameters) {
-    stop("Implement .unit_prepare_data() for this analysis unit.")
+  prepare_data <- function(input_file) {
+    stop("Implement prepare_data() for this pipeline.")
   }
 
   # 统计函数示例。不要把报告阈值写入计算层函数。
-  .unit_fit_model <- function(data, parameters) {
-    stop("Implement .unit_fit_model() for this analysis unit.")
+  analyze_data <- function(data) {
+    stop("Implement analyze_data() for this pipeline.")
   }
 }

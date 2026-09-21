@@ -76,7 +76,8 @@ class TargetsRenvChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.add_renv(root)
-            (root / "_targets.R").write_text("# targets\n", encoding="utf-8")
+            (root / "R").mkdir()
+            (root / "_targets.R").write_text('targets::tar_source("R")\n# targets\n', encoding="utf-8")
             self.add_smoke(
                 root,
                 'run_id <- Sys.getenv("BENSZ_TEST_RUN_ID", unset = "smoke")\n'
@@ -95,7 +96,8 @@ class TargetsRenvChecks(unittest.TestCase):
                 root = Path(tmp)
                 self.add_renv(root)
                 if mode == "complex":
-                    (root / "_targets.R").write_text("# targets\n", encoding="utf-8")
+                    (root / "R").mkdir()
+                    (root / "_targets.R").write_text('targets::tar_source("R")\n# targets\n', encoding="utf-8")
                 entry = root / "scripts" / "tests" / "smoke_test.R"
                 entry.parent.mkdir(parents=True)
                 entry.write_text(

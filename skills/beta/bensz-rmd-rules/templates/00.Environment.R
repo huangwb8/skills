@@ -3,7 +3,7 @@
 # - luckyBase 强制加载（本 skill 的硬前提）
 # - 统一的包加载策略（luckyBase::Plus.library）
 # - 可选：candidate_r 加载（仅当用户显式提供路径）
-# - 项目级稳定目录与 checkpoint 元数据依赖
+# - 项目级稳定目录与 targets/报告路径依赖
 #
 # 注意：
 # - 这里允许做最小的依赖边界检查；主脚本/主 Rmd 不要重复检查或写降级分支。

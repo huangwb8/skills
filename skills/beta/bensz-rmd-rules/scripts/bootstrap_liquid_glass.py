@@ -9,6 +9,7 @@ Why:
 - Optionally, it also benefits from:
   - 00.Environment.R (project root)
   - templates/datatables_helper.R, templates/nature_theme.R, etc.
+  - opt-in _targets.R and R/ starter via --with-pipeline
 
 This script copies those files from the installed skill directory into the
 current working directory (or --project-root).
@@ -62,6 +63,11 @@ def main(argv: list[str]) -> int:
         help="Also copy common helper templates (DT/theme/etc.).",
     )
     parser.add_argument(
+        "--with-pipeline",
+        action="store_true",
+        help="Also copy the opt-in targets-first _targets.R and R/ function starter.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Overwrite existing files.",
@@ -89,11 +95,15 @@ def main(argv: list[str]) -> int:
             "plotly_template.R",
         ]:
             tasks.append((src_templates / name, project_root / "templates" / name))
-        tasks.append(
-            (
-                src_templates / "checkpoint_helpers.R",
-                project_root / "scripts" / "lib" / "checkpoint_helpers.R",
-            )
+    if args.with_pipeline:
+        # New projects use targets-managed state; do not copy the legacy
+        # checkpoint helper. Existing projects must opt into that compatibility
+        # path explicitly instead of receiving a second cache by default.
+        tasks.extend(
+            [
+                (src_templates / "_targets.R", project_root / "_targets.R"),
+                (src_templates / "R_data_template.R", project_root / "R" / "analysis_functions.R"),
+            ]
         )
         tasks.append((src_templates / "analysis_plan_template.yaml", project_root / "analysis-plan.yaml"))
 

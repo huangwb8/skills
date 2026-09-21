@@ -17,7 +17,7 @@ def existing_signals(root: Path) -> list[str]:
     for rel in ("_targets.R", "renv.lock", "renv/activate.R", "analysis-plan.yaml"):
         if (root / rel).exists():
             signals.append(rel)
-    for directory in ("raw", "products", "reports", "renv"):
+    for directory in ("raw", "products", "reports", "renv", "R"):
         if (root / directory).is_dir():
             signals.append(directory + "/")
     if list(root.glob("*.R")) or list(root.glob("*.Rmd")):
@@ -196,6 +196,25 @@ def main() -> int:
         issues.extend(test_issues)
         if workflow_mode == "complex" and not (root / "_targets.R").is_file():
             missing.append("_targets.R")
+        if workflow_mode == "complex" and not (root / "R").is_dir():
+            missing.append("R/")
+        if workflow_mode == "complex" and (root / "_targets.R").is_file():
+            targets_text = (root / "_targets.R").read_text(encoding="utf-8", errors="replace")
+            if not re.search(r"tar_source\s*\(\s*[\"']R[\"']", targets_text):
+                issues.append(
+                    {
+                        "code": "targets-not-r-first",
+                        "message": "complex pipeline _targets.R must discover computation functions from R/ via tar_source(\"R\")",
+                    }
+                )
+            for token in ("SUCCESS", "checkpoint_helpers", "BENSZ_FORCE_STEP", "BENSZ_RESUME_FROM"):
+                if token in targets_text:
+                    issues.append(
+                        {
+                            "code": "complex-uses-legacy-cache",
+                            "message": f"new complex pipeline must not use legacy cache/runner token: {token}",
+                        }
+                    )
         if workflow_mode == "simple" and (root / "_targets.R").exists():
             issues.append(
                 {
