@@ -186,3 +186,7 @@ QA/evals 应覆盖：targets-only pipeline、R/ 函数发现、Rmd 消费 target
 - **并行资源预算：** 需要根据目标机器、BLAS/OpenMP 设置和集群调度规则确定 worker/线程上限；没有资源预算时保持普通 `tar_make()`。
 - **测试目录治理：** 当前 beta Skill 有 `qa/` 测试资产，实施时需逐个判断是否应迁移到仓库测试边界或继续作为 Skill 专属质量资产，不应因新架构一次性删除。
 - **既存工作区状态：** `docs/contribution.bac` 当前已有未提交改动；实施时必须保留并单独记录，不得覆盖或重写。
+
+## 决策更新（2026-09-21 17:50，用户授权）
+
+用户决定彻底完成 targets-first 转向，不留历史编号脚本执行体系的兼容：`preserved-existing` 模式、编号 runner（`run_analysis_workflow.py`）、编号单元检查器（`check_analysis_workflow.py`）及其 QA 全部退出，工作流模式收敛为 `simple`/`complex`。`existing` 降级为纯项目状态：有 `_targets.R` 的项目按 complex 维护；无 targets 的项目（含历史编号脚本）按 simple 语义维护，编号脚本只是顺序执行的普通 Rscript 入口；需要复杂能力时走显式迁移（旧→新映射、结果校验、回退），仍不自动迁移。本节取代上文方向二、方向七与"完成判据"中保留 legacy/preserved-existing 兼容分支的表述。同时新增 `_targets.R` 人类可读性契约：按阶段注释分组、语义化 target 命名、交付摘要附 `tar_manifest()` 快照，作为编号文件名退出后的人类可读流程地图。
