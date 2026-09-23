@@ -52,19 +52,19 @@
     {
       "id": 5,
       "prompt": "维护已有 R 项目：有 raw/、tmp/ 和旧 runner，但没有 targets 或 renv。只修复报告统计错误。",
-      "expected_output": "判为 existing + preserved-existing，只读盘点并沿用旧入口；不创建 _targets.R、renv.lock、scripts 新布局或迁移产品；修复后沿原入口做可隔离轻量试跑，无法隔离则明确阻塞。",
+      "expected_output": "判为 existing；无 _targets.R 的项目按 simple 语义维护（编号/旧脚本只是顺序执行的普通入口），renv 缺失只披露不自动初始化；修复后沿现有脚本入口做可隔离轻量试跑，无法隔离则明确阻塞；不创建 _targets.R、renv.lock 或迁移产品，也不提供或维护任何编号 runner。",
       "assertions": [
-        "existing 兼容优先",
-        "只报告复现性/恢复风险",
-        "没有隐式迁移或补建机制",
-        "实质修改仍有沿原入口的测试或 path_isolation 阻塞证据"
+        "existing 是项目状态，不再引入 preserved-existing 模式",
+        "只报告复现性/恢复风险，不自动补建机制",
+        "实质修改沿现有入口测试或记录 path_isolation 阻塞",
+        "任务需要恢复/复用等复杂能力时给出显式迁移建议，而非自维护 runner"
       ],
       "files": []
     },
     {
       "id": 6,
       "prompt": "已有项目已经有 _targets.R 和 _targets/，但没有 renv。请增加一个 target 并运行检查。",
-      "expected_output": "使用 existing + preserved-existing，维护现有 targets，说明 renv 缺失但不自动初始化；existing 检查不产生 renv.lock。",
+      "expected_output": "判为 existing + complex（有 _targets.R 自动解析为 complex），按 R/ + tar_source 契约维护现有 targets 并新增 target；说明 renv 缺失但不自动初始化；existing 检查不产生 renv.lock。",
       "assertions": [
         "保留现有 target 图与正式 store",
         "不自动新增 renv",
@@ -85,10 +85,10 @@
     },
     {
       "id": 8,
-      "prompt": "请搭建一个 complex R 项目，并说明 checkpoint helper、CSS、测试代码、测试数据副本和正式结果各放哪里。",
-      "expected_output": "helper 在 scripts/lib，CSS/渲染资产在 templates，测试代码在 scripts/tests，运行副本在 tmp/tests，正式产品在 products，正式图表在 reports；只创建实际使用目录。",
+      "prompt": "请搭建一个 complex R 项目，并说明 CSS、测试代码、测试数据副本和正式结果各放哪里。",
+      "expected_output": "CSS/渲染资产在 templates，测试代码在 scripts/tests，运行副本在 tmp/tests，正式产品在 products，正式图表在 reports；只创建实际使用目录。",
       "assertions": [
-        "templates 不包含 checkpoint helper",
+        "templates 不包含自制缓存/完成标记文件",
         "scripts/tests 与 tmp/tests 职责分开",
         "tmp 发现成为正式依据时需要晋升并补测试"
       ],
@@ -118,7 +118,7 @@
     {
       "id": 11,
       "prompt": "已有项目的旧入口硬编码绝对输出路径，轻量测试会覆盖正式报告；我只要求修一个分析 bug，没有授权迁移或重构路径。",
-      "expected_output": "使用 existing + preserved-existing，不强行运行有污染风险的测试，也不补建新版架构；将轻量执行记为 BLOCKED、失败类别记为 path_isolation，并请求人类决定是否授权最小可测试性改造。",
+      "expected_output": "判为 existing 并按现有入口做最小修复；不强行运行有污染风险的测试，也不补建新版架构；将轻量执行记为 BLOCKED、失败类别记为 path_isolation，并请求人类决定是否授权最小可测试性改造或显式迁移。",
       "assertions": [
         "没有把 checker 通过写成轻量执行通过",
         "没有擅自迁移、覆盖正式报告或改造旧目录",
@@ -140,11 +140,11 @@
     {
       "id": 13,
       "prompt": "已有一个旧项目，里面有编号 R 脚本、checkpoint_helpers.R 和自定义 runner。我只想修复一个统计错误，不要迁移架构。",
-      "expected_output": "判为 existing/preserved-existing，保留旧入口与旧 checkpoint；不把新 targets-first 规则隐式套用，也不创建 R/ 或 _targets.R。",
+      "expected_output": "判为 existing 并按 simple 语义维护：编号脚本只是顺序执行的普通入口，不动旧文件、不把 targets-first 规则隐式套用，也不创建 R/ 或 _targets.R；修复沿现有顺序脚本入口完成并做隔离试跑；如需恢复/复用等复杂能力，只提出显式迁移方案。",
       "assertions": [
-        "旧 runner/checkpoint 被标记为 preserved-existing",
-        "没有隐式迁移或删除旧机制",
-        "只在授权范围内沿原入口修复并测试"
+        "没有引入或维护任何编号 runner/checkpoint 机制",
+        "没有隐式迁移或删除用户旧文件",
+        "只在授权范围内沿现有入口修复并测试"
       ],
       "files": []
     },

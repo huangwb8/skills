@@ -53,8 +53,8 @@ Rscript -e 'renv::status()'
 Rscript <项目根>/scripts/tests/smoke_test.R
 Rscript -e 'targets::tar_make()'
 
-# existing
-python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state existing --workflow-mode preserved-existing
+# existing（有 _targets.R 时 auto 解析为 complex，否则 simple）
+python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state existing --workflow-mode auto
 ```
 
-历史编号 runner 仅用于已经采用该入口的项目。所有 Rmd 继续执行解读覆盖、解读质量、widget 可见性和图表可读性检查。checker/`--dry-run` 不替代上面的真实轻量运行。
+所有 Rmd 继续执行解读覆盖、解读质量、widget 可见性和图表可读性检查。checker/`--dry-run` 不替代上面的真实轻量运行。

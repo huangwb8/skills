@@ -10,11 +10,11 @@
 
 ```text
 请用 bensz-rmd-rules 完成这个 R 分析。先只读判断项目是 new 还是 existing；
-若为新项目，再说明为什么选择 simple 或 targets-first complex/pipeline。
+说明为什么选择 simple 或 targets-first complex/pipeline（已有 _targets.R 的项目按 complex 维护）。
 使用 renv，并在正式运行前用 synthetic_fixture 或 project_subset 从正式入口真实跑通轻量测试。
 ```
 
-已有项目不会因为新默认而自动补 targets、renv 或迁移目录。
+已有项目不会因为新默认而自动补 targets、renv 或迁移目录；历史编号 runner 已整体移除，旧编号脚本项目按 simple 语义维护（编号脚本只是顺序执行的普通入口），需要复杂能力时显式迁移到 targets。
 
 ## simple 与 complex/pipeline
 
@@ -22,7 +22,8 @@
 | --- | --- | --- |
 | `simple` | 线性、低成本、整体重跑可接受的小分析/单报告 | renv、明确 R/Rmd 入口、真实 smoke test；不创建 targets |
 | `complex`（说明性别名 `pipeline`） | 非线性依赖、昂贵步骤、多下游复用、局部失效、恢复或并行 | `_targets.R` 唯一 DAG、`R/` 计算函数、Rmd 消费 target、隔离恢复验收 |
-| `preserved-existing` | 已有任一 R/Rmd、runner、targets、renv 或历史产品 | 保留现状，只做授权范围内增量维护 |
+
+`new`/`existing` 是项目状态不是模式：已有 `_targets.R` 的项目按 complex 维护；无 targets 的已有项目（含历史编号脚本）按 simple 语义维护。
 
 复杂项目的核心关系是：
 
@@ -52,6 +53,8 @@ renv.lock → _targets.R → R/ functions → target results → Rmd → reports
 ```
 
 模板 [_targets.R](templates/_targets.R) 使用 `tar_source("R")`；模板 [R_data_template.R](templates/R_data_template.R) 提供 `prepare_data()`/`analyze_data()` 起点；模板 [Rmd_template.Rmd](templates/Rmd_template.Rmd) 通过 `targets::tar_read()` 消费 `analysis_results`。Rmd 的 Top N、阈值、配色和版式属于报告层，不应触发无关重型 target。
+
+`_targets.R` 的人类可读性契约：target 按阶段注释块分组并语义化命名，交付摘要附 `tar_manifest()` 快照作为流程地图。
 
 ## 测试与恢复
 

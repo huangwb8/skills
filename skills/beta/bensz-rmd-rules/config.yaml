@@ -9,8 +9,8 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.26.0"
-  description: "规划并实现可复现的 R/R Markdown 分析流水线：新项目按复杂度选择 simple 或 targets-first complex/pipeline，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 以 _targets.R + R/ 为唯一计算编排，Rmd 只消费 targets 结果。已有项目按现状兼容维护，不自动迁移或补齐机制。前提：luckyBase 为唯一固定 Bensz 依赖"
+  version: "0.28.0"
+  description: "规划并实现可复现的 R/R Markdown 分析流水线：新项目按复杂度选择 simple 或 targets-first complex/pipeline，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 以 _targets.R + R/ 为唯一计算编排，Rmd 只消费 targets 结果。已有项目不自动迁移或补齐机制：有 _targets.R 的按 complex 维护，无 targets 的（含历史编号脚本）按 simple 语义维护，需要复杂能力时显式迁移；不维护任何历史编号 runner。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
 
@@ -38,13 +38,13 @@ project_strategy:
     complex_alias: "pipeline"
     pipeline_first: true
     human_override_precedence: true
-    legacy_runner_fallback: false
   existing_project:
-    workflow_mode: "preserved-existing"
+    workflow_modes: ["simple", "complex"]
+    mode_resolution: "已有 _targets.R 判 complex；否则（含历史编号脚本）按 simple 语义维护，编号脚本只是顺序执行的普通 Rscript 入口"
     create_missing_targets: false
     create_missing_renv: false
     migrate_layout: false
-    preserve_existing_runner: true
+    maintain_numbered_runner: false
 
 targets:
   entrypoint: "_targets.R"
@@ -57,7 +57,6 @@ targets:
   source_function_call: 'targets::tar_source("R")'
   report_consumer: "Rmd 通过 tar_read()/tar_load() 或受控 tarchetypes::tar_render() 消费 target"
   recovery_acceptance: "中断后再次 tar_make() 必须复用仍有效的前序 target"
-  legacy_checkpoint_allowed: false
 
 renv:
   lockfile: "renv.lock"
@@ -177,7 +176,7 @@ plot_readability:
   # Heatmap 行/列名建议最大长度；超过后优先截断并保留前缀
   heatmap_max_label_chars: 15
 
-# 文件结构配置（新项目默认；旧 tmp 项目非破坏兼容）
+# 文件结构配置（新项目默认）
 file_structure:
   function_dir: "R"
   pipeline_entrypoint: "_targets.R"
@@ -194,7 +193,6 @@ file_structure:
   tests_dir: "scripts/tests"
   test_runs_dir: "tmp/tests/{run_id}"
   scratch_dir: "tmp/scratch"
-  legacy_temp_pattern: "tmp/{主脚本名}"
 
 product_storage:
   default_dir: "products"
@@ -208,11 +206,10 @@ product_storage:
     - "_targets"
     - ".bensz-api"
 
-# 文件命名约定（pipeline 不要求编号脚本；existing 可保留旧命名）
+# 文件命名约定（pipeline 使用语义化 target 命名，不使用编号脚本）
 naming_convention:
   target_name_pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'
   report_name_pattern: '^[A-Za-z0-9_. -]+$'
-  existing_unit_pattern: '^\d{2}\.\d{2}\.\d{2}\. .+$'
 
 # 输出配置
 output:
@@ -243,9 +240,6 @@ analysis_workflow:
     - "structure-dataflow"
     - "r-implementation-recovery"
     - "scientific-statistical"
-  legacy_runner:
-    status: "existing-project-only"
-    new_project_fallback: false
 
 observability:
   default: "targets"

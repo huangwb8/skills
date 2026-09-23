@@ -109,7 +109,28 @@ class TargetsRenvChecks(unittest.TestCase):
                 )
                 self.assertEqual(code, 0, result)
 
-    def test_existing_project_is_read_only_and_missing_mechanisms_are_warnings(self):
+    def test_existing_targets_project_auto_resolves_complex(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "analysis.R").write_text("# existing\n", encoding="utf-8")
+            self.add_renv(root)
+            (root / "R").mkdir()
+            (root / "_targets.R").write_text('targets::tar_source("R")\n# targets\n', encoding="utf-8")
+            self.add_smoke(
+                root,
+                'run_id <- Sys.getenv("BENSZ_TEST_RUN_ID", unset = "smoke")\n'
+                'test_store <- file.path("tmp", "tests", run_id, "_targets")\n'
+                "targets::tar_make(store = test_store)\n",
+            )
+            code, result = self.run_check(root, "--project-state", "existing", "--workflow-mode", "auto")
+            self.assertEqual(code, 0)
+            self.assertEqual(result["project_state"], "existing")
+            self.assertEqual(result["workflow_mode"], "complex")
+            self.assertEqual(result["missing"], [])
+            self.assertEqual(result["issues"], [])
+            self.assertTrue(result["observed_mechanisms"]["targets"])
+
+    def test_existing_without_targets_reports_mechanisms_as_warnings(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "analysis.R").write_text("# existing\n", encoding="utf-8")
@@ -118,12 +139,13 @@ class TargetsRenvChecks(unittest.TestCase):
             after = sorted(path.relative_to(root) for path in root.rglob("*"))
             self.assertEqual(code, 0)
             self.assertEqual(result["project_state"], "existing")
-            self.assertEqual(result["workflow_mode"], "preserved-existing")
+            self.assertEqual(result["workflow_mode"], "simple")
             self.assertEqual(result["missing"], [])
-            self.assertEqual(before, after)
+            self.assertEqual(result["issues"], [])
             self.assertGreaterEqual(len(result["warnings"]), 2)
             self.assertFalse(result["observed_mechanisms"]["renv"])
             self.assertFalse(result["observed_mechanisms"]["targets"])
+            self.assertEqual(before, after)
 
     def test_legacy_mode_alias_remains_compatible(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -132,20 +154,7 @@ class TargetsRenvChecks(unittest.TestCase):
             code, result = self.run_check(root, "--mode", "existing")
             self.assertEqual(code, 0)
             self.assertEqual(result["mode"], "existing")
-
-    def test_existing_rejects_new_project_workflow_labels(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "analysis.R").write_text("# existing\n", encoding="utf-8")
-            code, result = self.run_check(
-                root, "--project-state", "existing", "--workflow-mode", "simple"
-            )
-            self.assertEqual(code, 1)
-            self.assertEqual(result["workflow_mode"], "preserved-existing")
-            self.assertIn(
-                "existing-workflow-mode-not-preserved",
-                {item["code"] for item in result["issues"]},
-            )
+            self.assertEqual(result["workflow_mode"], "simple")
 
     def test_disagreeing_state_arguments_fail_stably(self):
         with tempfile.TemporaryDirectory() as tmp:

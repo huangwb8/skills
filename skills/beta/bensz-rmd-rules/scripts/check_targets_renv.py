@@ -26,12 +26,9 @@ def existing_signals(root: Path) -> list[str]:
 
 
 def observed_mechanisms(root: Path) -> dict[str, object]:
-    root_scripts = sorted(path.name for path in root.glob("*.R"))
     return {
         "renv": (root / "renv.lock").is_file() or (root / "renv" / "activate.R").is_file(),
         "targets": (root / "_targets.R").is_file(),
-        "legacy_runner": (root / "analysis-plan.yaml").is_file()
-        or any("runner" in name.lower() for name in root_scripts),
         "product_roots": [name for name in ("products", "tmp", "reports") if (root / name).is_dir()],
     }
 
@@ -140,7 +137,7 @@ def main() -> int:
     parser.add_argument("--project-state", choices=("auto", "new", "existing"), default=None)
     parser.add_argument(
         "--workflow-mode",
-        choices=("auto", "simple", "complex", "preserved-existing"),
+        choices=("auto", "simple", "complex"),
         default="auto",
     )
     parser.add_argument("--test-entry", default=DEFAULT_TEST_ENTRY)
@@ -167,38 +164,40 @@ def main() -> int:
 
     workflow_mode = args.workflow_mode
     if workflow_mode == "auto":
-        if project_state == "existing":
-            workflow_mode = "preserved-existing"
-        else:
-            workflow_mode = "complex" if (root / "_targets.R").is_file() else "simple"
+        workflow_mode = "complex" if (root / "_targets.R").is_file() else "simple"
 
     missing: list[str] = []
     issues: list[dict[str, str]] = []
     warnings: list[str] = []
-    if project_state == "new":
-        if workflow_mode == "preserved-existing":
-            issues.append(
-                {
-                    "code": "invalid-new-workflow-mode",
-                    "message": "preserved-existing is only valid for existing projects",
-                }
-            )
-        for rel in ("renv.lock", "renv/activate.R"):
-            if not (root / rel).is_file():
-                missing.append(rel)
-        test_missing, test_issues = validate_test_contract(
-            root,
-            workflow_mode,
-            args.test_entry,
-            args.test_store,
-        )
-        missing.extend(test_missing)
-        issues.extend(test_issues)
-        if workflow_mode == "complex" and not (root / "_targets.R").is_file():
-            missing.append("_targets.R")
-        if workflow_mode == "complex" and not (root / "R").is_dir():
-            missing.append("R/")
-        if workflow_mode == "complex" and (root / "_targets.R").is_file():
+
+    def report_absent(rel: str, display: str, action: str) -> None:
+        if (root / rel).exists():
+            return
+        if project_state == "new":
+            missing.append(display)
+        else:
+            warnings.append(f"existing project has no {display}; reported, {action}")
+
+    for rel, display in (("renv.lock", "renv.lock"), ("renv/activate.R", "renv/activate.R")):
+        report_absent(rel, display, "not implicitly initialized")
+
+    test_missing, test_issues = validate_test_contract(
+        root,
+        workflow_mode,
+        args.test_entry,
+        args.test_store,
+    )
+    if test_missing:
+        if project_state == "new":
+            missing.extend(test_missing)
+        else:
+            warnings.append(f"existing project has no {args.test_entry}; not implicitly created")
+    issues.extend(test_issues)
+
+    if workflow_mode == "complex":
+        report_absent("_targets.R", "_targets.R", "not implicitly migrated")
+        report_absent("R", "R/", "not implicitly created")
+        if (root / "_targets.R").is_file():
             targets_text = (root / "_targets.R").read_text(encoding="utf-8", errors="replace")
             if not re.search(r"tar_source\s*\(\s*[\"']R[\"']", targets_text):
                 issues.append(
@@ -207,34 +206,13 @@ def main() -> int:
                         "message": "complex pipeline _targets.R must discover computation functions from R/ via tar_source(\"R\")",
                     }
                 )
-            for token in ("SUCCESS", "checkpoint_helpers", "BENSZ_FORCE_STEP", "BENSZ_RESUME_FROM"):
-                if token in targets_text:
-                    issues.append(
-                        {
-                            "code": "complex-uses-legacy-cache",
-                            "message": f"new complex pipeline must not use legacy cache/runner token: {token}",
-                        }
-                    )
-        if workflow_mode == "simple" and (root / "_targets.R").exists():
-            issues.append(
-                {
-                    "code": "simple-has-targets-entry",
-                    "message": "simple mode must not create _targets.R; choose complex or remove the unintended entry",
-                }
-            )
-    else:
-        if workflow_mode != "preserved-existing":
-            issues.append(
-                {
-                    "code": "existing-workflow-mode-not-preserved",
-                    "message": "existing projects must use workflow_mode=preserved-existing",
-                }
-            )
-            workflow_mode = "preserved-existing"
-        if not (root / "renv.lock").is_file():
-            warnings.append("existing project has no renv.lock; preserved without implicit initialization")
-        if not (root / "_targets.R").is_file():
-            warnings.append("existing project has no _targets.R; preserved without implicit migration")
+    if workflow_mode == "simple" and (root / "_targets.R").exists():
+        issues.append(
+            {
+                "code": "simple-has-targets-entry",
+                "message": "simple mode must not create _targets.R; choose complex or remove the unintended entry",
+            }
+        )
 
     missing = sorted(set(missing))
     status = "pass" if not missing and not issues else "fail"

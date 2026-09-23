@@ -27,4 +27,4 @@ products/: only explicitly exported scientific objects
 
 ## existing
 
-已有编号脚本、旧 runner 或 checkpoint 的项目保持原入口并标记 `preserved-existing`。迁移不是新默认；必须有人类授权、结果比对和回退安排。
+已有编号脚本或旧 runner 的项目按 simple 语义维护：编号脚本作为顺序执行的普通入口，不设专门兼容模式；自制 checkpoint 体系已移除，不再维护。迁移不是新默认；必须有人类授权、结果比对和回退安排。

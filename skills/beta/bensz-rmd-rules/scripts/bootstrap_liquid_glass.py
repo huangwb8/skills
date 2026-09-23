@@ -96,9 +96,8 @@ def main(argv: list[str]) -> int:
         ]:
             tasks.append((src_templates / name, project_root / "templates" / name))
     if args.with_pipeline:
-        # New projects use targets-managed state; do not copy the legacy
-        # checkpoint helper. Existing projects must opt into that compatibility
-        # path explicitly instead of receiving a second cache by default.
+        # New projects use targets-managed state; the legacy checkpoint helper
+        # has been removed and is never copied.
         tasks.extend(
             [
                 (src_templates / "_targets.R", project_root / "_targets.R"),

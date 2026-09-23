@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed
+
+- 版本更新至 `0.28.0`：全面转向 targets-first，移除历史编号脚本执行体系的全部兼容——`preserved-existing` 模式删除，工作流模式收敛为 `simple`/`complex`；`existing` 降级为项目状态：有 `_targets.R` 按 complex 维护，无 targets（含历史编号脚本）按 simple 语义维护，需要复杂能力时显式迁移。新增 `_targets.R` 人类可读性契约：阶段注释分组、语义化 target 命名、交付摘要附 `tar_manifest()` 快照。
+
+### Removed
+
+- 删除 `scripts/run_analysis_workflow.py`（编号 runner）、`scripts/check_analysis_workflow.py`（编号单元检查器）与 `qa/test_analysis_workflow.py`；`config.yaml` 删除 `naming_convention.existing_unit_pattern` 与 `existing_project.workflow_mode: preserved-existing`。
+- `check_targets_renv.py` 与 `check_pipeline_contract.py` 移除 `preserved-existing` 工作流模式与全部兼容分支：`--workflow-mode` 只接受 `auto|simple|complex`，auto 按 `_targets.R` 存在性解析；existing 项目的缺失机制降级为 warning，模式契约冲突（simple 携带 `_targets.R`、complex 缺 `tar_source("R")`）仍报 error。
+- `templates/tests/test_harness.R` 解除 `preserved-existing` 模式耦合，`workflow_mode` 只接受 `simple`/`complex`；同步更新 `SKILL.md`、`README.md`、`workflow_modes.md`、`analysis_workflow_cache.md`、`hybrid_architecture_guide.md`、`hybrid_architecture_examples.md`、`lightweight_testing.md`、`workflow_checklist.md` 与 `evals/evals.json` 的 existing 语义。
+
+### Changed
+
+- 版本更新至 `0.27.0`：移除全部 legacy 兼容功能（自制 checkpoint 体系、旧 `tmp/{主脚本名}/` 产品路径模式与 legacy 信号检测/检查器分支），`preserved-existing` 只保留编号 runner 与"不自动迁移"边界。
+
+### Removed
+
+- 移除旧 checkpoint/自制缓存体系：删除 `templates/checkpoint_helpers.R` 与 `qa/test_checkpoint_helpers.R`；`check_analysis_workflow.py` 删除 checkpoint/SUCCESS/metadata 完整性校验、plan 单元 `cache` 字段契约与 `--allow-stale-checkpoints`；`run_analysis_workflow.py` 删除 `--force-step`/`--resume-from` 与 `BENSZ_FORCE_STEP`/`BENSZ_RESUME_FROM` 环境传递。
+- 移除旧 `tmp/{主脚本名}/` 产品路径模式：删除 `config.yaml` 的 `legacy_temp_pattern`、`check_analysis_workflow.py` 的 `--legacy` 参数与 legacy tmp 项目自动识别、`cross_platform.md` 的"旧 `tmp/` 项目"专节；科学产物只进 `products/`、正式材料只进 `reports/`。
+- 移除 legacy 信号检测与检查器分支：`check_targets_renv.py` 的 `observed_mechanisms` 不再报告 `legacy_runner` 信号、删除 `complex-uses-legacy-cache` token 检查；`check_pipeline_contract.py` 删除 SUCCESS/checkpoint/force-step/resume token 黑名单与 `legacy-checkpoint-in-new-pipeline` 文件检查；`config.yaml` 删除 `legacy_runner_fallback`、`preserve_existing_runner`、`legacy_runner` 块与 `legacy_checkpoint_allowed`。
+- 同步清理 `SKILL.md`、`hybrid_architecture_guide.md`、`hybrid_architecture_examples.md`、`analysis_workflow_cache.md`、`evals/evals.json` 中"历史项目可继续维护原 helper/tmp 路径"的兼容描述。
+
+### Fixed
+
+- 修复 `qa/test_analysis_workflow.py` 模板断言过时：`Rmd_template.Rmd` 已切换为 `targets::tar_read()` 消费，断言仍检查旧 `file.path(products_dir, ...)` 写法导致失败；同步为断言 `targets::tar_read(`。
+
 ### Added
 
 - 新增 `scripts/check_pipeline_contract.py`，只读检查 targets-first pipeline 的 `_targets.R`、`R/`、Rmd target 消费、legacy checkpoint 禁用与 raw 绕过风险。

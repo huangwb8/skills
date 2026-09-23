@@ -31,7 +31,7 @@
 - harness 先设置 `BENSZ_TEST_RUN_ROOT`，再用正式入口已经识别的 `BENSZ_ANALYSIS_INPUT`、`BENSZ_PRODUCTS_DIR` 和 `BENSZ_REPORTS_DIR` 把输入、产品和报告绑定到同一 run root；`00.Environment.R` 只接受与该 run root 精确匹配的 `tmp/tests/<run-id>/{products,reports}`，不能借测试变量放宽任意 `tmp/` 写入。
 - 正式与测试必须调用同一计算函数和同一报告入口。若正式代码无法在不加入测试分支的情况下隔离路径，应先修正路径边界。
 
-existing 项目实质修改后仍应沿用原入口做可行的轻量运行，但不得为测试补建 renv、targets、编号布局或新版测试框架。可以使用一次性隔离副本；若旧入口硬编码绝对路径或会覆盖正式结果，将其记录为 `path_isolation` 阻塞/风险，请人类决定是否授权最小可测试性改造。
+existing 项目实质修改后仍应沿其现有 targets 或顺序脚本入口做可行的轻量运行，但不得为测试补建 renv、targets 或持久测试框架。可以使用一次性隔离副本；若旧入口硬编码绝对路径或会覆盖正式结果，将其记录为 `path_isolation` 阻塞/风险，请人类决定是否授权最小可测试性改造或显式迁移。
 
 ## 最低断言
 

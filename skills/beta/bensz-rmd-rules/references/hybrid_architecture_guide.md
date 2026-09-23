@@ -25,7 +25,7 @@
 | `_targets.R` | 依赖、失效、增量执行与可选报告 target | 科学解释与自定义缓存协议 |
 | `.Rmd` | `tar_read()`/`tar_load()`、展示参数、图表和解读 | 从 raw 重做昂贵计算 |
 | `_targets/` | targets 机器计算状态 | 正式科学产品 |
-| `products/` | 审阅、复用或交付的科学对象 | SUCCESS/identity/恢复判断 |
+| `products/` | 审阅、复用或交付的科学对象 | 缓存命中与恢复判断 |
 | `reports/` | 论文图、表、HTML、补充材料 | 源码、模型缓存、运行日志 |
 | `tmp/tests/<run-id>/` | 测试输入、隔离 store、日志与运行记录 | 正式结论唯一来源 |
 
@@ -43,4 +43,4 @@
 
 ## existing 与迁移
 
-已有编号脚本、旧 runner、`tmp` 产品或 checkpoint 的项目保持原入口并标注 legacy/preserved-existing。只有人类明确授权迁移时，才建立旧→新映射、结果比对、回退入口和清理计划；新默认不隐式迁移。
+已有编号脚本或旧 runner 的项目按 simple 语义维护：编号脚本只是顺序执行的普通 Rscript 入口，不设专门兼容模式；自制 checkpoint、编号 runner 与 `tmp/{主脚本名}/` 产品路径模式已移除，不再维护。只有人类明确授权迁移时，才建立旧→新映射、结果比对、回退入口和清理计划；新默认不隐式迁移。

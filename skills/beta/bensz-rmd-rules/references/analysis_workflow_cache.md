@@ -2,9 +2,9 @@
 
 ## 1. 唯一计算事实来源
 
-在新 `complex/pipeline` 项目中，`_targets.R` 是唯一 DAG、依赖、失效和增量重建入口；`_targets/` 是 targets 自己管理的机器状态。不要再复制一套 `SUCCESS`、identity hash、metadata checkpoint 或编号 runner 来决定是否重算。
+在 `complex/pipeline` 项目中，`_targets.R` 是唯一 DAG、依赖、失效和增量重建入口；`_targets/` 是 targets 自己管理的机器状态。`SUCCESS`、identity hash、metadata checkpoint 这套自制缓存/恢复体系已从本 Skill 移除，不得重新引入。
 
-`analysis-plan.yaml` 只做需求映射、target/报告关系和验收记录，不是调度器。历史项目已有的 runner 或 checkpoint 只在 `existing/preserved-existing` 分支保留，迁移必须显式授权。
+`analysis-plan.yaml` 只做需求映射、target/报告关系和验收记录，不是调度器，也没有任何编号 runner 承载它；迁移到 targets 必须显式授权。
 
 ## 2. 科学产品与报告
 

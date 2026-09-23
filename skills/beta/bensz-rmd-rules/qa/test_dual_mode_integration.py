@@ -96,7 +96,7 @@ class DualModeRealExecution(unittest.TestCase):
             check=False,
         )
 
-    def test_bootstrap_places_pipeline_assets_without_legacy_checkpoint(self):
+    def test_bootstrap_places_pipeline_assets(self):
         with tempfile.TemporaryDirectory(prefix="rmd-bootstrap-", dir=self.temp_parent) as tmp:
             root = Path(tmp)
             result = subprocess.run(
@@ -108,7 +108,6 @@ class DualModeRealExecution(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue((root / "_targets.R").is_file())
             self.assertTrue((root / "R" / "analysis_functions.R").is_file())
-            self.assertFalse((root / "scripts" / "lib" / "checkpoint_helpers.R").exists())
             self.assertTrue((root / "templates" / "liquid_glass_theme.css").is_file())
 
     @unittest.skipUnless(r_has(["renv", "rmarkdown"], require_pandoc=True), "R renv + rmarkdown + pandoc required")

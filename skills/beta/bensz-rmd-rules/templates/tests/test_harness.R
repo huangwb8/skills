@@ -82,13 +82,7 @@ bensz_test_begin <- function(
   observed_mechanisms = Sys.getenv("BENSZ_OBSERVED_MECHANISMS", unset = "")
 ) {
   if (!project_state %in% c("new", "existing")) stop("Invalid project_state")
-  if (!workflow_mode %in% c("simple", "complex", "preserved-existing")) stop("Invalid workflow_mode")
-  if (identical(project_state, "new") && identical(workflow_mode, "preserved-existing")) {
-    stop("New projects cannot use preserved-existing")
-  }
-  if (identical(project_state, "existing") && !identical(workflow_mode, "preserved-existing")) {
-    stop("Existing projects must use preserved-existing")
-  }
+  if (!workflow_mode %in% c("simple", "complex")) stop("Invalid workflow_mode")
   if (!test_style %in% c("synthetic_fixture", "project_subset")) stop("Invalid test_style")
   if (identical(project_state, "existing") && !nzchar(observed_mechanisms)) {
     stop("Existing-project tests must describe observed mechanisms via BENSZ_OBSERVED_MECHANISMS")
