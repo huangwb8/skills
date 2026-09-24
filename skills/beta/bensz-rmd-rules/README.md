@@ -1,6 +1,6 @@
 # bensz-rmd-rules
 
-面向 **R 数据分析、R Markdown 报告、可复现 targets 流程、论文级图表与证据解读** 的 Agent Skill。当前版本以 [`config.yaml`](config.yaml) 中的 `skill_info.version`（`0.28.0`）为准；本目录属于 beta 候选源。
+面向 **R 数据分析、R Markdown 报告、可复现 targets 流程、论文级图表与证据解读** 的 Agent Skill。当前版本以 [`config.yaml`](config.yaml) 中的 `skill_info.version` 为准；本目录属于 beta 候选源。
 
 ## 什么时候使用
 

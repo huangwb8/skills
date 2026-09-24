@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed
+
+- 版本更新至 `0.28.1`：Liquid Glass 在 `pre`/`code` 区域关闭标准与上下文连字，避免 Cascadia Code 等编程字体把 R 的 ASCII 赋值运算符 `<-` 显示成单个 `←` 字形；新增静态回归测试并补充旧项目主题同步说明。
+
 ### Changed
 
 - 版本更新至 `0.28.0`：全面转向 targets-first，移除历史编号脚本执行体系的全部兼容——`preserved-existing` 模式删除，工作流模式收敛为 `simple`/`complex`；`existing` 降级为项目状态：有 `_targets.R` 按 complex 维护，无 targets（含历史编号脚本）按 simple 语义维护，需要复杂能力时显式迁移。新增 `_targets.R` 人类可读性契约：阶段注释分组、语义化 target 命名、交付摘要附 `tar_manifest()` 快照。

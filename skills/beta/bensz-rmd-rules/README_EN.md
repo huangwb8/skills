@@ -1,6 +1,6 @@
 # bensz-rmd-rules
 
-An Agent Skill for **R data analysis, R Markdown reports, reproducible targets workflows, publication-quality plots, and evidence-anchored interpretation**. The current version is `skill_info.version` (`0.28.0`) in [`config.yaml`](config.yaml); this directory is a beta candidate source.
+An Agent Skill for **R data analysis, R Markdown reports, reproducible targets workflows, publication-quality plots, and evidence-anchored interpretation**. The current version is `skill_info.version` in [`config.yaml`](config.yaml); this directory is a beta candidate source.
 
 ## When to use it
 

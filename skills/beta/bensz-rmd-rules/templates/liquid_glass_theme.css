@@ -452,6 +452,15 @@ code.sourceCode {
   word-break: break-word;
 }
 
+/* Preserve source spelling: programming fonts such as Cascadia Code can turn
+   R's two-character assignment operator `<-` into a single arrow glyph. */
+pre,
+code {
+  -webkit-font-variant-ligatures: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
+}
+
 /* Glass effect overlay on code blocks */
 /* NOTE:
  * Previously we had a moving "shine" overlay on code blocks (pre::before).
