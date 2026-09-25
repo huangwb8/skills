@@ -83,7 +83,7 @@ python3 <skill-root>/scripts/check_rmd_template_yaml.py <project>/report.Rmd
 Rscript <project>/scripts/tests/smoke_test.R
 ```
 
-Use [`check_plot_readability.R`](scripts/check_plot_readability.R) for plot readability and [`validate_paths.R`](scripts/validate_paths.R) for path safety. Initialize the Liquid Glass theme with [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py); delegate HTML rendering to `knit-rmd-html`.
+Use [`check_plot_readability.R`](scripts/check_plot_readability.R) for plot readability and [`validate_paths.R`](scripts/validate_paths.R) for path safety. Initialize the Liquid Glass theme with [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py); its desktop dynamic TOC expands the interactive area immediately so the pointer can enter the menu. Delegate HTML rendering to `knit-rmd-html`.
 
 ## Plot and interpretation rules
 

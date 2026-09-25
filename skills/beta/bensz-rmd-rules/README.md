@@ -83,7 +83,7 @@ python3 <skill-root>/scripts/check_rmd_template_yaml.py <project>/report.Rmd
 Rscript <project>/scripts/tests/smoke_test.R
 ```
 
-图表可读性检查器为 [`check_plot_readability.R`](scripts/check_plot_readability.R)，路径安全检查器为 [`validate_paths.R`](scripts/validate_paths.R)。Liquid Glass 主题可用 [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py) 初始化；HTML 渲染交给 `knit-rmd-html`。
+图表可读性检查器为 [`check_plot_readability.R`](scripts/check_plot_readability.R)，路径安全检查器为 [`validate_paths.R`](scripts/validate_paths.R)。Liquid Glass 主题可用 [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py) 初始化；桌面动态目录会立即扩展可交互区域，避免鼠标移入时收回。HTML 渲染交给 `knit-rmd-html`。
 
 ## 图表与解读规范
 

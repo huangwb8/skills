@@ -1018,12 +1018,8 @@ hr::after {
     border-radius: 999px;
     box-shadow: var(--lg-shadow-lg);
     border: 1px solid rgba(255, 255, 255, 0.22);
-    /* Keep the rounded hit-test boundary discrete; animating it flickers :hover. */
-    transition:
-      width var(--lg-transition-base),
-      max-height var(--lg-transition-base),
-      padding var(--lg-transition-base),
-      box-shadow var(--lg-transition-base);
+    /* Switch the hit-test area immediately so the pointer can enter the menu. */
+    transition: box-shadow var(--lg-transition-base);
   }
 
   html.lg-toc-mode-dynamic.lg-toc-layout #TOC::before {

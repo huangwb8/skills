@@ -9,7 +9,7 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.28.1"
+  version: "0.28.2"
   description: "规划并实现可复现的 R/R Markdown 分析流水线：新项目按复杂度选择 simple 或 targets-first complex/pipeline，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 以 _targets.R + R/ 为唯一计算编排，Rmd 只消费 targets 结果。已有项目不自动迁移或补齐机制：有 _targets.R 的按 complex 维护，无 targets 的（含历史编号脚本）按 simple 语义维护，需要复杂能力时显式迁移；不维护任何历史编号 runner。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"

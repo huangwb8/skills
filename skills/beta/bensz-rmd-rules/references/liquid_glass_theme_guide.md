@@ -35,7 +35,7 @@ python3 skills/knit-rmd-html/scripts/knit_rmd_html.py your_report.Rmd
 
 ## 目录与交互
 
-- 桌面（>1024px）：动态模式以左上角小圆点展开；可切换静态常驻，偏好写入浏览器存储。
+- 桌面（>1024px）：动态模式以左上角小圆点展开；目录的可交互区域立即展开，鼠标可直接移入正文，可切换静态常驻，偏好写入浏览器存储。
 - 窄屏（≤1024px）：目录回到顶部并折叠为 sticky 卡片；点击展开，跳转后收起并处理标题偏移。
 - 代码块：启用 `after_body` 后在右上角显示 Copy；现代浏览器用 Clipboard API，旧浏览器或 `file://` 降级为 `execCommand`。主题会关闭代码字体连字，确保 R 的 `<-` 等多字符运算符保持源码字面形态，不被合成箭头字形。
 - Lightbox：点击图片放大，Esc/空白处关闭；`Ctrl/Cmd + (+/-/0)` 可用页面缩放，刷新后尽量恢复位置。
@@ -69,6 +69,7 @@ python3 skills/knit-rmd-html/scripts/knit_rmd_html.py your_report.Rmd
 
 - 样式无效：确认两个模板存在，YAML 使用正确相对路径，且 `toc_float` 时保留 `theme: default`；必要时强制刷新。
 - 目录不显示：检查文档有 H2/H3，桌面窗口宽度是否 >1024px。
+- 目录悬停时闪烁或刚展开就收回：更新项目中的 `liquid_glass_theme.css` 并重新渲染 HTML；已有项目的模板不会随 Skill 源码自动更新，若使用 `bootstrap_liquid_glass.py --force`，请先检查项目里是否有自定义主题改动。
 - 深色模式不切换：检查系统偏好和浏览器 `prefers-color-scheme` 支持。
 - `<-` 显示成 `←`：确认项目中的 `liquid_glass_theme.css` 已更新；旧项目需重新运行初始化脚本并显式使用 `--force`，或手动同步主题文件。该现象只影响字体显示，复制出的源码通常仍是 `<-`。
 - 不需要缩放/滚动保持：移除 `includes.after_body` 或换用仅含 Lightbox 的文件。

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed
 
+- 版本更新至 `0.28.2`：Liquid Glass 桌面动态 TOC 的宽度、最大高度和内边距立即切换，避免鼠标在展开动画期间移入目录正文时触发收回；保留阴影和内容透明度过渡，并新增 Chromium 交互回归测试。
 - 版本更新至 `0.28.1`：Liquid Glass 在 `pre`/`code` 区域关闭标准与上下文连字，避免 Cascadia Code 等编程字体把 R 的 ASCII 赋值运算符 `<-` 显示成单个 `←` 字形；新增静态回归测试并补充旧项目主题同步说明。
 
 ### Changed
