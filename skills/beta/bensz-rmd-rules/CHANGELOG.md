@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added
+
+- 版本更新至 `0.29.0`：论文级关键估计对象在计算前逐项决定推断目的、方法、CI/检验可用性；新增 `statistical_inference_protocol.md`，规定完整计算结果、不可估计状态与报告对应。分析计划提供可选推断节点，simple/complex Rmd 模板、解读指南、审查和交付清单同步要求估计值、适当 CI、适用的 p/q 及来源。保留文本检查器的启发式定位，不将关键词命中当作推断完整性证明。
+
 ### Fixed
 
 - 版本更新至 `0.28.2`：Liquid Glass 桌面动态 TOC 的宽度、最大高度和内边距立即切换，避免鼠标在展开动画期间移入目录正文时触发收回；保留阴影和内容透明度过渡，并新增 Chromium 交互回归测试。

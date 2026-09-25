@@ -53,6 +53,10 @@ project-root/
 
 The [`_targets.R`](templates/_targets.R) template uses `tar_source("R")`; [`R_data_template.R`](templates/R_data_template.R) provides a data-preparation starting point; [`Rmd_template.Rmd`](templates/Rmd_template.Rmd) consumes `analysis_results` with `targets::tar_read()`; simple projects can start from [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd).
 
+## Statistical inference completeness
+
+Before a paper-level analysis, list the primary and conclusion-relevant secondary estimands, including the target population, analysis unit, comparison, design, and inferential purpose. Where valid, retain the estimate and unit, effective N/event count, and an appropriate 95% CI by default; follow a preregistered confidence level when it differs. Report a p-value only for a defined hypothesis, and identify the adjustment method plus q-value or adjusted p-value for multiple tests. Reports must cite the computed results and explain practical magnitude and limitations. Mark fixed constants or descriptive quantities `not_applicable`, unsupported inference `not_estimable` with reasons and alternatives, and unexecuted work `not_run`. Do not fabricate CI/p-values or treat keyword checks as proof of statistical validity. See [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md).
+
 ## Lightweight testing and recovery
 
 Every new or materially changed flow must run one real test style:

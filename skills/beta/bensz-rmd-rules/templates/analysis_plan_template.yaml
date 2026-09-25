@@ -19,6 +19,18 @@ targets:
     inputs: ["prepared_data"]
     scientific_products: ["products/analysis_results.rds"]
     completion: "target 成功，关键数值与不变量断言通过"
+# 可选：仅在关键结果涉及样本推断时填写；simple 可用等价短表或方法段，不需此文件。
+inference:
+  - parameter: "主要结局的组间均值差（示例，需替换）"
+    estimand: "目标人群中 A 组减 B 组的均值差，单位同结局"
+    design: "独立两组；确认抽样单位、缺失和组内相关后选方法"
+    method: "按实际设计选择有效区间与检验；此处不预设 t/Wald 方法"
+    confidence_level: 0.95 # 仅示例默认值；预注册方案另有规定时以方案为准
+    null_hypothesis: "两组均值差为 0；若只做估计则填 not_applicable"
+    test_sidedness: "预先声明单侧或双侧；不检验时填 not_applicable"
+    multiplicity: "说明比较族、校正方法；无多重检验时填 not_applicable"
+    not_estimable_when: "有效样本不足、设计/模型不支持有效推断时记录原因与替代分析"
+    result_destination: "analysis_results 的完整结果及 Rmd 主要结果段"
 reports:
   - path: "reports/"
     consumer: "Rmd 使用 targets::tar_read('analysis_results')"

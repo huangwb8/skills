@@ -53,6 +53,10 @@ renv.lock → _targets.R → R/ functions → target results → Rmd → reports
 
 模板 [`_targets.R`](templates/_targets.R) 使用 `tar_source("R")`；[`R_data_template.R`](templates/R_data_template.R) 提供数据处理起点；[`Rmd_template.Rmd`](templates/Rmd_template.Rmd) 通过 `targets::tar_read()` 消费 `analysis_results`；simple 可从 [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd) 开始。
 
+## 统计推断完整性
+
+论文级分析在计算前列出主要及影响结论的次要估计对象，确认目标人群、观察单位、对比、设计和推断目的。方法允许时，完整结果保留估计值与单位、有效 N/事件数、适当的默认 95% CI；只有零假设明确时才报告 p 值，批量检验同时说明校正方法及 q/调整后 p。预注册方案另定置信水平时按方案执行。报告引用计算结果并解释效应的实际意义和局限。固定常数或纯描述结果可标 `not_applicable`；数据或设计无法支持推断时标 `not_estimable` 并说明原因与替代分析；未运行标 `not_run`。不凭空补 CI/p，也不以文本关键词检查代替方法复核。详见 [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md)。
+
 ## 轻量测试与恢复
 
 新建或实质修改的流程必须真实运行一种测试：

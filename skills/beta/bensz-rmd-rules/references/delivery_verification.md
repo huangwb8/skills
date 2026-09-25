@@ -12,6 +12,8 @@
 | 真实轻量运行 | PASS/FAIL/BLOCKED | 正式入口、唯一 run root、命令、退出码；不得用 dry-run 替代 |
 | 测试隔离 | PASS/FAIL | raw/正式 products/reports/_targets 前后不变；test store 路径 |
 | 数据与科学断言 | PASS/FAIL | schema、主键/分组、范围/不变量、边缘条件 |
+| 主要估计对象推断 | PASS/FAIL/NA/NOT_RUN | 逐项列参数、估计值/CI/有效 N/方法及适用的 p/q，或明确 `not_applicable`、`not_estimable`、`not_run` 和理由 |
+| 方法与报告对应 | PASS/FAIL/NA/NOT_RUN | 计算代码/完整结果表/报告位置；配对、聚类、删失、缺失、模型假设和多重比较复核；文本检查不作方法证明 |
 | 预期交付生成 | PASS/FAIL | 产品、报告、图表可读性与数字追溯 |
 | targets 恢复 | PASS/FAIL/NA | `tar_meta()`、outdated 集合、store 损坏/失效/中断恢复用例 |
 | 串行审查 | PASS/FAIL/DEGRADED | 三项只读结果与修正摘要 |
@@ -33,6 +35,7 @@
 - 正式路径前后不变性：
 - subject identity 与环境来源：
 - preflight / lightweight_execution / full_data_execution（未跑全量为 NOT_RUN）：
+- 逐参数推断状态（已计算并验证 / 不适用 / 受数据或设计限制 / 未运行）与报告数字来源：
 - project subset cleanup：
 - 未运行、阻塞或无法确认的项目：
 - 剩余风险与恢复入口：

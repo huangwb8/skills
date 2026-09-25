@@ -3,7 +3,7 @@
 - 更新
 
 ```
-repo-version = 5.0.12
+repo-version = 5.0.13
 bsk-version = 2.1.6
 
 请您：
@@ -65,6 +65,10 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 ```
 
 # 日常
+
+---
+
+根据 docs/plans/2026-09-25-bensz-rmd-rules-统计推断完整性优化计划.md 优化skill
 
 ---
 

@@ -5,6 +5,21 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [5.0.13] - 2026-09-25
+
+### Added（新增）
+
+- `bensz-rmd-rules` 更新至 0.29.0：论文级关键估计对象在计算前逐项决定推断目的、方法、CI/检验可用性；新增 `statistical_inference_protocol.md`，规定完整计算结果、不可估计状态与报告对应。分析计划提供可选推断节点，simple/complex Rmd 模板、解读指南、审查和交付清单同步要求估计值、适当 CI、适用的 p/q 及来源；保留文本检查器的启发式定位，不将关键词命中当作推断完整性证明。
+
+### Fixed（修复）
+
+- `bensz-rmd-rules` 更新至 0.28.1：Liquid Glass 在 `pre`/`code` 区域关闭标准与上下文连字，修复 Cascadia Code 等编程字体把 R 的 ASCII 赋值运算符 `<-` 显示为单个箭头字形的问题。
+- `bensz-rmd-rules` 更新至 0.28.2：Liquid Glass 桌面动态 TOC 的宽度、最大高度和内边距立即切换，修复鼠标在展开动画期间移入目录正文时触发收回的问题，并新增 Chromium 交互回归测试。
+
+### Changed（变更）
+
+- 根仓库与 Kernel 中英文 README 对照当前源代码逐项核验一致（16 个 alpha Skill、Kernel 2.1.6、安装入口与全部引用文件），本版本无需内容变更。
+
 ## [5.0.12] - 2026-09-21
 
 ### Added（新增）
