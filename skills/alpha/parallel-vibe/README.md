@@ -4,7 +4,7 @@
 
 ## 这是什么
 
-`parallel-vibe` 用来让多个独立 thread 围绕同一条 Vibe Coding 指令给出不同视角，再由主 agent 汇总共识、分歧和推荐路线。
+`parallel-vibe` 是统一的多 Agent 执行底座。它让多个独立 thread 围绕同一条 Vibe Coding 指令给出不同视角，或按上游 Skill 的计划执行 focused-agent、串行和并行任务，再由主 agent 汇总共识、分歧和推荐路线。
 
 默认推荐 **智能模式**：直接使用宿主工具的原生 subagent / 独立上下文能力。两种模式都使用同一套 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/parallel-vibe/{yyyy-mm-dd-hh-mm}/` 运行目录、`@main/plan.json`、thread `workspace/`、`RESULT.md` 和 `runner.log`；区别只在 thread 的底层执行机制。
 

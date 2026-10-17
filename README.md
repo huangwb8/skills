@@ -65,13 +65,13 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 ## Skill 导航
 
-当前 `skills/alpha/` 包含 16 个生产 Skill：
+当前 `skills/alpha/` 包含 17 个生产 Skill：
 
 | 方向 | Skill |
 | --- | --- |
 | 初始化与文档 | `init-project` · `write-readme` |
 | 测试与协作 | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
-| Prompt 与创作 | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
+| Prompt 与创作 | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` · `humanization` |
 | 安装与版本 | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
 | 治理 | `bensz-collect-bugs` · `verifier-state-architect` |
 

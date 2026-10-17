@@ -1,6 +1,6 @@
 ---
 name: awesome-code
-description: 当用户明确要求使用 awesome-code、进行多代理协作或并行协调开发时使用。根据任务选择合适的协作方式并协调专业 Agent。⚠️ 不适用：用户只需单一角色完成简单修改或咨询，或未表达多代理协作意图。
+description: 当用户明确要求使用 awesome-code、进行多代理协作或需要复杂任务规划时使用。它负责拆解任务、选择专业角色、设置门禁并审查结果；所有 Agent 的创建、隔离、串行或并行执行都必须交给 `parallel-vibe`。⚠️ 不适用：用户只需单一角色完成简单修改或咨询，或未表达多代理协作意图。
 metadata:
   short-description: AI 自主规划多代理软件开发协调系统
   keywords:
@@ -19,13 +19,13 @@ metadata:
 
 ## 目标
 
-当用户明确要求"使用 awesome-code / 多代理协作 / 并行协调开发"时使用。通过脚本收集可用 Agent 摘要、配置约束与 `dispatch_gate`，再由 AI 自主判断 single-pass / focused-agent / parallel / sequential 策略并选择子代理；当配置中的 required route agent 缺失时必须阻塞继续执行。⚠️ 不适用：用户仅需单一角色的简单修改或咨询、用户未明确表达多代理协作意图、用户只是了解技能概念。
+当用户明确要求"使用 awesome-code / 多代理协作 / 并行协调开发"时使用。通过脚本收集可用 Agent 摘要、配置约束与 `dispatch_gate`，再由 AI 负责任务拆解、角色选择和策略规划；只要计划使用 Agent，就必须把创建、隔离、串行或并行执行交给 `parallel-vibe`，本 Skill 不得直接创建或调度 Agent。当配置中的 required route agent 缺失时必须阻塞继续执行。⚠️ 不适用：用户仅需单一角色的简单修改或咨询、用户未表达多代理协作意图、用户只是了解技能概念。
 
 ## 流程
 
 ### 输入
 
-输入为用户的复杂开发任务、项目根目录和可用 Agent 配置；可选输入包括 `config.yaml` 的 required route、脚本路径和已有任务工作区。仅在用户明确要求多代理/并行协调时触发；复杂开发任务可在获得该授权后由本 Skill 编排，单一角色的局部任务不走本 Skill。
+输入为用户的复杂开发任务、项目根目录和可用 Agent 配置；可选输入包括 `config.yaml` 的 required route、`parallel-vibe` 执行底座、脚本路径和已有任务工作区。仅在用户明确要求多代理/并行协调时触发；复杂开发任务可在获得该授权后由本 Skill 规划，单一角色的局部任务不走本 Skill。
 
 ### 执行步骤
 
@@ -56,6 +56,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - 强制门禁：配置中的 required route agent 缺失、禁用或不可调度时，必须通过 `dispatch_gate` 阻塞继续执行
 - 留痕可审计：实际调用 required agent 后，需要补 `dispatch_receipts` 才能证明门禁已被满足
 - 专业化分工：每个子代理专注一个领域，降低单模型的认知负担
+- 执行底座分离：`awesome-code` 只负责规划、角色选择、门禁和结果审查；Agent 的创建、工作区隔离、串行/并行调度、回收与汇总统一由 `parallel-vibe` 负责
 - 渐进式信息披露：只在需要时加载对应子代理的 `SKILL.md`
 
 #### 代理团队
@@ -85,19 +86,20 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
    - 停止继续执行，不要假装已经进入实现阶段
    - 明确说明 `blocking_reason` 与 `missing_agents`
    - 只给出“如何补齐 required route agent / 配置 / 运行条件”的下一步
-4. 若门禁允许继续，AI 自主规划：
+4. 读取 `execution_contract`。若计划使用任何 Agent，必须调用配置中声明的执行底座；若契约缺失或无效，`dispatch_gate` 必须阻塞多代理路径，不得由本 Skill 补默认底座，也不得直接调用宿主的 spawn 或并发机制。
+5. 若门禁允许继续，AI 自主规划：
    - 阅读任务描述和 `available_agents` 的 `description`
    - 判断是否需要澄清；用户要求自主推进时，选择最保守且可验证的假设
    - 自行选择 `single-pass`、`focused-agent`、`parallel` 或 `sequential`
    - 若选择子代理，只加载选中 Agent 的 `awesome-code/agents/{role}/SKILL.md`
    - 若判断某个 `config_constraints.required_routes` 适用，该 route 中的 agents 视为 required
-5. 按规划执行：
+6. 按规划执行：
    - single-pass：主模型直接完成
-   - focused-agent：调用一个主代理并整合结果
-   - parallel：相互独立的任务并行，例如测试、文档、静态检查
-   - sequential：存在依赖链的任务顺序执行，例如先定位根因、再修复、再补测试
+   - focused-agent：把一个 Agent 的执行计划交给 `parallel-vibe`
+   - parallel：把相互独立的 Agent 任务交给 `parallel-vibe` 并行执行
+   - sequential：把存在依赖链的 Agent 任务交给 `parallel-vibe` 按序执行
    - 全程遵守 `dispatch_guidance` 的最小变更边界
-6. 聚合结果并留痕：
+7. 聚合结果并留痕：
    - 统一口径（术语/目标/约束）
    - 标注 P0/P1/P2 优先级
    - 为实际调用的 required agent 回填 `dispatch_receipts`
@@ -138,6 +140,7 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 
 - 版本号仅在 `awesome-code/config.yaml:skill_info.version` 维护；`SKILL.md` 不记录版本历史。
 - 代理启用状态：`awesome-code/config.yaml:multi_agent.enabled_agents`
+- 多代理执行底座：`awesome-code/config.yaml:dependencies.agent_execution`（当前声明为 `parallel-vibe`；运行时不补默认值）
 - 强制分派策略：`awesome-code/config.yaml:multi_agent.dispatch_policy.*`
 - 质量阈值/开关：`awesome-code/config.yaml:tdd`、`awesome-code/config.yaml:code_review` 等
 - 变更记录：`awesome-code/CHANGELOG.md`
@@ -173,17 +176,18 @@ python3 /ABS/PATH/awesome-code/scripts/agent_coordinator.py "fix login bug"
 - `dispatch_gate.blocking_reason`
 - `dispatch_gate.missing_agents`
 - `dispatch_guidance`
+- `execution_contract`
 
 ### 输出管理
 
 #### BenszAPI 任务工作区
 
 
-本技能用于“复杂开发任务”的多代理编排：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成。
+本技能用于“复杂开发任务”的多代理规划：确定性脚本只负责路径发现、Agent 摘要收集、配置约束读取和 required route 可用性门禁；任务理解、Agent 选择与执行策略由 AI 自主完成，实际 Agent 执行必须通过 `parallel-vibe`。
 
 ### 校验
 
-校验 `get_path.py` 与 `agent_coordinator.py` 的输出是否包含 `available_agents`、`agent_count`、required routes 和 `dispatch_gate` 字段；确认所选策略与任务风险匹配、实际调用的 required agent 有 `dispatch_receipts`，并且结果与验证计划可追溯。
+校验 `get_path.py` 与 `agent_coordinator.py` 的输出是否包含 `available_agents`、`agent_count`、required routes、`dispatch_gate` 和 `execution_contract` 字段；确认执行契约完全来自配置，配置缺失或无效时门禁阻塞；确认所选策略与任务风险匹配、实际调用的 required agent 有 `dispatch_receipts`，并且结果与验证计划可追溯。
 
 ### 失败与恢复
 

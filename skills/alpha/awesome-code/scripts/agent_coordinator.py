@@ -72,7 +72,12 @@ class AgentCoordinator:
             required_routes,
             {agent["role"] for agent in available_agents if agent["enabled"]},
         )
-        dispatch_gate = self._build_dispatch_gate(missing_required_agents)
+        execution_contract = self._execution_contract()
+        dispatch_gate = self._build_dispatch_gate(
+            missing_required_agents,
+            execution_contract,
+        )
+        backend_skill = execution_contract.get("backend_skill") or "the configured execution backend"
 
         return {
             "task": task_description,
@@ -105,11 +110,13 @@ class AgentCoordinator:
                 },
             },
             "dispatch_gate": dispatch_gate,
+            "execution_contract": execution_contract,
             "dispatch_guidance": {
                 "planner_responsibility": [
                     "read the task and available agent descriptions",
                     "choose single-pass, focused-agent, parallel, or sequential execution",
                     "load only the selected agents' SKILL.md files",
+                    f"delegate every focused-agent, sequential, or parallel Agent execution to {backend_skill}",
                     "record dispatch_receipts for every required agent that is actually used",
                 ],
                 "minimal_change_scope_default": [
@@ -126,6 +133,49 @@ class AgentCoordinator:
                     "listed for that route are required and missing agents must block execution."
                 ),
             },
+        }
+
+    def _execution_contract(self) -> dict[str, Any]:
+        configured = get_nested(self.config, "dependencies", "agent_execution", default=None)
+        issues: list[str] = []
+        if not isinstance(configured, dict):
+            configured = {}
+            issues.append("missing dependencies.agent_execution configuration")
+
+        backend_skill = configured.get("skill")
+        if not isinstance(backend_skill, str) or not backend_skill.strip():
+            issues.append("dependencies.agent_execution.skill must be a non-empty string")
+            backend_skill = None
+        else:
+            backend_skill = backend_skill.strip()
+
+        required = configured.get("required")
+        if required is not True:
+            issues.append("dependencies.agent_execution.required must be true")
+
+        modes = configured.get("modes")
+        if not isinstance(modes, list) or not modes or not all(
+            isinstance(mode, str) and mode.strip() for mode in modes
+        ):
+            issues.append("dependencies.agent_execution.modes must be a non-empty string list")
+            modes = []
+        else:
+            modes = [mode.strip() for mode in modes]
+
+        responsibility = configured.get("responsibility")
+        if not isinstance(responsibility, str) or not responsibility.strip():
+            issues.append("dependencies.agent_execution.responsibility must be a non-empty string")
+            responsibility = None
+        else:
+            responsibility = responsibility.strip()
+
+        return {
+            "valid": not issues,
+            "backend_skill": backend_skill,
+            "required_for_multi_agent": required is True,
+            "modes": modes,
+            "responsibility": responsibility,
+            "blocking_reason": "; ".join(issues),
         }
 
     def analyze_task(self, task_description: str) -> dict[str, Any]:
@@ -158,13 +208,28 @@ class AgentCoordinator:
             )
         return agents
 
-    def _build_dispatch_gate(self, missing_required_agents: list[str]) -> dict[str, Any]:
-        can_proceed = not (self.fail_on_missing_required_agent and missing_required_agents)
+    def _build_dispatch_gate(
+        self,
+        missing_required_agents: list[str],
+        execution_contract: dict[str, Any],
+    ) -> dict[str, Any]:
+        missing_execution_contract = not bool(execution_contract.get("valid"))
+        can_proceed = not (
+            (self.fail_on_missing_required_agent and missing_required_agents)
+            or missing_execution_contract
+        )
+        blocking_reasons: list[str] = []
+        if missing_required_agents and self.fail_on_missing_required_agent:
+            blocking_reasons.append("configured required route agent unavailable")
+        if missing_execution_contract:
+            blocking_reasons.append(
+                execution_contract.get("blocking_reason") or "invalid agent execution contract"
+            )
         return {
             "can_proceed": can_proceed,
-            "blocking_reason": "" if can_proceed else "configured required route agent unavailable",
+            "blocking_reason": "; ".join(blocking_reasons),
             "missing_agents": missing_required_agents,
-            "runtime_capability_required": bool(missing_required_agents),
+            "runtime_capability_required": bool(missing_required_agents) or missing_execution_contract,
         }
 
 

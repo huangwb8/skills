@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.14] - 2026-10-17
+
+### Added（新增）
+
+- 新增 `tests/test_multi_agent_routing.py` 仓库级回归测试：断言 `init-project` 生成的模板以 `parallel-vibe` 为多 Agent 执行底座、`awesome-code` 显式声明必需执行依赖，防止执行底座偏置回退。
+
 ### Changed（变更）
 
 - 将 `nsfc-humanization` 的正式实现更名为 `humanization`，移除旧名源目录；安装器通过 `skill_aliases` 将旧安装参数解析为正式名称，指定任一名称均只安装或更新 `humanization`，并在正式 Skill 就绪后清理残留旧目录。原有 NSFC 润色范围、参数及保护规则保持不变。
+- `awesome-code` 更新至 3.0.5：职责收敛为多代理规划、角色选择与结果审查；`config.yaml` 新增 `dependencies.agent_execution`，声明 `parallel-vibe` 为必需执行底座，`focused-agent`、串行与并行策略均经其调度；`agent_coordinator.py` 移除执行底座、模式和责任文本的硬编码 fallback，配置缺失或不完整时由 `dispatch_gate` fail-closed。
+- `parallel-vibe` 更新至 0.4.4：明确承担其它 Skill 的统一多 Agent 执行底座，覆盖 `focused-agent`、串行和并行策略，同步更新触发描述。
+- 根仓库与 Kernel 中英文 README 对照当前源代码逐项核验（17 个 alpha Skill、Kernel 2.1.6、安装入口与全部引用文件）：修复 Skill 数量 16→17、导航表补入 `humanization`。
+
+### Fixed（修复）
+
+- `init-project` 更新至 2.4.1：修复生成的 `AGENTS.md` 模板无条件特别推荐 `awesome-code` 的多 Agent 执行底座偏置；改为由 `parallel-vibe` 统一承载多 Agent 的串行或并行执行，其它 Skill 限定为规划、角色选择和领域判断层。
 
 ## [5.0.13] - 2026-09-25
 

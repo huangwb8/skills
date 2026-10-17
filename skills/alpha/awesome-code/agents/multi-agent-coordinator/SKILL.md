@@ -1,8 +1,8 @@
 ---
 name: multi-agent-coordinator
-description: 用于执行包含独立任务的实施计划，将任务分派给新的子代理，并在任务之间进行协调与审查。
+description: 用于规划包含独立任务的实施计划、定义 Agent 角色和依赖，并通过 `parallel-vibe` 统一执行与审查；本角色不直接创建或调度子代理。
 metadata:
-  short-description: 多代理协调与编排
+  short-description: 多代理规划与协调
   keywords:
     - multi-agent-coordinator
     - 多代理
@@ -19,7 +19,9 @@ metadata:
   platform: Claude Code | OpenAI Codex | ChatGPT
 ---
 
-# Multi-Agent Coordinator - 多代理协调专家
+# Multi-Agent Coordinator - 多代理规划与协调专家
+
+本角色只负责任务拆分、依赖关系、验收标准和结果审查。需要启用 Agent 时，必须把执行计划交给 `parallel-vibe`，由它统一处理 focused-agent、串行和并行调度、工作区隔离、回收与汇总；不得直接调用宿主 spawn、线程或进程并发接口。
 
 ## 核心原则（Subagent-Driven Development）
 
@@ -60,10 +62,11 @@ metadata:
    - peer-to-peer：小团队/低耦合；允许子代理互相同步但必须记录决定
    - pipeline：强依赖链；按阶段推进（例如：设计→实现→测试→文档）
 
-3. 分派任务（可并行）
+3. 交给 `parallel-vibe` 执行任务计划
    - 先读取上游 `dispatch_gate`
    - 若 `dispatch_gate.can_proceed = false`，立即停止，不要绕过 required agent 继续执行
    - 若 `dispatch_gate.can_proceed = true`，优先调度 `required_agents`，再补 `preferred_agents`
+   - 在计划中声明 `focused-agent`、`sequential` 或 `parallel`，由 `parallel-vibe` 负责实际调度
    - 并行仅限“文件/模块不重叠”或“改动可安全合并”的任务
    - 明确要求：输出必须包含（a）改动说明（b）验证方式（c）潜在回滚点
 

@@ -6,11 +6,24 @@
 # ================================
 skill_info:
   name: awesome-code
-  version: 3.0.3
+  version: 3.0.5
   description: "AI 自主规划多代理软件开发协调系统"
   category: "软件开发工具"
   author: "Bensz Conan"
   license: "MIT"
+
+# ================================
+# 多代理执行依赖
+# ================================
+dependencies:
+  agent_execution:
+    skill: parallel-vibe
+    required: true
+    modes:
+      - focused-agent
+      - sequential
+      - parallel
+    responsibility: "由 parallel-vibe 统一创建、调度、隔离和回收 Agent；awesome-code 只负责规划与结果审查"
 
 # ================================
 # 多代理协调配置

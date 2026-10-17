@@ -65,13 +65,13 @@ The installer copies Skills to `~/.codex/skills/` and `~/.claude/skills/` by def
 
 ## Skill map
 
-The current `skills/alpha/` source contains 16 production Skills:
+The current `skills/alpha/` source contains 17 production Skills:
 
 | Area | Skills |
 | --- | --- |
 | Initialization and docs | `init-project` · `write-readme` |
 | Testing and collaboration | `auto-test-code` · `auto-test-skill` · `auto-test-project` · `awesome-code` · `parallel-vibe` |
-| Prompts and creation | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` |
+| Prompts and creation | `better-prompt` · `auto-draw-plot` · `compact-bensz-skills` · `humanization` |
 | Installation and release | `install-bensz-skills` · `git-commit` · `git-pr-review` · `git-publish-release` |
 | Governance | `bensz-collect-bugs` · `verifier-state-architect` |
 

@@ -4,6 +4,8 @@
 
 多代理协调是指将复杂任务分解为多个子任务，由专门的代理并行或协作完成，从而提升开发效率和系统可扩展性。
 
+本参考只描述任务拆分、依赖、冲突和聚合策略。Agent 的创建、工作区隔离、串行或并行调度、回收与汇总统一由 `parallel-vibe` 执行；示例中的“分配”表示写入执行计划，不表示直接调用宿主的 spawn 或线程接口。
+
 ## 何时使用多代理协调
 
 ### 适用场景
@@ -52,11 +54,8 @@ def orchestrator_main():
     modules = analyze_project_structure()
     tasks = decompose_tasks(modules)
 
-    # 2. 并行分配
-    agents = [spawn_agent(task) for task in tasks]
-
-    # 3. 收集结果
-    results = [agent.wait_for_result() for agent in agents]
+    # 2. 交给 parallel-vibe 执行计划（可按需串行或并行）
+    results = parallel_vibe.run(tasks, execution="parallel")
 
     # 4. 合并与验证
     merged = merge_and_validate(results)
@@ -317,9 +316,8 @@ def parallel_test_modules(modules):
         for module in modules
     ]
 
-    # 并行执行
-    agents = [spawn_agent(task) for task in tasks]
-    results = [agent.wait_for_result() for agent in agents]
+    # 交给 parallel-vibe 执行计划
+    results = parallel_vibe.run(tasks, execution="parallel")
 
     # 聚合结果
     test_report = aggregate_test_results(results)
@@ -338,17 +336,17 @@ def distributed_code_review(files):
     groups = group_files_by_type(files)
 
     # 为每组分配一个代理
-    agents = []
+    tasks = []
     for file_type, file_list in groups.items():
         task = {
             "agent": "code-reviewer",
             "type": file_type,
             "files": file_list
         }
-        agents.append(spawn_agent(task))
+        tasks.append(task)
 
     # 收集审查结果
-    reviews = [agent.wait_for_result() for agent in agents]
+    reviews = parallel_vibe.run(tasks, execution="parallel")
 
     # 生成统一报告
     final_report = merge_review_reports(reviews)

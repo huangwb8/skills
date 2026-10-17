@@ -1,6 +1,6 @@
 # Awesome Code
 
-这个 skill 是复杂开发任务的协调器：脚本先收集可用 Agent 摘要、配置约束与 required route 门禁，再由 AI 自主决定是否使用子代理、使用哪些子代理，以及采用单任务、顺序还是并行策略推进。如果配置中的 required route agent 缺失，它会先阻塞而不是假装能继续开工。
+这个 skill 是复杂开发任务的规划与审查层：脚本先收集可用 Agent 摘要、配置约束与 required route 门禁，再由 AI 自主决定是否使用子代理、使用哪些子代理，以及采用单任务、顺序还是并行策略。只要启用 Agent，实际创建、隔离、串行或并行执行都交给 `parallel-vibe`；如果配置中的 required route agent 缺失，它会先阻塞而不是假装能继续开工。
 
 ## 用法
 
@@ -31,7 +31,8 @@
 - 对宽泛且缺少验收标准的高风险任务，AI 先澄清目标、边界和成功标准，或记录保守假设。
 - 执行前确定最小变更范围、成功标准和验证计划，让改动范围与验证方式可追溯。
 - 若配置中的 required route agent 缺失、禁用或不可调度，会通过 `dispatch_gate` 阻塞并说明原因。
-- 根据任务依赖关系自主选择 `focused-agent`、`sequential` 或 `parallel` 协调策略。
+- 根据任务依赖关系自主选择 `focused-agent`、`sequential` 或 `parallel` 规划策略，并把执行计划交给 `parallel-vibe`。
+- `parallel-vibe` 是必需的多 Agent 执行底座；`awesome-code` 不直接调用宿主的 spawn、线程或进程并发接口。
 - 适合复杂 bug 修复、大规模重构、多模块改造、前后端协作和多步骤验证。
 - 对 UI/前端任务会优先考虑设计方向、信息层级和实现策略。
 - 不适合非常简单的单文件小改或纯概念问答。
@@ -62,7 +63,7 @@
 ```text
 请使用 awesome-code skill 处理这个复杂任务。
 输入：当前项目，目标是同时优化文档、测试和脚本稳定性
-输出：代理分工、并行策略和整合后的结果
+输出：代理分工、交给 `parallel-vibe` 的并行计划和整合后的结果
 ```
 
 ### 示例 4：前端或体验优化
@@ -85,7 +86,8 @@
 
 - 配置文件：`awesome-code/config.yaml`
 - 默认启用 14 个专业代理。
-- 最大并行任务数：`5`
+- 多代理执行底座：由 `config.yaml:dependencies.agent_execution` 声明，当前为 `parallel-vibe`；缺失或无效时门禁阻塞，不自动补默认值
+- 最大规划任务数：`5`（实际串行/并行执行由 `parallel-vibe` 管理）
 - 任务优先级策略：`priority`
 - 关键配置节：
   - `multi_agent.enabled_agents`
