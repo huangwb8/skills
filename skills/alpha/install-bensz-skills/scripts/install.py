@@ -46,6 +46,7 @@ if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
 from i18n import get_translator
+from bootstrap_install import resolve_skill_aliases
 from remove_legacy_skills import (
     load_legacy_skill_names as _load_legacy_skill_names,
     remove_legacy_skills as _remove_legacy_skills,
@@ -1524,6 +1525,19 @@ def _remote_install_main(
         print(t.remote_config_error(error=str(exc)))
         return 1
 
+    try:
+        aliases = config.get("skill_aliases", {})
+        if skill_filter is not None:
+            skill_filter = resolve_skill_aliases(skill_filter, aliases)
+        if platform_skill_filters is not None:
+            platform_skill_filters = {
+                platform: resolve_skill_aliases(names, aliases)
+                for platform, names in platform_skill_filters.items()
+            }
+    except ValueError as exc:
+        print(t.remote_config_error(error=str(exc)))
+        return 1
+
     remote_sources = config.get("remote_sources", [])
     if not remote_sources:
         print(t.remote_config_error(error=f"未配置 remote_sources: {config_path}"))
@@ -1635,9 +1649,16 @@ def _remote_install_main(
                     target,
                     force=auto_mode,
                     source_label=source_label,
-                    legacy_skill_names=[] if skill_filter else legacy_skill_names,
+                    legacy_skill_names=[] if skill_filter else [name for name in (legacy_skill_names or []) if name not in aliases],
                     t=t,
                 )
+                ready_names = {skill.name for skill in report.installed_skills + report.skipped_skills}
+                report.process_messages.extend(_remove_legacy_skills(
+                    target_root=target.root,
+                    legacy_skill_names=[alias for alias, canonical in aliases.items() if canonical in ready_names],
+                    dry_run=False,
+                    active_skill_names=ready_names,
+                ))
                 all_reports.append(report)
 
                 # 打印报告
@@ -2131,6 +2152,7 @@ def main(argv: list[str]) -> int:
     config_path = Path(__file__).resolve().parents[1] / "config.yaml"
     available_source_ids: list[str] = []
     legacy_skill_names: list[str] = []
+    skill_aliases: dict[str, str] = {}
     if config_path.exists():
         try:
             import yaml
@@ -2139,6 +2161,7 @@ def main(argv: list[str]) -> int:
             remote_sources = config.get("remote_sources", [])
             available_source_ids = [s.get("id", "") for s in remote_sources if s.get("id")]
             legacy_skill_names = _load_legacy_skill_names(config_path)
+            skill_aliases = config.get("skill_aliases", {})
         except Exception:
             pass  # 如果加载失败，跳过动态参数
 
@@ -2153,6 +2176,10 @@ def main(argv: list[str]) -> int:
 
     args = parser.parse_args(argv)
     selected_skill_names = _parse_skill_filter(args.skill)
+    try:
+        selected_skill_names = resolve_skill_aliases(selected_skill_names, skill_aliases)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if args.runtime_status:
         if any((args.ensure_runtime, args.force_runtime_update, args.silent_update, args.remote,
@@ -2323,9 +2350,16 @@ def main(argv: list[str]) -> int:
             skill_dirs_by_type=merged_skill_dirs_by_type,
             dry_run=args.dry_run,
             force=args.force,
-            legacy_skill_names=[] if selected_skill_names else legacy_skill_names,
+            legacy_skill_names=[] if selected_skill_names else [name for name in legacy_skill_names if name not in skill_aliases],
             t=t,
         )
+        ready_names = {skill.name for skill in report.installed_skills + report.skipped_skills}
+        report.process_messages.extend(_remove_legacy_skills(
+            target_root=target.root,
+            legacy_skill_names=[alias for alias, canonical in skill_aliases.items() if canonical in ready_names],
+            dry_run=args.dry_run,
+            active_skill_names=ready_names,
+        ))
         reports.append(report)
 
         # 打印该目标的报告

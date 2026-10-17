@@ -5,6 +5,12 @@ All notable changes to the skills repository will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [Unreleased]
+
+### Changed（变更）
+
+- 将 `nsfc-humanization` 的正式实现更名为 `humanization`，移除旧名源目录；安装器通过 `skill_aliases` 将旧安装参数解析为正式名称，指定任一名称均只安装或更新 `humanization`，并在正式 Skill 就绪后清理残留旧目录。原有 NSFC 润色范围、参数及保护规则保持不变。
+
 ## [5.0.13] - 2026-09-25
 
 ### Added（新增）

@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+from bootstrap_install import resolve_skill_aliases, parse_skill_aliases_from_text
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_ROOT = SCRIPT_DIR.parent
@@ -204,7 +205,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     targets = [TARGETS[label] for label, selected in (("codex", args.codex), ("claude", args.claude)) if selected] or list(TARGETS.values())
     filters = [item.lower() for item in (args.source_contains or [DEFAULT_SOURCE_FILTER])]
-    requested = {name.strip() for value in args.skill for name in value.split(",") if name.strip()}
+    try:
+        aliases = parse_skill_aliases_from_text(CONFIG_PATH.read_text(encoding="utf-8"))
+        requested = set(resolve_skill_aliases(
+            [name.strip() for value in args.skill for name in value.split(",") if name.strip()], aliases
+        ))
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
     newer: dict[str, list[str]] = {}
     for source in load_sources():
         haystack = " ".join(source.get(key, "") for key in ("id", "name", "url")).lower()

@@ -1,5 +1,15 @@
 # install-bensz-skills 优化日志
 
+## [0.7.1] - 2026-10-08
+
+### Fixed（修复）
+
+- 新增 `skill_aliases` 配置，将 `nsfc-humanization` 关联到 `humanization`；指定新名或旧名均只安装/更新 `humanization`，不再发布或生成独立旧名目录。
+- 本地筛选、远程 sparse 下载、bootstrap 及其版本化 fallback、快速版本检查和静默更新均将旧名解析为正式名称并去重；静默更新保持平台各自的安装集合。
+- bootstrap 提供标准库别名解析函数，完整安装器和快速更新器复用；拒绝路径、自引用与别名链。
+- 旧目录加入 legacy 清理配置及 bootstrap fallback；对应正式 Skill 就绪后才清理旧目录，失败或预览时保留。
+- 新增实际安装、旧目录迁移、远程下载范围、平台隔离和 fallback 回归检查。
+
 ## [0.6.0] - 2026-08-25
 
 ### Changed

@@ -178,7 +178,9 @@ python3 "$INSTALLER" --remote --check --general --skill git-commit
 
 ##### Legacy 技能清理
 
-安装前会先读取 `install-bensz-skills/config.yaml` 中的 `legacy_skill_names`，并从 `~/.codex/skills/` / `~/.claude/skills/` 删除这些已弃用旧名，避免 skill 改名后旧目录继续留在系统级目录里干扰触发。
+名称兼容由 `config.yaml:skill_aliases` 声明（旧名 → 正式名称）。旧安装参数解析为正式名称并去重，例如 `--skill nsfc-humanization` 和 `--skill humanization` 都只安装/更新 `humanization`。本地、远程 sparse 下载、bootstrap、快速版本检查与静默更新均按同一映射解析；旧目录列入 `legacy_skill_names`，对应正式 Skill 成功安装或确认无需更新后再清理，失败时保留旧目录。映射只支持直接名称，不接受路径、自引用或别名链。
+
+安装时会读取 `install-bensz-skills/config.yaml` 中的 `legacy_skill_names`，并从 `~/.codex/skills/` / `~/.claude/skills/` 删除这些已弃用旧名，避免 skill 改名后旧目录继续留在系统级目录里干扰触发。
 
 研究类 skill 重命名后，旧目录 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review` 也属于 legacy 清理对象；兼容性由新 `research-*` skills 的触发描述承担。已弃用的 `nsfc-roadmap`、`nsfc-schematic` 也会作为 legacy 目录清理。
 
@@ -280,7 +282,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 - **直接替换**：发现到目标路径已存在同名目录且版本变化时，直接删除旧版本并安装新版本（不备份）
   - 理由：Git 已提供版本控制，可随时回退；新版本通常比旧版本更好
 - 若存在旧的 `pipeline-skills` 软链接：会移除该软链接（不删除真实目录）。
-- 若 `config.yaml` 声明了 `legacy_skill_names`：安装前会先删除这些已弃用旧 skill 名称对应的系统级目录。
+- 若 `config.yaml` 声明了 `legacy_skill_names`：清理这些已弃用名称对应的系统级目录；别名映射的旧目录在正式 Skill 就绪后再清理。
 
 #### 命令行参数
 
@@ -364,7 +366,8 @@ legacy_skill_names:
 如果 `skills_path` 指向子目录（如 `skills`），安装器会优先用 Git sparse checkout 只下载该子目录，避免把仓库中与 skill 无关的大文件一并拉取。指定 `--skill` 时，下载范围会进一步收窄到 `skills_path/<skill-name>`；如果某个源中没有该 skill，不再为了确认缺失而完整下载该源。远程 repo 会缓存在 `~/.bensz-skills/installation/cache/remote-sources/`，后续运行用 `git fetch --depth 1` 增量更新；缓存损坏、GitHub 连接 reset 或 sparse checkout 超时时会自动重试。若更新失败但缓存中仍有可安装 skill，安装器会复用 last-known-good 缓存完成本轮安装；只有缓存不可用或非 `--skill` 场景需要路径回退识别时，才重建缓存或回退到完整浅克隆。
 - `description`：源描述（用于提示用户）
 - `recommended`：是否推荐安装（影响默认提示行为）
-- `legacy_skill_names`：需要从系统级目录主动清理的旧 skill 名称列表
+- `skill_aliases`：旧名到正式名称的标量映射，旧名解析为正式名称，只处理正式目录；例如 `nsfc-humanization: humanization`。bootstrap 从 canonical 远程配置读取，失败时沿用版本化 fallback。
+- `legacy_skill_names`：需要从系统级目录主动清理的已弃用名称列表，可包含仍被安装参数接受的别名，名称兼容不要求保留旧目录
 
 ### 输出
 
@@ -427,7 +430,7 @@ legacy_skill_names:
 ### 静默更新与 bootstrap 协议
 
 - `--silent-update` 是后台自动入口，不等同于用户主动的 `--remote --check` 或 `--remote --auto`。
-- 自动入口只使用 `general` 的 `skills/alpha` 生产源，只处理目标平台中已经存在的 Skill；Codex 与 Claude Code 的集合分别计算，不做跨平台并集安装。
+- 自动入口只使用 `general` 的 `skills/alpha` 生产源，以目标平台中已经存在的 Skill 为起点，并通过 `skill_aliases` 将旧名称迁移为正式名称；仅在正式 Skill 就绪后清理该平台的旧目录；Codex 与 Claude Code 的集合分别计算，不做跨平台并集安装。
 - 状态文件位于 `~/.bensz-skills/installation/state/silent-update.json`，记录 TTL、来源、平台集合、结果、失败类型和脱敏错误摘要。旧状态缺字段按过期处理，未知 schema 保守跳过。
 - `bootstrap_install.py --silent-update` 在旧版安装器不支持该参数时，先仅升级 `install-bensz-skills` 自身，再由新版入口接管；后台失败不阻塞宿主任务。
 - 远程更新先在 staging 目录完成复制与校验，再原子替换目标 Skill；安装器自身最后生效，新版本从后续会话加载。

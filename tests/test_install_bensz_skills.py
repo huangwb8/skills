@@ -79,6 +79,149 @@ def test_bootstrap_keeps_python_38_compatible_syntax_and_runtime_gate(monkeypatc
     assert parser.parse_args(["--runtime-status"]).runtime_status is True
 
 
+@pytest.mark.parametrize("name", ["humanization", "nsfc-humanization"])
+def test_renamed_skill_resolves_either_name_to_only_canonical(tmp_path, monkeypatch, name):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    for platform in ("codex", "claude"):
+        make_skill(tmp_path / f".{platform}/skills", "nsfc-humanization")
+    assert install.main(["--source", str(ROOT / "skills/alpha"), "--skill", name]) == 0
+    for platform in ("codex", "claude"):
+        skill_root = tmp_path / f".{platform}/skills"
+        assert (skill_root / "humanization/config.yaml").is_file()
+        assert not (skill_root / "nsfc-humanization").exists()
+        assert {path.name for path in skill_root.iterdir()} == {"humanization"}
+    # Repeated installation still discovers only the canonical skill.
+    assert install.main(["--source", str(ROOT / "skills/alpha"), "--skill", name]) == 0
+
+
+def test_alias_install_requires_canonical_before_local_writes(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path / "isolated"))
+    source = tmp_path / "source"
+    make_skill(source, "nsfc-humanization")
+    assert install.main(["--source", str(source), "--skill", "nsfc-humanization"]) == 1
+    assert not (tmp_path / "isolated/.codex/skills").exists()
+
+
+def test_alias_migration_preserves_old_directory_when_copy_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    old = make_skill(tmp_path / ".codex/skills", "nsfc-humanization")
+
+    def fail_copy(*args, **kwargs):
+        raise OSError("simulated copy failure")
+
+    monkeypatch.setattr(install, "_copy_fresh", fail_copy)
+    with pytest.raises(OSError, match="simulated copy failure"):
+        install.main(["--source", str(ROOT / "skills/alpha"), "--skill", "nsfc-humanization", "--codex"])
+    assert (old / "SKILL.md").is_file()
+
+
+def test_alias_migration_dry_run_preserves_old_directory(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    old = make_skill(tmp_path / ".codex/skills", "nsfc-humanization")
+    assert install.main([
+        "--source", str(ROOT / "skills/alpha"), "--skill", "nsfc-humanization", "--codex", "--dry-run",
+    ]) == 0
+    assert (old / "SKILL.md").is_file()
+    assert not (old.parent / "humanization").exists()
+
+
+@pytest.mark.parametrize("aliases", [
+    {"old": "../new"}, {"old": "old"}, {"old": "middle", "middle": "new"}, [],
+])
+def test_alias_mapping_rejects_unsafe_or_ambiguous_entries(aliases):
+    with pytest.raises(ValueError):
+        bootstrap.resolve_skill_aliases(["old"], aliases)
+
+
+def test_bootstrap_alias_contract_is_loaded_before_selective_download(tmp_path, monkeypatch):
+    config_text = (ROOT / "skills/alpha/install-bensz-skills/config.yaml").read_text(encoding="utf-8")
+    monkeypatch.setattr(bootstrap, "download_text", lambda _url: config_text)
+    contract = bootstrap.load_remote_config_contract()
+    assert contract is not None
+    assert contract[3] == bootstrap.FALLBACK_SKILL_ALIASES
+    assert set(contract[3]) <= set(contract[1])
+    monkeypatch.setattr(bootstrap.Path, "home", staticmethod(lambda: tmp_path))
+    make_skill(tmp_path / ".codex/skills", "nsfc-humanization")
+    captured = []
+
+    def fake_download(source, temp_root, lang, names):
+        captured.append(names)
+        return ROOT / "skills/alpha", False
+
+    monkeypatch.setattr(bootstrap, "download_source", fake_download)
+    for name in ("humanization", "nsfc-humanization"):
+        assert bootstrap.main(["--source", "general", "--skill", name, "--codex"]) == 0
+        assert captured[-1] == ["humanization"]
+    assert (tmp_path / ".codex/skills/humanization/SKILL.md").is_file()
+    assert not (tmp_path / ".codex/skills/nsfc-humanization").exists()
+
+
+def test_bootstrap_offline_config_keeps_alias_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr(bootstrap.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(bootstrap, "load_remote_config_contract", lambda: None)
+    monkeypatch.setattr(bootstrap, "load_legacy_skill_names_from_remote_config", lambda: None)
+    captured = []
+
+    def fake_download(source, temp_root, lang, names):
+        captured.extend(names)
+        return ROOT / "skills/alpha", False
+
+    monkeypatch.setattr(bootstrap, "download_source", fake_download)
+    assert bootstrap.main(["--source", "general", "--skill", "nsfc-humanization", "--dry-run"]) == 0
+    assert captured == ["humanization"]
+    assert not (tmp_path / ".codex/skills").exists()
+
+
+def test_remote_alias_resolution_preserves_platform_selection(tmp_path, monkeypatch):
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(install, "_check_git_available", lambda: True)
+    for platform in ("codex", "claude"):
+        make_skill(tmp_path / f".{platform}/skills", "nsfc-humanization")
+    captured = []
+
+    def fake_download(source, temp_dir, t, *, skill_names):
+        captured.extend(skill_names)
+        return install.RemoteDownloadResult(skills_dir=ROOT / "skills/alpha")
+
+    monkeypatch.setattr(install, "_download_remote_source", fake_download)
+    assert install._remote_install_main(
+        auto_mode=True, install_codex=True, install_claude=True, source_filter=["general"],
+        skill_filter=["nsfc-humanization", "git-commit"],
+        platform_skill_filters={"codex": ["nsfc-humanization"], "claude": ["git-commit"]},
+        t=install.get_translator(),
+    ) == 0
+    assert set(captured) == {"humanization", "git-commit"}
+    assert (tmp_path / ".codex/skills/humanization/SKILL.md").is_file()
+    assert not (tmp_path / ".codex/skills/nsfc-humanization").exists()
+    assert not (tmp_path / ".claude/skills/humanization").exists()
+    assert (tmp_path / ".claude/skills/nsfc-humanization/SKILL.md").is_file()
+    assert (tmp_path / ".claude/skills/git-commit/SKILL.md").is_file()
+
+
+def test_fast_updater_checks_missing_canonical_for_current_old_name(tmp_path, monkeypatch):
+    codex = tmp_path / "codex"
+    old = make_skill(codex, "nsfc-humanization")
+    (old / "config.yaml").write_text("skill_info:\n  version: 1.3.0\n", encoding="utf-8")
+    monkeypatch.setattr(updater, "TARGETS", {"codex": codex})
+    source = {"id": "general", "url": "https://github.com/huangwb8/skills", "skills_path": "skills/alpha"}
+    monkeypatch.setattr(updater, "load_sources", lambda: [source])
+    monkeypatch.setattr(updater, "github_tree", lambda _source: [
+        "skills/alpha/humanization/config.yaml",
+    ])
+    monkeypatch.setattr(updater, "fetch_preferred_text", lambda _source, _path: "skill_info:\n  version: 1.3.0\n")
+    monkeypatch.setattr(updater, "installer_path", lambda: ROOT / "skills/alpha/install-bensz-skills/scripts/install.py")
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(updater.subprocess, "run", fake_run)
+    assert updater.main(["--skill", "nsfc-humanization", "--codex"]) == 0
+    assert commands and "humanization" in commands[0]
+    assert "--codex" in commands[0]
+
+
 def make_skill(root: Path, name: str, body: str = "content") -> Path:
     skill = root / name
     skill.mkdir(parents=True)

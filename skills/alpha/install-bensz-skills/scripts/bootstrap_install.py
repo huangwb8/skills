@@ -69,11 +69,10 @@ def _configure_console_streams() -> None:
         setattr(sys, stream_name, _UnicodeSafeTextStream(stream))
 
 
-_configure_console_streams()
-
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.7.0"
+FALLBACK_CONFIG_VERSION = "0.7.1"
+FALLBACK_SKILL_ALIASES = {"nsfc-humanization": "humanization"}
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
 DOWNLOAD_RETRIES = 3
@@ -104,6 +103,7 @@ DEFAULT_SOURCES = [
 ]
 
 FALLBACK_LEGACY_SKILL_NAMES = [
+    "nsfc-humanization",
     "make_latex_model",
     "transfer_old_latex_to_new",
     "write-paper-sci",
@@ -461,6 +461,47 @@ def parse_category(skill_dir: Path) -> str | None:
     return None
 
 
+def resolve_skill_aliases(names: list[str], aliases: dict[str, str]) -> list[str]:
+    """Resolve old names to canonical directories without installing old entries.
+
+    Only direct basename mappings are supported; chains and unsafe paths fail
+    before they can become sparse checkout or archive extraction paths.
+    """
+    if not isinstance(aliases, dict):
+        raise ValueError("skill_aliases must be a mapping")
+    for alias, canonical in aliases.items():
+        if any(not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", name)
+               for name in (alias, canonical)):
+            raise ValueError("skill_aliases must contain safe skill basenames")
+        if canonical in aliases:
+            raise ValueError("skill_aliases must not contain self references or chains")
+    return list(dict.fromkeys(aliases.get(name, name) for name in names))
+
+
+def parse_skill_aliases_from_text(text: str) -> dict[str, str]:
+    """Read the public two-space scalar alias mapping without PyYAML."""
+    aliases: dict[str, str] = {}
+    in_section = False
+    for raw_line in text.splitlines():
+        stripped = raw_line.split("#", 1)[0].strip()
+        if not stripped:
+            continue
+        if not in_section:
+            if stripped == "skill_aliases:":
+                in_section = True
+            continue
+        if not raw_line.startswith((" ", "\t")):
+            break
+        if not raw_line.startswith("  ") or ":" not in stripped:
+            raise ValueError("skill_aliases requires scalar mapping entries")
+        alias, canonical = (part.strip().strip('"\'') for part in stripped.split(":", 1))
+        if alias in aliases:
+            raise ValueError("skill_aliases contains duplicate entries")
+        aliases[alias] = canonical
+    resolve_skill_aliases([], aliases)
+    return aliases
+
+
 def parse_legacy_skill_names_from_text(text: str) -> list[str]:
     lines = text.splitlines()
     names: list[str] = []
@@ -753,8 +794,8 @@ def parse_remote_sources_from_text(text: str) -> list[dict[str, str]]:
     return sources
 
 
-def load_remote_config_contract() -> tuple[list[dict[str, str]], list[str], str] | None:
-    """Load sources and legacy names from the canonical remote config.
+def load_remote_config_contract() -> tuple[list[dict[str, str]], list[str], str, dict[str, str]] | None:
+    """Load sources, legacy names and aliases from the canonical remote config.
 
     Returns ``None`` on any network or parsing failure; callers then retain the
     versioned fallback and expose its provenance in the run manifest.
@@ -769,11 +810,12 @@ def load_remote_config_contract() -> tuple[list[dict[str, str]], list[str], str]
         text = download_text(url)
         sources = parse_remote_sources_from_text(text)
         names = parse_legacy_skill_names_from_text(text)
+        aliases = parse_skill_aliases_from_text(text)
     except (OSError, RuntimeError, UnicodeDecodeError, urllib.error.URLError, ValueError):
         return None
     if not sources:
         return None
-    return sources, names, url
+    return sources, names, url, aliases
 
 
 def archive_member_relative_path(member_name: str) -> Path | None:
@@ -1015,6 +1057,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_console_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
     lang = args.lang
@@ -1050,18 +1093,20 @@ def main(argv: list[str] | None = None) -> int:
         return _run_silent_update(lang)
     dry_run = bool(args.dry_run or args.check)
     selected_skill_names = parse_skill_filter(args.skill)
-    selected_skill_set = set(selected_skill_names)
     matched_installable_names: set[str] = set()
     matched_non_installable_names: set[str] = set()
 
     config_provenance = f"fallback:{FALLBACK_CONFIG_VERSION}"
     configured_sources = list(DEFAULT_SOURCES)
     legacy_skill_names = list(FALLBACK_LEGACY_SKILL_NAMES)
+    skill_aliases = dict(FALLBACK_SKILL_ALIASES)
     remote_contract = load_remote_config_contract()
     if remote_contract is not None:
-        configured_sources, legacy_skill_names, config_provenance = remote_contract
+        configured_sources, legacy_skill_names, config_provenance, skill_aliases = remote_contract
     else:
         print_msg(lang, "config_fallback", version=FALLBACK_CONFIG_VERSION)
+    selected_skill_names = resolve_skill_aliases(selected_skill_names, skill_aliases)
+    selected_skill_set = set(selected_skill_names)
     try:
         sources = select_sources(args.source, configured_sources)
     except ValueError as exc:
@@ -1150,11 +1195,18 @@ def main(argv: list[str] | None = None) -> int:
                     ignored_count=ignored,
                     target=target,
                     source_label=source_label,
-                    legacy_skill_names=legacy_skill_names,
+                    legacy_skill_names=[name for name in legacy_skill_names if name not in skill_aliases],
                     force=args.force,
                     dry_run=dry_run,
                     lang=lang,
                     ignored_names=selected_ignored_names,
+                )
+                # Remove renamed directories only after their canonical skill is ready.
+                ready_names = set(result.installed_names) | set(result.skipped_names)
+                remove_legacy_skills(
+                    target, ready_names,
+                    [alias for alias, canonical in skill_aliases.items() if canonical in ready_names],
+                    lang, dry_run, result,
                 )
                 total_installed += result.installed
                 total_skipped += result.skipped

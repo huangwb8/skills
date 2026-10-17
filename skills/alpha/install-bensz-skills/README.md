@@ -229,6 +229,18 @@ python3 "$INSTALLER" --skill git-commit,nsfc-bib-manager
 python3 "$INSTALLER" --codex --dry-run --skill git-commit
 ```
 
+### 改名后的旧名兼容
+
+`config.yaml:skill_aliases` 声明旧名到正式名称的映射。安装器将旧安装参数解析为正式名称并去重；指定任一名称都只安装或更新 `humanization`，不会创建 `nsfc-humanization` 目录：
+
+```bash
+python3 "$INSTALLER" --skill humanization
+# 沿用旧安装参数也只安装 humanization
+python3 "$INSTALLER" --skill nsfc-humanization
+```
+
+本地安装、远程选择性下载、bootstrap、快速版本检查和静默更新均使用相同的名称解析。映射只支持直接名称，拒绝路径、自引用与别名链；旧目录列入 `legacy_skill_names`，在正式 Skill 成功安装或确认无需更新后再清理；安装失败时保留旧目录。bootstrap 优先读取 canonical 远程配置，配置不可用时使用带版本标记的 fallback。
+
 ### 指定源目录
 
 ```bash
@@ -287,7 +299,7 @@ python3 "$INSTALLER" --remote --auto --anthropic-docs --claude
 
 ### 清理 legacy skill 名称
 
-安装前会自动读取 `config.yaml` 中的 `legacy_skill_names` 并清理旧名。你也可以单独运行清理脚本：
+安装时会读取 `config.yaml` 中的 `legacy_skill_names` 并清理旧目录；`skill_aliases` 中的旧目录在正式 Skill 就绪后再清理。你也可以单独运行清理脚本：
 
 当前清理名单包含若干历史命名，例如 `get-review-theme`、`guide-updater`、`check-review-alignment`、`make-research-plan`、`systematic-literature-review`，已弃用的 `nsfc-roadmap`、`nsfc-schematic`，以及已由 `write-readme` 吸收的 `write-skill-readme`。这些旧名不再保留系统级目录。
 
@@ -378,4 +390,4 @@ python3 "$INSTALLER" --silent-update
 python3 /path/to/bootstrap_install.py --silent-update
 ```
 
-静默入口按 72 小时 TTL 限制远程检查，先创建或更新托管 benszapi 运行时，再更新 `general`/`skills/alpha` 中已安装的生产 Skill，并按 Codex 与 Claude Code 分别处理。它不会安装新的领域 Skill、扫描 beta/legacy 或扩展用户额外源；即使尚未安装其它 Skill，也会维护 BSK。旧版安装器会先由 bootstrap 安全升级自身。运行状态和脱敏失败摘要保存在 `~/.bensz-skills/installation/state/silent-update.json`。
+静默入口按 72 小时 TTL 限制远程检查，先创建或更新托管 benszapi 运行时，再更新 `general`/`skills/alpha` 中已安装的生产 Skill，并按 Codex 与 Claude Code 分别处理。它会将已安装 Skill 在 `skill_aliases` 中的旧名称迁移为正式名称，并在正式 Skill 就绪后清理该平台的旧目录；除此之外不会安装新的领域 Skill、扫描 beta/legacy 或扩展用户额外源；即使尚未安装其它 Skill，也会维护 BSK。旧版安装器会先由 bootstrap 安全升级自身。运行状态和脱敏失败摘要保存在 `~/.bensz-skills/installation/state/silent-update.json`。
