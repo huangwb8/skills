@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.15] - 2026-11-01
+
+### Changed（变更）
+
+- `humanization` 增加思想组织与句段连贯性的正向写作流程、风格和纯文本重分段参数，并改为通用语言润色：默认自动适配文章、邮件、报告、说明、学术和技术文本，保留语义保护与旧名/旧参数兼容；修正限定数量规则及可比性回归，新增只读保护检查器、通用回归样例与双语指南。
+- `init-project` 不再默认创建项目根目录 `skills/`，并移除生成的 `AGENTS.md` 中对应的目录与开发规范要求；自动、手动模式均保留 `docs/` 和 `docs/plans/` 初始化。
+- 根仓库中英文 README 补齐安装后的调用示例、常见任务入口与上述行为变化，明确本地完整安装器的 Python 3.11+ 要求及远程检查的写入边界；17 个生产 Skill 与 BSK 2.1.6 均已对照源码核验。BSK 已是目标版本，本次不重复发布或安装。
+
+### Validation（验证）
+
+- Python 3.12 下仓库与 Kernel 回归测试共 281 项通过；另行运行的 48 项定向测试通过。根级与 `humanization` 双语 README 检查通过，`humanization`、`init-project` strict 结构检查均无缺项。测试保留一条既有 `locale.getdefaultlocale()` 弃用警告。
+
 ## [5.0.14] - 2026-10-17
 
 ### Added（新增）

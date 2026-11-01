@@ -26,6 +26,8 @@
 
 ### Changed（变更）
 
+- **精简初始化目录**：自动与手动模式均只补齐 `docs/`、`docs/plans/`，不再默认创建项目根目录 `skills/`；移除生成的 `AGENTS.md` 中项目专属 Skills 目录与开发规范要求，同步执行契约、README 和两种模式的回归断言，保留项目已有内容。
+
 - **跨平台控制台兼容**：版本号 `2.3.3 → 2.3.4`；保持宿主 stdout/stderr 编码，只把不可编码字符的错误策略收敛为 `backslashreplace`，UTF-8 输出与业务退出语义不变
 - **.gitignore 中间目录忽略规则**：基于 `pipelines/skills/` 与 `ChineseResearchLaTeX/skills/` 的现有 skill 工作区约定，新增 `.systematic-literature-review/`、`.complete_example/`、`.latex-cache/`、`.make_latex_model/`、`.nsfc-budget/`、`.nsfc-code/`、`.nsfc-length-aligner/`、`.nsfc-qc/`、`*.nsfc-qc/`、`.nsfc-ref-alignment/`、`.research-idea/`、`.write-paper/` 与 `.secrets/` 到生成模板和 PyYAML 缺失时的脚本内置兜底规则；`.check-review-alignment/` 已在模板中保留；技能版本号 `2.3.2 → 2.3.3`
 - **.gitignore 中间目录忽略规则**：新增 `.parallel-vibe/` 到生成模板与 PyYAML 缺失时的脚本内置兜底规则，用于匹配 `parallel-vibe` 默认中间工作区新目录；保留 `.parallel_vibe/` 兼容旧运行产物

@@ -10,7 +10,6 @@ Project Init Generator - 生成脚本
 并在完整初始化时补齐标准项目目录：
 - docs/
 - docs/plans/
-- skills/
 
 支持语言检测、模板变量替换、自定义配置和自动项目分析。
 
@@ -541,21 +540,19 @@ class ProjectInitGenerator:
 
     def ensure_project_structure(self, output_dir: Path) -> List[Path]:
         """
-        确保项目具备标准 docs 与 project-specific skills 目录结构。
+        确保项目具备标准 docs 目录结构。
 
         会创建：
         - docs/
         - docs/plans/
-        - skills/
 
         如果目录已存在，则静默跳过。
         """
         docs_dir = output_dir / "docs"
         plans_dir = docs_dir / "plans"
-        skills_dir = output_dir / "skills"
         created_dirs = []
 
-        for directory in [docs_dir, plans_dir, skills_dir]:
+        for directory in [docs_dir, plans_dir]:
             if directory.exists():
                 if not directory.is_dir():
                     raise ValueError(f"{directory} 已存在但不是目录，无法初始化标准项目结构")

@@ -56,6 +56,15 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 安装器默认把 Skill 复制到 `~/.codex/skills/` 和 `~/.claude/skills/`；只安装某个 Skill 可追加 `--skill git-commit`。`skills/beta/` 仅在显式传入 `--source` 时处理。
 
+安装成功后，新建 Codex 或 Claude Code 会话即可使用。例如输入：
+
+```text
+请用 humanization 润色下面这段文字，只返回正文，保留原意、事实和格式。
+[粘贴原文]
+```
+
+预期返回润色后的文字；完整参数与保护规则见 [humanization 使用指南](skills/alpha/humanization/README.md)。本地完整安装器需要 Python 3.11+。
+
 ## 这个仓库提供什么
 
 - **可直接安装的 Skill**：位于 `skills/alpha/`，每个目录都有面向使用者的 `README.md` 和面向 AI 的 `SKILL.md`。
@@ -77,6 +86,16 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 选择 Skill 后，阅读对应目录的 `README.md` 获取触发方式、最小 Prompt、输入输出和 FAQ；维护者同时阅读 `SKILL.md`、`config.yaml` 与 `CHANGELOG.md`。
 
+常见任务可以从以下入口开始：
+
+| 你想完成的任务 | 入口与当前行为 |
+| --- | --- |
+| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；默认适中改写，允许保留优秀原文 |
+| 为项目建立 AI 协作规范 | [init-project](skills/alpha/init-project/README.md)：生成项目指令与文档，初始化 `docs/` 和 `docs/plans/` |
+| 组织多个 Agent 协作 | [awesome-code](skills/alpha/awesome-code/README.md) 负责规划和审查，[parallel-vibe](skills/alpha/parallel-vibe/README.md) 统一执行串行或并行任务 |
+
+`humanization` 兼容旧名 `nsfc-humanization`，现已适用于通用文字润色；`init-project` 的默认初始化目录不包含根级 `skills/`。
+
 当然，我觉得最好的方式是：**在你的Codex/Claude Code里把本项目的地址粘贴上，然后开始用ai来探索它！**
 
 ## 安装方式
@@ -94,7 +113,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 常用参数：
 
 ```bash
-# 预览，不写入文件
+# 预览安装差异，不写入 Skill 安装目录
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
 # 只安装到 Codex 或 Claude Code

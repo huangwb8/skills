@@ -56,6 +56,15 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 The installer copies Skills to `~/.codex/skills/` and `~/.claude/skills/` by default. Add `--skill git-commit` to install one Skill. `skills/beta/` is processed only with an explicit `--source`.
 
+After installation, start a new Codex or Claude Code session and try:
+
+```text
+Use humanization to polish the text below. Return only the revised text and preserve its meaning, facts, and formatting.
+[Paste the original text]
+```
+
+Expect the revised text in the response. See the [humanization guide](skills/alpha/humanization/README_EN.md) for parameters and protection rules. The full local installer requires Python 3.11+.
+
 ## What this repository provides
 
 - **Installable Skills**: `skills/alpha/`; each directory has a user-facing `README.md` and an AI-facing `SKILL.md`.
@@ -77,6 +86,16 @@ The current `skills/alpha/` source contains 17 production Skills:
 
 Read a Skill's `README.md` for triggers, minimal prompts, inputs/outputs, and FAQ. Maintainers should also read `SKILL.md`, `config.yaml`, and `CHANGELOG.md`.
 
+Start with these entry points for common tasks:
+
+| Your task | Entry point and current behavior |
+| --- | --- |
+| Polish existing articles, emails, reports, academic or technical text | [humanization](skills/alpha/humanization/README_EN.md): adapts to the register while preserving facts, intent, and formatting; defaults to moderate editing and may retain strong original prose |
+| Set up AI collaboration rules for a project | [init-project](skills/alpha/init-project/README.md): generates project instructions and documentation, initializing `docs/` and `docs/plans/` |
+| Organize multiple agents | [awesome-code](skills/alpha/awesome-code/README.md) handles planning and review; [parallel-vibe](skills/alpha/parallel-vibe/README.md) executes serial or parallel tasks |
+
+`humanization` accepts the legacy name `nsfc-humanization` and now supports general prose editing. By default, `init-project` does not create a root-level `skills/` directory.
+
 ## Installation
 
 ### Remote bootstrap
@@ -92,7 +111,7 @@ Read a Skill's `README.md` for triggers, minimal prompts, inputs/outputs, and FA
 Common options:
 
 ```bash
-# Preview without writing files
+# Preview installation differences without writing Skill installation directories
 python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/huangwb8/skills/main/skills/alpha/install-bensz-skills/scripts/bootstrap_install.py').read())" --check
 
 # Install to Codex or Claude Code only
