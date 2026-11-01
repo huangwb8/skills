@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+
+- 新增 `docs/development-of-skill-idnetity.md` 待审查开发计划，明确 Skill 稳定身份、签名发行、信任与撤销、内容锁定及安装器／router／宿主接入边界，给出分阶段交付和验证矩阵；本次未实施运行时功能。
+
 ## [5.0.15] - 2026-11-01
 
 ### Changed（变更）
