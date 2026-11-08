@@ -14,9 +14,9 @@
    - {元素 2}
    风格：{色调 / 质感 / 字体 / 参考图}
    排除项：{千万别做的事情}
-   输出产物：PNG，要求 {比例 / provider 原生尺寸选择参考 / 透明背景 / 其他}
+   输出产物：{JPEG/PNG/WebP/SVG/GIF}，要求 {比例 / provider 原生尺寸选择参考 / 透明背景 / 其他}
    ```
-   把 `visual_constraints` 填入 `风格` 与 `输出` 中，把 `reference_images` 作为“样式参考图”说明。不要把 `4K`、`3840px` 等字样写成最终像素承诺；默认最终 PNG 保留图片 provider 返回的原生尺寸。
+   把 `visual_constraints` 填入 `风格` 与 `输出` 中，把 `reference_images` 作为“样式参考图”说明。不要把 `4K`、`3840px` 等字样写成最终像素承诺；默认最终位图保留图片 provider 返回的原生尺寸。
 
 3. **Mode Preset 要点**：
    - `general`：忠实复述用户需求，主体清晰，画面稳定，避免无关元素。
@@ -26,7 +26,7 @@
 
 4. **多轮优化提示语**：
    - 第一轮不要带过多假设，直接复述需求。
-   - 之后的轮次把第 `n` 轮 `output.png` 作为第 `n+1` 轮第一参考图，并在 prompt 末尾附上 `feedback` 段，比如：
+   - 普通静态位图之后的轮次把第 `n` 轮 `output.png` 作为第 `n+1` 轮第一参考图，并在 prompt 末尾附上 `feedback` 段，比如：
      ```
      Reference image:
      - 第一张参考图是上一轮 output.png，请在此基础上局部微调，不要从零重画。
@@ -34,7 +34,7 @@
      - 上轮评估：文字与背景对比不足
      - 修改方向：增强对比、加边框
      ```
-   - 指定 `round` 和 `max_rounds` 以便 meta 记录。
+   - 指定 `round` 和 `max_rounds` 以便 meta 记录。SVG/GIF 不使用上轮文件作为参考图，只依据文字反馈重新生成；markup 每轮固定原图与原标注层。
 
 5. **视觉评估入参**：
    - `evaluation` 段至少要覆盖 `score`（0-10）、`passed`（true/false）、`must_fix`、`prompt_patch`。
@@ -45,5 +45,12 @@
    - 引用参考图时只描述风格，不附带具体文件路径（由 workflow 在 workspace 内提供）。
 
 7. **记录**：
-   - 把每轮 prompt 写入 `.draw-plot/run-<timestamp>/rounds/round-XX/prompt.txt`，便于复现与审计。
+   - 把每轮 prompt 写入 `.bensz-api/task-{时间与描述}/auto-draw-plot/rounds/round-XX/prompt.txt`，便于复现与审计。
    - 脚本默认不调用远端文本规划接口；本地模板应稳定组合“用户需求 + 模式护栏 + 上轮修复项”。
+
+## 2.6 输出与编辑策略
+
+- SVG：说明简洁矢量元素、层级、文字与留白，避免依赖照片纹理；要求静态矢量内容。原生输出由 API 的 `output_format=svg` 控制，不能只在 prompt 里要求格式。
+- GIF：明确主体、运动方向与轨迹、固定相机、保持不变的元素和首尾循环条件。先以少量帧和 auto 尺寸验证运动；不能用静态单帧宣称动画已达标。
+- Markup：独立提供原图与透明标注层，在 prompt 描述标注对应区域、具体变化以及其它内容保留要求，并要求移除成品中的标注。
+- Complexity：简单局部编辑可选择 low，复杂文字与空间关系可选择 medium/high；quality 独立控制渲染质量，不能互相替代。SVG/GIF 与标注编辑的端点边界以 README 为准。

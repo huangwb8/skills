@@ -80,7 +80,8 @@ def test_plain_reflow_requires_explicit_mode():
     assert checker.compare(before, after, "reflow_plain")["status"] == "pass"
 
 
-@pytest.mark.parametrize("text", [r"内容\cite{key}", "- 步骤。", "# 标题", "| 字段 | 值 |"])
+@pytest.mark.parametrize("text", [r"内容\cite{key}", "- 步骤。", "# 标题", "| 字段 | 值 |", "$0.8$", r"\(x\)", "`Export`",
+                                  "标题\n===", "标题\n---", "    code", "\tcode", "换行\\\\\n继续。"])
 def test_reflow_rejects_protected_markup(text):
     with pytest.raises(checker.UnsupportedInput, match="reflow_requires_plain"):
         checker.compare(text, text, "reflow_plain")

@@ -1,6 +1,12 @@
 ## [Unreleased]
 
 ### Added
+
+- 新增 GPT Image 2.6 Flare／Sunburst 显式模型选择、complexity、markup 标注编辑和原生 SVG／GIF 输出；保留默认模型与旧 CLI 别名。
+- SVG／GIF 独立格式校验、原件保存、预览与结构检查，GIF 元数据记录实际帧数、逐帧时长、总时长和循环信息；SVG PNG 预览可选依赖 CairoSVG/Cairo。
+- 同步与异步 jobs 共享新参数；新格式默认单轮，显式多轮按文字反馈重新生成，拒绝不支持的编辑、压缩和静态化组合。
+- 新增合成上游与主入口测试，覆盖模型、参数、GIF 帧保留、SVG 边界、markup 和兼容性；实际端点验证结果另见测试报告。
+
 - 版本 `0.3.2 → 0.3.3`：OpenAI 图片路径新增 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 三模型白名单，默认模型切换为 `gpt-image-2.5-flare`；`--provider` 可显式固定任一模型，三者共享既有 BenszAPI 子域名校验、异步 image job endpoint、低成本 JPEG 默认参数和不确定 submit 不重放约束。
 
 ### Changed
@@ -10,6 +16,8 @@
 - 明确 `auto-draw-plot` 是经 BenszAPI 自行完成 prompt、generation/edit 与多轮迭代的自包含图片工作流；选中后不得默认调用或依赖 `imagegen`，并把版本号从 `0.2.13` 更新至 `0.2.14`
 
 ### Fixed
+- 对齐原生格式服务端能力、错误码与结果元数据：区分模型未开放、账号格式未支持、内容不匹配及提交结果不确定，禁止这些错误重试或跨 provider 回退；逐图校验元数据和真实字节，并补 SVG 空文档、GIF 解码前预算与循环检查。
+- 扩展 OpenAI generation/edit 原生尺寸白名单，支持 2048 方图、4096 方图和横／竖 3840×2160；保持默认参数和旧尺寸不变。原生图片在后处理前检测档位降级，兼容新网关元数据与旧网关实际像素，轮次 meta、stderr 与最终交付摘要显式记录降级；同步尺寸文档与离线回归。版本唯一记录在 `config.yaml`。
 - 修复 Windows/Git Bash/PowerShell 可能因 HOME 与 USERPROFILE 不一致而读取旧 Codex 配置的问题：统一解析用户目录，检测 Codex 与 BenszAPI 环境变量的 Base URL/API Key 冲突，并在脱敏诊断证据中记录实际路径与 Key 短指纹；同步将版本号 `0.2.17 → 0.2.18`
 - 修复 Codex 或环境变量提供 BenszAPI 子域名根地址时，Images job 请求可能落入边缘层 HTML fallback 的问题：`gpt-image-2` 配置加载会在完成 HTTPS、子域名与路径校验后统一补齐 `/v1`，generation/edit、轮询和结果下载均使用规范 API 基址；同步将版本号 `0.2.16 → 0.2.17`
 - 补齐 Images submit 的端到端低敏关联证据：JSON 与 multipart 请求自动发送安全 `X-Client-Request-ID`，空/非 JSON 协议错误优先保存服务端回传的 `X-Request-ID` 与 `X-Client-Request-ID`，并对关联 ID 执行长度和字符白名单校验；同步将版本号 `0.2.15 → 0.2.16`

@@ -7,9 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.16] - 2026-11-08
+
 ### Added（新增）
 
+- `humanization` 双语 README 新增调用到交付的 Mermaid 流程图，逐步标明主 Agent、三个并行审查子 Agent、脚本和 BSK 的分工，以及五轮未通过仍提交最后草案的兜底路径。
+- 新增 `humanization` 社区调查与优化计划，比较 11 个社区方案，提出作者声音、基金语境、论证功能保护与真实文本盲评的改进方向，并记录仓库与本机安装副本的版本差异；本次仅交付调查和计划，未修改 Skill 源码或更新安装副本。
 - 新增 `docs/development-of-skill-idnetity.md` 待审查开发计划，明确 Skill 稳定身份、签名发行、信任与撤销、内容锁定及安装器／router／宿主接入边界，给出分阶段交付和验证矩阵；本次未实施运行时功能。
+
+### Changed（变更）
+
+- 按用户授权从 Sub2API 开发源完整同步 `skills/alpha/auto-draw-plot/`，覆盖旧版并排除 `.DS_Store`、AppleDouble 文件和 Python 缓存；保留开发源文件内容与版本。
+
+- `humanization` 更新为 2.1.0：直接依赖 parallel-vibe，主 Agent 唯一润色，三个子 Agent 并行审核，至少两票 pass，最多五轮。达到上限仍未通过时提交最后草案和未通过说明；沿用原 BSK 入口，不新增子 Agent 编排器、Pack 或计票脚本。
+
+- `AGENTS.md` 补充 Skill 与 BSK 的出品前集成验收约束：按实际接入范围检查能力复用、执行与门禁、证据绑定与恢复、安装独立性及安全边界，并要求以执行证据报告验收结论。
+- `humanization` 更新为 2.0.0：以两个领域 State、一个 required 混合 Verifier 和唯一控制入口接入 BSK；交付绑定原文、参数与全部附件，真实语义审查通过后由 Kernel Gate 放行，支持旧批准失效、回执重建及同目录中断恢复。保留英文编辑、诊断和原文免改，同步双语指南、运行契约与正式设计；不修改 Kernel 或系统安装副本。
+- 根级双语 README 与最新源代码对齐：humanization 入口描述更新为 2.1.0 的"主 Agent 唯一润色 + 三子 Agent 并行审查 + 至少两票通过"机制；核对 17 个 alpha Skill 清单、BSK 2.1.6 版本说明与全部相对链接目标均与仓库现状一致。
+
+### Validation（验证）
+
+- humanization 并行审查设定调整：121 项既有保护/运行回归、strict 结构与 Pack 托管/加载静态检查通过；三名子 Agent 只读复核配置与文档，未执行真实用户润色。
+
+- 完成三轮实际多 Agent 评估/总结与主 Agent 单点实施；最终 121 项保护/运行回归和 2 项隔离安装回归通过，Pack/结构/README/安装后发现检查通过。最终临时副本完成四类真实主宿主语义链（五次绑定结果），科学语义错误被拒并经新 attempt 退回原文后放行。合成协议测试与真实审查分开记录，不宣称独立盲评或通用自然度提升；安装器保留一条既有 locale 弃用警告。
+- v5.0.16 出品验证：清理 `packages/bensz-skill-kernel/src/` 下陈旧 `bensz_skill_kernel.egg-info`（残留 Version 2.1.7 与 pyproject 2.1.6 不一致，污染 `importlib.metadata` 解析并导致 2 项进程中断恢复测试失败）；本机开发环境 bensz-skill-kernel 对齐 2.1.6 后，根级 pytest 365 项全部通过，双语 README 对齐检查通过，Skill 结构报告仅存 `awesome-code` 子 Agent 已知豁免项。
 
 ## [5.0.15] - 2026-11-01
 

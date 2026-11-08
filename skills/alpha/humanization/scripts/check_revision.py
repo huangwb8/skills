@@ -18,7 +18,8 @@ COMPLEX_TEX = re.compile(
     r"|\\begin\{(?:verbatim\*?|lstlisting|minted)\}"
 )
 PLAIN_MARKUP = re.compile(
-    r"\\[A-Za-z]|(?m:^[ \t]*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|```|~~~|\|))"
+    r"\\|[$`%]|(?m:^[ \t]*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|```|~~~|\|))"
+    r"|(?m:^(?: {4}|\t)\S|^[ \t]*(?:=+|-+)[ \t]*$)"
 )
 ATOM = re.compile(
     r"[A-Za-z][A-Za-z0-9_]*(?:[-+/.@:/][A-Za-z0-9_]+)*"

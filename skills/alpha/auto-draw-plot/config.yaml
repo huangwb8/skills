@@ -1,7 +1,7 @@
 skill_info:
   name: "auto-draw-plot"
-  version: "0.3.3"
-  description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 gpt-image-2.5-flare、gpt-image-2.5-sunburst、gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑和多轮迭代，不依赖 imagegen skill。"
+  version: "0.3.4"
+  description: "自包含的图片生成工作流：根据用户需求自动编写绘图 prompt，并通过 BenszAPI 调用 GPT Image 2.6/2.5 Flare、Sunburst、gpt-image-2 或 Nano Banana/Gemini 完成出图、编辑与多轮迭代，支持 2.6 原生 SVG/GIF、complexity 和 markup，不依赖 imagegen skill。"
   author: "Bensz Conan"
   category: "image-generation"
 
@@ -47,6 +47,8 @@ api:
     allowed_models:
       - "gpt-image-2.5-flare"
       - "gpt-image-2.5-sunburst"
+      - "gpt-image-2.6-flare"
+      - "gpt-image-2.6-sunburst"
       - "gpt-image-2"
     allowed_base_domains:
       - "benszresearch.com"
@@ -128,7 +130,7 @@ modes:
       canvas_height: 900
       accept_score: 8.5
       planner_role: "你是一位擅长把中文需求转成高质量图片生成 prompt 的提示词设计师。"
-      purpose: "生成一张符合用户描述、适合科研/汇报/信息图使用的 PNG。"
+      purpose: "生成一张符合用户描述、适合科研/汇报/信息图使用的图像。"
       prompt_sections:
         - "忠实覆盖用户需求，不补充无关实体。"
         - "主体清晰、构图稳定、色彩有明确层级。"
@@ -144,7 +146,7 @@ modes:
       canvas_height: 1697
       accept_score: 8.6
       planner_role: "你是一名科研申请书插图设计师，专长是中文技术路线图/flowchart。"
-      purpose: "生成一张白底、A4 可读、接近矢量图风格的技术路线图 PNG。"
+      purpose: "生成一张白底、A4 可读、接近矢量图风格的技术路线图。"
       prompt_sections:
         - "将内容拆成 3-5 个阶段或研究任务，阶段标题条必须清楚。"
         - "阶段内使用圆角矩形节点；主链用粗实线箭头，风险/备选/对照用细线或虚线。"
@@ -166,7 +168,7 @@ modes:
       canvas_height: 1200
       accept_score: 8.6
       planner_role: "你是一名科研插图设计师，专长是中文原理图、机制图与算法/模块架构图。"
-      purpose: "生成一张白底、结构分组清晰、接近矢量图风格的科研原理图 PNG。"
+      purpose: "生成一张白底、结构分组清晰、接近矢量图风格的科研原理图。"
       prompt_sections:
         - "优先表达机制链、算法架构、模块关系或实验闭环，而不是普通流程清单。"
         - "节点使用圆角矩形或简洁标签框；分组使用淡色大框和分组标题；主链用粗箭头，辅助/验证用细箭头或虚线。"
@@ -192,6 +194,7 @@ generation:
   quality: "low"
   output_format: "jpeg"
   output_compression: 85
+  # Valid: auto, 1024x1024, 1536x1024, 1024x1536, 2048x2048, 4096x4096, 3840x2160, 2160x3840.
   provider_size: "1024x1024"
   round_dir_prefix: "round-"
   prompt_temperature: 0.2

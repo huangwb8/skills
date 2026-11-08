@@ -20,6 +20,7 @@ from evaluate_image import evaluate_image, heuristic_evaluation
 from generate_image import generate_image
 from image_provider_client import ImageProviderConfig, health_check_image_provider, write_image_with_format_contract
 from init_workspace import init_workspace
+from image_formats import FORMATS, GENERATION_ONLY_FORMATS, resolve_output_format, validate_image_options
 from modes import DrawMode, mode_prompt_lines, resolve_mode
 from build_parallel_plan import build_parallel_plan as create_parallel_plan
 
@@ -33,6 +34,8 @@ def build_round_prompt(
     remote_env: Optional[Path],
     prompt_dir: Path,
     mode: DrawMode,
+    generation_only: bool = False,
+    markup_edit: bool = False,
 ) -> Dict[str, Any]:
     cfg = load_config()
     gen_cfg = cfg.get("generation", {}) or {}
@@ -79,7 +82,7 @@ def build_round_prompt(
         planner_lines.extend(
             [
                 "",
-                "本轮生成方式：上一轮图片会作为第一张参考图提供给图片模型；请基于它做 image-to-image 微调。",
+                ("本轮只依据需求与文字反馈重新生成，不提供上一轮 SVG/GIF 作为参考图。" if generation_only else "本轮使用原始参考图与 markup 标注层重新编辑。" if markup_edit else "本轮生成方式：上一轮图片会作为第一张参考图提供给图片模型；请基于它做 image-to-image 微调。"),
                 "请尽量保留上一轮已经正确的主体、布局、配色和文字，只针对反馈问题做局部优化；除非反馈明确要求重构，不要从零重画。",
             ]
         )
@@ -99,7 +102,7 @@ def build_round_prompt(
         )
 
     payload: Dict[str, Any] = {
-        "image_prompt": fallback_round_prompt(request_text=request_text, feedback_lines=feedback_lines, mode=mode),
+        "image_prompt": fallback_round_prompt(request_text=request_text, feedback_lines=feedback_lines, mode=mode, generation_only=generation_only, markup_edit=markup_edit),
         "negative_prompt": negative_prompt,
         "focus_points": ["忠实满足用户要求", "主体清晰", "结构稳定"],
         "reasoning": "使用本地模板拼装 prompt；脚本默认不调用 Gemini 文本规划，宿主 AI 可在运行前自行优化用户需求。",
@@ -118,7 +121,7 @@ def build_round_prompt(
     return normalized
 
 
-def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode: DrawMode) -> str:
+def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode: DrawMode, generation_only: bool = False, markup_edit: bool = False) -> str:
     lines = [
         "Create one polished, publication-ready image that directly satisfies the user requirement below.",
         f"Mode: {mode.name} - {mode.label}.",
@@ -147,7 +150,7 @@ def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode:
         lines.extend(
             [
                 "",
-                "The previous round image is attached as the primary reference. Edit and improve that image instead of starting from scratch.",
+                ("Regenerate from the original requirement and the text feedback below; no previous SVG/GIF is attached." if generation_only else "Edit the original reference using its markup layer and the feedback below." if markup_edit else "The previous round image is attached as the primary reference. Edit and improve that image instead of starting from scratch."),
                 "Keep correct existing composition details stable; only change what the feedback requires.",
                 "Fix these issues from the previous round:",
                 *feedback_lines,
@@ -277,6 +280,10 @@ def run_draw_plot(
     provider_size: Optional[str] = None,
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
+    complexity: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    frame_duration_ms: Optional[int] = None,
+    markup: Optional[Path] = None,
 ) -> Dict[str, Any]:
     cfg = load_config()
     gen_cfg = cfg.get("generation", {}) or {}
@@ -285,7 +292,15 @@ def run_draw_plot(
     parallel_cfg = cfg.get("parallel_vibe", {}) or {}
     mode = resolve_mode(cfg, mode_name)
 
-    max_rounds = int(max_rounds or gen_cfg.get("default_max_rounds", 3))
+    output_format = resolve_output_format(output_format, Path(output_png) if output_png else None, str(gen_cfg.get("output_format") or "jpeg"))
+    generation_only = output_format in GENERATION_ONLY_FORMATS
+    max_rounds = int(max_rounds if max_rounds is not None else (1 if generation_only else gen_cfg.get("default_max_rounds", 3)))
+    if max_rounds <= 0:
+        raise ValueError("max_rounds 必须为正整数。")
+    if not output_png:
+        output_png = str(Path(str(gen_cfg.get("default_output_name") or "draw-plot.jpg")).with_suffix(FORMATS[output_format]))
+    if output_format == "gif" and not provider_size:
+        provider_size = "auto"
     canvas_w = int(canvas_w or mode.canvas_width or gen_cfg.get("default_canvas_width", 1600))
     canvas_h = int(canvas_h or mode.canvas_height or gen_cfg.get("default_canvas_height", 900))
     effective_postprocess_resize = (
@@ -311,6 +326,13 @@ def run_draw_plot(
         remote_env_path=remote_env,
         provider_name=provider_name,
         timeout_s=int((cfg.get("api", {}) or {}).get("healthcheck_timeout_s", 30)),
+    )
+    validate_image_options(
+        model=provider_cfg.model, provider=provider_cfg.provider, output_format=output_format,
+        references=reference_images, markup=markup, complexity=complexity,
+        frame_count=frame_count, frame_duration_ms=frame_duration_ms,
+        output_compression=output_compression, postprocess_resize=effective_postprocess_resize,
+        provider_size=provider_size,
     )
     api_cfg = cfg.get("api", {}) if isinstance(cfg.get("api"), dict) else {}
     async_job_cfg = api_cfg.get("async_image_job", {}) if isinstance(api_cfg.get("async_image_job"), dict) else {}
@@ -348,7 +370,11 @@ def run_draw_plot(
         "quality": quality or gen_cfg.get("quality") or "low",
         "provider_size": provider_size or gen_cfg.get("provider_size") or "1024x1024",
         "output_format": output_format or gen_cfg.get("output_format") or "jpeg",
-        "output_compression": output_compression if output_compression is not None else gen_cfg.get("output_compression"),
+        "output_compression": (output_compression if output_compression is not None else gen_cfg.get("output_compression")) if output_format in {"jpeg", "webp"} else None,
+        "complexity": complexity,
+        "frame_count": frame_count,
+        "frame_duration_ms": frame_duration_ms,
+        "iteration_strategy": "text_regeneration" if generation_only else "original_markup" if markup else "image_to_image",
     }
     write_json(run_dir / str(reports_cfg.get("run_manifest", "run-manifest.json")), manifest)
 
@@ -380,14 +406,17 @@ def run_draw_plot(
             remote_env=remote_env,
             prompt_dir=round_dir,
             mode=mode,
+            generation_only=generation_only,
+            markup_edit=markup is not None,
         )
         reference_meta = build_round_reference_images(
             user_reference_images=reference_images,
-            prior_rounds=history,
+            prior_rounds=[] if generation_only or markup is not None else history,
             max_reference_images=int(gen_cfg.get("max_reference_images", 4)),
         )
         round_reference_images = [Path(item) for item in reference_meta["reference_images"]]
-        image_output = round_dir / ("output.jpg" if current_provider_cfg.provider == "gpt-image-2" else "output.png")
+        reference_meta["iteration_strategy"] = manifest["generation"]["iteration_strategy"]
+        image_output = round_dir / ("output" + (FORMATS[output_format] if current_provider_cfg.provider == "gpt-image-2" else ".png"))
         image_meta = generate_image(
             prompt=prompt_data["full_prompt"],
             output_png=image_output,
@@ -407,6 +436,10 @@ def run_draw_plot(
             provider_size=provider_size,
             output_format=output_format,
             output_compression=output_compression,
+            complexity=complexity,
+            frame_count=frame_count,
+            frame_duration_ms=frame_duration_ms,
+            markup=markup,
         )
         if image_meta.get("provider") and image_meta.get("provider") != current_provider_cfg.provider:
             current_provider_cfg = ImageProviderConfig(
@@ -432,7 +465,7 @@ def run_draw_plot(
             write_json(round_dir / "evaluation.json", evaluation)
         evaluation["mode"] = mode.name
         evaluation["mode_accept_score"] = mode.accept_score
-        evaluation["passed"] = bool(float(evaluation.get("score", 0.0)) >= float(mode.accept_score))
+        evaluation["passed"] = bool(evaluation.get("passed") and float(evaluation.get("score", 0.0)) >= float(mode.accept_score))
 
         image_hash = sha256_file(image_output)
         round_record = {
@@ -486,12 +519,23 @@ def run_draw_plot(
     best_image = Path(best_round["image"].get("output_file") or best_round["image"]["output_png"])
     write_image_with_format_contract(final_image, best_image.read_bytes())
     copy_file(best_image, exports_dir / ("best" + best_image.suffix.lower()))
+    final_preview = None
+    if best_round["image"].get("preview_path"):
+        final_preview = final_image.with_suffix(".preview.png")
+        copy_file(Path(best_round["image"]["preview_path"]), final_preview)
 
     summary = {
         "run": manifest,
         "best_round": best_round["round"],
         "best_round_dir": best_round["round_dir"],
+        "size_downgrade_detected": bool(best_round["image"].get("size_downgrade_detected")),
+        "size_downgrade_warning": best_round["image"].get("size_downgrade_warning"),
+        "requested_provider_size": best_round["image"].get("requested_provider_size"),
+        "native_size": best_round["image"].get("native_size"),
+        "output_size": best_round["image"].get("output_size"),
         "final_output_image": str(final_image),
+        "final_preview_image": str(final_preview) if final_preview else None,
+        "artifact": {key: best_round["image"][key] for key in ("artifact_type", "mime_type", "frame_count", "frame_durations_ms", "duration_ms", "loop", "animated", "vector_element_count", "preview_warning") if key in best_round["image"]},
         "final_output_png": str(final_image),
         "stop_reason": stop_reason,
         "round_count": len(history),
@@ -564,11 +608,15 @@ def main() -> None:
     parser.add_argument("--postprocess-height", type=int, default=0, help="后处理目标高度；需配合 --postprocess-resize")
     parser.add_argument("--quality", default="", help="OpenAI 图片模型 quality：low/medium/high/auto")
     parser.add_argument("--provider-size", default="", help="OpenAI 图片模型原生尺寸枚举，默认 1024x1024")
-    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp")
+    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp/svg/gif")
     parser.add_argument("--output-compression", type=int, default=-1, help="输出压缩 0-100；默认使用配置值")
+    parser.add_argument("--complexity", choices=["low", "medium", "high"], default=None, help="2.6 规划复杂度；省略使用上游默认 high")
+    parser.add_argument("--frame-count", type=int, default=None, help="GIF 帧数 2-64")
+    parser.add_argument("--frame-duration-ms", type=int, default=None, help="GIF 每帧时长 20-2000ms")
+    parser.add_argument("--markup", default="", help="与单张原图尺寸一致的透明 PNG 标注层")
     parser.add_argument("--api-env", default="", help="remote.env 路径")
     parser.add_argument("--mode", default="", help="绘图模式：general（默认）/ roadmap / schematic")
-    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2 / nano_banana")
+    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2.6-flare / gpt-image-2.6-sunburst / gpt-image-2 / nano_banana")
     parser.add_argument(
         "--allow-provider-fallback",
         action="store_true",
@@ -599,7 +647,11 @@ def main() -> None:
         quality=args.quality or None,
         provider_size=args.provider_size or None,
         output_format=args.output_format or None,
-        output_compression=args.output_compression if args.output_compression >= 0 else None,
+        output_compression=args.output_compression if args.output_compression != -1 else None,
+        complexity=args.complexity,
+        frame_count=args.frame_count,
+        frame_duration_ms=args.frame_duration_ms,
+        markup=expand_path(args.markup, base=Path.cwd()) if args.markup else None,
     )
     print(summary.get("final_output_image") or summary["final_output_png"])
 

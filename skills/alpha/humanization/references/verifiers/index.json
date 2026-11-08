@@ -1,0 +1,43 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "verifier",
+  "entries": [
+    {
+      "directory": "revision-readiness",
+      "id": "bensz.prose.revision-readiness",
+      "version": "1.1.0",
+      "classification": "domain",
+      "tags": [
+        "prose",
+        "revision",
+        "semantic",
+        "delivery"
+      ],
+      "aliases": [],
+      "contract": "VERIFIER.md",
+      "mode": "hybrid",
+      "assurance_tier": "mixed",
+      "components": [
+        {
+          "id": "revision-facts",
+          "type": "script",
+          "entrypoint": "scripts/verify.py",
+          "required": true,
+          "assurance": "deterministic",
+          "side_effects": "none",
+          "timeout": 15
+        },
+        {
+          "id": "semantic-review",
+          "type": "agent",
+          "depends_on": [
+            "revision-facts"
+          ],
+          "required": true,
+          "assurance": "llm_judge",
+          "side_effects": "none"
+        }
+      ]
+    }
+  ]
+}

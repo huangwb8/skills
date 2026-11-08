@@ -1,0 +1,40 @@
+{
+  "protocol": "bensz-pack-index-v1",
+  "package_kind": "state",
+  "entries": [
+    {
+      "directory": "working",
+      "id": "bensz.revision.working",
+      "version": "1.0.0",
+      "kind": "skill",
+      "classification": "domain",
+      "tags": [
+        "prose",
+        "revision",
+        "delivery"
+      ],
+      "aliases": [],
+      "contract": "STATE.md",
+      "mode": "none",
+      "assurance_tier": "none",
+      "components": []
+    },
+    {
+      "directory": "ready",
+      "id": "bensz.revision.ready",
+      "version": "1.0.0",
+      "kind": "skill",
+      "classification": "domain",
+      "tags": [
+        "prose",
+        "revision",
+        "delivery"
+      ],
+      "aliases": [],
+      "contract": "STATE.md",
+      "mode": "none",
+      "assurance_tier": "none",
+      "components": []
+    }
+  ]
+}

@@ -90,7 +90,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 | 你想完成的任务 | 入口与当前行为 |
 | --- | --- |
-| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；默认适中改写，允许保留优秀原文 |
+| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；主 Agent 唯一润色，三个子 Agent 经 parallel-vibe 并行审查，至少两票通过才交付 |
 | 为项目建立 AI 协作规范 | [init-project](skills/alpha/init-project/README.md)：生成项目指令与文档，初始化 `docs/` 和 `docs/plans/` |
 | 组织多个 Agent 协作 | [awesome-code](skills/alpha/awesome-code/README.md) 负责规划和审查，[parallel-vibe](skills/alpha/parallel-vibe/README.md) 统一执行串行或并行任务 |
 

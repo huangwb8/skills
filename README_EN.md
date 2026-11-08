@@ -90,7 +90,7 @@ Start with these entry points for common tasks:
 
 | Your task | Entry point and current behavior |
 | --- | --- |
-| Polish existing articles, emails, reports, academic or technical text | [humanization](skills/alpha/humanization/README_EN.md): adapts to the register while preserving facts, intent, and formatting; defaults to moderate editing and may retain strong original prose |
+| Polish existing articles, emails, reports, academic or technical text | [humanization](skills/alpha/humanization/README_EN.md): adapts to the register while preserving facts, intent, and formatting; the main agent is the sole editor, three sub-agents review in parallel via parallel-vibe, and delivery requires at least two passing votes |
 | Set up AI collaboration rules for a project | [init-project](skills/alpha/init-project/README.md): generates project instructions and documentation, initializing `docs/` and `docs/plans/` |
 | Organize multiple agents | [awesome-code](skills/alpha/awesome-code/README.md) handles planning and review; [parallel-vibe](skills/alpha/parallel-vibe/README.md) executes serial or parallel tasks |
 

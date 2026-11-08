@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -14,6 +15,7 @@ from image_provider_client import (
     resolve_image_provider,
 )
 from nano_banana_client import load_gemini_config
+from image_formats import resolve_output_format, validate_image_options
 
 
 def _reference_preservation_prompt(prompt: str, reference_images: Optional[List[Path]]) -> str:
@@ -52,6 +54,10 @@ def generate_image(
     provider_size: Optional[str] = None,
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
+    complexity: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    frame_duration_ms: Optional[int] = None,
+    markup: Optional[Path] = None,
 ) -> Dict[str, Any]:
     cfg = load_config()
     api_cfg = cfg.get("api", {}) or {}
@@ -67,7 +73,17 @@ def generate_image(
         provider_name=provider_name,
         run_healthcheck=False,
     )
+    output_format = resolve_output_format(output_format, output_png, str(gen_cfg.get("output_format") or "jpeg"))
+    validate_image_options(
+        model=provider_cfg.model, provider=provider_cfg.provider, output_format=output_format,
+        references=reference_images, markup=markup, complexity=complexity,
+        frame_count=frame_count, frame_duration_ms=frame_duration_ms,
+        output_compression=output_compression, postprocess_resize=bool(postprocess_resize),
+        provider_size=provider_size,
+    )
     effective_prompt = _reference_preservation_prompt(prompt, reference_images)
+    if markup is not None:
+        effective_prompt += "\nUse the markup layer to locate the requested edit. Remove annotation marks from the final image; preserve all unrequested content."
     try:
         result = generate_image_png(
             provider_cfg=provider_cfg,
@@ -86,6 +102,10 @@ def generate_image(
             provider_size=provider_size,
             output_format=output_format,
             output_compression=output_compression,
+            complexity=complexity,
+            frame_count=frame_count,
+            frame_duration_ms=frame_duration_ms,
+            markup=markup,
         )
     except Exception as exc:
         if provider_cfg.provider != "gpt-image-2":
@@ -103,6 +123,8 @@ def generate_image(
                     "reference_image_count": len(reference_images or []),
                 },
             )
+        if output_format in {"svg", "gif"} or complexity is not None or markup is not None:
+            raise RuntimeError(f"{model_label} 的指定能力请求失败，未跨 provider 降级：{gpt_error}") from gpt_error
         if not allow_provider_fallback:
             raise RuntimeError(
                 f"{model_label} 生成失败，未切换到其他图片模型。"
@@ -144,7 +166,13 @@ def generate_image(
             provider_size=provider_size,
             output_format=output_format,
             output_compression=output_compression,
+            complexity=complexity,
+            frame_count=frame_count,
+            frame_duration_ms=frame_duration_ms,
+            markup=markup,
         )
+    if result.get("size_downgrade_warning"):
+        print(result["size_downgrade_warning"], file=sys.stderr)
     if debug_dir is not None:
         write_json(debug_dir / "image-generation.json", result)
     return result
@@ -164,11 +192,15 @@ def main() -> None:
     parser.add_argument("--postprocess-height", type=int, default=0, help="后处理目标高度；需配合 --postprocess-resize")
     parser.add_argument("--quality", default="", help="OpenAI 图片模型 quality：low/medium/high/auto")
     parser.add_argument("--provider-size", default="", help="OpenAI 图片模型原生尺寸枚举，默认 1024x1024")
-    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp")
+    parser.add_argument("--output-format", default="", help="OpenAI 图片模型输出格式：jpeg/png/webp/svg/gif")
     parser.add_argument("--output-compression", type=int, default=-1, help="输出压缩 0-100；默认使用配置值")
+    parser.add_argument("--complexity", choices=["low", "medium", "high"], default=None, help="2.6 规划复杂度；省略则使用上游默认 high")
+    parser.add_argument("--frame-count", type=int, default=None, help="GIF 帧数 2-64；省略使用上游默认 9")
+    parser.add_argument("--frame-duration-ms", type=int, default=None, help="GIF 每帧时长 20-2000ms；上游按 10ms 取整")
+    parser.add_argument("--markup", default="", help="与单张原图尺寸一致的透明 PNG 标注层")
     parser.add_argument("--debug-dir", default="", help="调试目录")
     parser.add_argument("--reference-image", action="append", default=[], help="可重复传入参考图路径")
-    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2 / nano_banana")
+    parser.add_argument("--provider", default="auto", help="图片 provider/model：auto（默认）/ gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2.6-flare / gpt-image-2.6-sunburst / gpt-image-2 / nano_banana")
     parser.add_argument(
         "--allow-provider-fallback",
         action="store_true",
@@ -202,7 +234,11 @@ def main() -> None:
         quality=args.quality or None,
         provider_size=args.provider_size or None,
         output_format=args.output_format or None,
-        output_compression=args.output_compression if args.output_compression >= 0 else None,
+        output_compression=args.output_compression if args.output_compression != -1 else None,
+        complexity=args.complexity,
+        frame_count=args.frame_count,
+        frame_duration_ms=args.frame_duration_ms,
+        markup=expand_path(args.markup, base=Path.cwd()) if args.markup else None,
     )
     print(result.get("output_file") or result["output_png"])
 

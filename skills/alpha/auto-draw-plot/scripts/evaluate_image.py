@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 
 from common import expand_path, load_config, read_text, sha256_file, write_json
 from modes import DrawMode, mode_evaluation_lines, mode_prompt_lines
+from image_formats import inspect_artifact
 
 
 def evaluate_image(
@@ -23,6 +24,10 @@ def evaluate_image(
     normalized = heuristic_evaluation(image_path)
     normalized["review_backend"] = "heuristic"
     normalized["review_context"] = build_review_prompt(request_text=request_text, image_prompt=image_prompt, mode=mode)
+    if normalized.get("artifact_type") == "gif":
+        normalized["review_context"] += "\n动画专项：播放完整 GIF，检查运动语义、主体一致性、闪烁、文字稳定性及循环接缝；接触表只能辅助，不能替代播放。"
+    elif normalized.get("artifact_type") == "svg":
+        normalized["review_context"] += "\n矢量专项：渲染 SVG 原件，检查布局、文字与缩放效果；XML 结构通过不能替代视觉检查。"
     if output_json is not None:
         write_json(output_json, normalized)
     return normalized
@@ -103,6 +108,27 @@ def normalize_evaluation(
 def heuristic_evaluation(image_path: Path) -> Dict[str, Any]:
     cfg = load_config()
     eval_cfg = cfg.get("evaluation", {}) or {}
+    if image_path.suffix.lower() in {".gif", ".svg"}:
+        artifact = inspect_artifact(image_path)
+        issues = ["尚未完成宿主 AI 的视觉与语义复核。"]
+        if artifact.get("artifact_type") == "gif" and not artifact.get("animated"):
+            issues.append("GIF 仅含一帧，未形成动画。")
+        if artifact.get("artifact_type") == "svg" and not artifact.get("vector_element_count"):
+            issues.append("SVG 未包含可见矢量元素。")
+        return {
+            **artifact,
+            "score": 5.5,
+            "passed": False,
+            "summary": "格式与结构已检查；仍需检查实际矢量渲染或完整动画。",
+            "strengths": ["原生文件已保留，未转换为静态 JPEG。"],
+            "issues": issues,
+            "must_fix": issues,
+            "prompt_patch": [],
+            "confidence": 0.2,
+            "image_sha256": sha256_file(image_path),
+            "raw_text": "",
+            "fallback_mode": "heuristic",
+        }
     long_edge = 0
     try:
         from PIL import Image  # type: ignore

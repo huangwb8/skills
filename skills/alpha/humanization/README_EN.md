@@ -29,6 +29,34 @@ Use it to polish existing prose, reduce formulaic wording, adjust tone or improv
 
 This Skill edits the expression of existing content. It does not write from scratch, supply facts, retrieve/verify evidence, perform translation alone or change layouts. Use `better-prompt` to design prompt behavior and `write-readme` to author a complete project README; this Skill can polish the natural language within those materials. Its rules apply within the current invocation without changing global conversation style or promising to reproduce a particular model's writing experience.
 
+## How the AI works, from invocation to delivery
+
+The main Agent understands the source, writes and improves the prose, performs expression/safety checks, and delivers the final result. Three independent subagents review the same frozen artifacts in parallel. All three must return completed judgements; at least two must vote pass. Dissent is retained. If the round fails, the main Agent revises and requests another review, up to five review rounds. After a failed fifth round, stop optimizing and deliver the last draft with a brief explanation of its unapproved review status, so the user can decide whether to use it.
+
+```mermaid
+flowchart TD
+    A["Main Agent: read source and requirements"] --> B["init: bind source, parameters and run identity; enter working"]
+    B --> C["Main Agent: revise prose and check expression/safety"]
+    C --> D["release: freeze artifacts, check mechanical rules, obtain review handoff"]
+    D --> R1["Subagent 1: complete read-only review"]
+    D --> R2["Subagent 2: complete read-only review"]
+    D --> R3["Subagent 3: complete read-only review"]
+    R1 --> Q{"Three completed judgements and at least two pass votes?"}
+    R2 --> Q
+    R3 --> Q
+    Q -->|Yes| G["Main Agent consolidates reviews; Kernel Gate permits ready"]
+    G --> O["Main Agent: recheck hashes and deliver approved bytes"]
+    Q -->|No, fewer than five rounds| E["Main Agent: retry and improve the draft"]
+    E --> C
+    Q -->|Fifth round fails| X["Deliver last draft with unapproved status; retain working"]
+```
+
+The host dispatches all three reviewers before waiting, through `parallel-vibe`. Each reads the current handoff and frozen artifacts, without seeing the others' votes or editing prose. BSK does not start models or subagents itself. Without real parallel subagent support, retain the draft and report the blocker; main-Agent self-review cannot replace the panel.
+
+For example, changing “we plan to send the report on Friday” into “we guarantee delivery on Friday” strengthens a promise even though the date is unchanged. The reviewers should identify this. Pass/pass/fail meets the voting threshold when mechanical checks also pass, with dissent retained; pass/pass/missing remains incomplete. Votes cannot override structural, identity, hash or authorization errors.
+
+The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round; retries do not reset the budget. Edits require new votes. Ready approves only the frozen bytes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even text_only includes a short unapproved-status note and the last draft; this fallback does not mark the draft ready. See the [runtime guide](references/runtime-control.md).
+
 ## Styles and parameters
 
 Parameters are read by the Agent; they are not rewrite CLI flags. Defaults are defined in [config.yaml](config.yaml).
@@ -41,7 +69,7 @@ Parameters are read by the Agent; they are not rewrite CLI flags. Defaults are d
 | `strength` | `minimal`, `moderate` (default), `aggressive`; controls expression changes without relaxing protection |
 | `structure_mode` | `preserve` (default) keeps line and paragraph structure; `reflow_plain` explicitly permits reparagraphing continuous plain text, falling back to preservation for LaTeX/headings/lists/code/tables |
 | `output_mode` | `text_only` (default), `text_with_change_summary`, `diagnosis_only`, `text_with_change_summary_and_style_card` |
-| `self_eval_rounds` | `1` or `2` (default), capped by `max_self_eval_rounds`; one round still checks expression and safety |
+| `self_eval_rounds` | `1` or `2` (default), capped by `max_self_eval_rounds`; lowering only the cap also reduces the default rounds; one round still checks expression and safety |
 
 Style selection follows user requirements first, then the source; without clear cues, it uses `general_prose`. Emails gain no unsolicited apologies or promises, academic prose gains no stronger evidence, and technical explanations retain interfaces and necessary steps. Existing parameters and values remain valid. The legacy `nsfc_academic` value maps to formal academic writing without imposing grant section templates. No style or editing strength changes meaning or formatting permissions.
 
@@ -80,6 +108,16 @@ Use `academic_general` for academic prose or `natural_explanation` for explanati
 ## Output and protection checks
 
 The default returns clean prose without scores or diagnostic tables. Summary modes briefly describe substantive changes and unresolved issues; detailed audit tables are available on request. Uncertain sentences remain unchanged, with review notes outside the prose. A style card can carry the register, terminology and boundaries into later batches.
+
+## BSK release gate
+
+BSK retains the existing working/ready stages, one required hybrid Verifier, and the single control entry. The main Agent uses parallel-vibe to dispatch three reviewers and consolidates their actual judgements into the existing semantic component result. No extra review Pack, voting script or subagent orchestrator is added. Three completed judgements, at least two pass votes, and a Kernel Gate are required for approved delivery. The Agent follows the panel and five-round policy; BSK continues its existing mechanical checks, binding and state management.
+
+Execution requires Bensz managed Python/BSK and an installed install-bensz-skills. The Agent uses one entry, `scripts/control.py`; initialization asks the installer to confirm the latest production runtime instead of using project Python or a bare bsk from PATH. Natural-language invocation stays the same. Authorized text and internal evidence are staged in the task's `humanization/input|output|log/`; approved `text_only` output remains prose only, and the event ledger does not copy the source text.
+
+The [runtime and recovery guide](references/runtime-control.md) covers requests, commands, actual handoff submissions and retries. Interrupted initialization or retry can resume in the same directory with the same identity; release receipts are rebuilt from actual events and frozen bytes. A working runtime and real review are now release prerequisites: when unavailable, the draft is retained and the blocker is reported. BSK controls actions passing through this entry; it cannot intercept messages or file writes that bypass it, nor prove that semantic judgments are correct.
+
+## Lexical helper checks
 
 For Chinese text containing technical tokens, use the standard-library helper for a conservative comparison; both inputs are read only:
 

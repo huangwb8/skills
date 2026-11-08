@@ -3,7 +3,7 @@
 - 更新
 
 ```
-repo-version = 5.0.15
+repo-version = 5.0.16
 bsk-version = 2.1.6
 
 请您：
@@ -416,6 +416,10 @@ skills/beta/validate-md-ref/SKILL.md 里，关于状态机和验证器的描述�
 SKILL=`skills/beta/prompt-programming` ; 根据本项目的约定， 给`{SKILL}`加入状态机和验证器。 docs/events/2026-08-27-全生态-verifier与state设计报告.md 里有一些关于`{SKILL}`的改造建议，你可以重点参考。如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它已经存在的功能。要保证最终成品能正常、稳定、高效地工作。
 
 # Skill开发
+
+### skills/alpha/humanization
+
+目前， skills/alpha/humanization 的规范不错； 但是ai在实际的时候经常不会严格执行。因此，我希望你引入 verifier/state 系统，通过 bsk 进行一些约束，以加强ai对skill的一些要求的落实。请优化，版本号可更新为2.0.0。本次任务要启动多agent/多轮循环优化。
 
 ## skills/beta/bensz-r-developer
 

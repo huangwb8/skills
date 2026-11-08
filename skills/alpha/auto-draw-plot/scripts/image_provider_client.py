@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from common import ensure_dir, load_config, warn, write_json
 from env_utils import find_remote_env, mask_secret, merged_env, resolve_config_path
+from image_formats import (GENERATION_ONLY_FORMATS, inspect_artifact, parse_static_svg, preflight_gif,
+                           resolve_output_format, validate_image_options)
 from nano_banana_client import (
     generate_png as generate_nano_banana_png,
     load_gemini_config,
@@ -51,6 +53,20 @@ class ImageProviderConfig:
         )
 
 
+_NATIVE_FORMAT_ERROR_HINTS = {
+    "MODEL_NOT_IN_CATALOG": "目标站点尚未开放该模型；请由管理员核对模型目录。",
+    "IMAGE_OUTPUT_FORMAT_UNSUPPORTED": "所选账号通道或上游尚未确认支持此原生格式；请核对模型及账号能力声明。",
+    "IMAGE_OUTPUT_FORMAT_MISMATCH": "上游成品字节或元数据与原生格式请求不符；已停止，禁止重提交或跨 provider 回退。",
+    "IMAGE_OUTPUT_UNCONFIRMED": "上游已收到生成请求，但结果尚不能确认；禁止自动重提交以免重复计费。",
+}
+
+
+class ProviderImageFormatError(ValueError):
+    error_code = "IMAGE_OUTPUT_FORMAT_MISMATCH"
+    category = "image_output_integrity_error"
+    retryable = False
+
+
 class ProviderUnavailable(RuntimeError):
     pass
 
@@ -66,9 +82,10 @@ class ProviderHTTPError(RuntimeError):
         self.error_code = error["code"]
         self.retryable = error["retryable"]
         self.safe_message = error["message"]
+        self.diagnostic_hint = _NATIVE_FORMAT_ERROR_HINTS.get(self.error_code.upper(), "")
         self.category = _classify_provider_error(http_status=self.code, error_code=self.error_code)
         machine_code = f" code={self.error_code}" if self.error_code else ""
-        super().__init__(f"HTTP {self.code} {self.reason}{machine_code}: {self.safe_message}")
+        super().__init__(f"HTTP {self.code} {self.reason}{machine_code}: {self.safe_message}" + (f"；{self.diagnostic_hint}" if self.diagnostic_hint else ""))
 
 
 class ProviderProtocolError(RuntimeError):
@@ -129,10 +146,13 @@ class ProviderJobError(RuntimeError):
         self.error_type = str(error_type or "provider_error")
         self.error_code = str(error_code or "IMAGE_GENERATION_FAILED")
         self.safe_message = _redact_sensitive_error_text(message or "image generation job failed")
+        self.diagnostic_hint = _NATIVE_FORMAT_ERROR_HINTS.get(self.error_code.upper(), "")
+        self.retryable = False if self.error_code.upper() in _NATIVE_FORMAT_ERROR_HINTS else None
         self.category = _classify_provider_error(http_status=None, error_code=self.error_code)
         super().__init__(
             "OpenAI 图片异步任务失败："
             f"job_id={self.job_id}; status={self.status}; code={self.error_code}; message={self.safe_message}"
+            + (f"；{self.diagnostic_hint}" if self.diagnostic_hint else "")
         )
 
 
@@ -290,7 +310,19 @@ def generate_image_png(
     provider_size: Optional[str] = None,
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
+    complexity: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    frame_duration_ms: Optional[int] = None,
+    markup: Optional[Path] = None,
 ) -> Dict[str, Any]:
+    output_format = resolve_output_format(output_format, output_png, str((load_config().get("generation") or {}).get("output_format") or "jpeg"))
+    validate_image_options(
+        model=provider_cfg.model, provider=provider_cfg.provider, output_format=output_format,
+        references=reference_images, markup=markup, complexity=complexity,
+        frame_count=frame_count, frame_duration_ms=frame_duration_ms,
+        output_compression=output_compression, postprocess_resize=postprocess_resize,
+        provider_size=provider_size,
+    )
     _validate_postprocess_args(
         postprocess_resize=postprocess_resize,
         postprocess_w=postprocess_w,
@@ -314,6 +346,10 @@ def generate_image_png(
             provider_size=provider_size,
             output_format=output_format,
             output_compression=output_compression,
+            complexity=complexity,
+            frame_count=frame_count,
+            frame_duration_ms=frame_duration_ms,
+            markup=markup,
         )
     else:
         gemini_cfg = load_gemini_config(remote_env_path=provider_cfg.env_path)
@@ -363,6 +399,10 @@ def _generate_openai_png(
     provider_size: Optional[str] = None,
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
+    complexity: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    frame_duration_ms: Optional[int] = None,
+    markup: Optional[Path] = None,
 ) -> Dict[str, Any]:
     refs = [Path(p) for p in (reference_images or [])]
     model_label = _openai_model_label(cfg)
@@ -384,8 +424,12 @@ def _generate_openai_png(
             provider_size=provider_size,
             output_format=output_format,
             output_compression=output_compression,
+            complexity=complexity,
+            frame_count=frame_count,
+            frame_duration_ms=frame_duration_ms,
+            markup=markup,
         )
-    requested_size = _openai_requested_size(canvas_w, canvas_h, provider_size)
+    requested_size = (provider_size or "auto") if output_format == "gif" else _openai_requested_size(canvas_w, canvas_h, provider_size)
     quality, output_format, output_compression = _openai_generation_options(
         quality, output_format, output_compression
     )
@@ -398,6 +442,12 @@ def _generate_openai_png(
         "quality": quality,
         "output_format": output_format,
     }
+    if complexity is not None:
+        payload["complexity"] = complexity
+    if frame_count is not None:
+        payload["frame_count"] = frame_count
+    if frame_duration_ms is not None:
+        payload["frame_duration_ms"] = frame_duration_ms
     if output_compression is not None:
         payload["output_compression"] = output_compression
     endpoint_path = "/images/jobs/generations" if _use_openai_async_job_endpoint() else "/images/generations"
@@ -465,12 +515,14 @@ def _generate_openai_png(
     if debug_dir is not None:
         write_json(debug_dir / "response.json", _sanitize_image_response(response))
 
+    server_format_meta = _native_response_format_meta(response, output_format)
     best = _best_image(_extract_openai_images(response))
     if best is None:
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
         raise RuntimeError(f"未从 {model_label} 响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
     mime = _write_provider_image(output_png, mime, raw)
+    artifact_meta = inspect_artifact(output_png, previews=True) if output_format in GENERATION_ONLY_FORMATS else {}
     size_meta = _build_output_size_meta(
         output_png,
         postprocess_resize=postprocess_resize,
@@ -481,10 +533,15 @@ def _generate_openai_png(
     )
     return {
         "mime_type": mime,
+        "output_format": output_format,
+        "complexity": complexity,
+        **server_format_meta,
+        **artifact_meta,
         "output_file": str(output_png),
         "output_png": str(output_png),
         "requested_provider_size": _openai_size_meta(requested_size),
         **size_meta,
+        **_openai_size_downgrade_meta(requested_size, size_meta["native_size"], response),
         "response_path": str(debug_dir / "response.json") if debug_dir is not None else None,
         "submit_mode": submit_mode,
         "endpoint": endpoint_path,
@@ -509,6 +566,10 @@ def _generate_openai_edit_png(
     provider_size: Optional[str] = None,
     output_format: Optional[str] = None,
     output_compression: Optional[int] = None,
+    complexity: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    frame_duration_ms: Optional[int] = None,
+    markup: Optional[Path] = None,
 ) -> Dict[str, Any]:
     model_label = _openai_model_label(cfg)
     refs = _existing_reference_images(reference_images)
@@ -527,7 +588,21 @@ def _generate_openai_edit_png(
     }
     if output_compression is not None:
         fields["output_compression"] = str(output_compression)
+    if complexity is not None:
+        fields["complexity"] = complexity
     files = _openai_edit_file_parts(refs)
+    if markup is not None:
+        overlay = _existing_reference_images([markup])[0]
+        raw = overlay.read_bytes()
+        if _infer_reference_image_mime(overlay, raw) != "image/png":
+            raise ValueError("markup 必须为 PNG 标注层。")
+        from PIL import Image
+        with Image.open(io.BytesIO(raw)) as annotation, Image.open(refs[0]) as original:
+            if annotation.size != original.size or not ("A" in annotation.getbands() or "transparency" in annotation.info):
+                raise ValueError("markup 需要与原图尺寸一致的透明 PNG 标注层。")
+            if annotation.convert("RGBA").getchannel("A").getextrema()[0] == 255:
+                raise ValueError("markup 标注层必须含透明区域。")
+        files.append(("markup", overlay.name, "image/png", raw))
     endpoint_path = "/images/jobs/edits" if _use_openai_async_job_endpoint() else "/images/edits"
     submit_mode = _openai_submit_mode(endpoint_path)
     if debug_dir is not None:
@@ -621,12 +696,14 @@ def _generate_openai_edit_png(
     if debug_dir is not None:
         write_json(debug_dir / "response.json", _sanitize_image_response(response))
 
+    server_format_meta = _native_response_format_meta(response, output_format)
     best = _best_image(_extract_openai_images(response))
     if best is None:
         excerpt = json.dumps(response, ensure_ascii=False)[:800]
         raise RuntimeError(f"未从 {model_label} 编辑响应中提取到图片。response_excerpt={excerpt}")
     mime, raw = best
     mime = _write_provider_image(output_png, mime, raw)
+    artifact_meta = inspect_artifact(output_png, previews=True) if output_format in GENERATION_ONLY_FORMATS else {}
     size_meta = _build_output_size_meta(
         output_png,
         postprocess_resize=postprocess_resize,
@@ -637,10 +714,15 @@ def _generate_openai_edit_png(
     )
     return {
         "mime_type": mime,
+        "output_format": output_format,
+        "complexity": complexity,
+        **server_format_meta,
+        **artifact_meta,
         "output_file": str(output_png),
         "output_png": str(output_png),
         "requested_provider_size": _openai_size_meta(requested_size),
         **size_meta,
+        **_openai_size_downgrade_meta(requested_size, size_meta["native_size"], response),
         "response_path": str(debug_dir / "response.json") if debug_dir is not None else None,
         "reference_image_count": len(refs),
         "reference_images": [
@@ -682,6 +764,9 @@ _CLIENT_POLICY_ERROR_CODES = {
     "PERMISSION_DENIED",
     "ACCESS_DENIED",
     "BILLING_NOT_ALLOWED",
+    "IMAGE_OUTPUT_FORMAT_UNSUPPORTED",
+    "IMAGE_OUTPUT_FORMAT_MISMATCH",
+    "IMAGE_OUTPUT_UNCONFIRMED",
 }
 _PROVIDER_FALLBACK_BLOCKED_ERROR_CODES = _CLIENT_POLICY_ERROR_CODES | {
     "BILLING_SERVICE_ERROR",
@@ -741,6 +826,8 @@ def _classify_provider_error(*, http_status: Optional[int], error_code: str) -> 
 
 
 def _should_retry_provider_http_error(exc: ProviderHTTPError) -> bool:
+    if exc.error_code.upper() in _NATIVE_FORMAT_ERROR_HINTS:
+        return False
     if exc.retryable is False:
         return False
     if exc.retryable is True:
@@ -749,7 +836,9 @@ def _should_retry_provider_http_error(exc: ProviderHTTPError) -> bool:
 
 
 def is_provider_fallback_allowed(exc: BaseException) -> bool:
-    if isinstance(exc, ProviderProtocolError):
+    if isinstance(exc, (ProviderProtocolError, ProviderImageFormatError)):
+        return False
+    if str(getattr(exc, "error_code", "")).upper() in _NATIVE_FORMAT_ERROR_HINTS:
         return False
     error_code = str(getattr(exc, "error_code", "") or "").strip().upper()
     category = str(getattr(exc, "category", "") or "").strip()
@@ -770,6 +859,7 @@ def is_provider_fallback_allowed(exc: BaseException) -> bool:
 
 def provider_error_debug_payload(exc: BaseException) -> Dict[str, Any]:
     payload: Dict[str, Any] = {
+        "diagnostic_hint": str(getattr(exc, "diagnostic_hint", "") or ""),
         "category": str(getattr(exc, "category", "provider_error") or "provider_error"),
         "exception_type": type(exc).__name__,
     }
@@ -1576,6 +1666,65 @@ def _infer_reference_image_mime(path: Path, raw: bytes) -> str:
     raise RuntimeError(f"参考图内容不是受支持的图片格式：{path} (guessed={guessed})")
 
 
+def _native_response_format_meta(response: Dict[str, Any], requested: str) -> Dict[str, Any]:
+    if requested not in GENERATION_ONLY_FORMATS:
+        return {}
+    expected_mime = {"svg": "image/svg+xml", "gif": "image/gif"}[requested]
+    if response.get("format_validated") is not None and response["format_validated"] is not True:
+        raise ProviderImageFormatError("服务端未确认原生格式校验通过。")
+    if response.get("requested_output_format", requested) != requested:
+        raise ProviderImageFormatError("服务端记录的请求格式与本次请求不一致。")
+    images = response.get("data", [])
+    if not isinstance(images, list) or not images:
+        raise ProviderImageFormatError("原生图片结果缺少图片数据。")
+    metadata = []
+    for item in images:
+        if not isinstance(item, dict):
+            raise ProviderImageFormatError("原生图片结果项不是对象。")
+        raw = _decode_b64_image(item.get("b64_json"))
+        url = item.get("url")
+        if isinstance(url, str) and url.lower().startswith("data:"):
+            url_raw = _decode_data_url_image(url)
+            if url.split(",", 1)[0].lower() != f"data:{expected_mime};base64" or not url_raw or (raw and raw != url_raw):
+                raise ProviderImageFormatError("图片 data URL 与请求格式或图片字节不一致。")
+        if not raw and isinstance(url, str):
+            raw = _decode_data_url_image(url)
+            if raw and url.split(",", 1)[0].split(";", 1)[0] != f"data:{expected_mime}":
+                raise ProviderImageFormatError("图片 data URL 的 MIME 与请求格式不一致。")
+        try:
+            detected = _detect_image_mime(raw) if raw and len(raw) <= 48 * 1024 * 1024 else ""
+        except ValueError as exc:
+            raise ProviderImageFormatError("上游 SVG 未通过静态矢量安全校验。") from exc
+        if detected != expected_mime:
+            raise ProviderImageFormatError("上游返回了错误的原生图片格式或超大图片。")
+        if requested == "gif":
+            try:
+                preflight_gif(raw)
+                from PIL import Image
+                with Image.open(io.BytesIO(raw)) as animation:
+                    count = animation.n_frames
+                    if "loop" not in animation.info or animation.width * animation.height * count > 64 * 1024 * 1024:
+                        raise ValueError("GIF 缺少循环信息或总像素超过限制。")
+                    loop = animation.info["loop"]
+                    durations = []
+                    for frame in range(count):
+                        animation.seek(frame)
+                        animation.load()
+                        duration = int(animation.info.get("duration", 0))
+                        if not 20 <= duration <= 2000:
+                            raise ValueError("GIF 帧时长不在支持范围内。")
+                        durations.append(duration)
+                actual_metadata = {"frame_count": count, "frame_durations_ms": durations, "duration_ms": sum(durations), "loop": loop}
+                if any(key in item and item[key] != value for key, value in actual_metadata.items()):
+                    raise ValueError("GIF 帧元数据与图片字节不一致。")
+            except (ValueError, OSError, EOFError) as exc:
+                raise ProviderImageFormatError("上游 GIF 未通过动画结构校验。") from exc
+        if item.get("mime_type", expected_mime) != expected_mime or item.get("output_format", requested) != requested:
+            raise ProviderImageFormatError("服务端图片元数据与真实格式不一致。")
+        metadata.append({key: item[key] for key in ("output_format", "mime_type", "structural_check_passed", "vector_element_count", "frame_count", "frame_durations_ms", "duration_ms", "loop") if key in item})
+    return {"server_format_validated": response.get("format_validated") is True, "server_format_metadata": metadata}
+
+
 def _extract_openai_images(resp: Dict[str, Any]) -> List[Tuple[str, bytes]]:
     out: List[Tuple[str, bytes]] = []
     for item in _iter_response_dicts(resp):
@@ -1636,7 +1785,8 @@ def _openai_requested_size(w: int, h: int, requested: Optional[str] = None) -> s
     gen_cfg = cfg.get("generation", {}) if isinstance(cfg.get("generation"), dict) else {}
     configured = str(requested or gen_cfg.get("provider_size") or "").strip().lower()
     if configured:
-        if configured not in {"1024x1024", "1536x1024", "1024x1536", "auto"}:
+        if configured not in {"1024x1024", "1536x1024", "1024x1536", "2048x2048",
+                              "4096x4096", "3840x2160", "2160x3840", "auto"}:
             raise ValueError(f"不支持的 OpenAI 图片 provider_size：{configured}")
         return configured
     return _choose_openai_size(w, h)
@@ -1656,10 +1806,12 @@ def _openai_generation_options(
     compression = int(compression_raw) if compression_raw is not None else None
     if quality not in {"low", "medium", "high", "auto"}:
         raise ValueError(f"不支持的图片 quality：{quality}")
-    if output_format not in {"png", "jpeg", "webp"}:
+    if output_format not in {"png", "jpeg", "webp", "svg", "gif"}:
         raise ValueError(f"不支持的图片 output_format：{output_format}")
     if compression is not None and not 0 <= compression <= 100:
         raise ValueError("output_compression 必须在 0 到 100 之间。")
+    if output_format not in {"jpeg", "webp"}:
+        compression = None
     return quality, output_format, compression
 
 
@@ -1672,13 +1824,26 @@ def _openai_submit_retry_attempts() -> int:
 def write_image_with_format_contract(path: Path, raw: bytes) -> str:
     detected = _detect_image_mime(raw)
     if not detected:
-        raise RuntimeError("图片 provider 返回的内容不是受支持的 PNG/JPEG/WebP 图片。")
+        raise RuntimeError("图片 provider 返回的内容不是受支持的 PNG/JPEG/WebP/SVG/GIF。")
     suffix = path.suffix.lower()
     expected_suffixes = {
         "image/png": {".png"},
         "image/jpeg": {".jpg", ".jpeg"},
         "image/webp": {".webp"},
+        "image/gif": {".gif"},
+        "image/svg+xml": {".svg"},
     }[detected]
+    if detected == "image/svg+xml":
+        parse_static_svg(raw)
+    if detected == "image/gif":
+        preflight_gif(raw)
+        from PIL import Image
+        with Image.open(io.BytesIO(raw)) as animation:
+            for frame in range(animation.n_frames):
+                animation.seek(frame)
+                animation.load()
+    if detected in {"image/gif", "image/svg+xml"} and suffix not in expected_suffixes:
+        raise ValueError("SVG/GIF 必须原样保存为对应扩展名，禁止隐式转成静态位图。")
     if suffix in {".jpg", ".jpeg"} and detected != "image/jpeg":
         _write_jpeg(path, raw)
         return "image/jpeg"
@@ -1693,7 +1858,12 @@ def write_image_with_format_contract(path: Path, raw: bytes) -> str:
 
 
 def _write_provider_image(path: Path, _declared_mime: str, raw: bytes) -> str:
-    return write_image_with_format_contract(path, raw)
+    try:
+        return write_image_with_format_contract(path, raw)
+    except (ValueError, OSError, RuntimeError) as exc:
+        if path.suffix.lower() in {".svg", ".gif"}:
+            raise ProviderImageFormatError("原生图片内容未通过本地格式校验。") from exc
+        raise
 
 
 def _write_jpeg(path: Path, raw: bytes) -> None:
@@ -1724,6 +1894,12 @@ def _write_png(path: Path, raw: bytes) -> None:
 
 
 def _detect_image_mime(raw: bytes) -> str:
+    if raw.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    # Parse XML rather than trusting MIME, a suffix or a substring in arbitrary data.
+    if raw.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<"):
+        parse_static_svg(raw)
+        return "image/svg+xml"
     if raw.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if raw.startswith(b"\xff\xd8\xff"):
@@ -1739,6 +1915,36 @@ def _openai_size_meta(size: str) -> Dict[str, Any]:
         return {"provider_value": str(size), "width": int(width_s), "height": int(height_s)}
     except Exception:
         return {"provider_value": str(size)}
+
+
+def _openai_size_tier(size: Optional[Dict[str, Any]]) -> int:
+    if not size or not size.get("width") or not size.get("height"):
+        return 0
+    edge = max(int(size["width"]), int(size["height"]))
+    # Match the gateway's existing size bands, including 2048 in its 4K band.
+    return 1 if edge <= 1024 else 2 if edge <= 1792 else 3
+
+
+def _openai_size_downgrade_meta(
+    requested: str, native: Optional[Dict[str, int]], response: Dict[str, Any]
+) -> Dict[str, Any]:
+    requested_tier = _openai_size_tier(_openai_size_meta(requested))
+    provider_native = str(response.get("native_size") or "")
+    native_tier = _openai_size_tier(native or _openai_size_meta(provider_native))
+    detected = bool(requested_tier and native_tier and native_tier < requested_tier)
+    result: Dict[str, Any] = {"size_downgrade_detected": detected}
+    if provider_native:
+        result["provider_native_size"] = provider_native
+    if detected:
+        tiers = {1: "1K", 2: "2K", 3: "4K"}
+        actual = native or _openai_size_meta(provider_native)
+        result["size_degrade"] = f"{tiers[requested_tier]}->{tiers[native_tier]}"
+        result["size_degrade_reason"] = str(response.get("size_degrade_reason") or "provider_output_smaller_than_requested")
+        result["size_downgrade_warning"] = (
+            f"图片尺寸已降级：请求 {requested}，原生输出 {actual['width']}x{actual['height']}"
+            f"（{result['size_degrade']}）；后处理放大不能视为原生高分辨率。"
+        )
+    return result
 
 
 def _target_4k_size(canvas_w: int, canvas_h: int) -> Dict[str, int]:
@@ -1888,7 +2094,7 @@ def _allowed_openai_image_models(gpt_cfg: Optional[Dict[str, Any]] = None) -> Li
         models = [str(item).strip() for item in configured if str(item).strip()]
     else:
         models = []
-    for model in (_default_openai_image_model(cfg), "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"):
+    for model in (_default_openai_image_model(cfg), "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst", "gpt-image-2"):
         if model and model not in models:
             models.append(model)
     return models

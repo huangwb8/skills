@@ -38,6 +38,67 @@
 
 尺寸可以用自然语言写在 Prompt 里作为布局参考，例如 `画布比例：16:9`、`期望布局：1800 x 1697`。如果你直接运行脚本，`--canvas-width` 和 `--canvas-height` 只影响布局提示，不承诺最终像素。为控制真实调用成本，OpenAI 图片模型默认使用 `gpt-image-2.5-flare`，并显式请求 `quality=low`、最小方形原生尺寸 `1024x1024` 和 `output_format=jpeg`。
 
+## GPT Image 2.6：矢量图、动图与标注编辑
+
+支持显式选择 `gpt-image-2.6-flare`（交互迭代）与 `gpt-image-2.6-sunburst`（细节构图）。默认模型仍为 `gpt-image-2.5-flare`；请求 SVG/GIF 或 complexity 时请明确选 2.6，脚本不会静默更换模型。
+
+`mode` 与 `output_format` 独立。例如，技术路线图可用 `roadmap + svg`，动态机制展示可用 `schematic + gif`。原生格式通过 BenszAPI Images generations/edits 或默认异步 jobs 提交；上游需使用已确认支持相应能力、且在账号 `extra.openai_images_native_formats` 显式声明 `svg`／`gif` 的 API Key 通道；OAuth bridge 明确拒绝这两种原生格式。服务端提交前检查能力，成功结果逐张验证真实字节。未支持时会明确失败，不降级成 JPEG，也不跨 provider 重试。配置方法见 [服务端能力说明](../../docs/OpenAI图片桥接说明.md#原生格式能力声明与结果验证)。
+
+### 生成 SVG
+
+```bash
+python3 skills/auto-draw-plot/scripts/run_draw_plot.py \
+  --provider gpt-image-2.6-sunburst --mode roadmap \
+  --request-text "生成三阶段研究路线图，白底，简洁矢量节点与箭头，文字清晰。" \
+  --complexity high --quality medium \
+  --output-format svg --output-image ./roadmap.svg
+```
+
+SVG 原件按 UTF-8 XML 保存，校验静态矢量内容，拒绝脚本、外部资源、内嵌位图和实体声明。需要 PNG 预览时可在调用该 skill 的 Python 环境安装可选的 `CairoSVG`，同时提供其系统依赖 Cairo；不可用时原件照常交付，并明确提示使用浏览器检查。矢量原件方便继续编辑，但不保证模型生成的文字一定保持为文本节点。
+
+### 生成循环 GIF
+
+```bash
+python3 skills/auto-draw-plot/scripts/run_draw_plot.py \
+  --provider gpt-image-2.6-flare --mode schematic \
+  --request-text "蓝色粒子沿环形通路匀速运动，固定镜头、固定标签，首尾无缝循环。" \
+  --complexity medium --output-format gif --provider-size auto \
+  --frame-count 9 --frame-duration-ms 200 --output-image ./mechanism.gif
+```
+
+输出完整 GIF 与 `mechanism.preview.png` 接触表，结果记录实际帧数、逐帧时长、总时长和循环信息。显式 GIF 尺寸是每帧尺寸，宽高必须为 16 的倍数；总像素预算由上游校验。帧数与时长是请求参数，实际成品元数据独立记录。
+
+SVG/GIF 都只支持文本生成，不接受参考图编辑、markup、位图后处理缩放或 `output_compression`；请求中不发送流式、partial images 或 prompt_rewriter。默认单轮避免无视觉反馈的额外生成；用户显式要求多轮时只依据文字反馈重新生成，不能把前一轮 SVG/GIF 当作 edits 输入。
+
+### 原生格式诊断
+
+| 错误码 | 含义 |
+| --- | --- |
+| `MODEL_NOT_IN_CATALOG` | 站点尚未开放该模型 |
+| `IMAGE_OUTPUT_FORMAT_UNSUPPORTED` | 当前模型、账号通道或 provider 未确认支持此格式，或处于格式失败冷却期 |
+| `IMAGE_OUTPUT_FORMAT_MISMATCH` | 上游返回了 PNG 等错误内容，或 SVG／GIF 安全结构、帧约束、MIME 不匹配 |
+| `IMAGE_OUTPUT_UNCONFIRMED` | 上游请求已发出但结果无法确认，自动重提交可能重复计费 |
+
+这些错误都停止当前任务，不重试 submit，也不跨 provider 回退。失败 job 保留服务端错误码与安全诊断；再次 poll／result 不触发新的生成。成功时客户端读取服务端格式字段，记录 `server_format_validated` 与逐图 `server_format_metadata`，同时继续验证本地字节。旧服务端没有新字段时仍检查真实格式，并将 `server_format_validated` 记录为 `false`，不伪称服务端已验证。GIF 最多 64 帧、单边最多 8192，解码前限制累计帧像素 64 Mi，拒绝单帧伪动画和缺少循环信息的 GIF。
+
+### 使用标注层修改静态图
+
+```bash
+python3 skills/auto-draw-plot/scripts/run_draw_plot.py \
+  --provider gpt-image-2.6-flare --max-rounds 1 \
+  --reference-image ./original.png --markup ./overlay.png \
+  --request-text "将红圈内节点改成蓝色，其余内容保持，成品移除红圈标注。" \
+  --complexity low --output-format png --output-image ./edited.png
+```
+
+`overlay.png` 必须是与原图等大的透明 PNG。原图与标注层作为独立 multipart 字段上传，标注编辑不等于 mask 的像素级硬约束；仍需检查目标区域与其它内容是否符合要求。多轮使用原始原图和原标注层，避免套用新图造成标注位置漂移。2.5 Flare／Sunburst 也接受 markup，但 `complexity` 只向 2.6 提供。
+
+### 检查成品
+
+结构检查只证明文件可解析。SVG 应检查实际渲染、文字与缩放；GIF 应播放完整动画，检查运动语义、闪烁、主体一致性和循环接缝。接触表不能替代动画播放。`evaluation.json` 保持 `passed=false`，直到宿主完成视觉与语义复核；脚本不会把结构通过宣称为图像质量通过。
+
+官方能力与参数来源：[图像生成指南](https://developers.openai.com/api/docs/guides/image-generation#gpt-image-26)。
+
 ## 模式选择
 
 | 你的需求 | 推荐 `mode` | 默认画布 | 适合场景 |
@@ -46,7 +107,7 @@
 | 技术路线图、roadmap、flowchart | `roadmap` | `1800 x 1697` | 阶段、任务、主链、风险/备选 |
 | 原理图、机制图、架构图 | `schematic` | `1920 x 1200` | 模块分组、机制链、算法/实验闭环 |
 
-`nsfc-roadmap` 和 `nsfc-schematic` 可作为别名触发对应模式，但这里只迁移光栅图片的 prompt 与评估经验，不再迁移 draw.io、SVG/PDF、TEX 抽取等 legacy 渲染栈。
+`nsfc-roadmap` 和 `nsfc-schematic` 可作为别名触发对应模式，但这里只迁移光栅图片的 prompt 与评估经验，不再迁移 draw.io、PDF、TEX 抽取等 legacy 渲染栈；SVG 可通过 2.6 原生输出选择。
 
 `roadmap` / `schematic` 默认偏向正常字宽的中文标签：现代黑体/思源黑体/Noto Sans CJK 风格、常规到半粗体、深灰或黑色。标签过长时优先自然换行，不使用窄体、长体、压缩体或横向压缩字形。
 
@@ -92,6 +153,8 @@
 
 默认策略是“原生优先”：provider 返回多少像素，最终图片就保存多少像素。`--canvas-width` / `--canvas-height` 和 Prompt 中的尺寸描述用于表达布局比例，并帮助脚本选择 provider 支持的原生请求尺寸；它们不是超分辨率或 4K 导出开关。
 
+可以通过 `--provider-size` 显式请求 `2048x2048`、`4096x4096`、`3840x2160` 或 `2160x3840`，原有 `auto`、`1024x1024`、`1536x1024`、`1024x1536` 继续支持。高尺寸档优先尝试可用 API Key 通道，不可用时允许 OAuth 回退；最终原生尺寸由实际图片决定。客户端按网关现有档位（≤1024 / ≤1792 / 更大）检测降级，`2048x2048` 也属于网关 4K 档，档名不保证每边 4096 像素。降级时 stderr、轮次 meta 和最终 `meta/result.json` 都会给出 `size_downgrade_detected`／`size_downgrade_warning`；交付必须明确说明请求与实际尺寸，即使显式后处理已经放大。
+
 | 场景 | 适合用途 | 推荐写法 | 脚本参数 |
 | --- | --- | --- | --- |
 | 16:9 汇报图 | 普通展示图、概念图 | `画布比例：16:9` | `--canvas-width 1600 --canvas-height 900` |
@@ -103,7 +166,7 @@ OpenAI 图片模型默认固定请求最低成本的 `1024x1024` 原生尺寸；
 
 ## 工作原理
 
-`auto-draw-plot` 会由当前宿主 AI 把你的需求拆成主体、结构、风格、硬约束和禁止项，然后按模式生成图片 prompt。第 1 轮按文本出图；第 2 轮起会自动把上一轮 `output.jpg` 作为第一参考图，并追加保留主体、构图和背景的保真约束。首轮已有用户参考图时也会正确记录为 `image-to-image`。
+`auto-draw-plot` 会由当前宿主 AI 把你的需求拆成主体、结构、风格、硬约束和禁止项，然后按模式生成图片 prompt。普通静态位图第 1 轮按文本出图；第 2 轮起会自动把上一轮 `output.jpg` 作为第一参考图，并追加保留主体、构图和背景的保真约束。首轮已有用户参考图时也会正确记录为 `image-to-image`。
 
 它是自包含的图片生成工作流：本 skill 自己通过 BenszAPI 完成 prompt、出图、编辑与迭代，不依赖 `imagegen` skill。仅当你明确要求同时使用 `imagegen` 或其特有能力时，助手才应额外调用它，并说明两者独立的职责；正常使用 `auto-draw-plot` 时，不应出现“先由它写 prompt、再交给 imagegen 出图”的说法。
 
@@ -161,18 +224,22 @@ python3 auto-draw-plot/scripts/run_draw_plot.py \
 | 参数 | 说明 |
 | --- | --- |
 | `--mode` | `general` / `roadmap` / `schematic` |
-| `--max-rounds` | 最大迭代轮数，默认 `3` |
+| `--max-rounds` | 静态位图默认 `3`；SVG/GIF 默认 `1`，显式多轮按文字反馈重新生成 |
 | `--canvas-width` | 期望布局宽度/比例参考，不承诺最终图片像素 |
 | `--canvas-height` | 期望布局高度/比例参考，不承诺最终图片像素 |
 | `--postprocess-resize` | 显式启用尺寸后处理；必须同时提供 `--postprocess-width` 与 `--postprocess-height` |
 | `--postprocess-width` | 后处理目标宽度，需配合 `--postprocess-resize` |
 | `--postprocess-height` | 后处理目标高度，需配合 `--postprocess-resize` |
 | `--quality` | OpenAI 图片模型画质：`low` / `medium` / `high` / `auto`，默认 `low` |
-| `--provider-size` | OpenAI 图片模型原生尺寸枚举，默认 `1024x1024` |
-| `--output-format` | `jpeg` / `png` / `webp`，默认 `jpeg` |
-| `--output-compression` | `0-100`，默认 `85` |
+| `--provider-size` | 静态图原生尺寸枚举，默认 `1024x1024`；GIF 默认 `auto`，显式每帧宽高为 16 的倍数 |
+| `--output-format` | `jpeg` / `png` / `webp` / `svg` / `gif`；省略时按输出扩展名推断，无路径则默认 `jpeg` |
+| `--output-compression` | JPEG/WebP 压缩 `0-100`，默认 `85`；SVG/GIF 不接受，PNG 不发送 |
+| `--complexity` | 2.6 规划复杂度 `low` / `medium` / `high`；省略使用上游默认 `high` |
+| `--frame-count` | GIF 帧数 `2-64`，省略使用上游默认 `9` |
+| `--frame-duration-ms` | GIF 每帧时长 `20-2000ms`，上游按 `10ms` 取整；默认 `200ms` |
+| `--markup` | 独立透明 PNG 标注层；尺寸须与唯一原图一致 |
 | `--reference-image` | 用户参考图；第 2 轮起上一轮输出图会自动排在这些参考图之前 |
-| `--provider` | 图片 provider/model：`auto` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` / `gpt-image-2` / `nano_banana`；用户点名模型时应显式传入 |
+| `--provider` | 图片 provider/model：`auto` / `gpt-image-2.6-flare` / `gpt-image-2.6-sunburst` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` / `gpt-image-2` / `nano_banana`；用户点名模型时应显式传入 |
 | `--allow-provider-fallback` | 只有用户明确允许 provider 故障时换模型才使用；计费、权限与客户端策略错误仍不回退 |
 | `--api-env` | 自定义 env 文件 |
 | `--allow-outside-project` | 允许输出或工作区写到 `project_root` 外部 |
@@ -211,7 +278,7 @@ A：不会。OpenAI 图片路径默认不需要 Gemini 配置；prompt 规划由
 
 ### Q：多轮优化是在重画，还是沿着上一张图继续改？
 
-A：沿着上一张图继续改。第 1 轮是 text-to-image；从第 2 轮开始，第 `n+1` 轮会把第 `n` 轮 JPEG 作为第一参考图，并结合反馈做 image-to-image 保真微调。
+A：普通静态图沿着上一张图继续改。第 1 轮是 text-to-image；从第 2 轮开始，第 `n+1` 轮会把第 `n` 轮 JPEG 作为第一参考图，并结合反馈做 image-to-image 保真微调。
 
 ### Q：为什么 roadmap / schematic 里的中文默认不用窄体？
 
@@ -219,4 +286,4 @@ A：中文标签以正常字宽更接近论文图和汇报图的常规排版，�
 
 ### Q：`roadmap` / `schematic` 会输出 draw.io 吗？
 
-A：不会。它们现在是 `auto-draw-plot` 的特殊光栅图片模式；legacy draw.io/SVG/PDF 能力不在本 skill 内继续维护。
+A：不会。模式负责图意与布局，输出格式独立选择；2.6 可以生成原生 SVG，legacy draw.io/PDF 渲染栈不在本 skill 内维护。

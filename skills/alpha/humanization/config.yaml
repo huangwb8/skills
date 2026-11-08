@@ -1,6 +1,6 @@
 skill_info:
   name: humanization
-  version: 1.5.0
+  version: 2.1.0
   description: "润色和优化已有文字，让表达自然、清楚、连贯。适用于文章、邮件、报告、说明、学术与技术文本的语言润色、去机器味、调整语气或改善句段衔接；不用于从零写作、补充事实、事实核查、纯翻译、版式修改或全局对话风格设置。"
   category: writing
 
@@ -54,3 +54,41 @@ quality_checks:
   require_protected_token_diff: true
   require_boundary_disposition_table: true
   require_source_comparison: true
+
+control_policy:
+  max_text_bytes: 262144
+  max_json_bytes: 1048576
+  command_timeout_seconds: 120
+
+# 外部审查轮次独立于主 Agent 的 expression/safety 自检预算。
+review_policy:
+  reviewer_count: 3
+  min_pass: 2
+  max_rounds: 5
+  dispatch: parallel
+  editor: main_agent
+  on_exhaustion: deliver_last_draft_with_review_status
+
+dependencies:
+  agent_execution:
+    skill: parallel-vibe
+    required: true
+
+runtime:
+  kernel:
+    name: bensz-skill-kernel
+  identity_policy: state-identity-v2
+  initial_state: bensz.revision.working
+  state_roots: [references/states]
+  states: [bensz.workspace.ready, bensz.revision.working, bensz.revision.ready]
+  verifier_roots: [references/verifiers]
+  verifiers:
+    - id: bensz.prose.revision-readiness
+      version: 1.1.0
+      required: true
+  orchestration:
+    entrypoint: scripts/control.py
+    actions:
+      release:
+        current_state: bensz.revision.working
+        target_state: bensz.revision.ready
