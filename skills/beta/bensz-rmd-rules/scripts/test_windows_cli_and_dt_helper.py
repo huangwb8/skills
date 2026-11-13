@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
-FORBIDDEN_STATUS_GLYPHS = set("✓✗⚠✅❌📊🔍🚀⊙▶")
+FORBIDDEN_STATUS_GLYPHS = set('\u2713\u2717\u26a0\u2705\u274c\U0001f4ca\U0001f50d\U0001f680\u2299\u25b6')
 
 
 class WindowsCliAndDtHelperTests(unittest.TestCase):

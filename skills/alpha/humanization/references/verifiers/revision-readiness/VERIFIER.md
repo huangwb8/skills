@@ -2,7 +2,7 @@
 
 ## Verification target
 
-判断当前冻结的交付对象是否符合这次原文、授权、参数和输出模式。通过需要确定性证据检查完成，再由 parallel-vibe 调度三个独立子 Agent 并行审查；三人全部完成且至少两票 pass 才通过。主 Agent 负责实际润色、根据意见优化及最终交付，不作为三名审查者之一。字面扫描通过、存在表格或模型自报“已审查”均不能替代真实审查。
+判断当前冻结的交付对象是否符合这次原文、授权、参数和输出模式。通过需要确定性证据检查完成，再由 parallel-vibe 调度三个独立子 Agent 并行审查；本命题的三人判断全部完成、至少两票 pass 且实质异议已结案才通过。同组三人另行判断 defensive-framing，两项 required 分别通过。主 Agent 负责实际润色、根据意见优化及最终交付，不作为三名审查者之一。字面扫描通过、存在表格或模型自报“已审查”均不能替代真实审查。
 
 此契约不证明事实在外部世界真实，不做新证据检索，不保证审美、消除模型偏差或拦截入口外的宿主行为。保持原文与只做诊断都是合法结果。
 
@@ -18,7 +18,7 @@
 
 确定性组件只重算文件和索引、检查模式与结构权限、调用原有字面检查器。pass 表示事实收集与机械约束成立，不表示所有字面差异已被接受或语义安全。原始 fail/unchecked 扫描保留在 facts 中；真正结构越权、输入错配和哈希变化必须阻塞。
 
-主 Agent 直接依赖 parallel-vibe 进行并发派发、隔离、回收和汇总，不另建子 Agent 编排器。三个子 Agent 同时审查同一冻结对象，各自完整阅读 handoff、原文、全部交付文件和三个写作参考，不读取其他人的审查结果、不改正文，分别按下面的契约给出 pass/fail/uncertain 及依据。主 Agent 回收三份结果后，据实生成这一个 semantic-review 组件的汇总回传，在 facts.summary 引用 parallel-vibe 的三个 RESULT.md；它是协调汇总，不是主 Agent 代替子 Agent 自审。
+主 Agent 直接依赖 parallel-vibe 进行并发派发、隔离、回收和汇总，不另建子 Agent 编排器。三个子 Agent 同时审查同一冻结对象，各自完整阅读 handoff、原文、全部交付文件和自然写作、模式、回归、防御性表达四份参考，不读取其他人的审查结果、不改正文，分别按下面的契约给出 pass/fail/uncertain 及依据。主 Agent 回收三份结果后，据实生成这一个 semantic-review 组件的汇总回传，在 facts.reviewers 引用 parallel-vibe 的三个 RESULT.md 及文件哈希、稿件哈希、reviewer_id 和本命题 verdict，facts.resolutions 记录实质异议结案；它是协调汇总，不是主 Agent 代替子 Agent 自审。
 
 1. 双向核对：原文事实、意图、承诺、责任、语气、推测程度、引用主张与独立限定都在候选中保全；候选每个新主张均可回溯到原文。分母、阈值关系、数字所属对象、暂停条件及外推范围不能靠 token 相同视为安全。
 2. 按 `quality_checks` 中所有启用的 `require_*` 项提供 audit：术语、不变量、字面差异、边界处置、原文比较。原文没有适用条目时注明原因；不变量核对始终适用。合并必须给出实际候选去向；必要限定仅出现在摘要或删除建议中不算保留。
@@ -30,9 +30,9 @@
 
 ## Output and verdicts
 
-组件使用 BSK 标准结果。三个子 Agent 的原始判断与实际身份保留在 parallel-vibe 运行目录，facts.summary 引用三个任务内相对 RESULT.md 路径，evidence_refs 保持当前索引引用；executor 如实记录执行汇总的主 Agent，不冒充三个审查者。`pass`：当前全部交付物安全且存在有据可说的净改善，或选定原文/诊断符合模式；必须附 facts.summary、confidence、空 uncertainties、evidence_hash、audit、comparison、rounds，具体 schema 见运行说明。facts 中不写私密原文，使用 artifact/start/end 字符区间及简短理由。`evidence_refs` 必须包含当前索引。
+组件使用 BSK 标准结果。三个子 Agent 的原始判断与实际身份保留在 parallel-vibe 运行目录，facts.reviewers 结构化引用同组三人的任务内相对 RESULT.md 路径、哈希和本命题判断，evidence_refs 保持当前索引引用；executor 如实记录执行汇总的主 Agent，不冒充三个审查者。`pass`：当前全部交付物安全且存在有据可说的净改善，或选定原文/诊断符合模式；必须附 facts.summary、confidence、空 uncertainties、evidence_hash、audit、comparison、rounds、reviewers、resolutions，具体 schema 见运行说明。facts 中不写私密原文，使用 artifact/start/end 字符区间及简短理由。`evidence_refs` 必须包含当前索引。
 
-`fail`：已确认语义/保护/授权回归、改稿无净改善却仍交付改稿、独立边界丢失；findings 给问题类别及锚点。`uncertain`：歧义、上下文不足或无法完整核对；写 uncertainty_reason，每位审查者不得用自己的 pass 覆盖其未决项；汇总按票数规则处理并单列少数异议。`unchecked`：真实审查未执行；handoff 本身保持待处理。`error/timed_out`：执行异常或超时。`skipped` 不能满足 required。汇总 pass 需要三个有效判断齐全且至少两票 pass；允许 pass/pass/fail 或 pass/pass/uncertain，保留少数意见。缺票或 unchecked/error/timed_out/skipped 不算完成审查，不能提前通过；机械、结构或绑定错误不能多数覆盖。
+`fail`：已确认语义/保护/授权回归、改稿无净改善却仍交付改稿、独立边界丢失；findings 给问题类别及锚点。`uncertain`：歧义、上下文不足或无法完整核对；写 uncertainty_reason，每位审查者不得用自己的 pass 覆盖其未决项；汇总按票数规则处理并单列少数异议；实质性不确定性须结案，不能仅计票忽略。`unchecked`：真实审查未执行；handoff 本身保持待处理。`error/timed_out`：执行异常或超时。`skipped` 不能满足 required。汇总 pass 需要三个有效判断齐全且至少两票 pass；pass/pass/fail 或 pass/pass/uncertain 只满足票数门槛；普通风格分歧可保留，任何有锚点的实质指控须修复后新 attempt 重审，或提供原文与候选锚点及可复核的驳回理由。未结案不批准；修复不能在旧冻结结果中标为 fixed。缺票或 unchecked/error/timed_out/skipped 不算完成审查，不能提前通过；机械、结构或绑定错误不能多数覆盖。
 
 ## Failure and boundaries
 

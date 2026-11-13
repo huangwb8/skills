@@ -19,6 +19,10 @@ metadata:
 
 把研究目标和数据组织为可审查、可复现的 R 分析流程。新项目必须用 `renv`，并在真实 R/Rmd 入口完成轻量测试：线性低成本流程用 `simple`；有非线性依赖、昂贵步骤、复用、局部失效、恢复、血缘或并行需求时用 **targets-first complex/pipeline**（`_targets.R` 唯一 DAG，计算函数在 `R/`，Rmd 只消费 target）。`_targets/` 是机器状态，`products/`/`reports/` 是科学产物。已有项目不自动补齐或迁移：有 `_targets.R` 按 complex，无 targets（含历史编号脚本）按 simple；需要复杂能力时由人类显式迁移。本 Skill 不维护编号 runner。
 
+**结果默认可丢失**：数据—分析代码—结果必须贯穿规划、实现、测试和交付。保留受保护输入、源码、参数及环境声明后，即使全部派生数据、缓存、图表和报告丢失，也必须能从文档化正式入口重建约定交付；不得依赖旧 R 会话、`.RData`、未保存对象、临时脚本或未记录的人工操作。不可再生的人工标注、外部响应或用户提供的唯一中间材料须登记为受保护输入，不能当作缓存删除。existing 的未闭合链路披露为风险/阻塞，不隐式迁移，也不宣称可重建。
+
+低成本的整体重建属于 simple 的正常能力，不单独触发 complex；模式选择中的恢复信号指昂贵步骤的断点续算、增量重建等需求。
+
 主要交付物决定触发，而不是扩展名：
 
 | 交付物 | 主导 Skill |
@@ -38,6 +42,8 @@ metadata:
 先读 `config.yaml`，再按任务读取最少 references：
 - 模式/目录：[`workflow_modes.md`](references/workflow_modes.md)、[`hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md)；测试：[`lightweight_testing.md`](references/lightweight_testing.md)。
 - 缓存/示例：[`analysis_workflow_cache.md`](references/analysis_workflow_cache.md)、[`hybrid_architecture_examples.md`](references/hybrid_architecture_examples.md)；审查：[`serial_review_protocol.md`](references/serial_review_protocol.md)。
+- 新建或实质修改分析链路必读：[`rebuild_contract.md`](references/rebuild_contract.md)，规定输入身份、单一路径、显式依赖、无缓存重建及结果丢失验收；simple/complex 均适用。
+- 维护本 Skill 的行为规则时，用 [`behavioral_acceptance.md`](references/behavioral_acceptance.md) 的相关场景核对需求；可执行回归统一在 `scripts/test_*.py`，静态或脚本测试不冒充 Agent 行为评估。
 - R 实现：[`code_style_guide.md`](references/code_style_guide.md)、[`no_overdefensive_code.md`](references/no_overdefensive_code.md)、[`cross_platform.md`](references/cross_platform.md)。
 - 指标/解读：[`metric_explanation_protocol.md`](references/metric_explanation_protocol.md)、[`four_tier_interpretation_framework.md`](references/four_tier_interpretation_framework.md)、[`interpretation_templates.md`](references/interpretation_templates.md)、[`interpretation_narrative_examples.md`](references/interpretation_narrative_examples.md)、[`expert_discussion_template.md`](references/expert_discussion_template.md)。
 - 论文级估计与检验：[`statistical_inference_protocol.md`](references/statistical_inference_protocol.md)；计算前逐项确定可估计性与方法，报告时逐项核对。
@@ -60,9 +66,15 @@ metadata:
 7. **串行审查**：初稿和轻量测试后，按 [`serial_review_protocol.md`](references/serial_review_protocol.md) 完成结构/数据流、R/恢复、科学/统计三项只读审查；每项读取前项修正后的最新版本。影响执行、输出或断言的修正会使旧证据失效，须在最新 identity 上重跑受影响链；不能提供独立 Agent 时须记录降级。
 8. **正式运行与报告**：simple 用明确 R/Rmd 入口；complex 先检查契约，再 `targets::tar_make()`，store 为 `_targets/`。中断后用 `tar_meta()`、outdated 集合和执行记录证明有效 target 被跳过，不手工写 `SUCCESS`。图表默认英文，中文场景用 `params.plot_language`；静态图保存 PDF，并在任务工作区生成 JPG 预览。每个关键结论给出与计算产品对应的估计值、CI、有明确假设时的 p/q、实际意义与局限；无法推断时写清状态和理由。图/表附近给对象、方向/对比与可追溯证据，不为装饰性数字逐个检验。
 
+每项关键交付还须记录输入身份、计算代码/target、分析参数、输出路径、重建入口和数值/结构验收判据；simple 用短表，complex 复用 DAG 与分析计划，不另建调度器。所有外部文件、分析配置、模型参数和随机策略必须进入实际依赖；complex 的文件型输入用 file targets 跟踪，文件交付用 file targets 或明确的同入口导出步骤；simple 从正式入口读取受保护输入并重建全部交付。报告层只保留展示参数，影响估计值的阈值属于分析参数。
+
+轻量执行必须在干净 R 子进程中覆盖：无结果/无 store 重建、缓存保留时交付文件丢失后补齐、同路径输入内容改变后更新，以及隔离项目副本迁移后的数值/结构一致性。complex 另证中断复用和无关节点不被重算。只删本次隔离副本内已确认可再生的结果，不删除正式结果或受保护输入；未验证场景标 `NOT_RUN`/`BLOCKED`，不得宣称完整可重建。项目根由入口定位或明确要求从根启动并拒绝错误 cwd；随机种子与关键系统依赖需记录。具体操作见重建契约。
+
 ### 输出
 
 交付需求—target—报告映射、唯一 `00.Environment.R`、`R/` 函数、Rmd/HTML、`renv.lock`、`renv/activate.R`、`scripts/tests/`、`reports/` 和验证摘要。complex 另交 `_targets.R` 与 `tar_manifest()` 快照，按需交分析计划和科学产品；simple 不创建 targets。测试记录绑定最新 identity，分别报告三层执行状态，不能以轻量通过暗示全量通过。
+
+交付还须附可复制的环境恢复、从原始输入重建和仅重出报告命令（说明 cwd、输入/参数来源）；逐项给出重建验收状态与证据。`renv.lock` 不能独自证明 R/系统库/Pandoc/外部资源可恢复。用于续算的 targets 状态与用于审计的来源摘要不得成为第二个缓存协议。
 
 ### 输出管理
 
@@ -96,6 +108,7 @@ python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state e
 - 测试失败：按失败类别最小修正并重跑；权限/网络/授权/依赖不足时记录阻塞，不伪造成功。
 - complex 测试写正式 `_targets/`、products、reports 或 raw：停止、隔离并确认正式路径后重跑。
 - targets 失效/失败按 outdated/error 重算必要节点；不伪造 `SUCCESS`。Rmd 渲染失败只从报告层恢复。
+- 结果或 store 丢失时按正式重建入口生成，不用空对象/旧结果凑齐交付。输入版本、外部快照或系统依赖缺失时停止受影响链并记录阻塞；`callr_function = NULL` 只切换进程方式，不代表强制失效或重算。
 - existing 冲突不覆盖/迁移；沿现有 targets 或顺序入口做授权增量修改，需复杂能力时显式迁移。
 
 ## 约束

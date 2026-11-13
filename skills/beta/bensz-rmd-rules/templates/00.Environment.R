@@ -9,6 +9,11 @@
 # - 这里允许做最小的依赖边界检查；主脚本/主 Rmd 不要重复检查或写降级分支。
 # - 只做增量添加，不覆盖用户已有内容。
 
+# New-project template: start from the documented project root. Do not silently
+# create outputs relative to an unrelated working directory.
+if (!all(file.exists(c("00.Environment.R", "renv.lock", "renv/activate.R")))) {
+  stop("Run the formal entry from the project root with its renv files present.")
+}
 options(stringsAsFactors = FALSE)
 
 # --- luckyBase（硬前提）---
@@ -24,6 +29,19 @@ luckyBase::Plus.library("yaml")
 # --- 项目目录（raw 只读；只创建可写输出目录）---
 project_root <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
 raw_dir <- file.path(project_root, "raw")
+
+# Single input setting. Resolve before the DAG, then pass it as a dependency.
+# Add other inputs here as needed; never search for a substitute/latest file.
+analysis_input_setting <- Sys.getenv("BENSZ_ANALYSIS_INPUT", unset = file.path("raw", "input.tsv"))
+if (!nzchar(analysis_input_setting) || !file.exists(analysis_input_setting) || dir.exists(analysis_input_setting)) {
+  stop("Configured analysis input must be an existing file.")
+}
+analysis_input <- normalizePath(analysis_input_setting, winslash = "/", mustWork = TRUE)
+if (!startsWith(analysis_input, paste0(project_root, "/"))) {
+  stop("Configured analysis input must stay inside the authorized project.")
+}
+# Store a portable path so moving the project does not change its data identity.
+analysis_input <- substring(analysis_input, nchar(project_root) + 2L)
 
 .bensz_test_output_path <- function(setting, leaf) {
   test_root <- gsub("\\\\", "/", Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = ""))
@@ -125,7 +143,9 @@ if (TRUE) {
   bensz_setup_plot_font <- function(prefer = NULL, enable_showtext = FALSE) {
     base_family <- if (is.character(prefer) && nzchar(prefer)) prefer else .bensz_pick_cjk_family()
     options(bensz.base_family = base_family)
-    try(graphics::par(family = base_family), silent = TRUE)
+    # Configuring an idle compute process must not open the default PDF device
+    # and leave Rplots.pdf in the project root.
+    if (grDevices::dev.cur() > 1L) try(graphics::par(family = base_family), silent = TRUE)
 
     # Prefer showtext path-based registration for consistent rendering across devices.
     enable_showtext <- isTRUE(enable_showtext) || identical(Sys.getenv("BENSZ_ENABLE_SHOWTEXT"), "1")
@@ -138,7 +158,7 @@ if (TRUE) {
         sysfonts::font_add("bensz_base", regular = mf$path)
         showtext::showtext_auto(enable = TRUE)
         options(bensz.base_family = "bensz_base")
-        try(graphics::par(family = "bensz_base"), silent = TRUE)
+        if (grDevices::dev.cur() > 1L) try(graphics::par(family = "bensz_base"), silent = TRUE)
         return(getOption("bensz.base_family"))
       }
     }

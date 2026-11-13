@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.metadata
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -14,7 +15,7 @@ import sys
 
 from revision_evidence import (
     ControlError, SKILL_ROOT, canonical, config, digest, load_request,
-    read_bytes, read_json, safe_path, validate_review, write_json,
+    read_bytes, read_json, safe_path, validate_review, validate_reviewers, write_json,
 )
 
 PROTOCOL = "bensz-revision-control-v1"
@@ -185,6 +186,38 @@ def check_gate(event, requirements: list, source: dict, evidence_hash: str, evid
     return gate
 
 
+def validate_submissions(submissions: list, index: dict, root: Path, source: dict, *, readback: bool = False) -> None:
+    """Skill-level schemas; BSK remains responsible for ComponentResult binding."""
+    expected = {"bensz.prose.revision-readiness": "semantic-review",
+                "bensz.prose.defensive-framing": "defensive-review"}
+    rosters = []
+    seen = set()
+    for submission in submissions:
+        pack_id = submission.get("pack_id")
+        if pack_id not in expected or submission.get("component_id") != expected[pack_id] or pack_id in seen:
+            raise ControlError("unexpected_review_component")
+        seen.add(pack_id)
+        if submission.get("verdict") != "pass":
+            continue
+        facts = submission.get("facts")
+        # BSK audit redaction intentionally masks keys such as protected_token_diff.
+        # Readback trusts the recorded completed verdict for that already-checked schema,
+        # while rechecking the externally stored reviewer bytes and their bindings.
+        if readback:
+            pass
+        elif pack_id == "bensz.prose.revision-readiness":
+            validate_review(facts, index, root)
+        else:
+            path = SKILL_ROOT / "references/verifiers/defensive-framing/scripts/evidence.py"
+            spec = importlib.util.spec_from_file_location("defensive_evidence", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.validate_defensive_review(facts, index, root)
+        rosters.append(validate_reviewers(facts, index, root, source, pack_id))
+    if rosters and any(roster != rosters[0] for roster in rosters[1:]):
+        raise ControlError("reviewer_roster_mismatch")
+
+
 def recover_ready(root: Path, args: argparse.Namespace, snapshot: dict, mapping: dict) -> dict:
     """Read only authoritative BSK events and frozen bytes; receipt is a cache."""
     from bensz_skill_kernel import EventLog, SkillVerifierDeclaration, TaskWorkspace
@@ -229,6 +262,11 @@ def recover_ready(root: Path, args: argparse.Namespace, snapshot: dict, mapping:
                 or any(getattr(event, k) != v for k, v in source.items())
                 or event.payload.get("evidence_hash") != evidence_hash or event.payload.get("evidence_refs") != [index_ref]):
             raise ControlError("ready_result_invalid")
+    reviews = [component for event in results for component in event.payload.get("component_results", [])
+               if component.get("component_id") in {"semantic-review", "defensive-review"}]
+    if len(reviews) != len(required) or any(review.get("verdict") != "pass" for review in reviews):
+        raise ControlError("ready_reviews_missing")
+    validate_submissions(reviews, index, root, source, readback=True)
     receipt = {"protocol": PROTOCOL, "action": args.action, "run_id": args.run_id,
                "attempt_id": args.attempt_id, "source_attempt_id": source_attempt, "status": "already_ready",
                "previous_state": mapping["current_state"], "target_state": mapping["target_state"],
@@ -361,9 +399,7 @@ def execute(args: argparse.Namespace) -> dict:
     packs = {r["id"]: registry.resolve(r["id"], r["version"]).contract_pack() for r in required}
     if any(not isinstance(s, dict) or s.get("pack_id") not in packs for s in submissions):
         raise ControlError("unknown_submission")
-    for submission in submissions:
-        if submission.get("verdict") == "pass":
-            validate_review(submission.get("facts"), index, root)
+    validate_submissions(submissions, index, root, source)
     results, handoffs = [], []
     for requirement in required:
         item_id, version_id = requirement["id"], requirement["version"]
@@ -396,6 +432,7 @@ def execute(args: argparse.Namespace) -> dict:
     if handoffs or any(r["execution_status"] != "completed" or r["verdict"] != "pass" for r in results):
         raise ControlError("required_results_incomplete")
     check_frozen(root, args.request_file, index)
+    validate_submissions(submissions, index, root, source)
     target_attempt = args.attempt_id + "-ready"
     if len(target_attempt) > 80:
         target_attempt = "ready-" + digest(args.attempt_id.encode()).removeprefix("sha256:")[:24]

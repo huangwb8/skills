@@ -1,5 +1,20 @@
 workflow: "pipeline"
 project_state: "new"
+inputs:
+  - id: "analysis_input"
+    path: "raw/input.tsv"
+    role: "protected_input"
+    identity: "记录来源/版本/schema/内容指纹；不记录敏感原始值或绝对私有路径"
+    recovery: "由数据持有人保管；不可再生材料不能作为缓存删除"
+execution:
+  cwd: "project_root"
+  environment: "R 版本、renv.lock 及影响结果的系统/外部资源版本"
+  analysis_parameters: "显式配置依赖；分析 seed 在 _targets.R 声明"
+  restore: 'Rscript --vanilla -e ''source("renv/activate.R"); renv::restore(prompt = FALSE)'''
+  rebuild: 'Rscript --vanilla -e ''source("renv/activate.R"); targets::tar_make()'''
+  # Replace report.Rmd with the actual report; DAG-external reports require
+  # this command after rebuild. Confirm targets are current before render-only.
+  render: 'Rscript --vanilla -e ''source("renv/activate.R"); rmarkdown::render("report.Rmd")'''
 requirements:
   - id: "REQ-01"
     description: "说明用户目标或交付要求"
@@ -39,6 +54,14 @@ recovery:
   store: "_targets/"
   test_store: "tmp/tests/<run-id>/_targets/"
   acceptance: "中断后再次 tar_make() 跳过仍有效的前序 target"
+rebuild_acceptance:
+  comparison: "预先定义关键数值容差、列/主键/顺序与交付清单；不比 HTML/PDF 字节"
+  scenarios:
+    cold_rebuild: "NOT_RUN"
+    missing_delivery: "NOT_RUN"
+    input_content_change: "NOT_RUN"
+    relocated_project: "NOT_RUN"
+  evidence: "每项附命令/cwd、输入/源码/参数/环境身份、退出状态与实际断言"
 observability:
   progress: ["targets::tar_poll", "targets::tar_watch"]
   optional_workers: "crew"

@@ -13,6 +13,6 @@ stopifnot(!anyDuplicated(fixture$sample_id))
 stopifnot(setequal(unique(fixture$group), c("control", "treated")))
 stopifnot(anyNA(fixture$value), max(fixture$value, na.rm = TRUE) >= 8)
 
-test_input <- file.path(test_root, "input", "synthetic_fixture.csv")
+test_input <- file.path(test_root, "input", "synthetic_fixture.tsv")
 dir.create(dirname(test_input), recursive = TRUE, showWarnings = FALSE)
-utils::write.csv(fixture, test_input, row.names = FALSE, na = "")
+utils::write.table(fixture, test_input, sep = "\t", row.names = FALSE, quote = TRUE, na = "", fileEncoding = "UTF-8")

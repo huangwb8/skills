@@ -20,6 +20,8 @@ Top N、阈值、配色和版式是报告参数。只改报告参数时，应只
 
 ## 4. 中断与恢复验收
 
+结果全丢后的重建、交付文件丢失、同路径输入变化和迁移验收按 [`rebuild_contract.md`](rebuild_contract.md) 执行，simple/complex 均适用。中断恢复通过不能代替这些证据。交付文件须由 file target 或明确导出/渲染步骤维护；路径存在或计算 target 有效不代表文件交付齐全。
+
 恢复不是“文件存在”检查，而是真实运行证据：
 
 1. 在隔离 `tmp/tests/<run-id>/_targets` store 中先让至少一个昂贵 target 成功；

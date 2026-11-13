@@ -7,11 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed
+
+- 版本更新至 `0.30.1`：将原 `evals/evals.json` 的 18 个行为场景及全部验收要点无损迁入 `references/behavioral_acceptance.md`；原 `qa/` 的 7 个可执行回归脚本移至 `scripts/`，删除 `evals/` 和 `qa/`。同步正文、双语说明与回归命令，Windows 状态字符测试使用等价 ASCII 转义保留原检查集合，避免迁入后把自身测试字面量误判为 CLI 输出。历史变更记录中的旧路径仅描述当时布局。
+
 ### Added
+
+- 版本更新至 `0.30.0`：将数据—代码—结果的可重建性作为 simple/complex 共用契约，默认全部派生结果可丢失；新增 `rebuild_contract.md`，规定受保护输入、来源与参数映射、显式文件依赖、干净会话、环境/系统前提以及冷重建、交付丢失、输入内容更新、项目迁移四项隔离验收。补充四个 eval 场景、分析计划与逐项交付证据；低成本整体重跑不自动升级 complex，已有项目不隐式迁移。
+- 新增 `scripts/test_rebuild_contract.py`：从临时安装副本生成 simple/complex 项目，以真实 R、renv、targets 和 Rmd 入口验证结果重建、文件恢复、同路径输入更新、迁移、真实下游失败后复用、错误 cwd、测试删除保护及源码身份/环境恢复。测试依赖的未知来源 luckyBase 保存为当前平台本地二进制，不冒充跨平台恢复或用户全量分析。
 
 - 版本更新至 `0.29.0`：论文级关键估计对象在计算前逐项决定推断目的、方法、CI/检验可用性；新增 `statistical_inference_protocol.md`，规定完整计算结果、不可估计状态与报告对应。分析计划提供可选推断节点，simple/complex Rmd 模板、解读指南、审查和交付清单同步要求估计值、适当 CI、适用的 p/q 及来源。保留文本检查器的启发式定位，不将关键词命中当作推断完整性证明。
 
+### Validation
+
+- 目录迁移后从 `scripts/` 统一发现并执行 23 项回归，全部通过，无跳过；包含真实 R/targets/Rmd 和 Chromium 交互。18 个原行为场景的输入、预期行为及断言逐项保留；两个旧目录不存在，现行正文/脚本无旧路径引用，结构与双语 README 检查通过。Windows 字符集合额外核对等价并单独重跑 2 项检查通过。
+
+- 18 项定向测试通过：9 项 targets/renv 检查回归、3 项既有双模式集成、3 项指标协议回归、3 项新增真实重建/保护集成。新增案例在临时安装副本、干净 R 进程和真实 renv/targets/Rmd 中运行，覆盖冷重建、缺失交付、输入内容更新、路径迁移、真实下游失败续算与无关节点复用；修正字体副作用后重跑受影响链通过。
+- strict Skill 结构、R 模板/Python/YAML/JSON 解析、Rmd YAML 同步、双语 README 和 diff 空白检查通过。README 检查保留既有英文 TOC token 提示；新增 evals 只做结构校验，未执行独立 Agent 行为评估。未运行真实全量数据、跨平台依赖恢复或完整 complex 报告图表质量验收。
+
 ### Fixed
+
+- 修正 `callr_function = NULL` 被误写为强制重算方式；按 targets 官方失效接口和隔离空 store 重建区分处理。
+- 环境模板验证项目根并集中解析输入；targets 模板将配置作为显式依赖、跟踪输入内容及导出产品文件。Rmd 图表路径统一使用配置目录；TSV 轻量输入与默认读取格式一致。
+- 测试 harness 在干净 R 子进程执行同一正式入口，身份覆盖 `R/`，恢复输入/store 环境变量；新增场景状态默认 NOT_RUN，避免以 unchanged rerun 冒充真实中断或完整重建证据。字体设置不再为无绘图设备的计算进程生成根级 `Rplots.pdf`。
 
 - 版本更新至 `0.28.2`：Liquid Glass 桌面动态 TOC 的宽度、最大高度和内边距立即切换，避免鼠标在展开动画期间移入目录正文时触发收回；保留阴影和内容透明度过渡，并新增 Chromium 交互回归测试。
 - 版本更新至 `0.28.1`：Liquid Glass 在 `pre`/`code` 区域关闭标准与上下文连字，避免 Cascadia Code 等编程字体把 R 的 ASCII 赋值运算符 `<-` 显示成单个 `←` 字形；新增静态回归测试并补充旧项目主题同步说明。

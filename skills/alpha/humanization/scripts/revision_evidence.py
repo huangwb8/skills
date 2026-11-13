@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 
 from check_revision import PLAIN_MARKUP, UnsupportedInput, compare, structure_signature
@@ -222,3 +223,110 @@ def validate_review(facts: dict, index: dict, root: Path) -> None:
         raise ControlError("review_focus_missing")
     if index["lexical"]["status"] in {"fail", "unchecked"} and not facts.get("lexical_explanation"):
         raise ControlError("lexical_review_missing")
+
+
+def review_texts(index: dict, root: Path) -> dict[str, str]:
+    artifacts = {"original": index["original"], **index["delivery"]}
+    return {key: read_bytes(root, value["ref"], config()["control_policy"]["max_text_bytes"]).decode("utf-8")
+            for key, value in artifacts.items()}
+
+
+def require_text(value: object, code: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ControlError(code)
+
+
+def validate_anchors(anchors: object, texts: dict, *, required: set | None = None) -> None:
+    if not isinstance(anchors, list) or not anchors:
+        raise ControlError("review_anchor_missing")
+    covered = set()
+    for anchor in anchors:
+        if not isinstance(anchor, dict):
+            raise ControlError("review_anchor_invalid")
+        artifact, start, end = anchor.get("artifact"), anchor.get("start"), anchor.get("end")
+        if (not isinstance(artifact, str) or artifact not in texts or type(start) is not int
+                or type(end) is not int or not 0 <= start < end <= len(texts[artifact])):
+            raise ControlError("review_anchor_invalid")
+        covered.add(artifact)
+    if required and not required.issubset(covered):
+        raise ControlError("review_artifact_coverage_missing")
+
+
+def validate_reviewers(facts: dict, index: dict, root: Path, source: dict, pack_id: str) -> tuple:
+    """Check declared review evidence and votes; cannot authenticate human/agent identity."""
+    if not isinstance(facts, dict):
+        raise ControlError("review_facts_missing")
+    reviewers = facts.get("reviewers")
+    policy = config()["review_policy"]
+    if not isinstance(reviewers, list) or len(reviewers) != policy["reviewer_count"]:
+        raise ControlError("reviewer_count_invalid")
+    texts = review_texts(index, root)
+    evidence_hash = digest(canonical(index))
+    ids, paths, hashes, inodes, roster = set(), set(), set(), set(), []
+    material = {}
+    votes = 0
+    for reviewer in reviewers:
+        if not isinstance(reviewer, dict):
+            raise ControlError("reviewer_invalid")
+        ref, reviewer_id = reviewer.get("result_ref"), reviewer.get("reviewer_id")
+        require_text(reviewer_id, "reviewer_identity_missing")
+        if not isinstance(ref, str) or not ref.startswith("parallel-vibe/") or not ref.endswith("/RESULT.md"):
+            raise ControlError("reviewer_result_path_invalid")
+        data = read_bytes(root, ref, config()["control_policy"]["max_json_bytes"])
+        stat = safe_path(root, ref).stat()
+        checksum, inode = digest(data), (stat.st_dev, stat.st_ino)
+        if reviewer_id in ids or ref in paths or checksum in hashes or inode in inodes:
+            raise ControlError("duplicate_reviewer")
+        ids.add(reviewer_id); paths.add(ref); hashes.add(checksum); inodes.add(inode)
+        if reviewer.get("result_hash") != checksum or reviewer.get("artifact_hash") != evidence_hash:
+            raise ControlError("reviewer_hash_mismatch")
+        blocks = re.findall(r"^```json\s*\n(.*?)\n```\s*$", data.decode("utf-8"), re.M | re.S)
+        if len(blocks) != 1:
+            raise ControlError("reviewer_record_missing")
+        record = json.loads(blocks[0])
+        if (not isinstance(record, dict) or record.get("protocol") != "humanization-review-v1"
+                or record.get("reviewer_id") != reviewer_id or record.get("evidence_hash") != evidence_hash
+                or any(record.get(k) != v for k, v in source.items())):
+            raise ControlError("reviewer_binding_mismatch")
+        reviews = record.get("reviews")
+        opinion = reviews.get(pack_id) if isinstance(reviews, dict) else None
+        if not isinstance(opinion, dict) or opinion.get("verdict") not in {"pass", "fail", "uncertain"}:
+            raise ControlError("reviewer_not_completed")
+        if reviewer.get("verdict") != opinion["verdict"]:
+            raise ControlError("reviewer_vote_mismatch")
+        require_text(opinion.get("summary"), "reviewer_summary_missing")
+        votes += opinion["verdict"] == "pass"
+        findings = opinion.get("material_findings")
+        if not isinstance(findings, list):
+            raise ControlError("material_findings_missing")
+        for finding in findings:
+            if not isinstance(finding, dict):
+                raise ControlError("material_finding_invalid")
+            finding_id = finding.get("id")
+            require_text(finding_id, "material_finding_invalid")
+            key = (reviewer_id, finding_id)
+            if key in material:
+                raise ControlError("duplicate_material_finding")
+            require_text(finding.get("reason"), "material_finding_invalid")
+            validate_anchors(finding.get("anchors"), texts)
+            material[key] = finding
+        roster.append((reviewer_id, ref, checksum))
+    if votes < policy["min_pass"]:
+        raise ControlError("review_votes_insufficient")
+    resolutions = facts.get("resolutions")
+    if not isinstance(resolutions, list):
+        raise ControlError("material_resolutions_missing")
+    closed = set()
+    target = "diagnosis" if index["outcome"] == "diagnosis" else "text"
+    for resolution in resolutions:
+        if not isinstance(resolution, dict):
+            raise ControlError("material_resolution_invalid")
+        key = (resolution.get("reviewer_id"), resolution.get("finding_id"))
+        if key not in material or key in closed or resolution.get("disposition") != "dismissed":
+            raise ControlError("material_resolution_invalid")
+        require_text(resolution.get("reason"), "material_resolution_invalid")
+        validate_anchors(resolution.get("anchors"), texts, required={"original", target})
+        closed.add(key)
+    if closed != set(material):
+        raise ControlError("unresolved_material_finding")
+    return tuple(sorted(roster))

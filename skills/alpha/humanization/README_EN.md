@@ -4,6 +4,8 @@
 
 Make existing prose natural, clear and coherent. Edit articles, emails, reports, everyday explanations, academic writing and technical documents: understand the content and intent, then improve progression, transitions, rhythm and tone while preserving facts, stance, necessary boundaries and formatting. Already effective prose may remain unchanged.
 
+This release includes a dedicated defensive-framing review. Existing installations need an installer update to use the behavior described below.
+
 ## Quick start
 
 ```text
@@ -31,7 +33,7 @@ This Skill edits the expression of existing content. It does not write from scra
 
 ## How the AI works, from invocation to delivery
 
-The main Agent understands the source, writes and improves the prose, performs expression/safety checks, and delivers the final result. Three independent subagents review the same frozen artifacts in parallel. All three must return completed judgements; at least two must vote pass. Dissent is retained. If the round fails, the main Agent revises and requests another review, up to five review rounds. After a failed fifth round, stop optimizing and deliver the last draft with a brief explanation of its unapproved review status, so the user can decide whether to use it.
+The main Agent understands the source, writes and improves the prose, performs expression/safety checks, and delivers the final result. Three independent subagents review the same frozen artifacts in parallel. Each reviews two propositions separately: semantic and delivery safety, and defensive framing with necessary boundaries preserved. Each proposition requires three completed judgements, at least two pass votes, and all substantive objections resolved. Minority style preferences are retained. If the round fails, the main Agent revises and requests another review, up to five review rounds. After a failed fifth round, stop optimizing and deliver the last draft with a brief explanation of its unapproved review status, so the user can decide whether to use it.
 
 ```mermaid
 flowchart TD
@@ -41,7 +43,7 @@ flowchart TD
     D --> R1["Subagent 1: complete read-only review"]
     D --> R2["Subagent 2: complete read-only review"]
     D --> R3["Subagent 3: complete read-only review"]
-    R1 --> Q{"Three completed judgements and at least two pass votes?"}
+    R1 --> Q{"Three reviews of both propositions, two passes each, and substantive objections resolved?"}
     R2 --> Q
     R3 --> Q
     Q -->|Yes| G["Main Agent consolidates reviews; Kernel Gate permits ready"]
@@ -53,7 +55,7 @@ flowchart TD
 
 The host dispatches all three reviewers before waiting, through `parallel-vibe`. Each reads the current handoff and frozen artifacts, without seeing the others' votes or editing prose. BSK does not start models or subagents itself. Without real parallel subagent support, retain the draft and report the blocker; main-Agent self-review cannot replace the panel.
 
-For example, changing “we plan to send the report on Friday” into “we guarantee delivery on Friday” strengthens a promise even though the date is unchanged. The reviewers should identify this. Pass/pass/fail meets the voting threshold when mechanical checks also pass, with dissent retained; pass/pass/missing remains incomplete. Votes cannot override structural, identity, hash or authorization errors.
+For example, changing “we plan to send the report on Friday” into “we guarantee delivery on Friday” strengthens a promise even though the date is unchanged. The reviewers should identify this. Pass/pass/fail meets the voting threshold for one proposition, but a substantive objection from the third reviewer still requires a correction and new review, or a dismissal supported by source and candidate evidence. Unresolved substantive objections block delivery. Minority style preferences may remain; pass/pass/missing is incomplete. Votes cannot override structural, identity, hash or authorization errors.
 
 The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round; retries do not reset the budget. Edits require new votes. Ready approves only the frozen bytes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even text_only includes a short unapproved-status note and the last draft; this fallback does not mark the draft ready. See the [runtime guide](references/runtime-control.md).
 
@@ -111,11 +113,11 @@ The default returns clean prose without scores or diagnostic tables. Summary mod
 
 ## BSK release gate
 
-BSK retains the existing working/ready stages, one required hybrid Verifier, and the single control entry. The main Agent uses parallel-vibe to dispatch three reviewers and consolidates their actual judgements into the existing semantic component result. No extra review Pack, voting script or subagent orchestrator is added. Three completed judgements, at least two pass votes, and a Kernel Gate are required for approved delivery. The Agent follows the panel and five-round policy; BSK continues its existing mechanical checks, binding and state management.
+BSK retains working/ready stages and the single control entry, with two required hybrid Verifiers: revision-readiness and defensive-framing. The former protects semantic and delivery safety; the latter checks empty disclaimers, imagined rebuttals and necessary boundaries after editing. The main Agent uses parallel-vibe to dispatch the same three reviewers and consolidates their actual judgements for each proposition separately. The entry validates structured records, hashes, declared identities, votes and substantive-objection resolutions. Both propositions must meet their thresholds before the BSK Gate permits release. These checks do not authenticate real identities or prove that judgements are correct; actual dispatch and the five-round budget remain the main Agent’s responsibility.
 
 Execution requires Bensz managed Python/BSK and an installed install-bensz-skills. The Agent uses one entry, `scripts/control.py`; initialization asks the installer to confirm the latest production runtime instead of using project Python or a bare bsk from PATH. Natural-language invocation stays the same. Authorized text and internal evidence are staged in the task's `humanization/input|output|log/`; approved `text_only` output remains prose only, and the event ledger does not copy the source text.
 
-The [runtime and recovery guide](references/runtime-control.md) covers requests, commands, actual handoff submissions and retries. Interrupted initialization or retry can resume in the same directory with the same identity; release receipts are rebuilt from actual events and frozen bytes. A working runtime and real review are now release prerequisites: when unavailable, the draft is retained and the blocker is reported. BSK controls actions passing through this entry; it cannot intercept messages or file writes that bypass it, nor prove that semantic judgments are correct.
+The [runtime and recovery guide](references/runtime-control.md) covers requests, commands, actual handoff submissions and retries. The new approval contract requires both reviews. Historical records can be read back only under their original contract snapshot; the new source rejects asset drift in old runs and does not promote an old approval into approval under both gates. Interrupted initialization or retry can resume in the same directory with the same identity; release receipts are rebuilt from actual events and frozen bytes. A working runtime and real review are now release prerequisites: when unavailable, the draft is retained and the blocker is reported. BSK controls actions passing through this entry; it cannot intercept messages or file writes that bypass it, nor prove that semantic judgments are correct.
 
 ## Lexical helper checks
 
@@ -141,9 +143,9 @@ Exit `0` means the covered lexical protection checks passed, `1` means differenc
 
 ## Evaluation and limits
 
-[Regression cases](references/regression-cases.md) cover articles, emails, explanations, English editing, progression, false contrasts, excessive structure, missing explanation, professional boundaries, no-change cases, LaTeX and register differences, with an eight-dimension rubric and an anonymous review procedure. [Natural writing principles](references/natural-writing.md) explain positive organization; the [pattern reference](references/machine-patterns.md) helps locate specific obstacles.
+[Regression cases](references/regression-cases.md) cover articles, emails, explanations, English editing, progression, false contrasts, excessive structure, missing explanation, professional boundaries, no-change cases, LaTeX and register differences, with an eight-dimension rubric and an anonymous review procedure. [Natural writing principles](references/natural-writing.md) explain positive organization; the [pattern reference](references/machine-patterns.md) helps locate specific obstacles. The [defensive-writing reference](references/defensive-writing.md) uses five questions and six functional categories to distinguish empty framing from necessary qualifications; keyword matches are clues only.
 
-Automated tests can detect lexical and formatting regressions, not prove better prose. Small comparisons judged by Agents using the same model provide preliminary evidence only. Real long-form texts, repeated blind reviews and user feedback remain necessary; self-assessment and illustrative revisions are not successful benchmark runs.
+Automated tests can detect lexical and formatting regressions, not prove better prose. Small comparisons judged by Agents using the same model provide preliminary evidence only. Real long-form texts, repeated blind reviews and user feedback remain necessary; synthetic evaluations can check the protocol and constructed cases, but cannot establish real writing quality or the incremental benefit of the added gate. Self-assessment and illustrative revisions are not successful benchmark runs.
 
 The sole version source is [config.yaml](config.yaml); see [CHANGELOG.md](CHANGELOG.md) for history.
 

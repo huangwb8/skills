@@ -16,6 +16,9 @@
 | 方法与报告对应 | PASS/FAIL/NA/NOT_RUN | 计算代码/完整结果表/报告位置；配对、聚类、删失、缺失、模型假设和多重比较复核；文本检查不作方法证明 |
 | 预期交付生成 | PASS/FAIL | 产品、报告、图表可读性与数字追溯 |
 | targets 恢复 | PASS/FAIL/NA | `tar_meta()`、outdated 集合、store 损坏/失效/中断恢复用例 |
+| 数据—代码—结果映射 | PASS/FAIL/BLOCKED | 输入身份、代码/target、分析参数/种子、产品/报告路径、重建命令与验收判据；不可再生材料保护 |
+| 冷重建 / 缺失交付 / 输入内容变化 / 项目迁移 | 各自 PASS/FAIL/BLOCKED/NOT_RUN/NA | 四项逐一记录干净进程、隔离路径、命令/cwd、退出状态、数值/结构断言；NA 说明无适用对象。见 `rebuild_contract.md` |
+| 重建前提与入口 | PASS/FAIL/BLOCKED | 原始输入恢复来源、renv/R/必要系统依赖、正式重建与仅报告命令；不把缺失前提写作通过 |
 | 串行审查 | PASS/FAIL/DEGRADED | 三项只读结果与修正摘要 |
 | 旧项目兼容 | PASS/FAIL/NA | 未自动补机制、迁移或覆盖旧路径 |
 

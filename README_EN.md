@@ -90,11 +90,19 @@ Start with these entry points for common tasks:
 
 | Your task | Entry point and current behavior |
 | --- | --- |
-| Polish existing articles, emails, reports, academic or technical text | [humanization](skills/alpha/humanization/README_EN.md): adapts to the register while preserving facts, intent, and formatting; the main agent is the sole editor, three sub-agents review in parallel via parallel-vibe, and delivery requires at least two passing votes |
+| Polish existing articles, emails, reports, academic or technical text | [humanization](skills/alpha/humanization/README_EN.md): adapts to the register while preserving facts, intent, and formatting; the main agent is the sole editor; three sub-agents review semantic safety and defensive framing in parallel via parallel-vibe; each proposition requires all three judgements, at least two passing votes, and resolved substantive objections |
 | Set up AI collaboration rules for a project | [init-project](skills/alpha/init-project/README.md): generates project instructions and documentation, initializing `docs/` and `docs/plans/` |
 | Organize multiple agents | [awesome-code](skills/alpha/awesome-code/README.md) handles planning and review; [parallel-vibe](skills/alpha/parallel-vibe/README.md) executes serial or parallel tasks |
 
 `humanization` accepts the legacy name `nsfc-humanization` and now supports general prose editing. By default, `init-project` does not create a root-level `skills/` directory.
+
+`humanization` allows up to five external review rounds. If the fifth round still fails, it delivers the last draft with an explanation of its unapproved status. The dedicated review targets empty disclaimers and imagined rebuttals while preserving necessary qualifications; writing quality still needs author evaluation.
+
+The beta candidate [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README_EN.md) supports R/Rmd analysis while preserving existing project architecture. It combines `renv` with simple or targets-first complex workflows, requires results to be rebuildable from original inputs, and checks cold rebuilds, missing deliveries, changed inputs at the same path, and project relocation. It is excluded from default installation; select the local source explicitly when needed:
+
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --source skills/beta --skill bensz-rmd-rules --codex
+```
 
 ## Installation
 

@@ -43,6 +43,8 @@ utils::write.table(
 
 用户分析代码以项目根为当前目录。Skill 自带脚本和资产必须从 Skill 文件自身位置解析，文档命令用 `<skill-root>/scripts/...` 表示，不假设用户当前目录是 Skill 根。
 
+正式入口须定位项目根，或验证“从项目根启动”的前提；不能仅以任意 `getwd()` 静默创建输出。新环境模板检查自身与 renv 文件后才解析配置。输入位置集中为项目配置，模板默认 `BENSZ_ANALYSIS_INPUT` → `raw/input.tsv`，解析后的输入必须是项目内真实文件；授权外部输入按项目既有配置和迁移前提另行说明，不扫描磁盘找替代品。结果路径迁移后仍须实际重建，见 [`rebuild_contract.md`](rebuild_contract.md)。
+
 验证项目路径：
 
 ```bash

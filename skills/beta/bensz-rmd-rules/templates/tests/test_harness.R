@@ -24,7 +24,7 @@
 }
 
 .bensz_subject_identity <- function(run_root) {
-  nested <- unlist(lapply(c("scripts", "templates"), function(path) {
+  nested <- unlist(lapply(c("R", "scripts", "templates"), function(path) {
     if (!dir.exists(path)) return(character())
     list.files(
       path,
@@ -118,7 +118,9 @@ bensz_test_begin <- function(
     baseline = .bensz_tree_signature(formal_paths),
     previous_products_dir = Sys.getenv("BENSZ_PRODUCTS_DIR", unset = ""),
     previous_reports_dir = Sys.getenv("BENSZ_REPORTS_DIR", unset = ""),
-    previous_test_run_root = Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = "")
+    previous_test_run_root = Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = ""),
+    previous_analysis_input = Sys.getenv("BENSZ_ANALYSIS_INPUT", unset = ""),
+    previous_targets_store = Sys.getenv("BENSZ_TARGETS_STORE", unset = "")
   )
   dir.create(context$input_dir, recursive = TRUE, showWarnings = FALSE)
   Sys.setenv(
@@ -141,6 +143,51 @@ bensz_test_restore_environment <- function(context) {
   restore_one("BENSZ_PRODUCTS_DIR", context$previous_products_dir)
   restore_one("BENSZ_REPORTS_DIR", context$previous_reports_dir)
   restore_one("BENSZ_TEST_RUN_ROOT", context$previous_test_run_root)
+  restore_one("BENSZ_ANALYSIS_INPUT", context$previous_analysis_input)
+  restore_one("BENSZ_TARGETS_STORE", context$previous_targets_store)
+  invisible(NULL)
+}
+
+# Test-only process isolation, not a second analysis scheduler. The driver calls
+# the same formal entry/DAG in a clean Rscript process with explicit renv load.
+bensz_test_run_entry <- function(context) {
+  literal <- function(x) paste(capture.output(dput(x)), collapse = "\n")
+  driver <- tempfile("entry-", tmpdir = context$run_root, fileext = ".R")
+  log <- sub("\\.R$", ".log", driver)
+  command <- if (identical(context$workflow_mode, "complex")) {
+    paste0("targets::tar_make(store = ", literal(context$targets_store), ", callr_function = NULL)")
+  } else if (grepl("\\.Rmd$", context$formal_entrypoint, ignore.case = TRUE)) {
+    paste0(
+      "output <- rmarkdown::render(", literal(context$formal_entrypoint),
+      ", output_dir = ", literal(context$reports_dir),
+      ", quiet = TRUE, envir = new.env(parent = globalenv())); ",
+      "stopifnot(file.exists(output), file.info(output)$size > 0)"
+    )
+  } else if (grepl("\\.R$", context$formal_entrypoint, ignore.case = TRUE)) {
+    paste0("sys.source(", literal(context$formal_entrypoint), ", envir = new.env(parent = globalenv()))")
+  } else {
+    stop("Formal simple entry must be .R or .Rmd")
+  }
+  writeLines(c('source("renv/activate.R")', command), driver, useBytes = TRUE)
+  status <- system2(
+    file.path(R.home("bin"), "Rscript"),
+    c("--vanilla", shQuote(driver)), stdout = log, stderr = log
+  )
+  if (!identical(status, 0L)) stop("Formal test entry failed; inspect relative run log: ", log)
+  invisible(log)
+}
+
+# Remove only regenerated test outputs; never follow an escaping symlink or
+# accept a formal path. Protected input is intentionally outside this helper.
+bensz_test_remove_outputs <- function(context) {
+  root <- normalizePath(context$run_root, winslash = "/", mustWork = TRUE)
+  for (path in c(context$products_dir, context$reports_dir, context$targets_store)) {
+    if (!file.exists(path) && !dir.exists(path)) next
+    resolved <- normalizePath(path, winslash = "/", mustWork = TRUE)
+    if (!startsWith(resolved, paste0(root, "/"))) stop("Refusing to remove outputs outside test run root")
+    unlink(path, recursive = TRUE)
+    if (file.exists(path) || dir.exists(path)) stop("Could not remove isolated test output")
+  }
   invisible(NULL)
 }
 
@@ -151,12 +198,19 @@ bensz_test_finish <- function(
   preflight = "PASS",
   lightweight_execution = "PASS",
   full_data_execution = "NOT_RUN",
-  cleanup = "isolated input removed; non-sensitive run evidence retained"
+  cleanup = "isolated input removed; non-sensitive run evidence retained",
+  rebuild_scenarios = c(cold_rebuild = "NOT_RUN", missing_delivery = "NOT_RUN",
+                        input_content_change = "NOT_RUN", relocated_project = "NOT_RUN")
 ) {
   on.exit(bensz_test_restore_environment(context), add = TRUE)
   allowed_status <- c("PASS", "FAIL", "BLOCKED", "NOT_RUN")
   statuses <- c(preflight, lightweight_execution, full_data_execution)
   if (any(!statuses %in% allowed_status)) stop("Execution status must be PASS, FAIL, BLOCKED, or NOT_RUN")
+  scenario_names <- c("cold_rebuild", "missing_delivery", "input_content_change", "relocated_project")
+  if (!identical(sort(names(rebuild_scenarios)), sort(scenario_names)) ||
+      any(!rebuild_scenarios %in% c(allowed_status, "NA"))) {
+    stop("Record all four rebuild scenarios with explicit statuses")
+  }
   if (!length(assertions) || any(!nzchar(assertions))) stop("At least one non-empty assertion is required")
   after <- .bensz_tree_signature(context$formal_paths)
   subject_after <- .bensz_subject_identity(context$run_root)
@@ -177,6 +231,7 @@ bensz_test_finish <- function(
     paste0("- preflight: ", preflight),
     paste0("- lightweight_execution: ", lightweight_execution),
     paste0("- full_data_execution: ", full_data_execution),
+    paste0("- ", names(rebuild_scenarios), ": ", rebuild_scenarios),
     paste0("- mutation_check: ", if (mutation_ok) "PASS" else "FAIL"),
     paste0("- subject_check: ", if (subject_ok) "PASS" else "FAIL"),
     paste0("- cleanup: ", cleanup),

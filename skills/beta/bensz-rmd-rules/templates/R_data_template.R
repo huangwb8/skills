@@ -4,7 +4,7 @@
 
 prepare_data <- function(input_file) {
   stopifnot(length(input_file) == 1L, file.exists(input_file))
-  data <- utils::read.delim(input_file, check.names = FALSE)
+  data <- utils::read.delim(input_file, check.names = FALSE, fileEncoding = "UTF-8")
   # 在这里写真实的数据整理；保留完整、未按报告阈值截断的结果。
   data
 }
@@ -19,5 +19,6 @@ write_scientific_product <- function(result, path) {
   # 仅当结果需要人工审阅、下游复用或正式交付时导出 products/。
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   saveRDS(result, path)
+  stopifnot(file.exists(path), file.info(path)$size > 0)
   path
 }

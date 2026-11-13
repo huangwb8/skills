@@ -12,20 +12,33 @@ source(file.path("scripts", "tests", "test_data.R"), local = TRUE)
 on.exit(unlink(test_input), add = TRUE)
 
 Sys.setenv(BENSZ_ANALYSIS_INPUT = normalizePath(test_input, winslash = "/", mustWork = TRUE))
-if (grepl("\\.Rmd$", entry, ignore.case = TRUE)) {
-  if (!requireNamespace("rmarkdown", quietly = TRUE)) stop("Package 'rmarkdown' is required.")
-  dir.create(context$reports_dir, recursive = TRUE, showWarnings = FALSE)
-  output <- rmarkdown::render(entry, output_dir = context$reports_dir, quiet = TRUE, envir = new.env(parent = globalenv()))
-  stopifnot(file.exists(output), file.info(output)$size > 0)
-} else if (grepl("\\.R$", entry, ignore.case = TRUE)) {
-  sys.source(entry, envir = new.env(parent = globalenv()))
-} else {
-  stop("BENSZ_ANALYSIS_ENTRY must point to .R or .Rmd")
+assert_outputs <- function() {
+  # A script can exit successfully without writing anything. Require actual
+  # project-specific file/science assertions for .R entries before PASS.
+  assertion_script <- file.path("scripts", "tests", "assert_results.R")
+  if (file.exists(assertion_script)) {
+    sys.source(assertion_script, envir = environment())
+  } else if (grepl("\\.R$", entry, ignore.case = TRUE)) {
+    stop("Add scripts/tests/assert_results.R to verify the .R entry's actual products and scientific invariants.")
+  }
 }
+bensz_test_run_entry(context)
+assert_outputs()
+# Discard only generated outputs of this isolated run, then rebuild in a second
+# clean process. For .R entries add assertions for actual files and science;
+# for Rmd the driver verifies that a non-empty HTML is rendered.
+bensz_test_remove_outputs(context)
+bensz_test_run_entry(context)
+assert_outputs()
+# Add project-specific result assertions here, and input-change/relocation cases
+# from references/rebuild_contract.md. Do not promote NOT_RUN to PASS by editing
+# a label without executing those cases.
 unlink(test_input)
 bensz_test_finish(
   context,
-  assertions = c("input contract and representative groups passed", "formal paths unchanged", "report/entry executed"),
+  assertions = c("fixture preparation assertions passed", "formal entry executed twice in clean processes", "isolated outputs regenerated", "formal paths unchanged"),
+  rebuild_scenarios = c(cold_rebuild = "PASS", missing_delivery = "NOT_RUN",
+                        input_content_change = "NOT_RUN", relocated_project = "NOT_RUN"),
   cleanup = "isolated test input removed; run record and non-sensitive outputs retained"
 )
 }

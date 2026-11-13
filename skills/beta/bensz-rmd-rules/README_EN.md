@@ -53,6 +53,20 @@ project-root/
 
 The [`_targets.R`](templates/_targets.R) template uses `tar_source("R")`; [`R_data_template.R`](templates/R_data_template.R) provides a data-preparation starting point; [`Rmd_template.Rmd`](templates/Rmd_template.Rmd) consumes `analysis_results` with `targets::tar_read()`; simple projects can start from [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd).
 
+## Rebuilding after results are lost
+
+The Skill assumes derived results may disappear. With protected inputs, source code, parameters, and environment declarations retained, documented entry points should recreate products, figures, and reports. Manual annotations, irreplaceable external responses, and unique source materials are protected inputs, not disposable caches.
+
+Each key deliverable maps to input identity, code/target, analysis parameters, output path, rebuild command, and acceptance criteria. Paths come from one project configuration; the entry point resolves the project root or verifies the documented root-directory launch requirement. Runs must not rely on old R sessions, `.RData`, temporary scripts, or manually edited result files. Complex workflows track file contents and analysis configuration, and recreate missing delivery files.
+
+For example:
+
+```text
+Use bensz-rmd-rules for this analysis. Assume products, reports, HTML, and the targets store may all disappear. Deliver commands to restore the environment, rebuild from original inputs, and render reports alone. In isolated lightweight copies, verify cold rebuilding, missing delivery files, content changes at the same input path, and project relocation; report evidence and unverified cases separately.
+```
+
+Tests use fresh R subprocesses; deletion and input changes are limited to isolated copies. Record each of the four scenarios as `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or justified `NA`. Lightweight success does not establish full-data success. Compare numerical values and structure with predefined tolerances, rather than HTML/PDF bytes. Existing projects retain their architecture; missing inputs/environments or unsafe isolation are disclosed as blockers/risks without automatic migration. See [`rebuild_contract.md`](references/rebuild_contract.md).
+
 ## Statistical inference completeness
 
 Before a paper-level analysis, list the primary and conclusion-relevant secondary estimands, including the target population, analysis unit, comparison, design, and inferential purpose. Where valid, retain the estimate and unit, effective N/event count, and an appropriate 95% CI by default; follow a preregistered confidence level when it differs. Report a p-value only for a defined hypothesis, and identify the adjustment method plus q-value or adjusted p-value for multiple tests. Reports must cite the computed results and explain practical magnitude and limitations. Mark fixed constants or descriptive quantities `not_applicable`, unsupported inference `not_estimable` with reasons and alternatives, and unexecuted work `not_run`. Do not fabricate CI/p-values or treat keyword checks as proof of statistical validity. See [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md).
@@ -99,6 +113,14 @@ Plots default to English; switch with YAML `params.plot_language` for Chinese-jo
 - [`liquid_glass_theme_guide.md`](references/liquid_glass_theme_guide.md): HTML theme and troubleshooting.
 
 ## Related templates and references
+
+Behavioral requirements and acceptance scenarios live in [`behavioral_acceptance.md`](references/behavioral_acceptance.md). The Skill's executable regression scripts live in [`scripts/`](scripts/). Run them from any directory, replacing `<skill-root>` with this Skill's root:
+
+```bash
+python3 -B -m unittest discover -s <skill-root>/scripts -p 'test_*.py' -v
+```
+
+R integration tests require the corresponding R packages and Pandoc; browser interaction tests require Playwright/Chromium. Tests explicitly skip when prerequisites are unavailable. `templates/tests/` still provides test code for generated analysis projects.
 
 - Environment and dependencies: [`00.Environment.R`](templates/00.Environment.R), [`renv/activate.R`](templates/renv/activate.R).
 - Testing: [`templates/tests/`](templates/tests/), [`lightweight_testing.md`](references/lightweight_testing.md).

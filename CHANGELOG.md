@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.0.17] - 2026-11-13
+
+### Changed（变更）
+
+- `bensz-rmd-rules` 更新至 0.30.1：18 个行为验收场景迁入 `references/behavioral_acceptance.md`，7 个回归脚本迁入 `scripts/`；删除原 `evals/`、`qa/`，同步发现入口和双语说明。从新目录发现运行的 23 项回归全部通过，结构、路径与文档对齐检查通过。
+
+- `humanization` 开发源更新为 3.0.0：增加防御性写作专项混合 Pack、双 required Gate、结构化三人证据和实质异议结案；同步双语指南、兼容说明和回归。369 项工程测试与真实三人拒绝→修订→批准链通过；216 份合成候选的独立上下文盲评支持新增编辑规则，但尚未证明专项门禁相对仅规则的额外文风收益。开发验证阶段未发布或安装；本版本发布源码，真实长文与作者评价待补；详见 `docs/events/2026-11-12-humanization-defensive-writing-validation.md`。
+
+- `bensz-rmd-rules` 更新至 0.30.0：强化原始输入、分析代码与结果的可重建契约；同步路径、文件依赖、干净进程测试模板和双语指南，补充冷重建、文件丢失、同路径输入更新和项目迁移验收。18 项定向测试及结构/YAML/README 检查通过，含真实 simple/complex 隔离运行、下游失败恢复和删除保护；当前平台测试使用本地 luckyBase 二进制依赖，不代表跨平台环境恢复或用户全量分析通过。
+
+- 根级双语 README 同步 humanization 的双命题审查、实质异议结案与五轮兜底，补充 beta R/Rmd 结果重建和显式安装入口；humanization 双语指南改为本发布状态，已有安装副本仍需更新。
+- 核对 BSK 源码与 PyPI 最新版均为 2.1.6，按条件跳过包修改、重复上传及本机安装。
+
+### Validation（验证）
+
+- 本轮使用既有托管 Python 3.12.14 / BSK 2.1.6，根级与 Kernel 测试共 390 项通过；保留安装器既有 locale 弃用警告。首次普通开发环境带有旧 BSK 2.1.2，测试中断后改用托管环境完整复验，未修改该旧环境。
+- R/Rmd 从新 scripts 目录发现 23 项回归：18 项通过，5 项因当前 R 依赖或渲染环境不足跳过；本轮未复验这 5 项实际 R 执行，历史验证范围见前述开发记录。
+- 根级、humanization 与 R/Rmd 双语 README 检查通过；R/Rmd 的英文 TOC token 提示经语义核对。两个变更 Skill 的 strict 结构检查无缺项；全仓报告仅保留 awesome-code 子 Agent 的既有豁免提示。git diff 空白检查通过。
+
 ## [5.0.16] - 2026-11-08
 
 ### Added（新增）

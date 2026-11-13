@@ -53,6 +53,20 @@ renv.lock → _targets.R → R/ functions → target results → Rmd → reports
 
 模板 [`_targets.R`](templates/_targets.R) 使用 `tar_source("R")`；[`R_data_template.R`](templates/R_data_template.R) 提供数据处理起点；[`Rmd_template.Rmd`](templates/Rmd_template.Rmd) 通过 `targets::tar_read()` 消费 `analysis_results`；simple 可从 [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd) 开始。
 
+## 结果丢失后如何重建
+
+Skill 按“派生结果随时可能丢失”设计分析：保留原始输入、正式源码、参数和环境声明后，应能从文档化入口重新生成产品、图表与报告。人工标注、无法重取的外部响应和唯一来源材料属于受保护输入，不作为缓存清理。
+
+每项关键交付对应输入身份、代码/target、分析参数、输出路径、重建命令和验收判据。路径统一配置，正式入口定位项目根或明确验证从根目录启动；不依赖旧 R 会话、`.RData`、临时脚本或手工修改后的结果文件。complex 跟踪输入文件内容和分析配置，产品文件丢失后可补齐。
+
+可以这样要求：
+
+```text
+请用 bensz-rmd-rules 实现分析。假定 products、reports、HTML 和 targets store 都会丢失，交付环境恢复、从原始输入重建和仅重出报告的命令。请在隔离轻量副本中验证冷重建、交付文件丢失、同路径输入内容更新和项目迁移，分别给出证据与未验证项。
+```
+
+测试使用干净 R 子进程；删除和输入变更仅发生在隔离副本。四个场景分别记录 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN` 或有理由的 `NA`，轻量通过不代表全量通过。数值/结构按预定容差比较，不要求 HTML/PDF 字节一致。已有项目保留架构，缺失输入、环境或不可隔离路径会披露为阻塞/风险，不自动迁移。完整标准见 [`rebuild_contract.md`](references/rebuild_contract.md)。
+
 ## 统计推断完整性
 
 论文级分析在计算前列出主要及影响结论的次要估计对象，确认目标人群、观察单位、对比、设计和推断目的。方法允许时，完整结果保留估计值与单位、有效 N/事件数、适当的默认 95% CI；只有零假设明确时才报告 p 值，批量检验同时说明校正方法及 q/调整后 p。预注册方案另定置信水平时按方案执行。报告引用计算结果并解释效应的实际意义和局限。固定常数或纯描述结果可标 `not_applicable`；数据或设计无法支持推断时标 `not_estimable` 并说明原因与替代分析；未运行标 `not_run`。不凭空补 CI/p，也不以文本关键词检查代替方法复核。详见 [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md)。
@@ -99,6 +113,14 @@ Rscript <project>/scripts/tests/smoke_test.R
 - [`liquid_glass_theme_guide.md`](references/liquid_glass_theme_guide.md)：HTML 主题与故障排查。
 
 ## 相关模板与参考
+
+行为需求与验收场景见 [`behavioral_acceptance.md`](references/behavioral_acceptance.md)。Skill 自身的回归脚本统一位于 [`scripts/`](scripts/)，可从任意目录运行以下命令（将 `<skill-root>` 替换为本 Skill 根目录）：
+
+```bash
+python3 -B -m unittest discover -s <skill-root>/scripts -p 'test_*.py' -v
+```
+
+R 集成测试需要对应的 R 包和 Pandoc，浏览器交互测试需要 Playwright/Chromium；缺少依赖时会明确跳过。`templates/tests/` 继续用于生成用户分析项目的测试代码。
 
 - 环境与依赖：[`00.Environment.R`](templates/00.Environment.R)、[`renv/activate.R`](templates/renv/activate.R)。
 - 测试：[`templates/tests/`](templates/tests/)、[`lightweight_testing.md`](references/lightweight_testing.md)。

@@ -90,11 +90,19 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 | 你想完成的任务 | 入口与当前行为 |
 | --- | --- |
-| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；主 Agent 唯一润色，三个子 Agent 经 parallel-vibe 并行审查，至少两票通过才交付 |
+| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；主 Agent 唯一润色，三个子 Agent 经 parallel-vibe 并行审查语义安全与防御性表达；两项均须三份判断齐全、至少两票通过，且实质异议已结案 |
 | 为项目建立 AI 协作规范 | [init-project](skills/alpha/init-project/README.md)：生成项目指令与文档，初始化 `docs/` 和 `docs/plans/` |
 | 组织多个 Agent 协作 | [awesome-code](skills/alpha/awesome-code/README.md) 负责规划和审查，[parallel-vibe](skills/alpha/parallel-vibe/README.md) 统一执行串行或并行任务 |
 
 `humanization` 兼容旧名 `nsfc-humanization`，现已适用于通用文字润色；`init-project` 的默认初始化目录不包含根级 `skills/`。
+
+`humanization` 最多进行五轮外部审查；达到上限仍未通过时，交付最后草案和未通过说明。新增专项审查用于清理无效免责、假想反驳等表达，同时保留必要限定；真实写作质量仍需结合作者评价判断。
+
+beta 候选源中的 [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README.md) 面向 R/Rmd 分析，保留已有项目架构，以 `renv` 配合 simple 或 targets-first complex 流程，要求从原始输入重建结果，并验证冷重建、交付文件丢失、同路径输入更新和项目迁移。它不进入默认安装；需要时显式指定本地源：
+
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --source skills/beta --skill bensz-rmd-rules --codex
+```
 
 当然，我觉得最好的方式是：**在你的Codex/Claude Code里把本项目的地址粘贴上，然后开始用ai来探索它！**
 

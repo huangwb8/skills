@@ -35,6 +35,8 @@ existing 项目实质修改后仍应沿其现有 targets 或顺序脚本入口�
 
 ## 最低断言
 
+新建/实质修改链路同时遵循 [`rebuild_contract.md`](rebuild_contract.md)：从干净 R 子进程调用正式入口；分别验证无结果/无 store 重建、缺失交付恢复、同路径输入内容变化和隔离项目迁移，按预定数值/结构判据判断。complex 另验证真实中断复用和无关分支不重算。不得删除正式结果或唯一来源输入；场景未跑写 `NOT_RUN`/`BLOCKED`，不能用 smoke 的退出成功冒充完整重建通过。
+
 按任务补充科学断言，通用最低集包括：
 
 1. 输入 schema、列类型和必需字段；
@@ -70,5 +72,7 @@ existing 项目实质修改后仍应沿其现有 targets 或顺序脚本入口�
 - `templates/tests/simple_smoke_test.R`：simple 真实入口；
 - `templates/tests/complex_smoke_test.R`：complex 隔离 target store 入口。
 - `templates/tests/test_harness.R`：唯一 run root、subject identity、正式路径不变性与运行记录 helper。
+
+smoke 模板通过 `bensz_test_run_entry()` 在新 `Rscript --vanilla` 子进程中激活 renv 后执行同一正式入口；complex 内部仍只调用 targets，不是另一套分析调度器。身份覆盖根级源码、`R/`、`scripts/`、模板与 lockfile。simple 模板验证 Rmd 实际渲染；`.R` 入口须提供 `scripts/tests/assert_results.R` 验证实际产品/科学不变量，不能只靠退出码。complex 示例对 `analysis_results`/`scientific_product` 验证重复运行复用、产品丢失恢复和冷重建；须适配真实 target 名与断言。两个模板都保留输入变化/迁移 `NOT_RUN`，complex 的 unchanged rerun 也不冒充真实中断测试。按契约补齐这些用例后才能逐项更新状态。
 
 复制到项目后按真实 schema、文件名和科学不变量修改，不能保留占位断言后声称通过。

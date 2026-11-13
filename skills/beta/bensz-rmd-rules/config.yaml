@@ -9,7 +9,7 @@
 
 skill_info:
   name: bensz-rmd-rules
-  version: "0.29.0"
+  version: "0.30.1"
   description: "规划并实现可复现的 R/R Markdown 分析流水线及论文级统计推断：先逐项判断关键估计对象的区间、检验与可估计性，再将完整计算结果对应到报告。新项目按复杂度选择 simple 或 targets-first complex/pipeline，两种模式均由 renv 锁定环境并通过真实轻量测试；complex 以 _targets.R + R/ 为唯一计算编排，Rmd 只消费 targets 结果。已有项目不自动迁移或补齐机制：有 _targets.R 的按 complex 维护，无 targets 的（含历史编号脚本）按 simple 语义维护，需要复杂能力时显式迁移；不维护任何历史编号 runner。前提：luckyBase 为唯一固定 Bensz 依赖"
   author: "Bensz Conan"
   category: "开发规范"
@@ -232,7 +232,7 @@ analysis_workflow:
     command: "targets::tar_make()"
     evidence: ["tar_meta", "outdated target set", "execution log"]
   controls:
-    force_rebuild: "targets::tar_make(callr_function = NULL) or explicit targets invalidation"
+    force_rebuild: "仅在隔离验收副本使用空 store 重建；正式有意重算使用 targets::tar_invalidate() 后 tar_make()，不得自动删正式 store"
   validation:
     default_mode: "report"
     delivery_mode: "strict"
@@ -240,6 +240,19 @@ analysis_workflow:
     - "structure-dataflow"
     - "r-implementation-recovery"
     - "scientific-statistical"
+
+# 数据—代码—结果的统一契约；simple/complex 均适用，不创建第二套缓存协议。
+reproducibility:
+  contract: "references/rebuild_contract.md"
+  result_loss_assumption: "全部派生数据、targets store 与报告均可能丢失"
+  protected_inputs: "原始数据、不可再生人工标注、固定版本外部快照及唯一来源材料"
+  delivery_mapping: ["input_identity", "code_or_target", "analysis_parameters", "output_path", "rebuild_command", "acceptance"]
+  project_root: "正式入口定位，或文档要求从项目根启动并验证；不得静默接受错误 cwd"
+  fresh_process: true
+  scenarios: ["cold_rebuild", "missing_delivery", "input_content_change", "relocated_project"]
+  scenario_statuses: ["PASS", "FAIL", "BLOCKED", "NOT_RUN", "NA"]
+  comparison: "关键数值与结构按预定容差；不要求 HTML/PDF 字节一致"
+  existing_policy: "沿现有入口验证授权改动；缺口披露，不隐式迁移或宣称完整可重建"
 
 observability:
   default: "targets"

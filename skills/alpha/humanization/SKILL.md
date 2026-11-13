@@ -32,11 +32,11 @@ metadata:
 3. **诊断表达。** 按词语、句法、段落、篇章检查 [`references/machine-patterns.md`](references/machine-patterns.md)。重点问：上一句为下一句提供了什么，下一句增加了什么，概念是否突然出现，段落是否承担必要功能。分别记录语义问题、阅读障碍和可选偏好；套话、英文或否定句本身不是改写依据。
 4. **整体优化。** 先组织段内语义单元，再处理跨段承接，最后润色句式。句序调整不得改变指代、时序、条件、否定范围、证据归属或因果关系。默认在原行段内执行；跨段移动、合段和拆段只在 `reflow_plain` 的适用区域进行。邮件关注来意与行动请求，说明关注概念和理解顺序，报告关注判断与依据；仅按原文已有内容组织，不补齐文体模板。章节错位先诊断；保护结构下不实际搬移内容。
 5. **润色语言。** 让句长、信息密度和过渡服从思想复杂度；不要求观点句在段首、每段等长、长短句交替或显式连接词。连续论证用自然段；真实并列、步骤和技术接口保留合适结构。直接表达原文支持的判断，保留必要不确定性。相邻段落已能语义承接时不另加“因此/值得注意的是”。只补足原文已蕴含的解释关系；解释缺少依据时保留缺口供作者补充。
-6. **审查限定。** 对实际出现的连续否定、重复免责声明逐项判断语义必要性。可以合并同义限制或调整位置，独立边界没有数量上限；范围、责任和承诺不能互相替代。对象/动作明确时才可恢复正向主句，只有排除边界时不创造新的目的或行动。建立 `保留/改写/合并/人工确认` 处置，区分“正文保留的限定”和“建议删除或合并的限定”；删除建议不能取代正文中必需的含义。跨章节重复可能服务独立阅读，不自动全删；“事实—首次完整定义—后续引用”表仅在需要去重时辅助判断。
+6. **审查限定。** 阅读 [`references/defensive-writing.md`](references/defensive-writing.md)，按删除影响、原文来源、真实回应对象、重复功能及正向重写可能性五问，区分必要、重复、假想反驳、姿态式免责、混合与证据不足六类。对实际出现的连续否定、重复免责声明逐项判断语义必要性。可以合并同义限制或调整位置，独立边界没有数量上限；范围、责任和承诺不能互相替代。对象/动作明确时才可恢复正向主句，只有排除边界时不创造新的目的或行动。建立 `保留/改写/合并/人工确认` 处置，区分“正文保留的限定”和“建议删除或合并的限定”；删除建议不能取代正文中必需的含义。跨章节重复可能服务独立阅读，不自动全删；“事实—首次完整定义—后续引用”表仅在需要去重时辅助判断。
 7. **语义验证。** 对照原句核对事实、逻辑关系、意图、立场和语气；逐项检查实际出现的人物关系、日期、金额、承诺、责任、条件及专业边界。保留推测程度，不把请求改成命令、意向改成承诺或可能改成确定。专业文本再检查术语、证据强度、阈值、分母、状态、暂停条件与外推范围。保持引用与其原主张的关联。下方检查器仅辅助适用的字面保护；词法通过不等于语义安全。任何不确定的改写回退，必要时在正文外标记人工确认。
 8. **比较评估。** 将原文与候选稿放在一起，按 [`references/regression-cases.md`](references/regression-cases.md) 的八维标准比较，指出具体阅读改善及可能代价。语义安全必须通过，其他维度允许权衡；无净改善则保留原文。默认两轮分别重看表达与安全，显式一轮仍须完成两类核对；轮数是复核预算，不是必须改写的次数。需要再修时先修后重查，仍不确定就回退，不无限迭代。此处为内部比较，不冒充独立盲评。
 
-9. **并行审查与受控交付。** 主 Agent 通过唯一入口 `release` 冻结全部交付物，取得语义审查 handoff。按 `parallel-vibe` 智能模式一次派发三个独立子 Agent，在等待任何一人之前全部启动；子 Agent 只读原文、当前产物、审查契约和当前 handoff，不读取其他人的审查结果、不改正文。三人各自完成完整审查，主 Agent 使用 parallel-vibe 回收三个 RESULT.md，据实汇总为现有 semantic-review 组件的一份绑定结果。三个有效判断都返回且至少两票 pass 才能通过，保留第三人的异议；机械/结构/绑定错误仍阻塞，不能多数覆盖。没有真实并行子 Agent 能力时报告受阻，不改成主 Agent 自审。
+9. **并行审查与受控交付。** 主 Agent 通过唯一入口 `release` 冻结全部交付物，取得语义审查 handoff。按 `parallel-vibe` 智能模式一次派发三个独立子 Agent，在等待任何一人之前全部启动；子 Agent 只读原文、当前产物、审查契约和当前 handoff，不读取其他人的审查结果、不改正文。同组三人各自对 revision-readiness（语义与交付安全）和 defensive-framing（防御性表达及必要边界）分别给出判断，主 Agent 使用 parallel-vibe 回收三个 RESULT.md，据实生成两份分别绑定 handoff 的组件结果。每项命题均须三个有效判断齐全、至少两票 pass，且实质异议已结案；一般风格异议保留，实质问题须修复后新 attempt 重审，或以原文/候选锚点和理由驳回。机械/结构/绑定错误仍阻塞，不能多数覆盖。没有真实并行子 Agent 能力时报告受阻，不改成主 Agent 自审。
 10. **有界优化。** 未通过时由主 Agent 综合审查意见，先 `retry` 建立新 attempt，再实际优化或退回原文，然后重新派发三人审查。外部审查最多五轮，与第八步的内部自检轮数独立；同稿 pending、提交、恢复和重复 `release` 不重复计轮，retry 不清零。第五轮仍未通过则停止优化，提交最后一轮草案，并简短说明未通过审核及主要分歧，供用户判断；不继续第六轮、不另建 run 绕过预算。正常通过时只有回执 `ready` 且文件哈希一致才能作为获批正文交付；达到上限的草案提交是明确标注未通过的兜底，不伪造 pass、Gate 或 ready。不能在批准后临时改词或补写附件。`diagnosis_only` 与保留原文也走相同路径。
 
 ### 输出
@@ -67,7 +67,7 @@ python3 <skill-root>/scripts/check_revision.py original.txt revised.txt --struct
 
 ## 控制
 
-BSK 按 `config.yaml.runtime` 管理领域 State 与 required Verifier；审查人数、通过票数和外部轮数以 `config.yaml.review_policy` 为准。完整请求/审查 schema、准备与恢复步骤见 [`references/runtime-control.md`](references/runtime-control.md)。首次执行必读该说明、[交付审查契约](references/verifiers/revision-readiness/VERIFIER.md)。
+BSK 按 `config.yaml.runtime` 管理领域 State 与 required Verifier；审查人数、通过票数和外部轮数以 `config.yaml.review_policy` 为准。完整请求/审查 schema、准备与恢复步骤见 [`references/runtime-control.md`](references/runtime-control.md)。首次执行必读该说明、[交付审查契约](references/verifiers/revision-readiness/VERIFIER.md)及[防御性表达审查契约](references/verifiers/defensive-framing/VERIFIER.md)。
 
 正常受控 action 的唯一入口是 `scripts/control.py`，使用 Bensz 托管 Python；`init` 通过安装器确认最新生产版，绑定原文/参数并进入 working；`release` 统一读取当前状态、解析并运行全部 required Verifier、生成 Kernel Gate、验证绑定后迁移 ready。不得由 Agent 自由拼接底层 BSK 命令代替正常路径；底层仅供入口内部、诊断或恢复。
 
@@ -77,9 +77,9 @@ BSK 按 `config.yaml.runtime` 管理领域 State 与 required Verifier；审查�
   --request-file humanization/input/request.json --run-id run-1 --attempt-id edit-1
 ```
 
-首次返回 `pending_review` 与 handoff_ref。子 Agent 调度直接依赖 `parallel-vibe`，沿用其智能模式、独立 workspace、RESULT.md 和主 Agent 汇总，不新增编排器、审查 Pack 或专用计票脚本。每轮三人并行审查同一冻结产物，三份有效结果齐全且至少两票 pass 才能通过。主 Agent 将真实结果汇总为现有 semantic-review 组件的一份绑定回传，并在 facts.summary 引用三份 RESULT.md、票数及少数意见；executor 如实记录汇总者，不冒充独立审查者。
+首次返回 `pending_review` 与 handoff_ref。子 Agent 调度直接依赖 `parallel-vibe`，沿用其智能模式、独立 workspace、RESULT.md 和主 Agent 汇总；不新增编排器。同组三人并行审查同一冻结产物，在 RESULT.md 的唯一 fenced JSON 中按 `humanization-review-v1` 写入两项 reviews。主 Agent 分别汇总为 semantic-review 与 defensive-review 的绑定回传；每份 facts 均含 reviewers、resolutions，并保留少数意见。入口核验相同审查者名单、文件哈希、当前身份、各命题票数与实质异议结案结构；每项至少两票 pass 且无未结案实质问题，才交给 BSK Gate。executor 如实记录汇总者，不冒充独立审查者。
 
-外部审查轮次与每轮意见沿用 parallel-vibe 的计划和汇总记录，最多五轮；同稿提交、恢复和重复 release 不加轮，retry 不清零。人数、票数和轮数由主 Agent 按执行契约落实，不宣称原有 BSK 脚本会自动创建、认证子 Agent 或机械计票。改稿后须新 attempt，旧结果不能复用。
+外部审查轮次与每轮意见沿用 parallel-vibe 的计划和汇总记录，最多五轮；同稿提交、恢复和重复 release 不加轮，retry 不清零。入口机械核验声明的三人记录和票数；真实调度、独立审查及五轮预算由主 Agent 按执行契约落实，结构检查不认证子 Agent 身份、不证明审查或驳回理由正确。改稿后须新 attempt，旧结果不能复用。
 
 正常审查未过不迁移 ready；第五轮仍未通过时按输出契约提交最后一轮草案并报告未通过原因，状态仍为 working。这是未获批草案，不代表审核通过或作者认可。BSK 无法拦截宿主绕过入口的聊天/写文件行为。
 

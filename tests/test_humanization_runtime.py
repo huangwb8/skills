@@ -65,10 +65,39 @@ def synthetic_submission(task, pending):
              "comparison": {"outcome": index["outcome"], "net_improvement": True, "reason": "synthetic comparison"},
              "rounds": [{"focus": ["expression", "safety"], "summary": "synthetic review"} for _ in range(index["parameters"]["self_eval_rounds"])],
              "lexical_explanation": "synthetic lexical review"}
-    result = handoff.bind_result(verdict="pass", facts=facts, evidence_refs=[h["subject"]["ref"]],
-                                 executor={"type": "agent", "id": "synthetic-test", "model": "synthetic-no-model"})
-    control.write_json(task, "humanization/input/submissions.json", {"results": [result]})
-    return result
+    anchors = [{"artifact": k, "start": 0, "end": len(t)} for k, t in texts.items()]
+    reviewer_records = []
+    for i in range(3):
+        reviewer_id = f"synthetic-{i}"
+        ref = f"parallel-vibe/synthetic-{h['attempt_id']}/{reviewer_id}/workspace/RESULT.md"
+        record = {"protocol": "humanization-review-v1", "reviewer_id": reviewer_id,
+                  **{key: h[key] for key in ("run_id", "state_visit_id", "attempt_id")},
+                  "evidence_hash": bundle["evidence_hash"],
+                  "reviews": {row["pack_id"]: {"verdict": "pass", "summary": "synthetic protocol fixture",
+                              "material_findings": []} for row in bundle["handoffs"]}}
+        path = task / ref
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("```json\n" + json.dumps(record) + "\n```\n", encoding="utf-8")
+        reviewer_records.append({"reviewer_id": reviewer_id, "result_ref": ref,
+                                 "result_hash": digest(path.read_bytes()), "artifact_hash": bundle["evidence_hash"],
+                                 "verdict": "pass"})
+    facts.update(reviewers=reviewer_records, resolutions=[])
+    results = []
+    for row in bundle["handoffs"]:
+        bound = ComponentHandoff(**{k: v for k, v in row.items() if k in fields_allowed})
+        if row["pack_id"] == "bensz.prose.revision-readiness":
+            component_facts = facts
+        else:
+            component_facts = {"evidence_hash": bundle["evidence_hash"], "summary": "synthetic defensive fixture",
+                               "confidence": 0.9, "uncertainties": [], "reviewers": reviewer_records, "resolutions": [],
+                               "defensive_audit": {"scope": "diagnosis" if index["outcome"] == "diagnosis" else "text",
+                               "coverage": {"reason": "synthetic coverage", "anchors": anchors}, "items": [],
+                               "unresolved_material_findings": []}}
+        results.append(bound.bind_result(verdict="pass", facts=component_facts, evidence_refs=[row["subject"]["ref"]],
+                                 executor={"type": "agent", "id": "synthetic-test", "model": "synthetic-no-model"}))
+    control.write_json(task, "humanization/input/submissions.json", {"results": results})
+    return results[0]
+
 
 
 def test_complete_gate_state_replay_and_readback(case):
@@ -538,4 +567,175 @@ def test_pack_execution_script_is_bound_to_session_contract(case, monkeypatch):
     assert ref in hashes
     monkeypatch.setattr(control, "asset_hashes", lambda: {**hashes, ref: "sha256:changed"})
     with pytest.raises(ControlError, match="runtime_contract_drift"):
+        control.execute(args)
+
+
+@pytest.mark.parametrize("pack_index", [0, 1])
+@pytest.mark.parametrize("verdict", [None, "fail", "uncertain", "unchecked"])
+def test_both_required_reviews_must_pass(case, pack_index, verdict):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    if verdict is None:
+        bundle["results"].pop(pack_index)
+    else:
+        bundle["results"][pack_index].update(verdict=verdict, uncertainty_reason="synthetic nonpass")
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    assert control.execute(args)["status"] != "ready"
+    assert control.read_state(task, args.run_id)["current_state"] == "bensz.revision.working"
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "hash", "old_attempt", "fake_vote", "empty_coverage", "fake_anchor", "wrong_schema"])
+def test_defensive_evidence_cannot_fake_pass(case, mutation):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    facts = bundle["results"][1]["facts"]
+    if mutation == "missing":
+        facts["reviewers"].pop()
+    elif mutation == "duplicate":
+        facts["reviewers"][2] = facts["reviewers"][0]
+    elif mutation == "hash":
+        facts["reviewers"][0]["result_hash"] = "sha256:wrong"
+    elif mutation == "fake_vote":
+        facts["reviewers"][0]["verdict"] = "fail"
+    elif mutation == "old_attempt":
+        reviewer = facts["reviewers"][0]
+        path = task / reviewer["result_ref"]
+        path.write_text(path.read_text().replace('"attempt_id": "edit-1"', '"attempt_id": "edit-old"'))
+        for result in bundle["results"]:
+            result["facts"]["reviewers"][0]["result_hash"] = digest(path.read_bytes())
+    elif mutation == "empty_coverage":
+        facts["defensive_audit"]["coverage"] = {}
+    elif mutation == "fake_anchor":
+        facts["defensive_audit"]["coverage"]["anchors"][0]["end"] = 999999
+    else:
+        bundle["results"][1]["facts"] = bundle["results"][0]["facts"]
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    with pytest.raises(ControlError):
+        control.execute(args)
+    assert control.read_state(task, args.run_id)["current_state"] == "bensz.revision.working"
+
+
+def dissent(task, bundle, *, material=True):
+    reviewer = bundle["results"][0]["facts"]["reviewers"][2]
+    path = task / reviewer["result_ref"]
+    record = json.loads(path.read_text().split("```json\n")[1].split("\n```")[0])
+    anchors = [{"artifact": "original", "start": 0, "end": 2}, {"artifact": "text", "start": 0, "end": 2}]
+    for opinion in record["reviews"].values():
+        opinion.update(verdict="fail", summary="synthetic dissent", material_findings=[
+            {"id": "lost-condition", "reason": "synthetic allegation", "anchors": anchors}] if material else [])
+    path.write_text("```json\n" + json.dumps(record) + "\n```\n")
+    for result in bundle["results"]:
+        result["facts"]["reviewers"][2].update(result_hash=digest(path.read_bytes()), verdict="fail")
+    return anchors
+
+
+def test_majority_cannot_silence_material_dissent(case):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    anchors = dissent(task, bundle)
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    with pytest.raises(ControlError, match="unresolved_material_finding"):
+        control.execute(args)
+    assert control.read_state(task, args.run_id)["current_state"] == "bensz.revision.working"
+    for result in bundle["results"]:
+        result["facts"]["resolutions"] = [{"reviewer_id": "synthetic-2", "finding_id": "lost-condition",
+            "disposition": "dismissed", "reason": "Synthetic anchored dismissal, not proof of semantic truth", "anchors": anchors}]
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    assert control.execute(args)["status"] == "ready"
+
+
+def test_style_dissent_does_not_have_unlimited_veto(case):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    dissent(task, bundle, material=False)
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    assert control.execute(args)["status"] == "ready"
+
+
+def test_readback_rechecks_reviewer_file_hash(case):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    args.submission_file = "humanization/input/submissions.json"
+    ready = control.execute(args)
+    reviewer = bundle["results"][0]["facts"]["reviewers"][0]
+    (task / reviewer["result_ref"]).write_text("changed reviewer record")
+    args.attempt_id = ready["attempt_id"]
+    with pytest.raises(ControlError, match="reviewer_hash_mismatch"):
+        control.execute(args)
+
+
+def test_defensive_hints_do_not_reject_necessary_limits(case):
+    task, args, request = case
+    text = "可能存在关联，但并不意味着因果。The estimate may be biased."
+    (task / request["original"]).write_text(text)
+    (task / request["delivery"]["text"]).write_text(text)
+    request["outcome"] = "keep_original"
+    control.write_json(task, args.request_file, request)
+    args.action, args.attempt_id = "retry", "edit-2"
+    control.execute(args)
+    args.action = "release"
+    pending = control.execute(args)
+    assert pending["status"] == "pending_review"
+    log = EventLog(TaskWorkspace.open_existing(task).events)
+    result = [e for e in log.read() if e.event_type == "verification.result" and e.payload.get("verifier_id") == "bensz.prose.defensive-framing"][-1]
+    component = next(c for c in result.payload["component_results"] if c["component_id"] == "defensive-facts")
+    assert component["verdict"] == "pass"
+    assert component["facts"]["clues"]
+    assert component["facts"]["semantic_status"] == "unchecked"
+    synthetic_submission(task, pending)
+    args.submission_file = "humanization/input/submissions.json"
+    assert control.execute(args)["status"] == "ready"
+
+
+@pytest.mark.parametrize("category,action", [("necessary", "delete"), ("mixed", "delete"), ("unresolved", "human_review")])
+def test_defensive_pass_cannot_erase_or_ignore_uncertain_function(case, category, action):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    bundle["results"][1]["facts"]["defensive_audit"]["items"] = [{
+        "pattern": "synthetic", "necessity": category, "disposition": action,
+        "materiality_reason": "synthetic", "preserved_function": "synthetic", "material": False,
+        "source_anchors": [{"artifact": "original", "start": 0, "end": 2}],
+        "candidate_anchors": [{"artifact": "text", "start": 0, "end": 2}],
+        "preserved_anchors": [{"artifact": "text", "start": 0, "end": 2}]}]
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    with pytest.raises(ControlError):
+        control.execute(args)
+
+
+def test_clue_output_is_bounded_without_semantic_verdict():
+    path = SCRIPTS.parent / "references/verifiers/defensive-framing/scripts/evidence.py"
+    spec = importlib.util.spec_from_file_location("defensive_evidence_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = module.collect_clues({"original": "may " * 40000, "text": "may " * 40000})
+    assert result["clue_count"] == 80000
+    assert len(result["clues"]) == config()["control_policy"]["max_defensive_clues"]
+    assert result["clues_truncated"] is True
+    assert len(canonical(result)) < 65536
+
+
+def test_reviewers_cannot_use_hardlinks_as_independent_votes(case):
+    task, args, _ = case
+    synthetic_submission(task, control.execute(args))
+    bundle = control.read_json(task, "humanization/input/submissions.json")
+    refs = bundle["results"][0]["facts"]["reviewers"]
+    first, second = task / refs[0]["result_ref"], task / refs[1]["result_ref"]
+    second.unlink()
+    second.hardlink_to(first)
+    for result in bundle["results"]:
+        result["facts"]["reviewers"][1]["result_hash"] = digest(first.read_bytes())
+    control.write_json(task, "humanization/input/submissions.json", bundle)
+    args.submission_file = "humanization/input/submissions.json"
+    with pytest.raises(ControlError, match="duplicate_reviewer"):
         control.execute(args)
