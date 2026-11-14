@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+
+- 新增 `docs/plans/2026-11-14-skill-identity-system-plan.md`，收敛独立 `bensz-skill-identity` 包、复用 `config.yaml` 的身份声明、签名发行与分阶段接入方案，并从原设计文档建立入口；相对链接、YAML 示例与文档空白检查通过。本轮交付计划，功能尚未实施。
+
+### Changed（变更）
+
+- `humanization` 优化判断回避与篇章失衡的诊断说明、成对回归案例和既有 `defensive-framing` 契约；保留 Verifier 名称、ID、审查字段与门禁规则，复用已有信息功能分类。实施与验证见 `docs/plans/2026-11-14-humanization-defensive-framing-plan.md`。
+- `AGENTS.md` 明确 `skills/alpha/`、`skills/beta/` 中正式 Agent Skill 的版本使用三段非负整数 `X.Y.Z`；AI 默认只能递增末位，修改前两位须经人类用户明确授权，是否属于较大更新由人类判断；变更矩阵不构成版本提升授权。此规则不适用于仓库发布、Kernel 包或 State/Verifier Pack 版本。
+
 ## [5.0.17] - 2026-11-13
 
 ### Changed（变更）

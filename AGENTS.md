@@ -383,6 +383,8 @@ Pack 的详细设计与审查由 `skills/alpha/verifier-state-architect` 负责�
 | canonical ID 重命名 | 新 ID + alias | canonical/alias 双路径，历史事件不改写 |
 | 删除字段、State 或 Verifier | major | deprecation、迁移和失败路径测试 |
 
+上表用于评估变更影响与验证范围，不构成 AI 修改版本号的授权；Skill 版本的修改权限以下方“版本号 Single Source of Truth”为准，是否属于较大更新由人类用户判断。
+
 版本来源必须保持分层：Kernel 包版本来自 `packages/bensz-skill-kernel/pyproject.toml`，Skill 版本来自各自 `config.yaml:skill_info.version`，Pack 版本来自对应 `index.json` 或兼容 frontmatter，仓库版本来自 Git tag。
 
 涉及 Kernel、CLI、协议或 Pack 资产的变更，至少运行包内 pytest、Pack discovery/index 一致性、canonical/alias、非法 JSON/超时/越界路径和安装后 package-data 检查；涉及 Skill 安装发现时，再运行安装器回归测试。验证产物写入 `tmp/` 或当前任务工作区，不写入 `tests/` 和 Skill 源目录。
@@ -414,9 +416,14 @@ Pack 的详细设计与审查由 `skills/alpha/verifier-state-architect` 负责�
 ```
 
 **版本号 Single Source of Truth**：
+
+下述 Skill 版本格式与 AI 修改权限仅适用于 `skills/alpha/`、`skills/beta/` 中正式 Agent Skill 的 `config.yaml:skill_info.version`，不适用于本项目的仓库发布版本、Kernel 包版本或 State/Verifier Pack 版本。
+
 - 仓库发布版本与 `bensz-skill-kernel` 包版本只能由人类用户决定：包括 Git tag、`CHANGELOG.md` 中的仓库级版本条目以及 `packages/bensz-skill-kernel/pyproject.toml` 的 `version` 字段。AI 可以建议版本号，但未经人类明确确认，不得擅自写入、创建或提升。
 - 本仓库不维护根级 `config.yaml`：仓库发布版本以 Git tag 为准；项目级 `project_info` 配置仅供需要项目级版本治理的下游仓库参考。
-- 各 Skill 版本唯一记录在自身 `config.yaml:skill_info.version`，不在 SKILL.md、README.md 中冗余记录；遵循 [语义化版本](https://semver.org/lang/zh-CN/)：主版本号为不兼容 API 修改，次版本号为向下兼容功能新增，修订号为向下兼容问题修正。
+- 各 Skill 版本唯一记录在自身 `config.yaml:skill_info.version`，不在 SKILL.md、README.md 中冗余记录；格式必须为三个非负整数以两个英文句点分隔的 `X.Y.Z`，例如 `1.2.3`，不得附加前缀、预发布标识或构建元数据。
+- **Skill 版本修改权限**：AI 修改既有 Skill 版本时，默认只能递增末位修订号，例如 `1.2.3` → `1.2.4`；前两位主版本号、次版本号只有在人类用户明确授权修改时才能变动。日常 AI 优化默认以末位递增记录，是否属于较大更新、是否提升前两位由人类用户判断；AI 可以提出建议，不得自行认定并提升，也不得因末位数值增长而自动向前进位。
+- 主版本号、次版本号、修订号的含义参考 [语义化版本](https://semver.org/lang/zh-CN/)；其变更分类不构成 AI 修改前两位的授权。
 - 版本号同步顺序：`config.yaml`（唯一来源）→ README.md 等文档引用 → `CHANGELOG.md` 版本条目。
 - 技能初始化模板：`config.yaml` 声明 `skill_info.version: 0.1.0`，`CHANGELOG.md` 记录 `[0.1.0] - YYYY-MM-DD` 与 `Added（新增）- 初始化技能，实现核心功能`。
 
