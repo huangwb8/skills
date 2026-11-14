@@ -2,7 +2,7 @@
 
 本文整理 Skill Identification System 的拟议设计，供开发前审查。当前状态为**待审查，尚未实施**；字段与引用格式均为设计建议，不代表现行公开协议。按审查要求，本计划直接保存在 `docs/`，不作为已有源码行为的说明。
 
-后续讨论已形成 [Skill ID 系统优化与实施计划](plans/2026-11-14-skill-identity-system-plan.md)，明确复用 `config.yaml` 声明身份、建设独立 package，以及基础版和宿主接入版的交付边界。本文保留原始设计论证，后续实施按该计划收敛；两份文档均不表示功能已实现。
+后续讨论已形成 [Skill ID 系统优化与实施计划](plans/2026-11-14-skill-identity-system-plan.md)，明确复用 `config.yaml` 声明身份、建设独立 package，以及基础版和宿主接入版的交付边界。本文保留原始设计论证。当前基础包、严格安装入口与实际验证范围见 [Skill 身份协议](skill-identity-protocol.md)、[包指南](../packages/bensz-skill-identity/README.md)和[宿主能力报告](skill-identity-host-capability.md)；原生加载绑定与 router 接入尚未完成。
 
 ## 通俗解释：究竟要解决什么
 

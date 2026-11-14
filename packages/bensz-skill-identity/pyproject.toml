@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bensz-skill-identity"
+version = "0.1.0"
+description = "Signed Skill releases, explicit trust and exact dependency locks"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Bensz Conan"}]
+dependencies = ["PyYAML>=6.0,<7", "cryptography>=43"]
+
+[project.scripts]
+bsi = "bensz_skill_identity.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+cache_dir = "../../.bensz-api/.pytest_cache"
+
+[tool.ruff]
+cache-dir = "../../.bensz-api/.ruff_cache"
