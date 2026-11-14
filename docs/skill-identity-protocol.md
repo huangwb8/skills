@@ -56,6 +56,10 @@ security payload 为 `schema`、`publisher_id`、`revision`、`issued_at`、`exp
 
 ## 安装与兼容
 
+身份能力的试验与推广必须保留普通安装路径：无身份或尚未确证身份的 Skill 继续使用源码、远程和 bootstrap 安装，不因缺少签名或未安装身份库而自动被拒绝。配置中的身份声明不会自动启用严格安装，也不表示发布者已受信任。兼容安装不提供身份认证保证。
+
+当前阶段先在独立临时目标验证严格安装，不将正式 Skill 目录批量转为受管目录。混合目录存在一项限制：快速更新器未指定 `--skill` 时会因任一受管记录拒绝整次更新，显式选择其它未受管 Skill 则可继续；受管 Skill 本身仍须通过严格入口更新。该限制解决并完成回归前，不宣称混合部署对原有批量更新零影响。验证范围见[兼容性记录](events/2026-11-14-skill-identity-compatibility.md)。
+
 完整安装器严格入口为 `--release DIR --trust-store FILE`，与普通源码/远程/运行时操作互斥；`--force` 不放宽检查。严格路径不使用 MD5 或过滤器，受签隐藏资源和文档照常复制。未知根和能力缺失都不能静默进入兼容安装。
 
 旁路布局：目标根的 `.bensz-skill-identity/{records/<skill_key>.json,state.json,releases/<evidence_digest>/,journal.json,install.lock,staging/,backup/}`。内容目录为 `<target>/<skill_key>/`，同名异身份返回冲突。evidence digest 绑定两份完整签名 envelope，完整证据先准备再原子发布；事务唯一标识区分同发行重装；记录原子提交为 commit point。此前失败恢复旧目录和记录，此后恢复完成新安装；备份在提交前保留。目标根与 staging 在同一文件系统。可通过 `recover_install` 或 `bsi recover` 恢复进程终止；不声称跨平台批量或断电原子性。

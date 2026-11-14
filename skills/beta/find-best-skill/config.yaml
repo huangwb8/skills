@@ -1,10 +1,13 @@
 # 技能基本信息
 skill_info:
   name: find-best-skill
-  version: 0.4.1
+  version: 0.4.2
   description: 根据用户需求智能推荐最佳 Agent Skills
   author: "Bensz Conan"
   category: 技能发现
+  identity:
+    publisher_id: ed25519-56f5b694de6d0aff76e95ebfd5f26299844c05b3485bccdd355884ae97297ff1
+    skill_key: find-best-skill
 
 # 搜索平台配置
 platforms:

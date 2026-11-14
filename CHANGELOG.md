@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+
+- 增加身份 demo 的 28 项旧 Skill 兼容性回归，覆盖身份依赖不可用、未声明或未确证身份、双平台安装/更新及合成脚本执行；定向回归共 156 项通过。记录混合目录无筛选快速更新会整体拒绝的推广阻塞项，严格安装继续在独立临时目标试验；详见 `docs/events/2026-11-14-skill-identity-compatibility.md`。
+
 ## [5.1.0] - 2026-11-14
 
 ### Added（新增）
