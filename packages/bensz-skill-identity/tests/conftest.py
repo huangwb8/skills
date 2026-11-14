@@ -1,4 +1,4 @@
-"""All signing keys are ephemeral in-memory test objects, never serialized."""
+"""Shared signing fixtures stay in memory; publisher tests clean disposable PEMs."""
 
 import time
 import sys

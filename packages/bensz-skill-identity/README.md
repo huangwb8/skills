@@ -25,7 +25,7 @@ Bensz Skill Identity（简称 **BSI**，Python 发行名 `bensz-skill-identity`�
 ## 安装与命令
 
 ```sh
-python -m pip install "bensz-skill-identity==1.0.0"
+python -m pip install "bensz-skill-identity==1.0.2"
 bsi capabilities
 python -c "from importlib.metadata import version; print(version('bensz-skill-identity'))"
 ```
@@ -36,7 +36,7 @@ python -c "from importlib.metadata import version; print(version('bensz-skill-id
 {"assurance": "files_verified", "host_binding": false, "protocol": 1, "schema": "bensz-skill-identity/v1/capabilities", "strict_install": true}
 ```
 
-包版本查询应输出 `1.0.0`。JSON 的协议版本 `1` 与示例 Skill 的版本独立于 Python 包版本。
+包版本查询应输出 `1.0.2`。JSON 的协议版本 `1` 与示例 Skill 的版本独立于 Python 包版本。
 
 已通过可信渠道取得签名发行并准备显式信任策略后，可执行验证或安装；这些命令会维护本地安全修订状态：
 
@@ -70,6 +70,42 @@ if result.decision == "allow":
 
 `snapshot_release` 在独立目录保存完整发行，不清理既有快照；调用方必须在每个受控使用边界重验内容及撤销。目录可被拥有写权限的本机进程修改，因此快照本身不提供宿主绑定。`verify_installation(target, name, policy)` 重新检查实际安装内容与旁路签名，写入安全修订状态。
 
+## 初始化发布者
+
+自 `1.0.1` 起提供 `bsi init` 与 Python API `initialize_publisher`，用于创建或核验本地发布者身份。安装后运行：
+
+```sh
+bsi init
+bsi init --config-dir /your/private/config
+```
+
+默认布局对每位开发者一致，密钥各自独立随机生成；`--config-dir` 只替换根目录，保留以下文件名：
+
+```text
+~/.bensz-skills/config/
+├── remote.env
+├── .bsi-init.lock
+└── bsi-keys/
+    ├── root.pem
+    └── release.pem
+```
+
+`remote.env` 保留原有内容，追加以下五个字段。三项公开值可用于身份声明或分发；两项路径指向独立私钥，配置中不嵌入私钥：
+
+| 字段 | 内容 |
+|---|---|
+| `BSI_PUBLISHER_ID` | 根公钥指纹派生的发布者 ID |
+| `BSI_ROOT_PUBLIC_KEY` | 根公钥原始字节的小写十六进制 |
+| `BSI_RELEASE_PUBLIC_KEY` | 发布公钥原始字节的小写十六进制 |
+| `BSI_ROOT_PRIVATE_KEY_FILE` | `bsi-keys/root.pem` 的绝对路径 |
+| `BSI_RELEASE_PRIVATE_KEY_FILE` | `bsi-keys/release.pem` 的绝对路径 |
+
+首次成功输出 `state: created`；重复运行检查两把 Ed25519 PEM、公开值和配置路径，返回 `reused`，不修改身份材料。已有完整密钥对且尚无 BSI 配置时，恢复公开配置并返回 `recovered`。初始化不执行环境文件，也不展开其中的变量或命令。Python 调用为 `initialize_publisher(config_dir: Path | None = None)`，与 CLI 返回相同的公开 JSON 字段，不包含私钥、其它配置或本地路径。
+
+密钥缺失/部分生成返回 `publisher_incomplete`；配置部分存在、重复或语法错误返回 `publisher_config_invalid`；配置与密钥不符返回 `publisher_identity_mismatch`；不安全权限返回 `publisher_permissions_invalid`；检测到外部并发编辑配置返回 `publisher_config_changed`。这些失败不会自动换钥或覆盖冲突配置；损坏 PEM 返回 `invalid_key`，初始化锁竞争返回 `state_locked`。若配置提交失败但两把密钥完整，重新执行可恢复；若生成中断只剩部分密钥，保留已有材料，人工确认恢复方式。
+
+POSIX 下新建目录为 700，密钥、配置及锁文件为 600；既有私钥、密钥目录和已配置环境文件的权限过宽会被拒绝。PEM 不设置口令，发布者负责安全保管及独立备份，勿提交配置或私钥到 Git。初始化只在本地进行，不授权、不建立信任、不生成发行或安装 Skill，也不承诺断电原子性或宿主加载绑定。macOS 权限与并发已实测，Windows 尚未验收。开发者仍可自行准备密钥并使用原有显式参数接口；后续 `authorize`、`build`、`security` 仍需显式指定参数，不自动加载 `remote.env`。
+
 ## 创建发行
 
 源码沿用 `config.yaml`：
@@ -83,7 +119,7 @@ skill_info:
     skill_key: sample
 ```
 
-发布者通过可信渠道建立 Ed25519 根密钥和独立发布密钥；库不生成生产身份、不保存私钥。Python 使用内存 `Ed25519PrivateKey` 对象调用 `authorize`、`security_metadata`、`build_release`。CLI 可以读取发布者显式提供的 PEM 文件路径，错误与输出不包含密钥内容：
+发布者可通过 `bsi init` 建立本地 Ed25519 根密钥和独立发布密钥，也可自行准备；验证方仍须通过可信渠道接受根公钥。Python 使用内存 `Ed25519PrivateKey` 对象调用 `authorize`、`security_metadata`、`build_release`。CLI 可以读取发布者显式提供的 PEM 文件路径，错误与输出不包含密钥内容：
 
 ```sh
 bsi authorize --private-key root.pem --release-public-key PUBLIC_HEX \
@@ -113,7 +149,7 @@ python -m venv .bensz-api/identity-dev
 .bensz-api/identity-dev/bin/python -m pip install ./packages/bensz-skill-identity pytest
 PYTHONPYCACHEPREFIX="$PWD/.bensz-api/pycache" \
   .bensz-api/identity-dev/bin/python -m pytest packages/bensz-skill-identity/tests \
-  --basetemp=tmp/skill-identity -o cache_dir=.bensz-api/.pytest_cache
+  --basetemp=tmp/skill-identity -o cache_dir="$PWD/.bensz-api/.pytest_cache"
 ```
 
 CLI 成功为 0；未知发布者需要信任为 2；验证或政策拒绝为 3；I/O 或调用错误为 4。解析参数错误遵循 argparse 的退出码 2。JSON 中的 `reason` 是细分原因，不能仅以进程正常退出或验签成功判断政策允许。

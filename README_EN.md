@@ -191,14 +191,22 @@ BSK="$HOME/.bensz-skills/bin/bsk"
 
 ## Skill identity and strict installation
 
-Bensz Skill Identity (BSI, `bensz-skill-identity`) 1.0.0 requires Python 3.11+, PyYAML, and cryptography. It combines a root public-key fingerprint with a stable `skill_key` to identify a Skill, signs its complete file inventory with Ed25519, verifies it against explicit administrator trust and bounded revocation information, and locks exact dependencies.
+Bensz Skill Identity (BSI, `bensz-skill-identity`) 1.0.2 requires Python 3.11+, PyYAML, and cryptography. It combines a root public-key fingerprint with a stable `skill_key` to identify a Skill, signs its complete file inventory with Ed25519, verifies it against explicit administrator trust and bounded revocation information, and locks exact dependencies.
 
 ```bash
-python3 -m pip install "bensz-skill-identity==1.0.0"
+python3 -m pip install "bensz-skill-identity==1.0.2"
 bsi capabilities
 ```
 
-The capability query returns `assurance: files_verified`, `strict_install: true`, and `host_binding: false`, without keys or trust files. Once a signed release and an administrator trust policy are available, preview strict installation:
+The capability query returns `assurance: files_verified`, `strict_install: true`, and `host_binding: false`, without keys or trust files. Publishers preparing signed releases can initialize a local identity:
+
+```bash
+bsi init
+```
+
+The default `~/.bensz-skills/config/` layout holds configuration and two independent Ed25519 private keys. Repeated calls validate and reuse the identity; conflicts or partial key material are rejected. Secure the keys and configuration and keep them out of Git. Initialization does not establish trust, sign releases, or install Skills. See the [publisher initialization guide](packages/bensz-skill-identity/README.md#初始化发布者) for custom directories and recovery.
+
+Once a signed release and an administrator trust policy are available, preview strict installation:
 
 ```bash
 python3 skills/alpha/install-bensz-skills/scripts/install.py --release ./release --trust-store ./trust.json --codex --dry-run

@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.1.1] - 2026-11-14
+
+### Changed（变更）
+
+- 按用户指定版本将 BSI Python 包对齐至 1.0.2；根级与包内双语 README 对齐安装、版本查询及发布者初始化能力，身份协议移除过时的未发布说明。BSK 源码/PyPI 已为 2.1.6，按条件跳过修改、上传与重装。
+- 按用户指定条件将 BSI Python 包对齐至 1.0.1，双语 README 同步安装、版本查询和发布者初始化说明；112 项包测试、Ruff、README pair、Twine 及独立 wheel 签名成功/未知根与篡改拒绝验证通过。已发布 PyPI 并升级本机 Python 3.12 的 BSI。仓库 v5.1.0 与 BSK 2.1.6 已为目标版本，跳过重复提交、tag、Release 和 BSK 上传/重装。
+
 ### Added（新增）
 
+- BSI 新增 `bsi init [--config-dir DIR]` 与 `initialize_publisher`，统一 `remote.env` 和两份独立 PEM 的布局、公开配置字段及权限；重复核验复用、完整密钥恢复配置，冲突/部分材料拒绝。包内 112 项测试、Ruff、隔离 wheel 的无关目录/默认 HOME 初始化与重复调用通过；开发测试私钥已清理，未读取真实凭据。该功能随 BSI 1.0.1 发布并安装到本机已有 BSI 环境；PyPI 两份发行文件摘要一致，安装后 API/CLI 复核通过。实施见 `docs/plans/2026-11-14-bsi-publisher-init.md`。
 - 增加身份 demo 的 28 项旧 Skill 兼容性回归，覆盖身份依赖不可用、未声明或未确证身份、双平台安装/更新及合成脚本执行；定向回归共 156 项通过。记录混合目录无筛选快速更新会整体拒绝的推广阻塞项，严格安装继续在独立临时目标试验；详见 `docs/events/2026-11-14-skill-identity-compatibility.md`。
+
+### Validation（验证）
+
+- BSI 包与身份安装回归共 153 项通过；Ruff、根级/BSI 双语 README 与空白检查通过，保留安装器既有 locale 弃用警告。BSI 文档导航及 SHA256 占位符 token 提示经语义复核，无命令或版本漂移。
+- BSI 1.0.2 的 sdist/wheel 从任务内干净副本构建，Twine 检查通过，源码字节与 UTF-8 README 与发行包一致；隔离 Python 3.12 环境在无关目录完成 capabilities、初始化/复用、签名验证/安装重验、未知根与篡改拒绝，测试私钥已清理。
+- BSI 1.0.2 已上传 PyPI，两份线上发行文件的 SHA-256 均与本地构建一致。已从 PyPI 线上 wheel 升级本机 Python 3.12 环境，安装后源码字节与 API/CLI 复核通过；GitHub 发布结果由本轮发布证据记录。
 
 ## [5.1.0] - 2026-11-14
 

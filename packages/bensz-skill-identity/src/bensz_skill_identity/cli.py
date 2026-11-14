@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from .crypto import authorize, security_metadata
 from .dependencies import resolve_lock, verify_lock
 from .protocol import SCHEMA, IdentityError, canonical, load_json, read_file, require
+from .publisher import initialize_publisher
 from .release import TrustPolicy, build_release
 from .state import state_transaction, verify_persisted
 from .storage import install_release, recover_install
@@ -31,6 +32,11 @@ def parser() -> argparse.ArgumentParser:
     )
     sub = result.add_subparsers(dest="command", required=True)
     sub.add_parser("capabilities")
+    p = sub.add_parser("init", help="Create or validate the standard local publisher identity")
+    p.add_argument(
+        "--config-dir", type=Path,
+        help="Override ~/.bensz-skills/config; keep the standard filenames",
+    )
     for command in ("authorize", "security"):
         p = sub.add_parser(command)
         p.add_argument("--private-key", type=Path, required=True)
@@ -79,6 +85,8 @@ def parser() -> argparse.ArgumentParser:
 
 def execute(args) -> tuple[dict, int]:
     command = args.command
+    if command == "init":
+        return initialize_publisher(args.config_dir), 0
     if command == "capabilities":
         return {
             "schema": SCHEMA + "/capabilities",

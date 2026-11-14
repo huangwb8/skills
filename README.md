@@ -193,14 +193,22 @@ BSK="$HOME/.bensz-skills/bin/bsk"
 
 ## Skill 身份与严格安装
 
-Bensz Skill Identity（BSI，`bensz-skill-identity`）1.0.0 要求 Python 3.11+，依赖 PyYAML 与 cryptography。它把根公钥指纹和稳定 `skill_key` 组成 Skill 身份，为完整文件集合生成 Ed25519 签名，按管理员显式信任与有限撤销信息验证，并锁定精确依赖。
+Bensz Skill Identity（BSI，`bensz-skill-identity`）1.0.2 要求 Python 3.11+，依赖 PyYAML 与 cryptography。它把根公钥指纹和稳定 `skill_key` 组成 Skill 身份，为完整文件集合生成 Ed25519 签名，按管理员显式信任与有限撤销信息验证，并锁定精确依赖。
 
 ```bash
-python3 -m pip install "bensz-skill-identity==1.0.0"
+python3 -m pip install "bensz-skill-identity==1.0.2"
 bsi capabilities
 ```
 
-能力查询返回 `assurance: files_verified`、`strict_install: true`、`host_binding: false`，不需要密钥或信任文件。已取得签名发行并准备管理员信任策略后，可以预览严格安装：
+能力查询返回 `assurance: files_verified`、`strict_install: true`、`host_binding: false`，不需要密钥或信任文件。需要制作签名发行时，发布者可初始化本地身份：
+
+```bash
+bsi init
+```
+
+默认在 `~/.bensz-skills/config/` 中保存配置和两把独立 Ed25519 私钥；重复运行核验并复用身份，冲突或部分密钥会明确拒绝。私钥与配置须妥善保管，不得提交到 Git。初始化不建立信任，也不自动签名或安装；自定义目录与恢复方式见[发布者初始化指南](packages/bensz-skill-identity/README.md#初始化发布者)。
+
+已取得签名发行并准备管理员信任策略后，可以预览严格安装：
 
 ```bash
 python3 skills/alpha/install-bensz-skills/scripts/install.py --release ./release --trust-store ./trust.json --codex --dry-run

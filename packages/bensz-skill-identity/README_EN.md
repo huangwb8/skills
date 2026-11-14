@@ -25,7 +25,7 @@ A root public-key fingerprint and a stable key identify a Skill; its version ide
 ## Installation and commands
 
 ```sh
-python -m pip install "bensz-skill-identity==1.0.0"
+python -m pip install "bensz-skill-identity==1.0.2"
 bsi capabilities
 python -c "from importlib.metadata import version; print(version('bensz-skill-identity'))"
 ```
@@ -36,7 +36,7 @@ Requires Python 3.11+; installation resolves PyYAML and cryptography. The capabi
 {"assurance": "files_verified", "host_binding": false, "protocol": 1, "schema": "bensz-skill-identity/v1/capabilities", "strict_install": true}
 ```
 
-The package version query should print `1.0.0`. Protocol version `1` in JSON and the example Skill's version are independent of the Python package version.
+The package version query should print `1.0.2`. Protocol version `1` in JSON and the example Skill's version are independent of the Python package version.
 
 Once a signed release has arrived through a trusted channel and an explicit trust policy is ready, verify or install it. These commands maintain local security revision state:
 
@@ -70,6 +70,42 @@ if result.decision == "allow":
 
 `snapshot_release` saves a complete release in a separate directory without cleaning existing snapshots. Callers must recheck content and revocation at each controlled use boundary. Local processes with write access can alter these directories, so snapshots alone do not bind host loading. `verify_installation(target, name, policy)` rechecks installed files and retained signatures, persisting security revision state.
 
+## Initializing a publisher
+
+Available since `1.0.1`, `bsi init` and the `initialize_publisher` Python API create or validate a local publisher identity. After installation, run:
+
+```sh
+bsi init
+bsi init --config-dir /your/private/config
+```
+
+Each developer gets the same default layout with independently generated random keys. `--config-dir` replaces the root directory while retaining these filenames:
+
+```text
+~/.bensz-skills/config/
+├── remote.env
+├── .bsi-init.lock
+└── bsi-keys/
+    ├── root.pem
+    └── release.pem
+```
+
+`remote.env` retains existing content and appends five fields. Three public values support identity declarations and distribution; two paths point to separate private keys. No private key is embedded in the configuration:
+
+| Field | Content |
+|---|---|
+| `BSI_PUBLISHER_ID` | Publisher ID derived from the root public-key fingerprint |
+| `BSI_ROOT_PUBLIC_KEY` | Lowercase hexadecimal raw root public-key bytes |
+| `BSI_RELEASE_PUBLIC_KEY` | Lowercase hexadecimal raw release public-key bytes |
+| `BSI_ROOT_PRIVATE_KEY_FILE` | Absolute path to `bsi-keys/root.pem` |
+| `BSI_RELEASE_PRIVATE_KEY_FILE` | Absolute path to `bsi-keys/release.pem` |
+
+The first successful call returns `state: created`. Repeated calls check both Ed25519 PEMs, public values, and configured paths, returning `reused` without changing identity material. A complete key pair without BSI configuration restores the public configuration and returns `recovered`. Initialization never executes the environment file or expands its variables or commands. The Python API is `initialize_publisher(config_dir: Path | None = None)`, returning the same public JSON fields as the CLI, without private keys, unrelated configuration, or local paths.
+
+Missing or partially generated keys return `publisher_incomplete`; partial, duplicate, or malformed configuration returns `publisher_config_invalid`; a configuration/key mismatch returns `publisher_identity_mismatch`; insecure permissions return `publisher_permissions_invalid`; detected external configuration edits return `publisher_config_changed`. These failures never rotate keys or overwrite conflicting configuration. Invalid PEMs return `invalid_key`, and initialization lock contention returns `state_locked`. If configuration commit failed with a complete pair, rerun to recover. If generation stopped with a partial pair, retain the material and determine recovery manually.
+
+On POSIX, new directories use mode 700; key, environment, and lock files use 600. Existing private keys, key directories, and configured environment files with excessive permissions are rejected. PEMs are unencrypted: publishers must secure and independently back them up, keeping configuration and keys out of Git. Initialization is local only; it does not authorize, establish trust, build releases, or install Skills, and promises neither power-loss atomicity nor host loading binding. Permissions and concurrency were tested on macOS; Windows has not been accepted. Developers may still supply their own keys through existing explicit interfaces. Subsequent `authorize`, `build`, and `security` calls still require explicit arguments and do not load `remote.env` automatically.
+
 ## Creating releases
 
 Source identity lives in `config.yaml`:
@@ -83,7 +119,7 @@ skill_info:
     skill_key: sample
 ```
 
-Publishers establish an Ed25519 root key and a separate release key through trusted channels. The library does not create production identities or store private keys. Python callers pass in-memory `Ed25519PrivateKey` objects to `authorize`, `security_metadata`, and `build_release`. The CLI can read explicit PEM file paths supplied by a publisher; errors and output exclude key contents:
+Publishers can establish a local Ed25519 root key and a separate release key with `bsi init`, or prepare their own. Verifiers must still accept the root public key through a trusted channel. Python callers pass in-memory `Ed25519PrivateKey` objects to `authorize`, `security_metadata`, and `build_release`. The CLI can read explicit PEM file paths supplied by a publisher; errors and output exclude key contents:
 
 ```sh
 bsi authorize --private-key root.pem --release-public-key PUBLIC_HEX \
@@ -113,7 +149,7 @@ python -m venv .bensz-api/identity-dev
 .bensz-api/identity-dev/bin/python -m pip install ./packages/bensz-skill-identity pytest
 PYTHONPYCACHEPREFIX="$PWD/.bensz-api/pycache" \
   .bensz-api/identity-dev/bin/python -m pytest packages/bensz-skill-identity/tests \
-  --basetemp=tmp/skill-identity -o cache_dir=.bensz-api/.pytest_cache
+  --basetemp=tmp/skill-identity -o cache_dir="$PWD/.bensz-api/.pytest_cache"
 ```
 
 CLI exit codes are 0 for success, 2 when an unknown publisher needs trust, 3 for verification or policy rejection, and 4 for I/O or invocation errors. Argument parsing follows argparse's exit code 2. JSON `reason` gives the specific cause; normal process completion or a valid signature alone does not establish policy approval.

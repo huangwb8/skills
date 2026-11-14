@@ -19,6 +19,7 @@ from .release import (
     verify_release,
 )
 from .state import verify_persisted
+from .publisher import initialize_publisher
 from .storage import (
     install_release,
     recover_install,
@@ -37,6 +38,7 @@ __all__ = [
     "digest",
     "empty_state",
     "install_release",
+    "initialize_publisher",
     "public_hex",
     "publisher_id",
     "read_identity",

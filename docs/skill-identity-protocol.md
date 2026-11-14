@@ -14,6 +14,16 @@
 
 每个路径必须为 NFC、正斜杠相对路径，拒绝绝对路径、空段、`.`、`..`、反斜线、控制字符、Windows 非法字符/设备名和尾部点/空格。整个目录树检查 casefold 碰撞，拒绝软链接、多硬链接和特殊文件。默认最多 10,000 个条目、单文件 64 MiB、总文件 256 MiB；元数据最多 4 MiB、配置 1 MiB，结构深度最多 32。没有归档解包入口。读取前后检查文件身份、大小和变更时间；这不构成恶意本机并发写入的安全沙箱。
 
+## 发布者本地初始化
+
+自 BSI 1.0.1 起提供 `bsi init [--config-dir DIR]` 与 `initialize_publisher(config_dir=None)`。默认根目录为 `~/.bensz-skills/config`，文件名固定为 `remote.env`、`.bsi-init.lock`、`bsi-keys/root.pem`、`bsi-keys/release.pem`。生成两把独立 Ed25519 私钥，PEM 使用无密码 PKCS8；POSIX 新目录权限 700，密钥、配置及锁权限 600。不同开发者获得独立密钥，目录名和字段不承担身份含义。
+
+`remote.env` 只追加 `BSI_PUBLISHER_ID`、`BSI_ROOT_PUBLIC_KEY`、`BSI_RELEASE_PUBLIC_KEY` 三项公开值及 `BSI_ROOT_PRIVATE_KEY_FILE`、`BSI_RELEASE_PRIVATE_KEY_FILE` 两条绝对路径；不嵌入 PEM、不执行 Shell、不修改其它配置字节。初始化 JSON schema 为 `bensz-skill-identity/v1/publisher`，字段固定为 `schema`、`reason: ok`、`state`、`publisher_id`、`root_public_key`、`release_public_key`，不包含本地路径或私钥。`state` 为 `created`、`reused` 或 `recovered`。
+
+重复运行核验密钥、公开值和路径；完整密钥对尚无 BSI 配置时可恢复配置。不完整密钥、部分/重复/损坏配置、身份不符、不安全权限或外部编辑分别拒绝为 `publisher_incomplete`、`publisher_config_invalid`、`publisher_identity_mismatch`、`publisher_permissions_invalid`、`publisher_config_changed`；坏 PEM 为 `invalid_key`。受进程锁保护，环境文件原子替换；中断留下的部分密钥保留，禁止自动覆盖或重新生成。发布者负责保管和备份；不宣称断电原子事务或宿主绑定。
+
+初始化不创建授权、安全元数据、信任策略、发行或 Skill 安装。所有其它 CLI 继续显式接收 PEM 和参数，不自动读取 remote.env；自行管理密钥的开发者保持兼容。macOS 权限、并发及失败恢复取得执行证据，Windows 未验收。
+
 ## 签名输入
 
 canonical JSON 为 UTF-8、键排序、无多余空白、`ensure_ascii=False`。只接受字符串键、JSON 整数/布尔/null/字符串/数组/对象，拒绝重复键、浮点和越界整数。对象可用可读 JSON 序列化存储，签验均对解析后 canonical 字节进行。未知机器字段拒绝。
