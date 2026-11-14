@@ -53,6 +53,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 - 歧义先拦截：目标、边界或验收标准不清楚的高风险/宽泛任务，由 AI 主动澄清或显式记录保守假设
 - 外科手术式修改：每轮遵守 `dispatch_guidance.minimal_change_scope_default`
 - 目标驱动验证：执行前先决定怎样证明完成，执行后报告验证结果
+- 界面文案克制：所有涉及 UI 的任务及子代理交接，均携带 `agents/frontend-specialist/SKILL.md` 的“界面文案约束”；设计、实现与审查都检查无依据口号、开发状态和装饰性说明，保留真实业务反馈及明确要求的品牌内容。
 - 强制门禁：配置中的 required route agent 缺失、禁用或不可调度时，必须通过 `dispatch_gate` 阻塞继续执行
 - 留痕可审计：实际调用 required agent 后，需要补 `dispatch_receipts` 才能证明门禁已被满足
 - 专业化分工：每个子代理专注一个领域，降低单模型的认知负担

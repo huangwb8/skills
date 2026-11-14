@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/unit/test_dispatch_policy_integration.py` 新增轻量集成测试，覆盖小任务 `single-pass`、安全漏洞 `multi-agent`、宽泛重构歧义阻塞与明确验证命令放行。
 
 ### Changed（变更）
+- 加强前端设计、实现与代码审查中的 UI 文案约束：禁止无需求依据的口号、开发状态和装饰性说明，保留真实业务反馈与明确授权的品牌内容；同步父级执行要求和用户指南，修订号递增至 `3.0.6`。strict 结构、YAML/TOML、引用路径与空白检查通过，8 类文案边界完成语义走查；未开展模型行为基准或浏览器验收。
 - `agent_coordinator.py` 不再硬编码 `parallel-vibe` 或执行模式作为 fallback；执行底座完全来自 `config.yaml:dependencies.agent_execution`，配置缺失或不完整时通过 `dispatch_gate` 阻塞，版本号升级到 `3.0.5`。
 
 - `awesome-code` 的职责收敛为多代理规划、角色选择与结果审查；新增 `parallel-vibe` 必需执行依赖，`focused-agent`、`sequential` 与 `parallel` 均必须通过该 Skill 调度，版本号升级到 `3.0.4`。

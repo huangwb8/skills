@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- `awesome-code` 更新至 3.0.6：在设计、前端实现与代码审查子 Agent 中加强界面文案约束，禁止无需求依据的口号、开发状态与填充说明，保留必要业务反馈及明确品牌需求；同步父级交接要求和指南。strict 结构、配置与引用路径、空白检查通过，完成 8 类文案边界语义走查；未进行模型行为基准或浏览器验收。
+
 ## [5.1.1] - 2026-11-14
 
 ### Changed（变更）
