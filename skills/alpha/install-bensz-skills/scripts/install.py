@@ -46,7 +46,7 @@ if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
 from i18n import get_translator
-from bootstrap_install import resolve_skill_aliases
+from bootstrap_install import assert_unmanaged, guarded_exit, resolve_skill_aliases
 from remove_legacy_skills import (
     load_legacy_skill_names as _load_legacy_skill_names,
     remove_legacy_skills as _remove_legacy_skills,
@@ -1399,6 +1399,7 @@ def _install_remote_skills(
     Returns:
         安装报告
     """
+    assert_unmanaged(target.root, [item.name for item in comparisons] + list(legacy_skill_names))
     installed_skills: list[SkillInfo] = []
     skipped_skills: list[SkillInfo] = []
     process_messages: list[str] = []
@@ -1644,6 +1645,10 @@ def _remote_install_main(
                         continue
 
                 # 安装技能
+                ready_candidates = {item.name for item in comparisons}
+                assert_unmanaged(target.root, list(ready_candidates) +
+                    ([] if skill_filter else list(legacy_skill_names or [])) +
+                    [alias for alias, canonical in aliases.items() if canonical in ready_candidates])
                 report = _install_remote_skills(
                     comparisons,
                     target,
@@ -1886,6 +1891,7 @@ def _remove_existing(dest: Path, dry_run: bool, t: get_translator().__class__) -
     Returns:
         操作消息
     """
+    assert_unmanaged(dest.parent, [dest.name])
     if not dest.exists() and not dest.is_symlink():
         return ""
 
@@ -1906,6 +1912,7 @@ def _copy_fresh(src: Path, dest: Path, dry_run: bool, t: get_translator().__clas
     Returns:
         操作消息
     """
+    assert_unmanaged(dest.parent, [dest.name])
     if dry_run:
         return f"{t.get('dry_run_prefix')}install: {src} -> {dest}"
     shutil.copytree(
@@ -1924,6 +1931,7 @@ def _safe_remove_legacy_symlink(path: Path, dry_run: bool, t: get_translator()._
     Returns:
         操作消息（如果没有操作则返回空字符串）
     """
+    assert_unmanaged(path.parent, [path.name])
     if not path.exists() and not path.is_symlink():
         return ""
     if _is_symlink(path):
@@ -1960,6 +1968,7 @@ def _install_to_target(
     Returns:
         InstallReport 包含所有类型的技能信息
     """
+    assert_unmanaged(target.root, [src.name for src in skill_dirs_by_type[SkillType.NORMAL]] + list(legacy_skill_names or []))
     process_messages: list[str] = []
     installed_skills: list[SkillInfo] = []
     skipped_skills: list[SkillInfo] = []
@@ -2119,6 +2128,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--force", action="store_true", help=t.get("arg_help_force"))
     parser.add_argument("--skill", action="append", default=[], help=t.get("arg_help_skill"))
     parser.add_argument("--source", type=str, default=None, help="指定额外的 skills 源目录路径")
+    parser.add_argument("--release", type=Path, help="严格签名发行容器；不使用旧 MD5 或安装过滤")
+    parser.add_argument("--trust-store", type=Path, help="显式信任策略 JSON")
+    parser.add_argument("--identity-capabilities", action="store_true", help="只读查询身份安装协议能力")
     parser.add_argument(
         "--legacy-source",
         action="store_true",
@@ -2175,6 +2187,39 @@ def main(argv: list[str]) -> int:
         )
 
     args = parser.parse_args(argv)
+    if args.identity_capabilities:
+        try:
+            from bensz_skill_identity.cli import execute
+            capability, code = execute(argparse.Namespace(command="capabilities"))
+            print(json.dumps(capability))
+            return code
+        except ImportError:
+            print('{"reason":"identity_capability_unavailable"}')
+            return 3
+    if args.release or args.trust_store:
+        if not (args.release and args.trust_store) or any((args.source, args.remote, args.auto, args.check,
+                args.silent_update, args.ensure_runtime, args.runtime_status, args.force_runtime_update,
+                args.legacy_source, args.skill, *[getattr(args, sid, False) for sid in available_source_ids])):
+            parser.error("--release 和 --trust-store 必须成对使用，且不能与源码/远程/运行时参数组合")
+        try:
+            from bensz_skill_identity import IdentityError, TrustPolicy, install_release
+            from bensz_skill_identity.protocol import load_json
+        except ImportError:
+            print('{"reason":"identity_capability_unavailable"}')
+            return 3
+        try:
+            policy = TrustPolicy.from_dict(load_json(args.trust_store))
+            labels = [label for label, selected in (("codex", args.codex), ("claude", args.claude)) if selected] or ["codex", "claude"]
+            for label in labels:
+                result = install_release(args.release, Path.home() / ("." + label) / "skills", policy, dry_run=args.dry_run)
+                print(json.dumps({"target": label, **result}))
+            return 0
+        except IdentityError as exc:
+            print(json.dumps({"reason": exc.code, "path": exc.path}))
+            return 3
+        except OSError:
+            print('{"reason":"identity_install_failed"}')
+            return 4
     selected_skill_names = _parse_skill_filter(args.skill)
     try:
         selected_skill_names = resolve_skill_aliases(selected_skill_names, skill_aliases)
@@ -2325,23 +2370,16 @@ def main(argv: list[str]) -> int:
         )
 
     reports: list[InstallReport] = []
+    # Include alias cleanup before any target is changed.
+    for target in targets:
+        ready_candidates = {s.name for s in normal_skill_dirs}
+        assert_unmanaged(target.root, list(ready_candidates) +
+            ([] if selected_skill_names else [name for name in legacy_skill_names if name not in skill_aliases]) +
+            [alias for alias, canonical in skill_aliases.items() if canonical in ready_candidates])
     for target in targets:
         print(f"\n{'=' * 60}")
         print(f"📦 {t.installing_to_target(TARGET=target.label.upper(), root=target.root)}")
         print(f"{'=' * 60}")
-
-        # 如果是 force 模式，清除平台特定的 manifest 文件
-        if args.force:
-            for skill_dir in normal_skill_dirs:
-                dest_dir = target.root / skill_dir.name
-                # 删除旧版通用 manifest（向后兼容清理）
-                old_manifest = dest_dir / ".skill-manifest.json"
-                if old_manifest.exists():
-                    old_manifest.unlink()
-                # 删除新版平台特定 manifest
-                new_manifest = dest_dir / f".skill-manifest.{target.label}.json"
-                if new_manifest.exists():
-                    new_manifest.unlink()
 
         # 执行安装并获取报告
         report = _install_to_target(
@@ -2444,4 +2482,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(guarded_exit(main, sys.argv[1:]))

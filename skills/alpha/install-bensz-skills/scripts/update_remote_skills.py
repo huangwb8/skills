@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from bootstrap_install import resolve_skill_aliases, parse_skill_aliases_from_text
+from bootstrap_install import assert_unmanaged, guarded_exit, resolve_skill_aliases, parse_skill_aliases_from_text
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_ROOT = SCRIPT_DIR.parent
@@ -213,6 +213,9 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
     newer: dict[str, list[str]] = {}
+    # Check before network requests and before selecting a potentially old installer.
+    for target in targets:
+        assert_unmanaged(target, requested or None)
     for source in load_sources():
         haystack = " ".join(source.get(key, "") for key in ("id", "name", "url")).lower()
         if not args.all_sources and not any(value in haystack for value in filters):
@@ -259,4 +262,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(guarded_exit(main))

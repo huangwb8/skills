@@ -1,5 +1,21 @@
 # install-bensz-skills 优化日志
 
+## [0.7.2] - 2026-11-14
+
+### Added（新增）
+
+- 完整安装器新增显式 `--release --trust-store` 与只读 `--identity-capabilities`；调用独立身份包原样验证/提交，不复用 MD5 或内容过滤。受管记录放内容外，支持进程中断恢复。
+- Python 3.8 标准库 bootstrap 新增受信 Python/完整安装器的显式委派，能力不足时写入前退出，不下载工具自证可信。
+
+### Fixed（修复）
+
+- 兼容 local/remote/unchanged/force、bootstrap、快速更新和独立 legacy cleaner 保护受管目录；损坏记录同样拒绝 unsigned 覆盖。
+- 移除 force 分支在 dry-run 中提前删除安装记录的行为。
+
+### Validation（验证）
+
+- 临时副本完成签名发行与公开安装入口验证，成功链和关键失败反例详见仓库 Skill 身份验收记录；保证仅为 `files_verified`，没有系统安装或宿主加载绑定声明。
+
 ## [0.7.1] - 2026-10-08
 
 ### Fixed（修复）

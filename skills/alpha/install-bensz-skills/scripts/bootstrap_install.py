@@ -28,6 +28,62 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def assert_unmanaged(target_root: Path, names=None) -> None:
+    """Fail closed before legacy writes. This guard does not prove authenticity.
+
+    Kept here so the one-file Python 3.8 bootstrap remains self-contained.
+    """
+    control = target_root / ".bensz-skill-identity"
+    if control.is_symlink() or (control.exists() and not control.is_dir()):
+        raise RuntimeError("managed_install_protected")
+    if not control.exists():
+        return
+    if (control / "journal.json").exists() or (control / "journal.json").is_symlink():
+        raise RuntimeError("recovery_required")
+    records = control / "records"
+    if records.is_symlink() or (records.exists() and not records.is_dir()):
+        raise RuntimeError("managed_install_protected")
+    if names is None:
+        protected = list(records.glob("*.json"))
+    else:
+        protected = [records / (name + ".json") for name in names]
+    if any(path.exists() or path.is_symlink() for path in protected):
+        raise RuntimeError("managed_install_protected")
+
+
+def guarded_exit(entry, *args) -> int:
+    """Keep refusal reasons structured at public script boundaries."""
+    try:
+        return entry(*args)
+    except RuntimeError as exc:
+        if str(exc) not in {"managed_install_protected", "recovery_required"}:
+            raise
+        print(json.dumps({"reason": str(exc)}))
+        return 3
+
+
+def delegate_identity(args) -> int:
+    """Only explicitly configured trusted tools may handle a strict request."""
+    python = args.identity_python or os.environ.get("BENSZ_IDENTITY_PYTHON")
+    installer = args.identity_installer or os.environ.get("BENSZ_IDENTITY_INSTALLER")
+    if not python or not installer:
+        print('{"reason":"identity_capability_unavailable"}')
+        return 3
+    try:
+        probe = subprocess.run([python, installer, "--identity-capabilities"], capture_output=True, text=True, timeout=20, check=False)
+        capability = json.loads(probe.stdout)
+        if probe.returncode or capability.get("schema") != "bensz-skill-identity/v1/capabilities" or capability.get("protocol") != 1 or capability.get("strict_install") is not True:
+            raise ValueError("invalid capability")
+        command = [python, installer, "--release", args.release, "--trust-store", args.trust_store]
+        for flag in ("codex", "claude", "force", "dry_run"):
+            if getattr(args, flag):
+                command.append("--" + flag.replace("_", "-"))
+        return subprocess.run(command, check=False).returncode
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        print('{"reason":"identity_capability_unavailable"}')
+        return 3
+
+
 class _UnicodeSafeTextStream:
     """Retry only Unicode encoding failures; propagate every other write error."""
 
@@ -71,7 +127,7 @@ def _configure_console_streams() -> None:
 
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.7.1"
+FALLBACK_CONFIG_VERSION = "0.7.2"
 FALLBACK_SKILL_ALIASES = {"nsfc-humanization": "humanization"}
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
@@ -911,6 +967,7 @@ def remove_path(path: Path) -> None:
 
 
 def remove_existing(dest: Path, lang: str, dry_run: bool, result: InstallResult) -> None:
+    assert_unmanaged(dest.parent, [dest.name])
     if not dest.exists() and not dest.is_symlink():
         return
     print_msg(lang, "removed", dry_run=dry_run, path=dest)
@@ -927,6 +984,7 @@ def remove_legacy_skills(
     dry_run: bool,
     result: InstallResult,
 ) -> None:
+    assert_unmanaged(target.root, list(legacy_skill_names) + [target.legacy_link.name])
     legacy_link = target.legacy_link
     if legacy_link.exists() or legacy_link.is_symlink():
         if legacy_link.is_symlink():
@@ -960,6 +1018,7 @@ def install_skills(
     lang: str,
     ignored_names: set[str] | None = None,
 ) -> InstallResult:
+    assert_unmanaged(target.root, [skill.name for skill in skills] + list(legacy_skill_names))
     result = InstallResult(ignored=ignored_count)
     result.ignored_names.extend(sorted(ignored_names or set()))
     active_names = {skill.name for skill in skills}
@@ -1053,6 +1112,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ensure-runtime", action="store_true", help="Create or update the managed benszapi Conda runtime.")
     parser.add_argument("--runtime-status", action="store_true", help="Inspect the managed benszapi runtime without changing it.")
     parser.add_argument("--force-runtime-update", action="store_true", help="Ignore the runtime update TTL.")
+    parser.add_argument("--release", help="Strict signed release directory; delegate to trusted full installer.")
+    parser.add_argument("--trust-store", help="Explicit identity trust policy JSON.")
+    parser.add_argument("--identity-python", help="Explicit trusted Python 3.11+ executable.")
+    parser.add_argument("--identity-installer", help="Explicit trusted full installer script.")
     return parser
 
 
@@ -1062,6 +1125,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     lang = args.lang
     ensure_python(lang)
+    if args.release or args.trust_store or args.identity_python or args.identity_installer:
+        if not (args.release and args.trust_store) or any((args.source, args.skill, args.check, args.silent_update, args.ensure_runtime, args.runtime_status, args.force_runtime_update)):
+            parser.error("strict identity installation requires --release and --trust-store only")
+        return delegate_identity(args)
     if args.runtime_status:
         if any((args.ensure_runtime, args.force_runtime_update, args.silent_update, args.codex,
                 args.claude, args.force, args.dry_run, args.check, args.source, args.skill)):
@@ -1188,6 +1255,9 @@ def main(argv: list[str] | None = None) -> int:
 
             source_label = f"{source['id']} ({source['url']}@{source['branch']}:{source['skills_path']})"
             for target in targets:
+                ready_candidates = {skill.name for skill in skills}
+                assert_unmanaged(target.root, list(ready_candidates) + list(legacy_skill_names) +
+                    [alias for alias, canonical in skill_aliases.items() if canonical in ready_candidates])
                 print()
                 print_msg(lang, "target", label=target.label, root=target.root)
                 result = install_skills(
@@ -1270,4 +1340,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(guarded_exit(main))

@@ -107,7 +107,22 @@
 - 安装前先确认
 ```
 
-## 输出结果
+## 严格签名发行
+
+普通源码和远程安装仍是未验证兼容模式。签名发行可以通过 Python 3.11+ 完整安装器和独立身份包进行验证安装：
+
+```sh
+python3 scripts/install.py --release ./release --trust-store ./trust.json --codex --dry-run
+python3 scripts/install.py --release ./release --trust-store ./trust.json --codex
+```
+
+发行容器、显式信任策略及安全修订的准备见[身份包指南](../../../packages/bensz-skill-identity/README.md)。严格模式保留全部受签文件，不使用 MD5 跳过检查。旁路记录保存在目标根 `.bensz-skill-identity/`，内容目录不写 `.skill-manifest.*`。未知根、撤销、内容不符或能力缺失均失败；`--force` 不绕过检查。多个平台分别提交。
+
+bootstrap 通过 `--identity-python /trusted/python --identity-installer /trusted/install.py`（或对应 `BENSZ_IDENTITY_*` 环境变量）明确委派；未配置受信能力时在下载与目标修改前停止。更新后的普通安装、快速/静默更新及 legacy 清理拒绝覆盖受管内容，后续更新应继续提供签名发行。`bsi recover --target DIR` 可恢复进程中断；不要通过删除旁路记录降级。
+
+该路径只保证文件验证，不保证 Codex/Claude 实际加载绑定，也不增加脚本权限。历史旧客户端仍可能改写文件，消费方应使用身份包重新验证。详见[协议](../../../docs/skill-identity-protocol.md)与[宿主能力报告](../../../docs/skill-identity-host-capability.md)。
+
+## 安装产物
 
 - 系统级 skill 副本，默认安装到：
   - `~/.codex/skills/`

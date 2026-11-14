@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from i18n import get_translator
+from bootstrap_install import assert_unmanaged, guarded_exit
 
 
 def load_legacy_skill_names(config_path: Path) -> list[str]:
@@ -58,6 +59,7 @@ def remove_legacy_skills(
     t = get_translator()
     messages: list[str] = []
     active_names = {name for name in (active_skill_names or set()) if name}
+    assert_unmanaged(target_root, [name for name in legacy_skill_names if name not in active_names])
 
     for skill_name in legacy_skill_names:
         if skill_name in active_names:
@@ -127,4 +129,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(guarded_exit(main))

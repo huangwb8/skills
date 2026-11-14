@@ -21,6 +21,8 @@ metadata:
 
 从而让这些 skills 在**任意项目**里都能被发现与触发（不依赖当前 workdir，也不使用软链接）。
 
+显式签名发行使用独立身份包验证实际内容和本地信任，保证范围为 `files_verified`。普通源码安装继续是未验证兼容路径，不能覆盖受管安装；本 Skill 不提供宿主加载绑定或权限沙箱。
+
 ## 流程
 
 ### 输入
@@ -30,12 +32,21 @@ metadata:
 - **源目录**：默认从当前项目或祖先目录发现 `./skills/alpha/`；beta 仅在显式传入 `--source` 时使用。
 - **目标平台**：默认 Codex 与 Claude Code；可用 `--codex` 或 `--claude` 限定单一目标。
 - **安装选择**：可选 `--skill`、`--force`、`--dry-run`、`--source`，以及远程模式的 `--remote --check/--auto` 与源过滤参数。
+- **严格发行**：`--release DIR --trust-store FILE` 成对输入；需要 Python 3.11+ 与独立 `bensz-skill-identity`。与源码、远程和运行时参数互斥，`--force` 不放宽检查。
 - **运行环境**：本地完整安装器要求 Python 3.11+；Python 3.8–3.10 仅支持标准库 bootstrap 的远程首次/应急安装。
 - **远程快速更新**：运行 `scripts/update_remote_skills.py`；它只影响远程安装，本地源码安装仍使用原有 MD5 策略。
 - **托管运行时**：默认使用安装器独占的 `~/.bensz-skills/envs/benszapi` Conda prefix；当前托管最新版生产 BSK，包清单由 `scripts/managed-runtime.json` 定义。
 - **静默更新**：宿主在新任务/会话入口可调用 `python3 "$INSTALLER" --silent-update`；它只在 72 小时状态过期时检查，更新托管运行时，并增量更新已安装技能。
 
 ### 执行步骤
+
+#### 严格签名发行
+
+用户明确提供签名发行时，运行完整安装器 `--release DIR --trust-store FILE`，按需加 `--codex`、`--claude`、`--dry-run`。不从发行包自动建立信任，不用 MD5 或普通过滤器替代检查。验证候选与原样 staging 后提交；旁路记录写入目标根 `.bensz-skill-identity/`，不污染受签内容。两平台分别提交，不保证跨平台原子性。
+
+标准库 bootstrap 保持 Python 3.8；通过显式 `--identity-python`、`--identity-installer` 或对应 `BENSZ_IDENTITY_PYTHON`、`BENSZ_IDENTITY_INSTALLER` 指定受信工具，探测协议后委派。能力不足必须在下载/目标写入前失败，不回退普通安装。所有更新后的兼容入口拒绝 unsigned 覆盖受管目录，包括 unchanged、force、静默更新和 legacy 清理。历史客户端与直接 Shell 不受此合作约定约束，消费方需重新验证实际字节。
+
+严格安装失败保留有效安装；进程中断通过 `bsi recover --target DIR` 恢复。记录原子提交之前回滚旧目录，之后完成新安装；不手工删除恢复日志或受管记录以绕过保护。协议与限制见 [Skill 身份协议](https://github.com/huangwb8/skills/blob/main/docs/skill-identity-protocol.md)。
 
 #### 你要做的事（触发后必须执行）
 
@@ -372,6 +383,8 @@ legacy_skill_names:
 ### 输出
 
 输出为目标平台安装/更新结果及 manifest（包含源、目标、Skill 名称、MD5、状态、原因和运行时间）；远程模式另保留远程仓库缓存并输出更新/安装报告。托管运行时输出环境就绪状态、脱敏 prefix、包版本和固定启动器路径，状态保存在 `~/.bensz-skills/installation/state/managed-runtime.json`。`--dry-run` 只报告计划不写入，默认仅处理 `skills/alpha`，beta 必须由 `--source` 显式指定。
+
+严格发行返回身份包的结构化验证、政策决定和保证范围；未知根、篡改、撤销或能力不足返回失败原因，不能报告为可信安装成功。安全元数据由本地显式提供，不声称已联网确认最新撤销状态。
 
 ### 输出管理
 

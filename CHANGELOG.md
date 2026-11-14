@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Added（新增）
 
+- 新增独立 `bensz-skill-identity`：配置身份、Ed25519 授权发行、实际文件验证、显式信任/有限撤销、单调安全修订与精确依赖锁定；安装器提供严格发行入口、旁路证据、恢复事务、兼容防降级及 Python 3.8 bootstrap 受信委派。125 项定向测试、Ruff、结构检查与隔离 wheel API/CLI 验证通过，修复三项独立审查问题及构建竞争清理缺陷。保证限定为 `files_verified`，宿主加载绑定与 router 接入未完成；详见 `docs/events/2026-11-14-skill-identity-validation.md`。
 - 新增 `docs/plans/2026-11-14-skill-identity-system-plan.md`，收敛独立 `bensz-skill-identity` 包、复用 `config.yaml` 的身份声明、签名发行与分阶段接入方案，并从原设计文档建立入口；相对链接、YAML 示例与文档空白检查通过。本轮交付计划，功能尚未实施。
 
 ### Changed（变更）
