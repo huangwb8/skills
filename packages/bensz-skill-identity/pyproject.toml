@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bensz-skill-identity"
-version = "0.1.0"
-description = "Signed Skill releases, explicit trust and exact dependency locks"
+version = "1.0.0"
+description = "Bensz Skill Identity (BSI): signed releases, explicit trust and exact dependency locks"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "Bensz Conan"}]
+license = {file = "LICENSE"}
 dependencies = ["PyYAML>=6.0,<7", "cryptography>=43"]
+
+[project.urls]
+Repository = "https://github.com/huangwb8/skills"
+Documentation = "https://github.com/huangwb8/skills/blob/main/packages/bensz-skill-identity/README.md"
+Changelog = "https://github.com/huangwb8/skills/blob/main/packages/bensz-skill-identity/CHANGELOG.md"
 
 [project.scripts]
 bsi = "bensz_skill_identity.cli:main"

@@ -11,7 +11,7 @@
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#兼容性与边界)
 [![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-[快速开始](#30-秒开始) · [Skill 导航](#skill-导航) · [Kernel](#kernel) · [开发与验证](#开发与验证) · [English](README_EN.md)
+[快速开始](#30-秒开始) · [Skill 导航](#skill-导航) · [Kernel](#kernel) · [Skill 身份与严格安装](#skill-身份与严格安装) · [English](README_EN.md)
 
 </div>
 
@@ -26,6 +26,8 @@ Bensz Agent Skills 项目把 Skill 的创建、测试、文档、安装与发布
 - **可直接使用的通用 Skills**：覆盖自动测试、多 Agent 协作、并行工作区、Prompt 优化、科研绘图、Git 操作、安装、文档和缺陷反馈。
 - **Skills 开发与维护流水线**：用统一约定串起开发 → 测试 → 文档化 → 安装 → 使用 → 反馈 → 迭代。
 - **Skill 执行与检查工具**：`bensz-skill-kernel` 正在提供任务阶段管理、自动检查、工作区、证据记录、事件账本、审计和执行记录重放。
+
+独立的 Bensz Skill Identity（**BSI**，`bensz-skill-identity`）补充签名发行、文件验证、显式信任与精确依赖锁定，安装器提供严格发行入口。BSI 与 Bensz Skill Kernel（**BSK**）均由 Bensz Conan 开发，命令分别为 `bsi` 与 `bsk`；两个 Python 包分别发布，BSI 不依赖 BSK 或 router。
 
 这些工具不试图把 Skill 变成传统程序，而是让复杂 Agent 工作流中的关键阶段、检查和证据更明确、更容易追踪。
 
@@ -70,6 +72,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 - **可直接安装的 Skill**：位于 `skills/alpha/`，每个目录都有面向使用者的 `README.md` 和面向 AI 的 `SKILL.md`。
 - **开发流水线**：覆盖初始化、Prompt 优化、文档生成、批判性测试、多代理协作、Git 发布和缺陷反馈。
 - **任务执行内核**：`packages/bensz-skill-kernel/` 提供 `bsk` CLI，用来管理任务阶段、执行检查、保存证据、记录事件，并重放执行记录。
+- **Skill 发行身份库**：`packages/bensz-skill-identity/` 提供 Python API 与 `bsi` CLI，核对签名、实际文件和本地信任政策，并支持可恢复的严格安装。
 - **可审计协作**：任务过程材料进入 `.bensz-api/`，贡献记录进入 `docs/contribution.bac`。
 
 ## Skill 导航
@@ -188,12 +191,34 @@ BSK="$HOME/.bensz-skills/bin/bsk"
 "$BSK" workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
+## Skill 身份与严格安装
+
+Bensz Skill Identity（BSI，`bensz-skill-identity`）1.0.0 要求 Python 3.11+，依赖 PyYAML 与 cryptography。它把根公钥指纹和稳定 `skill_key` 组成 Skill 身份，为完整文件集合生成 Ed25519 签名，按管理员显式信任与有限撤销信息验证，并锁定精确依赖。
+
+```bash
+python3 -m pip install "bensz-skill-identity==1.0.0"
+bsi capabilities
+```
+
+能力查询返回 `assurance: files_verified`、`strict_install: true`、`host_binding: false`，不需要密钥或信任文件。已取得签名发行并准备管理员信任策略后，可以预览严格安装：
+
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --release ./release --trust-store ./trust.json --codex --dry-run
+```
+
+确认预览后去掉 `--dry-run` 执行安装。签名发行与普通源码安装是两种入口；普通 bootstrap 命令不会替每个 Skill 建立签名或信任。严格入口保留旁路签名证据和安全修订状态，受管目录后续更新须继续走严格入口；历史客户端和直接文件写入不受该 guard 强制约束。
+
+严格安装建议先使用独立临时目录（见包指南的 `bsi install --target`）。混合目录含严格受管项时，未筛选的快速更新目前会整体拒绝；可用 `--skill` 显式更新其它未受管项。
+
+当前保证限于文件验证；宿主实际加载、工具执行绑定及 router 接入尚未实施。API、发行构建、安装恢复和退出码见[Identity 包指南](packages/bensz-skill-identity/README.md)，协议见[身份协议](docs/skill-identity-protocol.md)，实际宿主证据见[能力报告](docs/skill-identity-host-capability.md)。
+
 ## 目录与工作区
 
 ```text
 skills/alpha/                  # 可发布、默认安装的 Skill
 skills/beta/                   # 候选 Skill，必须显式指定源
 packages/bensz-skill-kernel/   # 独立 Python 内核包
+packages/bensz-skill-identity/ # 独立签名发行与文件身份包
 docs/                          # 现行文档、教程与设计记录
 tests/                         # 仓库公开入口与跨包测试
 tmp/                           # 测试报告和临时产物

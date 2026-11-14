@@ -11,7 +11,7 @@ A reusable Skill collection, development pipeline, and tools for checking and tr
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-Python_3.8%2B-0ea5e9?style=flat-square)](#compatibility-and-boundaries)
 [![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](LICENSE)
 
-[Quick start](#get-started-in-30-seconds) · [Skill map](#skill-map) · [Kernel](#kernel) · [Development](#development-and-verification) · [中文](README.md)
+[Quick start](#get-started-in-30-seconds) · [Skill map](#skill-map) · [Kernel](#kernel) · [Skill identity and strict installation](#skill-identity-and-strict-installation) · [中文](README.md)
 
 </div>
 
@@ -26,6 +26,8 @@ The repository has three parts:
 - **Reusable general Skills**: automated testing, multi-agent collaboration, parallel workspaces, prompt optimization, research plotting, Git operations, installation, documentation, and bug feedback.
 - **A Skill development and maintenance pipeline**: a shared lifecycle from development → testing → documentation → installation → use → feedback → iteration.
 - **Skill execution and checking tools**: `bensz-skill-kernel` is evolving support for task stages, automated checks, workspaces, evidence, event ledgers, audit, and replayable execution records.
+
+The independent Bensz Skill Identity (**BSI**, `bensz-skill-identity`) adds signed releases, file verification, explicit trust, and exact dependency locks, with a strict release entry in the installer. BSI and Bensz Skill Kernel (**BSK**) are both by Bensz Conan, with the commands `bsi` and `bsk`, respectively. The Python packages are released separately; BSI does not depend on BSK or router.
 
 These tools do not try to turn Skills into traditional programs. They make important stages, checks, and evidence in complex agent workflows explicit and easier to trace.
 
@@ -70,6 +72,7 @@ Expect the revised text in the response. See the [humanization guide](skills/alp
 - **Installable Skills**: `skills/alpha/`; each directory has a user-facing `README.md` and an AI-facing `SKILL.md`.
 - **Development pipeline**: initialization, prompt optimization, documentation, critical testing, multi-agent work, Git release, and bug reporting.
 - **Task execution kernel**: `packages/bensz-skill-kernel/` provides the `bsk` CLI to manage task stages, run checks, save evidence, record events, and replay execution records.
+- **Skill release identity library**: `packages/bensz-skill-identity/` provides Python APIs and the `bsi` CLI to check signatures, actual files, and local trust policy, with recoverable strict installation.
 - **Auditable collaboration**: task artifacts live under `.bensz-api/`; contribution records live in `docs/contribution.bac`.
 
 ## Skill map
@@ -186,12 +189,34 @@ BSK="$HOME/.bensz-skills/bin/bsk"
 "$BSK" workspace status .bensz-api/task-YYYYMMDD-HHMM-citation-review
 ```
 
+## Skill identity and strict installation
+
+Bensz Skill Identity (BSI, `bensz-skill-identity`) 1.0.0 requires Python 3.11+, PyYAML, and cryptography. It combines a root public-key fingerprint with a stable `skill_key` to identify a Skill, signs its complete file inventory with Ed25519, verifies it against explicit administrator trust and bounded revocation information, and locks exact dependencies.
+
+```bash
+python3 -m pip install "bensz-skill-identity==1.0.0"
+bsi capabilities
+```
+
+The capability query returns `assurance: files_verified`, `strict_install: true`, and `host_binding: false`, without keys or trust files. Once a signed release and an administrator trust policy are available, preview strict installation:
+
+```bash
+python3 skills/alpha/install-bensz-skills/scripts/install.py --release ./release --trust-store ./trust.json --codex --dry-run
+```
+
+After reviewing the preview, remove `--dry-run` to install. Signed releases and ordinary source installation have separate entries; the standard bootstrap command does not establish a signature or trust for each Skill. Strict installation retains signed evidence and security revision state outside the content directory. Future updates to managed directories must use the strict entry; historical clients and direct file writes remain outside this guard's enforcement.
+
+Try strict installation in a separate temporary directory first; see `bsi install --target` in the package guide. When a mixed directory contains strictly managed entries, the fast updater currently rejects an unfiltered update as a whole. Use `--skill` to select other unmanaged entries explicitly.
+
+Current assurance covers file verification. Host loading, tool execution binding, and router integration have not been implemented. See the [Identity package guide](packages/bensz-skill-identity/README.md) for API usage, release building, recovery, and exit codes, the [identity protocol](docs/skill-identity-protocol.md) for the contract, and the [capability report](docs/skill-identity-host-capability.md) for actual host evidence.
+
 ## Layout and workspaces
 
 ```text
 skills/alpha/                  # Publishable, default-installed Skills
 skills/beta/                   # Candidate Skills; explicit source required
 packages/bensz-skill-kernel/   # Independent Python kernel package
+packages/bensz-skill-identity/ # Independent signed-release and file-identity package
 docs/                          # Current docs, tutorials, and design records
 tests/                         # Repository entry-point and cross-package tests
 tmp/                           # Test reports and temporary artifacts

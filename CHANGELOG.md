@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-11-14
+
 ### Added（新增）
 
+- 为 `bensz-skill-identity` README 增加身份、签名发行、本地信任验证与严格安装的原理流程图，使用 `auto-draw-plot` 绘制并经本机 PicGo 上传；文档仅引用图床链接，本地图片副本已移除。视觉复核、远程原图摘要比对及 Markdown 引用与空白检查通过。
 - 新增独立 `bensz-skill-identity`：配置身份、Ed25519 授权发行、实际文件验证、显式信任/有限撤销、单调安全修订与精确依赖锁定；安装器提供严格发行入口、旁路证据、恢复事务、兼容防降级及 Python 3.8 bootstrap 受信委派。125 项定向测试、Ruff、结构检查与隔离 wheel API/CLI 验证通过，修复三项独立审查问题及构建竞争清理缺陷。保证限定为 `files_verified`，宿主加载绑定与 router 接入未完成；详见 `docs/events/2026-11-14-skill-identity-validation.md`。
 - 新增 `docs/plans/2026-11-14-skill-identity-system-plan.md`，收敛独立 `bensz-skill-identity` 包、复用 `config.yaml` 的身份声明、签名发行与分阶段接入方案，并从原设计文档建立入口；相对链接、YAML 示例与文档空白检查通过。本轮交付计划，功能尚未实施。
 
 ### Changed（变更）
 
+- 对齐 Bensz Skill Identity（BSI）1.0.0 发行元数据、双语 README、MIT 许可证及项目链接，使用 `bsi` 与同作者的 BSK / `bsk` 对应；根级双语首页增加身份库、严格安装入口及混合目录更新限制。BSK 源码、PyPI 和本机托管环境均为 2.1.6，按条件跳过修改、重复上传和重装。
 - `humanization` 优化判断回避与篇章失衡的诊断说明、成对回归案例和既有 `defensive-framing` 契约；保留 Verifier 名称、ID、审查字段与门禁规则，复用已有信息功能分类。实施与验证见 `docs/plans/2026-11-14-humanization-defensive-framing-plan.md`。
 - `AGENTS.md` 明确 `skills/alpha/`、`skills/beta/` 中正式 Agent Skill 的版本使用三段非负整数 `X.Y.Z`；AI 默认只能递增末位，修改前两位须经人类用户明确授权，是否属于较大更新由人类判断；变更矩阵不构成版本提升授权。此规则不适用于仓库发布、Kernel 包或 State/Verifier Pack 版本。
+
+### Validation（验证）
+
+- 本轮 BSI 包与安装器定向回归 125 项通过；保留一条既有 locale 弃用警告。根级与 BSI 双语 README 检查通过；BSI 的语言导航及 SHA256 占位符 token 提示经语义核对，无命令或版本漂移。
+- BSI 1.0.0 的 sdist 与 wheel 从临时源码副本构建，Twine 元数据检查通过。无 BSK/router 的独立 Python 3.12 环境完成 API/CLI 成功链路、严格安装重验、未知根拒绝及篡改拒绝；wheel 代码与 README 和当前源码一致。
+- BSI 1.0.0 已发布到 PyPI，线上两份发行文件 SHA-256 与本地一致；从 PyPI 安装到本机 Python 3.12 环境，包版本及无关工作目录下的 `bsi capabilities` 验证通过。保证仍为 `files_verified`，不表示宿主加载绑定或全平台验收。
 
 ## [5.0.17] - 2026-11-13
 

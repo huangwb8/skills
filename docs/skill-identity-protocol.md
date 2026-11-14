@@ -1,6 +1,6 @@
 # Skill 身份发行协议 v1
 
-实现位于 [`bensz-skill-identity`](../packages/bensz-skill-identity/README.md)。这是当前实现的说明；初始包版本为开发起点，没有生产身份或发行承诺。
+实现位于 [`bensz-skill-identity`](../packages/bensz-skill-identity/README.md)。Python 包按用户指定版本发布为 1.0.0，本文协议仍为 v1；发布 Python 包不会创建生产 Skill 身份或签名发行，当前保证范围仍为 `files_verified`。
 
 ## 身份与内容
 
