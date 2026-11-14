@@ -3,9 +3,9 @@
 - 更新
 
 ```
-repo-version = 5.1.0
+repo-version = 5.1.1
 bsk-version = 2.1.6
-identity-version = 1.0.0
+identity-version = 1.0.2
 
 请您：
 - 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
