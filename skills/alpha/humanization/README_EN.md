@@ -6,6 +6,8 @@ Make existing prose natural, clear and coherent. Edit articles, emails, reports,
 
 This release includes a dedicated defensive-framing review. Existing installations need an installer update to use the behavior described below.
 
+Editing checks whether a clear choice in the source has become a vague statement that both options have merits, and whether successive paragraphs keep defending the text instead of developing its actual claims. An unresolved choice, insufficient evidence or a warning needed in independently read sections remains valid. For example, “We choose local indexing because this setting requires offline access” should retain the choice and its reason rather than become “The options should be considered before choosing.”
+
 ## Quick start
 
 ```text
@@ -146,6 +148,8 @@ Exit `0` means the covered lexical protection checks passed, `1` means differenc
 [Regression cases](references/regression-cases.md) cover articles, emails, explanations, English editing, progression, false contrasts, excessive structure, missing explanation, professional boundaries, no-change cases, LaTeX and register differences, with an eight-dimension rubric and an anonymous review procedure. [Natural writing principles](references/natural-writing.md) explain positive organization; the [pattern reference](references/machine-patterns.md) helps locate specific obstacles. The [defensive-writing reference](references/defensive-writing.md) uses five questions and six functional categories to distinguish empty framing from necessary qualifications; keyword matches are clues only.
 
 Automated tests can detect lexical and formatting regressions, not prove better prose. Small comparisons judged by Agents using the same model provide preliminary evidence only. Real long-form texts, repeated blind reviews and user feedback remain necessary; synthetic evaluations can check the protocol and constructed cases, but cannot establish real writing quality or the incremental benefit of the added gate. Self-assessment and illustrative revisions are not successful benchmark runs.
+
+The existing synthetic comparison has not established an independent benefit from the specialized Verifier over stronger editing rules alone. Future comparisons should hold the editing rules and initial draft constant, then compare the actual revisions, false alarms and costs produced by ordinary review and specialized review. The current rule clarifications and paired cases do not establish that benefit.
 
 The sole version source is [config.yaml](config.yaml); see [CHANGELOG.md](CHANGELOG.md) for history.
 

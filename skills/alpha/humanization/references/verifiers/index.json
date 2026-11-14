@@ -42,7 +42,7 @@
     {
       "directory": "defensive-framing",
       "id": "bensz.prose.defensive-framing",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "classification": "domain",
       "tags": ["prose", "defensive-framing", "semantic", "delivery"],
       "aliases": [],

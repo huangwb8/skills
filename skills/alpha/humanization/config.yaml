@@ -1,6 +1,6 @@
 skill_info:
   name: humanization
-  version: 3.0.0
+  version: 3.0.1
   description: "润色和优化已有文字，让表达自然、清楚、连贯。适用于文章、邮件、报告、说明、学术与技术文本的语言润色、去机器味、调整语气或改善句段衔接；不用于从零写作、补充事实、事实核查、纯翻译、版式修改或全局对话风格设置。"
   category: writing
 
@@ -88,7 +88,7 @@ runtime:
       version: 2.0.0
       required: true
     - id: bensz.prose.defensive-framing
-      version: 1.0.0
+      version: 1.0.1
       required: true
   orchestration:
     entrypoint: scripts/control.py
