@@ -71,6 +71,8 @@ BSK 按 `config.yaml.runtime` 管理领域 State 与 required Verifier；审查�
 
 正常受控 action 的唯一入口是 `scripts/control.py`，使用 Bensz 托管 Python；`init` 通过安装器确认最新生产版，绑定原文/参数并进入 working；`release` 统一读取当前状态、解析并运行全部 required Verifier、生成 Kernel Gate、验证绑定后迁移 ready。不得由 Agent 自由拼接底层 BSK 命令代替正常路径；底层仅供入口内部、诊断或恢复。
 
+托管解释器按平台选择：POSIX 为 `~/.bensz-skills/envs/benszapi/bin/python`，原生 Windows 为 `~/.bensz-skills/envs/benszapi/python.exe`；BSK 托管启动器分别为 `~/.bensz-skills/bin/bsk` 和 `~/.bensz-skills/bin/bsk.cmd`。入口在 Windows 使用该解释器调用同一 BSK CLI，避免批处理 shell 展开参数；不改用项目 Python 或 PATH 中的 bsk。下面是 POSIX 示例，Windows PowerShell 命令见运行说明。
+
 ```bash
 ~/.bensz-skills/envs/benszapi/bin/python <skill-root>/scripts/control.py release \
   --project-root <project-root> --task-root .bensz-api/task-YYYYMMDD-HHMM-demo \

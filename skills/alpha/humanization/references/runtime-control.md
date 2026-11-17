@@ -4,7 +4,14 @@
 
 ## 运行准备
 
-使用 Bensz 托管 Python `~/.bensz-skills/envs/benszapi/bin/python`，入口内部固定调用 `~/.bensz-skills/bin/bsk`。`init` 从当前宿主已安装的 install-bensz-skills 定位管理器，执行 `--force-runtime-update`；成功后将实际版本确认绑定本次运行。后续动作不在同一运行中切换版本；版本改变则阻塞，不能静默换成项目 Python、裸 PATH bsk 或源码包。
+使用安装器管理的原生平台路径：
+
+| 平台 | 托管 Python | BSK 托管启动器 |
+| --- | --- | --- |
+| macOS / Linux（POSIX） | `~/.bensz-skills/envs/benszapi/bin/python` | `~/.bensz-skills/bin/bsk` |
+| Windows | `~/.bensz-skills/envs/benszapi/python.exe` | `~/.bensz-skills/bin/bsk.cmd` |
+
+入口检查当前解释器确实为上述托管 Python，且启动器存在。Windows 内部使用托管 Python 以隔离导入、禁写字节码和 UTF-8 模式调用 `bensz_skill_kernel.runtime:main`，保持 BSK CLI 参数和 JSON 协议，避免通过 `.cmd` 的 shell 展开路径及误加载项目同名模块；子进程 JSON 通信使用 UTF-8。`init` 从当前宿主已安装的 install-bensz-skills 定位管理器，执行 `--force-runtime-update`；成功后将实际版本确认绑定本次运行。后续动作不在同一运行中切换版本；版本改变则阻塞，不能静默换成项目 Python、裸 PATH bsk 或源码包。
 
 若托管环境不存在，先通过安装版 install-bensz-skills 的 `bootstrap_install.py --ensure-runtime` 准备环境；完整安装器/本 Skill 都要求 Python 3.11+。未确认最新运行时、无法保存授权文本或实际语义审查缺失时，保留草案并报告受阻。
 
@@ -31,6 +38,8 @@ reflow_plain 仅用于连续纯文本；含 TeX（包括只有数学的区域）
 
 ## 唯一入口与恢复
 
+POSIX：
+
 ```bash
 ~/.bensz-skills/envs/benszapi/bin/python <skill-root>/scripts/control.py init \
   --project-root <project-root> --task-root .bensz-api/task-YYYYMMDD-HHMM-demo \
@@ -38,6 +47,14 @@ reflow_plain 仅用于连续纯文本；含 TeX（包括只有数学的区域）
 
 ~/.bensz-skills/envs/benszapi/bin/python <skill-root>/scripts/control.py release \
   --project-root <project-root> --task-root .bensz-api/task-YYYYMMDD-HHMM-demo \
+  --request-file humanization/input/request.json --run-id run-1 --attempt-id edit-1
+```
+
+Windows PowerShell（`release`、`retry`、`status` 使用同一解释器和参数）：
+
+```powershell
+& "$HOME/.bensz-skills/envs/benszapi/python.exe" "<skill-root>/scripts/control.py" init `
+  --project-root "<project-root>" --task-root .bensz-api/task-YYYYMMDD-HHMM-demo `
   --request-file humanization/input/request.json --run-id run-1 --attempt-id edit-1
 ```
 

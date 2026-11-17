@@ -8,6 +8,18 @@
 
 - 中英文 README 增加全阶段 Mermaid 流程图及分工说明，覆盖输入理解、原文与参数绑定、润色/免改/诊断、自检、冻结证据、真实语义审查、Gate 放行与重试；逐步标注主 Agent、三个审查子 Agent、脚本与 BSK，并区分自检、并行审核、获批交付和耗尽后的草案提交。
 
+## [3.0.2] - 2026-11-17
+
+### Fixed（修复）
+
+- 修复原生 Windows 托管环境已就绪但 `init` 返回 `managed_python_required`：按平台使用 `python.exe` / `bsk.cmd` 或 POSIX 路径，保留解释器身份、安装器更新确认和 BSK 版本一致性检查。
+- Windows BSK 命令通过托管 Python 调用同一公开 CLI 入口，不经批处理 shell 展开路径；JSON 子进程通信明确使用 UTF-8。同步主契约、运行说明和双语 README。
+
+### Validation（验证）
+
+- 171 项定向保护与控制入口回归通过，包含 25 项新增跨平台路径、安装确认、拒绝路径及真实 BSK 调用检查；Windows 分支在 macOS 上模拟，覆盖中文、空格、shell 特殊字符与项目同名模块隔离，未执行原生 Windows 整链验收。
+- strict Skill 结构、双语 README 与空白检查通过；临时安装副本在无关目录确认托管 BSK 2.1.6，并发现两项 required Verifier 和三个声明 State。未改 Kernel、Pack 或已安装的 Skill 副本。
+
 ## [3.0.1] - 2026-11-14
 
 ### Changed（变更）

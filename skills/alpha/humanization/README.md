@@ -119,6 +119,8 @@ Skill 通过 BSK 记录 working/ready 两个领域阶段，使用 revision-readi
 
 运行需要 Bensz 托管的 Python/BSK 及已安装的 install-bensz-skills。Agent 使用唯一入口 `scripts/control.py`；初始化会通过安装器确认最新生产版，不使用项目 Python 或裸 PATH 中的 bsk。正常自然语言调用方式不变，内部授权文本与证据暂存于该任务的 `humanization/input|output|log/`，正常通过时 `text_only` 仍只给正文；账本不复制原文。
 
+macOS/Linux 使用 `~/.bensz-skills/envs/benszapi/bin/python` 和 `~/.bensz-skills/bin/bsk`；原生 Windows 使用 `~/.bensz-skills/envs/benszapi/python.exe` 和 `~/.bensz-skills/bin/bsk.cmd`。控制入口自动选择平台路径，Windows 内部通过托管 Python 调用 BSK CLI，避免批处理展开路径参数；[运行说明](references/runtime-control.md) 提供 PowerShell 示例。
+
 [运行与恢复说明](references/runtime-control.md) 提供请求格式、入口命令、真实 handoff 回传及重试方式。新版批准合同要求两项审查；旧记录只能在原契约快照下读回，新源码拒绝旧运行的资产漂移，不把旧批准升级为双门禁批准。初始化或重试中断后可在原目录用同一身份恢复；交付回执从真实事件与冻结字节重建。此项将运行时和真实审查作为交付前提：环境或审查不可用时保留草案并说明受阻。BSK 约束经过该入口的行为，无法拦截宿主绕开入口直接发消息或写文件；它也不能证明语义判断一定正确。
 
 ## 字面辅助检查

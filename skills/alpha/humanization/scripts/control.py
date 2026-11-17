@@ -21,14 +21,19 @@ from revision_evidence import (
 PROTOCOL = "bensz-revision-control-v1"
 SKILL = "humanization"
 SESSION = "humanization/log/control-session.json"
-BSK = Path.home() / ".bensz-skills/bin/bsk"
-MANAGED_PYTHON = Path.home() / ".bensz-skills/envs/benszapi/bin/python"
+BSK = Path.home() / ".bensz-skills/bin" / ("bsk.cmd" if sys.platform == "win32" else "bsk")
+MANAGED_PYTHON = Path.home() / ".bensz-skills/envs/benszapi" / ("python.exe" if sys.platform == "win32" else "bin/python")
 
 
 def run_json(argv: list[str], *, timeout: int | None = None) -> dict:
+    if argv and argv[0] == str(BSK) and BSK.suffix == ".cmd":
+        # The Windows launcher is a batch file. Call its CLI entry with the
+        # checked interpreter so cmd.exe cannot expand user-supplied paths.
+        # Isolate imports from the project directory and force UTF-8 on pipes.
+        argv = [str(MANAGED_PYTHON), "-I", "-B", "-Xutf8", "-c", "from bensz_skill_kernel.runtime import main; raise SystemExit(main())", *argv[1:]]
     try:
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout or config()["control_policy"]["command_timeout_seconds"],
-                                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}, check=False)
+        result = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", timeout=timeout or config()["control_policy"]["command_timeout_seconds"],
+                                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}, check=False)
     except subprocess.TimeoutExpired as error:
         raise ControlError("runtime_timeout") from error
     try:
