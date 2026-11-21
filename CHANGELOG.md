@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- beta `bensz-r-developer` 修订为 0.2.1：将 5 条行为验收用例并入已有 Package 工作流参考，移除 `evals/` 目录。strict 结构检查及用例逐条比对通过。
+- beta `bensz-rmd-rules` 修订为 0.31.0：围绕科学问题组织真实代码、图、表和文字，用日常例子和公式解释关键概念与发现。两套模板示范配对变化；macOS 完成实际渲染、数值复算与 targets 复用，Chrome 离线验证公式和窄屏阅读。
+- beta `bensz-rmd-rules` 修订为 0.30.4：以科学问题组织报告，分离代码展示和计算，集中托管 `00.Environments/` 与 renv；保留 simple、targets complex 和与 Rmd 同目录同名的 HTML。参考从 28 份减到 3 份，撤下旧接口及文字打分器。macOS 实测恢复、缓存失效、缺失补齐、含空格路径和 DT 浏览器交互；test-02 复用既有汇总完成独立报告。Linux 验证 Python 骨架，Linux/Windows 的 R 链未验证。
 - `bensz-rmd-rules` 修订为 0.30.3：正式 HTML 默认由渲染入口生成在源 Rmd 旁；`reports/` 用于单独交付的图、表和补充材料。macOS 上实际验证根目录、子目录、原位重建和 smoke 隔离。
 - `AGENTS.md` 新增通用代码跨操作系统约束，要求开发时充分考虑 macOS、Linux、Windows 的路径、命令、依赖及运行行为差异，并如实记录各平台验证范围。
 - `awesome-code` 更新至 3.0.6：在设计、前端实现与代码审查子 Agent 中加强界面文案约束，禁止无需求依据的口号、开发状态与填充说明，保留必要业务反馈及明确品牌需求；同步父级交接要求和指南。strict 结构、配置与引用路径、空白检查通过，完成 8 类文案边界语义走查；未进行模型行为基准或浏览器验收。
