@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- beta `bensz-rmd-rules` 修订为 0.31.7：整理项目骨架、明细附录和主题及绘图资源，移除附录演示 CSV。`--detail` 直接展示正文所用的配对记录。macOS 实际构建并验证新增测量后正文和附录同步更新；macOS 和 Linux 验证默认骨架和附录参数。
 - beta `bensz-rmd-rules` 修订为 0.31.6：移除双模式，完整深度报告统一由 targets 与 renv 支撑；新版骨架命令直接接收目标目录。macOS 验证冷构建、纯渲染复用、缺失结果补齐、参数及输入变动；Chrome 核对完整报告，Linux 验证骨架生成。
 - beta `bensz-rmd-rules` 修订为 0.31.5：完整研究默认写成论文式报告，按科学问题展开结果、质量控制与讨论。macOS 两种骨架实际渲染；Chrome 核对章节、代码和内联结果；分母错配阻止出品，无有效配对时明确显示不可估计。Linux 验证骨架生成；Linux R 与 Windows 未实测。
 - beta `bensz-rmd-rules` 修订为 0.31.4：先说明分析理由，再默认展开主要代码；结果段落用内联 R 引用正式数字。macOS 两种骨架实际渲染，Chrome 验证代码可见、正文与图表随输入同步更新，complex 拒绝过期结果且只渲染时保留计算记录。Linux 生成结果与 macOS 一致；Linux R 和 Windows 未实测。
