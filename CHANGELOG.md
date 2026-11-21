@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- beta `bensz-rmd-rules` 修订为 0.31.6：移除双模式，完整深度报告统一由 targets 与 renv 支撑；新版骨架命令直接接收目标目录。macOS 验证冷构建、纯渲染复用、缺失结果补齐、参数及输入变动；Chrome 核对完整报告，Linux 验证骨架生成。
+- beta `bensz-rmd-rules` 修订为 0.31.5：完整研究默认写成论文式报告，按科学问题展开结果、质量控制与讨论。macOS 两种骨架实际渲染；Chrome 核对章节、代码和内联结果；分母错配阻止出品，无有效配对时明确显示不可估计。Linux 验证骨架生成；Linux R 与 Windows 未实测。
+- beta `bensz-rmd-rules` 修订为 0.31.4：先说明分析理由，再默认展开主要代码；结果段落用内联 R 引用正式数字。macOS 两种骨架实际渲染，Chrome 验证代码可见、正文与图表随输入同步更新，complex 拒绝过期结果且只渲染时保留计算记录。Linux 生成结果与 macOS 一致；Linux R 和 Windows 未实测。
 - beta `bensz-r-developer` 修订为 0.2.2：示例包的帮助页由 roxygen2 生成，移除模板中预生成的 `man/`。macOS 重建结果逐文件一致，`R CMD check --no-manual` 通过。
 - beta `bensz-r-developer` 修订为 0.2.1：将 5 条行为验收用例并入已有 Package 工作流参考，移除 `evals/` 目录。strict 结构检查及用例逐条比对通过。
 - beta `bensz-rmd-rules` 修订为 0.31.0：围绕科学问题组织真实代码、图、表和文字，用日常例子和公式解释关键概念与发现。两套模板示范配对变化；macOS 完成实际渲染、数值复算与 targets 复用，Chrome 离线验证公式和窄屏阅读。
