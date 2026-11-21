@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.15 精简 `SKILL.md` 和四份执行参考，保留触发条件、正式计算、报告写作、数据授权和交付验收要求。
 - 0.31.14 将正文章节编号移入共用的 HTML 配置，保留显式关闭编号的选项。新增正式题名的拟定与成品复核要求，明确配对骨架的各部分可按实际研究取用。
 - macOS 用正式入口构建三种主题和独立的合成外部队列报告，验证嵌套节号、目录和显式关闭编号。Chrome 实测 Liquid Glass 的桌面和窄屏跳转。test-02 的隔离副本无法复用原 store，使用相同 YAML、主题和标题层级的最小副本验证渲染。Linux 验证三种骨架生成，Linux R 和 Windows 未实测。
 - 0.31.13 配对示例以 `01.01.01-paired-change.Rmd` 和 `01.01.01-paired-change.html` 演示三级阅读编号，生成器、默认入口与用法说明同步使用新名称。
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Validation
 
+- 0.31.15 通过压缩校验和 strict 结构检查。Pandoc 核对 51 处本地链接，原有标题锚点、命令和代码示例均通过比对。
 - macOS 从锁文件恢复并实际渲染 simple、complex、子目录报告及备选主题；报告单独渲染后 targets 元数据不变。Chrome 离线验证 1280 / 390 像素下的目录、代码复制、图片放大、MathML 和 DT；实际导出 ggplot2 / ComplexHeatmap PDF 与 plotly HTML，并检查 JPG 预览。Linux 容器验证 Python 骨架；Linux R 链和 Windows 未实测。
 
 ### Fixed

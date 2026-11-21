@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- beta `bensz-rmd-rules` 修订为 0.31.15，合并报告写法和验收中的重复说明，执行文档计词下降约 27%。通过压缩校验、strict 结构检查和 Pandoc 链接检查。
 - beta `bensz-rmd-rules` 修订为 0.31.14，三种报告主题共用默认章节编号。正式题名在结果确认后按研究对象、设计与证据范围复核，示例骨架按需选用。
 - beta `bensz-rmd-rules` 修订为 0.31.13，配对示例的 Rmd 和 HTML 使用同一三级阅读编号，默认构建与渲染入口指向编号后的报告。
 - beta `bensz-rmd-rules` 修订为 0.31.12，结果解读、讨论与摘要结论直接写在 Rmd 的 Markdown 正文中。示例保留正式结果的内联引用。
