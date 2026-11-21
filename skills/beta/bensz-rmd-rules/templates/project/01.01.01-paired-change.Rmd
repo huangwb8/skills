@@ -113,7 +113,7 @@ omission_range <- switch(robustness$status,
 
 ## 数据与方法
 
-### 为什么比较同一单位前后的差？
+### 为什么比较同一单位前后的差？ {#valid-pairs}
 
 样例输入每行对应一个单位，三列分别记录标识、基线和随访读数。原始读取会核对列、单位标识和测量值格式。
 设想比较改用新路线前后的通勤时间：甲从 25 分钟变成 30 分钟，乙前后都是 40 分钟。
@@ -155,9 +155,10 @@ $$
 
 ### 这组数据对平均变化的约束有多强？
 
-下面把有效分母、变化量级和区间并列，方便核对它们是否来自同一次比较。
+汇总表第一行的分子来自[有效配对筛选](#valid-pairs)，分母是输入的全部单位。均值和区间也用这些有效差值，
+与下面点图显示的是同一批观测。
 
-```{r summary-table}
+```{r summary-table, echo=FALSE}
 summary_table <- data.frame(
   metric = c(table_text("Complete pairs / total units", "完整配对 / 总单位数"),
              table_text("Mean change (units)", "平均变化（测量单位）"),

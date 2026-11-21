@@ -74,6 +74,10 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+基于 docs/plans/2026-11-21-bensz-rmd-rules-narrative-evidence.md 优化skill。 使用 Auto Test Skill 迭代优化1次。用 Compact Bensz Skills 在保持内涵不变的前提下压缩skill文档。
+
+---
+
 根据 docs/plans/2026-09-25-bensz-rmd-rules-统计推断完整性优化计划.md 优化skill
 
 ---

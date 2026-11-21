@@ -2,13 +2,13 @@
 
 ## HTML 章节编号
 
-新写或修订完整报告时在原入口核对节号。三种示例主题共享 `html_document` 的 `number_sections: true`。用 `## 数据与方法`、`### 研究设计` 等标题层级让 Pandoc 自动编号，标题省去手写数字。YAML 题名单独显示。
+新写或修订完整报告，从原入口查节号。三种主题的 `html_document` 默认 `number_sections: true`，由 Pandoc 按 `## 数据与方法`、`### 研究设计` 等层级自动编号，标题不手写节号。YAML 题名单显。
 
 已有项目保留主题和入口，按实际输出格式补齐设置。用户或投稿模板要求关闭时，在 `output.html_document` 下设 `number_sections: false`，或用等效选项。[成品验收](delivery.md#先核对结果再读-html)
 
 ## Liquid Glass HTML
 
-骨架默认 Liquid Glass，含半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中可放大的图、代码复制和视图状态恢复。禁用字体连字以原样显示 R 的 `<-`。可选 `--theme plain` 或 `--theme flatly`，已有项目保留用户选择。
+骨架默认 Liquid Glass，含半透明卡片、随系统的深色模式、桌面动态/常驻目录、窄屏折叠、图片居中放大、代码复制及视图恢复。禁用连字以清楚呈现 `<-`。可选 `--theme plain` 或 `--theme flatly`，已有项目沿用用户选择。
 
 要为已有报告启用，复制 [Liquid Glass 资源](../assets/liquid-glass/)到 `templates/liquid-glass/`，合并配置并保留原有公式、代码选项。
 
@@ -55,4 +55,4 @@ CSS 用 `css`，交互用 `includes.after_body`。独立 knit 时路径相对 Rm
 pdftoppm -jpeg -r 200 -f 1 -l 1 -singlefile "reports/Figure 1.pdf" ".bensz-api/task-YYYYMMDD-HHMM-example/bensz-rmd-rules/output/figure-1"
 ```
 
-检查轴、刻度、单位、图例、对比度、字体、画布和叠压；正文解释对象、方向或对比、例外与不确定性。交互图交付可打开的 HTML 并实测操作。浏览器和预览工具只用于审阅。
+检查轴、刻度、单位、图例、对比度、字体、画布及叠压。正文解释对象、方向或对比、例外与不确定性。交互图交付可打开的 HTML 并实测。预览与浏览器只用于审阅。

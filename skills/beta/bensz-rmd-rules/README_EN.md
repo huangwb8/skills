@@ -32,9 +32,9 @@ Use it to analyze data with R, deliver a scientific report readers can check, or
 
 Describe the reader, decision, data location, and any limits on analysis or access. The Skill uses targets and renv and delivers Rmd, HTML, analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check and reuse results through the formal entry point.
 
-Every new analysis delivers a paper-style research report. The page title identifies the subject and scope of the analysis. Check it after confirming the main results. The abstract presents four labeled sections in the order Background, Methods, Results, and Conclusions. Each major result explains the choice of analysis, shows the actual code, and cites computed values through inline R. Write the interpretation, discussion, and conclusions directly in Markdown, grounding robustness, quality control, and the limits of each conclusion in the current evidence. See [the full report guide](references/report.md#把完整研究写成论文式报告).
+Every new analysis delivers a paper-style report that readers can check. The title states the subject and scope. The abstract labels Background, Methods, Results, and Conclusions in that order. Present each major effect with its interval, applicable threshold, and decision. Use inline R for computed values and show the actual code that best explains how to read the figure or table. Read the final report, restate the main judgments, and trace the supporting evidence. See [the full report guide](references/report.md#把完整研究写成论文式报告).
 
-When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first; a longer common prefix means the reports address more closely related questions. The guide identifies the main report and optional reading. A single report can omit the filename prefix. Body section numbers follow the heading hierarchy. Set `number_sections: false` when numbering must be disabled. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序) and [HTML section numbering](references/visuals.md#html-章节编号).
+When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first. Longer common prefixes indicate more closely related questions. The main report gives the evidence needed for major decisions and links to the sections that provide supporting analyses. A single report can omit its prefix. Body section numbers follow the heading hierarchy. Set `number_sections: false` when numbering must be disabled. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序) and [HTML section numbering](references/visuals.md#html-章节编号).
 
 ## Examples
 
@@ -51,8 +51,9 @@ and explain how missing follow-up affects the conclusion.
 
 ```text
 Rewrite the report using checked results from the existing targets pipeline.
-Lead with the recommendation and exceptions. Show the code that defines the comparison,
-put the wide table in a searchable appendix, and reuse the fit when only prose changes.
+Lead with the recommendation and exceptions. Put effects, intervals, and prespecified thresholds
+together and explain failed or inestimable comparisons. Show how the code produces the key figure
+or table values, put the wide table in a searchable appendix, and reuse the fit when only prose changes.
 ```
 
 ## Environment and scripts
