@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed（修复）
 
+- beta `bensz-rmd-rules` 修订为 0.31.3：Rmd 报告展示的每张表都必须使用 `DT::datatable()`，两种骨架默认用 DT 渲染正文汇总表。
 - beta `bensz-rmd-rules` 修订为 0.31.2：恢复 Liquid Glass 默认主题及响应式目录、图片放大、复制代码；恢复出版级可读性、英文标签、矢量 PDF 和可选 R 绘图样式模板。
 - beta `bensz-rmd-rules` 修订为 0.31.1：两种骨架共用配对校验、估计和报告正文；区间不可估时保留可用的点估计，修正子目录报告链接并在环境或输出冲突时提前报错。macOS 验证真实 R 构建、缓存复用和 Chrome 交互；Linux 验证 Python 骨架。
 - `bensz-rmd-rules` 修订为 0.30.2：对齐 R 项目预检、隔离轻量执行和验收记录。收紧 renv、DAG、正式报告和测试 store 检查；两种模式默认使用合成 fixture，真实子集需显式指定来源；complex 可用隔离 store 验证正式 Rmd，simple 要求验证实际产物与科学不变量。macOS 定向回归 24 项、Linux Python 预检 14 项通过；Windows 原生 R 尚未验证。

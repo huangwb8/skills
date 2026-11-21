@@ -20,7 +20,7 @@ output:
       after_body: templates/liquid-glass/liquid_glass_lightbox.html
 ```
 
-CSS 走 `css`，交互文件走 `includes.after_body`。从子目录独立 knit 时，路径相对于 Rmd（如 `../templates/liquid-glass/…`）；骨架的 `run.R` 也可从项目根定位上面两条默认路径。先打开真实 HTML 检查桌面悬停目录、窄屏折叠、图片放大和复制代码；有 DT 时还需检查搜索、列宽和局部横向滚动。自定义主题时检查深色模式和减少动态效果的系统偏好。
+CSS 走 `css`，交互文件走 `includes.after_body`。从子目录独立 knit 时，路径相对于 Rmd（如 `../templates/liquid-glass/…`）；骨架的 `run.R` 也可从项目根定位上面两条默认路径。先打开真实 HTML 检查桌面悬停目录、窄屏折叠、图片放大和复制代码；检查所有 DT 表的可读性，并实际操作明细表启用的搜索和局部横向滚动。自定义主题时检查深色模式和减少动态效果的系统偏好。
 
 ## 出版级绘图默认值
 

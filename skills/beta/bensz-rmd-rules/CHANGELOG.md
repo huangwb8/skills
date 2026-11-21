@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed
 
+- 0.31.3：Rmd 报告中的正文和附录表格统一用 `DT::datatable()`。两种骨架默认声明 DT 并以紧凑样式渲染正文汇总表；`--detail` 只追加可搜索的宽表附录，兼容旧参数 `--dt`。macOS 实际构建两个报告，Chrome 离线验证 1280 / 390 像素下的短表、明细搜索和窄屏表内滚动。Linux 容器验证 Python 骨架；未实测 Linux R 或 Windows。
 - 0.31.2：新建 simple 与 complex 的 HTML 默认重新启用 Liquid Glass，恢复响应式目录、深色模式、图片放大与代码复制；保留 `--theme plain` 和 `--theme flatly`。正式入口支持从子目录渲染骨架报告。
 - 恢复出版级绘图规范、英文标签默认值与中文选项、静态矢量 PDF 和位图预览，以及 ggplot2、ComplexHeatmap 和 plotly 样式模板。
 

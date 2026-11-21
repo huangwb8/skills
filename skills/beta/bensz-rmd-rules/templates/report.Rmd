@@ -73,13 +73,15 @@ $$
 单位间的变化越不一致，或者有效配对越少，区间通常越宽。
 
 ```{r summary-table, echo=FALSE}
-knitr::kable(data.frame(
+summary_table <- data.frame(
   指标 = c("完整配对 / 总单位数", "平均变化（测量单位）",
            sprintf("%g%% t 区间（测量单位）", 100 * estimate$confidence)),
   结果 = c(sprintf("%d / %d", estimate$n, estimate$n_total),
            if (estimate$n) sprintf("%+.2f", estimate$estimate) else "不可估计",
            interval_note)
-))
+)
+DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%",
+              options = list(dom = "t", paging = FALSE, ordering = FALSE))
 ```
 
 区间描述的是平均变化的不确定性，不能用来预测某个单位的变化。它也不涵盖失访偏倚：

@@ -28,7 +28,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("simple", "complex"))
     parser.add_argument("destination", type=Path, help="new directory; its parent must exist")
-    parser.add_argument("--dt", action="store_true", help="add an interactive wide-table appendix")
+    parser.add_argument("--detail", "--dt", action="store_true",
+                        help="add a wide-table appendix; the summary already uses DT")
     parser.add_argument("--theme", choices=HTML_THEMES, default="liquid-glass",
                         help="HTML theme (default: liquid-glass)")
     args = parser.parse_args()
@@ -46,14 +47,14 @@ def main() -> None:
         parser.error(f"cannot create a new project directory: {error.strerror}")
 
     shutil.copytree(templates / "common", destination, dirs_exist_ok=True)
-    packages = ["rmarkdown", "knitr"]
+    packages = ["rmarkdown", "knitr", "DT"]
     if args.mode == "complex":
         shutil.copytree(templates / "complex", destination, dirs_exist_ok=True)
         packages.append("targets")
     if args.theme == "liquid-glass":
         shutil.copytree(templates / "liquid-glass", destination / "templates" / "liquid-glass")
-    if args.dt:
-        packages.extend(("DT", "htmltools"))
+    if args.detail:
+        packages.append("htmltools")
         optional = templates / "optional"
         source += (optional / "long-table.Rmd").read_text(encoding="utf-8")
         shutil.copyfile(optional / "detail.csv", destination / "raw" / "detail.csv")
