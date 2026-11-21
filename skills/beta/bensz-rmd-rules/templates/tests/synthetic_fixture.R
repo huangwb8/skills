@@ -1,7 +1,10 @@
 # Copy to scripts/tests/test_data.R and adapt the schema to the formal input.
+if (!identical(Sys.getenv("BENSZ_TEST_STYLE"), "synthetic_fixture")) {
+  stop("This test_data.R requires test style synthetic_fixture")
+}
 set.seed(20260920L)
-test_root <- Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = file.path("tmp", "tests", "manual"))
-dir.create(test_root, recursive = TRUE, showWarnings = FALSE)
+test_root <- Sys.getenv("BENSZ_TEST_RUN_ROOT")
+if (!nzchar(test_root)) stop("Run the smoke entry to create an isolated test root")
 
 fixture <- data.frame(
   sample_id = sprintf("S%02d", 1:8),
@@ -14,5 +17,4 @@ stopifnot(setequal(unique(fixture$group), c("control", "treated")))
 stopifnot(anyNA(fixture$value), max(fixture$value, na.rm = TRUE) >= 8)
 
 test_input <- file.path(test_root, "input", "synthetic_fixture.tsv")
-dir.create(dirname(test_input), recursive = TRUE, showWarnings = FALSE)
 utils::write.table(fixture, test_input, sep = "\t", row.names = FALSE, quote = TRUE, na = "", fileEncoding = "UTF-8")

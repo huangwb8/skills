@@ -10,7 +10,7 @@
 
 **输入场景**
 
-> 在空目录新建一个低成本描述性 Rmd 报告，只读取一张小表并生成一个 HTML。数据不能外传，也没有授权真实样本用于测试。
+> 在空目录新建一个低成本描述性 Rmd 报告，源文件放在 manuscript/，只读取一张小表并生成一个 HTML。数据不能外传，也没有授权真实样本用于测试。
 
 **预期行为**
 
@@ -21,6 +21,7 @@
 - 明确写出 project_state=new、workflow_mode=simple 及理由
 - 包含 renv.lock、renv/activate.R 与 scripts/tests/smoke_test.R
 - 不创建或要求 _targets.R
+- 正式 HTML 在 manuscript/ 中与源 Rmd 同名；测试 HTML 留在隔离 run root
 - fixture 覆盖 schema、类型、关键分组、缺失和边缘条件
 - 运行记录绑定 subject identity 且不把轻量测试冒充全量通过
 

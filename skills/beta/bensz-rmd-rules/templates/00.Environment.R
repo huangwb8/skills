@@ -47,9 +47,9 @@ analysis_input <- substring(analysis_input, nchar(project_root) + 2L)
   test_root <- gsub("\\\\", "/", Sys.getenv("BENSZ_TEST_RUN_ROOT", unset = ""))
   test_parts <- strsplit(test_root, "/", fixed = TRUE)[[1]]
   nzchar(test_root) &&
-    length(test_parts) >= 3L &&
+    length(test_parts) == 3L &&
     identical(test_parts[1:2], c("tmp", "tests")) &&
-    !any(test_parts %in% c("", ".", "..")) &&
+    grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", test_parts[[3L]]) &&
     identical(gsub("\\\\", "/", setting), paste0(test_root, "/", leaf))
 }
 
@@ -59,9 +59,9 @@ analysis_input <- substring(analysis_input, nchar(project_root) + 2L)
   is_test_output <- !is.null(test_leaf) && .bensz_test_output_path(portable, test_leaf)
   if (
     !is.character(setting) || length(setting) != 1L || !nzchar(setting) ||
-      grepl("^(?:/|[A-Za-z]:[/\\\\]|\\\\\\\\)", setting, perl = TRUE) ||
+    grepl("^(?:/|[A-Za-z]:)", portable, perl = TRUE) ||
       any(parts %in% c("", ".", "..")) ||
-      (!is_test_output && parts[[1]] %in% reserved)
+    (!is_test_output && tolower(parts[[1]]) %in% reserved)
   ) {
     stop(label, " must be a safe project-relative output directory.")
   }
@@ -73,7 +73,7 @@ analysis_input <- substring(analysis_input, nchar(project_root) + 2L)
   for (part in parts) {
     current <- file.path(current, part)
     link <- Sys.readlink(current)
-    if (file.exists(current) && !is.na(link) && nzchar(link)) {
+    if (!is.na(link) && nzchar(link)) {
       stop(label, " cannot contain symlinks: ", part)
     }
   }

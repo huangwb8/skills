@@ -5,11 +5,31 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 DEFAULT_TEST_ENTRY = "scripts/tests/smoke_test.R"
 DEFAULT_TEST_STORE = "tmp/tests/<run-id>/_targets"
+WORKFLOW_MODES = ("auto", "simple", "complex", "pipeline")
+TAR_MAKE = re.compile(r"\btar_make\s*\(")
+TAR_SOURCE = re.compile(r"\btar_source\s*\(\s*([\"'])R\1\s*[,)]")
+R_COMMENT_OR_QUOTE = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|#[^\r\n]*''')
+
+
+def without_r_comments(text: str) -> str:
+    return R_COMMENT_OR_QUOTE.sub(lambda match: "" if match[0].startswith("#") else match[0], text)
+
+
+def has_r_call(pattern: re.Pattern[str], code: str) -> bool:
+    """Ignore matches that start inside an R string (arguments may contain strings)."""
+    unquoted = R_COMMENT_OR_QUOTE.sub(lambda match: " " * len(match[0]), code)
+    return any(unquoted[match.start()] != " " for match in pattern.finditer(code))
+
+
+def resolve_workflow_mode(root: Path, requested: str) -> str:
+    if requested == "auto":
+        return "complex" if (root / "_targets.R").is_file() else "simple"
+    return "complex" if requested == "pipeline" else requested
 
 
 def existing_signals(root: Path) -> list[str]:
@@ -20,7 +40,7 @@ def existing_signals(root: Path) -> list[str]:
     for directory in ("raw", "products", "reports", "renv", "R"):
         if (root / directory).is_dir():
             signals.append(directory + "/")
-    if list(root.glob("*.R")) or list(root.glob("*.Rmd")):
+    if any(path.is_file() and path.suffix.lower() in {".r", ".rmd"} for path in root.iterdir()):
         signals.append("root-R-files")
     return sorted(set(signals))
 
@@ -34,15 +54,33 @@ def observed_mechanisms(root: Path) -> dict[str, object]:
 
 
 def project_path(root: Path, value: str, label: str) -> tuple[Path | None, str | None]:
-    candidate = Path(value)
-    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+    parts = value.replace("\\", "/").split("/")
+    if PureWindowsPath(value).drive or any(part in {"", ".", ".."} for part in parts):
         return None, f"{label} must be a normalized relative path inside the project"
-    resolved = (root / candidate).resolve()
     try:
+        resolved = root.joinpath(*parts).resolve()
         resolved.relative_to(root)
-    except ValueError:
+    except (ValueError, OSError, RuntimeError):
         return None, f"{label} must stay inside the project"
     return resolved, None
+
+
+def test_store_issue(root: Path, value: str) -> dict[str, str] | None:
+    parts = value.replace("\\", "/").split("/")
+    # The symbolic default describes the layout; never resolve an on-disk '<run-id>'.
+    if len(parts) != 4 or parts[:2] != ["tmp", "tests"] or parts[-1] != "_targets" or not (
+        parts[2] == "<run-id>" or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", parts[2])
+    ):
+        return {"code": "test-store-not-isolated", "message": "test store must be tmp/tests/<run-id>/_targets"}
+    if parts[2] == "<run-id>":
+        parts = parts[:2]
+    path = root.joinpath(*parts)
+    resolved, error = project_path(root, "/".join(parts), "test store")
+    if error or resolved != path or any(p.is_symlink() or (p.exists() and not p.is_dir()) for p in (
+        root.joinpath(*parts[:i]) for i in range(1, len(parts) + 1)
+    )):
+        return {"code": "unsafe-test-store", "message": "test store must use real directories under tmp/tests"}
+    return None
 
 
 def validate_test_contract(
@@ -54,36 +92,29 @@ def validate_test_contract(
     missing: list[str] = []
     issues: list[dict[str, str]] = []
     entry_path, entry_error = project_path(root, test_entry, "test entry")
-    store_path, store_error = project_path(root, test_store, "test store")
     if entry_error:
         issues.append({"code": "unsafe-test-entry", "message": entry_error})
-    elif entry_path is not None and not entry_path.is_file():
+    elif entry_path.is_dir():
+        issues.append({"code": "invalid-test-entry-type", "message": "test entry must be a file"})
+    elif not entry_path.is_file():
         missing.append(test_entry)
-    if store_error:
-        issues.append({"code": "unsafe-test-store", "message": store_error})
-    elif store_path is not None:
-        forbidden = [root / name for name in ("_targets", "raw", "products", "reports")]
-        if any(store_path == path.resolve() or path.resolve() in store_path.parents for path in forbidden):
-            issues.append(
-                {
-                    "code": "unsafe-test-store",
-                    "message": "test store must stay under an isolated tmp/ test directory",
-                }
-            )
-        expected_parent = (root / "tmp" / "tests").resolve()
-        if store_path != expected_parent and expected_parent not in store_path.parents:
-            issues.append(
-                {
-                    "code": "test-store-not-isolated",
-                    "message": "test store must be tmp/tests or one of its descendants",
-                }
-            )
+    if workflow_mode == "complex" and (store_issue := test_store_issue(root, test_store)):
+        issues.append(store_issue)
 
     if entry_path is None or not entry_path.is_file():
         return missing, issues
-    text = entry_path.read_text(encoding="utf-8", errors="replace")
-    has_tar_make = bool(re.search(r"\btar_make\s*\(", text))
-    delegates_run_root = "test_harness.R" in text
+    text = without_r_comments(entry_path.read_text(encoding="utf-8", errors="replace"))
+    if not text.strip():
+        issues.append({"code": "empty-test-entry", "message": "test entry must contain runnable R code"})
+    has_tar_make = has_r_call(TAR_MAKE, text)
+    delegates_run_root = has_r_call(re.compile(r"\bbensz_test_begin\s*\("), text)
+    delegated_run = has_r_call(re.compile(r"\bbensz_test_run_entry\s*\("), text)
+    if delegates_run_root or delegated_run:
+        harness, error = project_path(root, str(entry_path.parent.relative_to(root) / "test_harness.R"), "test harness")
+        if error or harness is None or not harness.is_file() or not without_r_comments(
+            harness.read_text(encoding="utf-8", errors="replace")
+        ).strip():
+            issues.append({"code": "missing-test-harness", "message": "copy test_harness.R next to the test entry"})
     if "BENSZ_TEST_RUN_ID" not in text and "run_id" not in text and not delegates_run_root:
         issues.append(
             {
@@ -99,14 +130,18 @@ def validate_test_contract(
             }
         )
     if workflow_mode == "complex":
-        if not has_tar_make:
+        if not (has_tar_make or delegated_run):
             issues.append(
                 {
                     "code": "complex-test-missing-tar-make",
                     "message": "complex smoke tests must execute the real target graph with tar_make()",
                 }
             )
-        harness_bound = "test_harness.R" in text and "targets_store" in text
+        # Also accept projects that allocate the run with the harness and call
+        # tar_make() directly using its context, rather than the child helper.
+        harness_bound = delegates_run_root and (
+            delegated_run or has_r_call(re.compile(r"\btar_make\s*\(\s*store\s*=\s*\w+\$targets_store\b"), text)
+        )
         literal_bound = "store" in text and all(part in text for part in ("tmp", "tests", "_targets"))
         if not (harness_bound or literal_bound):
             issues.append(
@@ -137,7 +172,7 @@ def main() -> int:
     parser.add_argument("--project-state", choices=("auto", "new", "existing"), default=None)
     parser.add_argument(
         "--workflow-mode",
-        choices=("auto", "simple", "complex"),
+        choices=WORKFLOW_MODES,
         default="auto",
     )
     parser.add_argument("--test-entry", default=DEFAULT_TEST_ENTRY)
@@ -162,24 +197,37 @@ def main() -> int:
     if project_state == "auto":
         project_state = "existing" if signals else "new"
 
-    workflow_mode = args.workflow_mode
-    if workflow_mode == "auto":
-        workflow_mode = "complex" if (root / "_targets.R").is_file() else "simple"
+    workflow_mode = resolve_workflow_mode(root, args.workflow_mode)
 
     missing: list[str] = []
     issues: list[dict[str, str]] = []
     warnings: list[str] = []
 
-    def report_absent(rel: str, display: str, action: str) -> None:
-        if (root / rel).exists():
-            return
-        if project_state == "new":
+    def require_path(rel: str, display: str, *, directory: bool = False, required: bool = False) -> Path | None:
+        path, error = project_path(root, rel, display)
+        if error:
+            issues.append({"code": "unsafe-project-path", "message": error})
+        elif (path.is_dir() if directory else path.is_file()):
+            return path
+        elif path.exists():
+            issues.append({"code": "invalid-project-path-type", "message": f"{display} must be a {'directory' if directory else 'file'}"})
+        elif project_state == "new" or required:
             missing.append(display)
         else:
-            warnings.append(f"existing project has no {display}; reported, {action}")
+            warnings.append(f"existing project has no {display}; not implicitly created")
+        return None
 
-    for rel, display in (("renv.lock", "renv.lock"), ("renv/activate.R", "renv/activate.R")):
-        report_absent(rel, display, "not implicitly initialized")
+    lockfile = require_path("renv.lock", "renv.lock")
+    if lockfile is not None:
+        try:
+            lock = json.loads(lockfile.read_text(encoding="utf-8-sig"))
+        except (ValueError, OSError):
+            lock = None
+        if not isinstance(lock, dict) or not isinstance(lock.get("R"), dict) or not isinstance(lock.get("Packages"), dict):
+            issues.append({"code": "invalid-renv-lockfile", "message": "renv.lock must contain JSON R and Packages objects"})
+    activation = require_path("renv/activate.R", "renv/activate.R")
+    if activation is not None and not without_r_comments(activation.read_text(encoding="utf-8", errors="replace")).strip():
+        issues.append({"code": "empty-renv-activation", "message": "renv/activate.R must contain runnable R code"})
 
     test_missing, test_issues = validate_test_contract(
         root,
@@ -195,18 +243,18 @@ def main() -> int:
     issues.extend(test_issues)
 
     if workflow_mode == "complex":
-        report_absent("_targets.R", "_targets.R", "not implicitly migrated")
-        report_absent("R", "R/", "not implicitly created")
-        if (root / "_targets.R").is_file():
-            targets_text = (root / "_targets.R").read_text(encoding="utf-8", errors="replace")
-            if not re.search(r"tar_source\s*\(\s*[\"']R[\"']", targets_text):
+        targets_entry = require_path("_targets.R", "_targets.R", required=True)
+        require_path("R", "R/", directory=True, required=True)
+        if targets_entry is not None:
+            targets_text = without_r_comments(targets_entry.read_text(encoding="utf-8", errors="replace"))
+            if not has_r_call(TAR_SOURCE, targets_text):
                 issues.append(
                     {
                         "code": "targets-not-r-first",
                         "message": "complex pipeline _targets.R must discover computation functions from R/ via tar_source(\"R\")",
                     }
                 )
-    if workflow_mode == "simple" and (root / "_targets.R").exists():
+    if workflow_mode == "simple" and ((root / "_targets.R").exists() or (root / "_targets.R").is_symlink()):
         issues.append(
             {
                 "code": "simple-has-targets-entry",

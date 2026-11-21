@@ -44,7 +44,7 @@ project-root/
 ├── _targets.R                 # the only complex DAG entry point
 ├── raw/                       # read-only
 ├── products/                  # optional scientific products
-├── reports/                   # plots, tables, HTML, supplements
+├── reports/                   # standalone plots, tables, and supplements
 ├── scripts/tests/             # versioned test code
 ├── tmp/tests/<run-id>/        # isolated test run
 ├── renv.lock
@@ -52,6 +52,8 @@ project-root/
 ```
 
 The [`_targets.R`](templates/_targets.R) template uses `tar_source("R")`; [`R_data_template.R`](templates/R_data_template.R) provides a data-preparation starting point; [`Rmd_template.Rmd`](templates/Rmd_template.Rmd) consumes `analysis_results` with `targets::tar_read()`; simple projects can start from [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd).
+
+The final HTML is rendered directly beside its Rmd. For example, `manuscript/analysis.Rmd` produces `manuscript/analysis.html`.
 
 ## Rebuilding after results are lost
 
@@ -82,6 +84,8 @@ Put test code in `scripts/tests/` and use a unique `tmp/tests/<run-id>/` per run
 
 For recovery evidence, first complete an expensive target, interrupt a later target, then rerun `tar_make()` with unchanged input, code, parameters, and renv identity. Use `tar_meta()`, the outdated set, and execution records to show valid upstream targets were skipped.
 
+Both modes default to a synthetic fixture. To use an authorized real subset, set `BENSZ_TEST_STYLE=project_subset` and `BENSZ_SOURCE_DATA` explicitly. The simple template requires `scripts/tests/assert_results.R` to verify deliverables and scientific invariants. If a complex workflow renders an Rmd separately, set `BENSZ_REPORT_ENTRY` to test the same report against the isolated store.
+
 ## Checks and script entry points
 
 Inspect project state and mode first:
@@ -97,11 +101,12 @@ python3 <skill-root>/scripts/check_pipeline_contract.py <project>
 python3 <skill-root>/scripts/check_interpretation_quality.py <project>/report.Rmd
 python3 <skill-root>/scripts/check_figure_table_interpretation.py <project>/report.Rmd
 python3 <skill-root>/scripts/check_htmlwidget_visibility.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_rmd_template_yaml.py <project>/report.Rmd
 Rscript <project>/scripts/tests/smoke_test.R
 ```
 
-Use [`check_plot_readability.R`](scripts/check_plot_readability.R) for plot readability and [`validate_paths.R`](scripts/validate_paths.R) for path safety. Initialize the Liquid Glass theme with [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py); its desktop dynamic TOC expands the interactive area immediately so the pointer can enter the menu. Delegate HTML rendering to `knit-rmd-html`.
+`check_rmd_template_yaml.py` takes no arguments and checks the two templates shipped with the Skill against its configuration.
+
+Use [`check_plot_readability.R`](scripts/check_plot_readability.R) for plot readability and [`validate_paths.R`](scripts/validate_paths.R) for path safety. Initialize the Liquid Glass theme with [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py); its desktop dynamic TOC expands the interactive area immediately so the pointer can enter the menu. Use the project’s render entry point. For an Rmd at the project root, `knit-rmd-html` can also render to its default location.
 
 ## Plot and interpretation rules
 

@@ -27,11 +27,13 @@ output:
 
 `theme: default` 兼容 `toc_float`；`css` 加载主题；`after_body` 启用图片放大、代码复制和视图状态保持。不要用 `includes.in_header` 直接 include CSS，否则 Pandoc 可能把 CSS 当正文。
 
-渲染：
+从项目根渲染根目录中的 Rmd，HTML 默认与源文件同目录：
 
 ```bash
-python3 skills/knit-rmd-html/scripts/knit_rmd_html.py your_report.Rmd
+python3 <knit-rmd-html-skill-root>/scripts/knit_rmd_html.py your_report.Rmd
 ```
+
+子目录中的 Rmd 若依赖项目根读取或执行代码，使用[项目正式渲染命令](rebuild_contract.md#环境与正式入口)，并调整 YAML 中样式和 include 的相对路径。
 
 ## 目录与交互
 

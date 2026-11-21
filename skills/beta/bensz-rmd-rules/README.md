@@ -44,7 +44,7 @@ renv.lock → _targets.R → R/ functions → target results → Rmd → reports
 ├── _targets.R                 # complex 的唯一 DAG 入口
 ├── raw/                       # 只读
 ├── products/                  # 可选科学产物
-├── reports/                   # 图、表、HTML、补充材料
+├── reports/                   # 单独交付的图、表和补充材料
 ├── scripts/tests/             # 可版本化测试代码
 ├── tmp/tests/<run-id>/        # 隔离测试现场
 ├── renv.lock
@@ -52,6 +52,8 @@ renv.lock → _targets.R → R/ functions → target results → Rmd → reports
 ```
 
 模板 [`_targets.R`](templates/_targets.R) 使用 `tar_source("R")`；[`R_data_template.R`](templates/R_data_template.R) 提供数据处理起点；[`Rmd_template.Rmd`](templates/Rmd_template.Rmd) 通过 `targets::tar_read()` 消费 `analysis_results`；simple 可从 [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd) 开始。
+
+正式报告直接生成在源 Rmd 旁：例如 `manuscript/analysis.Rmd` 渲染为 `manuscript/analysis.html`。
 
 ## 结果丢失后如何重建
 
@@ -82,6 +84,8 @@ Skill 按“派生结果随时可能丢失”设计分析：保留原始输入�
 
 恢复验收：先让昂贵 target 成功，再中断后续 target；在输入、代码、参数和 renv 身份不变时再次 `tar_make()`，用 `tar_meta()`、outdated 集合和执行记录证明有效前序 target 被跳过。
 
+两种模式默认使用合成 fixture。经授权使用真实子集时，显式设置 `BENSZ_TEST_STYLE=project_subset` 和 `BENSZ_SOURCE_DATA`。simple 模板要求 `scripts/tests/assert_results.R` 验证实际产物与科学不变量；complex 若另行渲染 Rmd，可通过 `BENSZ_REPORT_ENTRY` 在隔离 store 上验证同一报告。
+
 ## 检查与脚本入口
 
 先检查项目状态和模式：
@@ -97,11 +101,12 @@ python3 <skill-root>/scripts/check_pipeline_contract.py <project>
 python3 <skill-root>/scripts/check_interpretation_quality.py <project>/report.Rmd
 python3 <skill-root>/scripts/check_figure_table_interpretation.py <project>/report.Rmd
 python3 <skill-root>/scripts/check_htmlwidget_visibility.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_rmd_template_yaml.py <project>/report.Rmd
 Rscript <project>/scripts/tests/smoke_test.R
 ```
 
-图表可读性检查器为 [`check_plot_readability.R`](scripts/check_plot_readability.R)，路径安全检查器为 [`validate_paths.R`](scripts/validate_paths.R)。Liquid Glass 主题可用 [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py) 初始化；桌面动态目录会立即扩展可交互区域，避免鼠标移入时收回。HTML 渲染交给 `knit-rmd-html`。
+`check_rmd_template_yaml.py` 仅供 Skill 维护者无参数运行，用于核对随 Skill 提供的两个模板与配置。
+
+图表可读性检查器为 [`check_plot_readability.R`](scripts/check_plot_readability.R)，路径安全检查器为 [`validate_paths.R`](scripts/validate_paths.R)。Liquid Glass 主题可用 [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py) 初始化；桌面动态目录会立即扩展可交互区域，避免鼠标移入时收回。HTML 使用项目正式渲染入口；项目根目录的报告也可用 `knit-rmd-html` 按默认路径渲染。
 
 ## 图表与解读规范
 

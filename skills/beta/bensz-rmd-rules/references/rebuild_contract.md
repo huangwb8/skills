@@ -37,6 +37,13 @@ complex 必须做到：
 2. 全部结果重建：simple 的正式 R/Rmd 入口；complex 的 `tar_make()` 加完整交付导出/渲染入口。报告位于 DAG 外时必须列出渲染命令和参数，不能只交 `tar_make()`。
 3. 仅重出报告：从确认仍有效的完整结果重渲染，不重复无关重型计算。
 
+从项目根运行以下示例。Rmd 可以在任意获授权的项目子目录，默认不传 `output_dir`，由 rmarkdown 在源文件旁直接生成同名 HTML。若使用 `tarchetypes::tar_render()`，同样保留源文件旁的默认输出。`knit_root_dir` 只决定 R chunk 的工作目录；嵌套 Rmd 的 YAML 样式和 include 路径仍需能从 Rmd 所在目录解析。
+
+```bash
+# 写出 manuscript/analysis.html
+Rscript --vanilla -e 'source("renv/activate.R"); rmarkdown::render(file.path("manuscript", "analysis.Rmd"), knit_root_dir = getwd())'
+```
+
 模板以项目根为 cwd。`00.Environment.R` 验证这一前提。`callr_function = NULL` 只控制是否另起调用进程，不强制重算；主动失效使用 targets 官方接口，不能自动删除正式 store。
 
 ## 隔离轻量验收

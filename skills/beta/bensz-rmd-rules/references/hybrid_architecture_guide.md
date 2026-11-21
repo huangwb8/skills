@@ -6,7 +6,7 @@
 项目根目录/
 ├── 00.Environment.R
 ├── R/                         # targets 调用的计算函数
-├── reports/                   # 正式图、表、HTML 与补充材料
+├── reports/                   # 单独交付的图、表和补充材料
 ├── products/                  # 可选科学产品，不是缓存命中协议
 ├── raw/                       # 只读原始输入
 ├── templates/                 # 样式/渲染资产
@@ -26,8 +26,10 @@
 | `.Rmd` | `tar_read()`/`tar_load()`、展示参数、图表和解读 | 从 raw 重做昂贵计算 |
 | `_targets/` | targets 机器计算状态 | 正式科学产品 |
 | `products/` | 审阅、复用或交付的科学对象 | 缓存命中与恢复判断 |
-| `reports/` | 论文图、表、HTML、补充材料 | 源码、模型缓存、运行日志 |
+| `reports/` | 单独交付的图、表和补充材料 | 源码、模型缓存、运行日志 |
 | `tmp/tests/<run-id>/` | 测试输入、隔离 store、日志与运行记录 | 正式结论唯一来源 |
+
+正式 HTML 随源 Rmd 存放，无需另设 HTML 目录。
 
 ## simple
 

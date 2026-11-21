@@ -58,10 +58,10 @@ metadata:
    ```bash
    python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state auto --workflow-mode auto
    ```
-   优先级为人类要求 → existing 边界 → 复杂度。新项目默认 simple；复杂信号（非线性、昂贵/高失败代价、多下游复用、局部失效、恢复、血缘、并行）选 complex。`existing` 不是第三种模式：有 `_targets.R` 按 complex，否则按 simple；不创建缺失 targets/renv，不隐式迁移。详见 [`workflow_modes.md`](references/workflow_modes.md)。
+   优先级为人类要求 → existing 边界 → 复杂度。尽量在写入骨架前判定新旧；已明确的新项目继续用 `--project-state new`。复杂信号（非线性、昂贵/高失败代价、多下游复用、局部失效、恢复、血缘、并行）选 complex，否则选 simple。`existing` 有 `_targets.R` 按 complex，否则按 simple；不创建缺失 targets/renv，不隐式迁移。详见 [`workflow_modes.md`](references/workflow_modes.md)。
 3. **固定路径**：按需使用 `00.Environment.R`、`R/`、`_targets.R`、`raw/`、`products/`、`reports/`、`templates/`、`scripts/tests/`、`tmp/tests/<run-id>/`、`tmp/scratch/`、`renv.lock` 和 `renv/activate.R`，不预建空目录。`products/` 只存需审阅/复用/交付的科学产物；路径优先级为人类指定 → 已有路径 → 项目统一设置 → `products/`，必须在项目内且不得与 `raw/`、`reports/`、`tmp/`、`_targets/`、`.bensz-api/` 重叠。
 4. **设计缓存边界**：只导出昂贵、可复用、高风险/有损、需人工审查、依赖可变外部请求或中断代价高的结果。targets 管理 `_targets/` metadata、失效和增量重建；禁止 `SUCCESS`、identity hash、force-step/resume runner 或 checkpoint helper。详见 [`analysis_workflow_cache.md`](references/analysis_workflow_cache.md)。
-5. **计算推断并实现报告**：`00.Environment.R` 用 `luckyBase::Plus.library()`；分析代码优先 `pkg::fn()`，基因 ID 用 `luckyBase::convert()`。分析层对关键参数计算估计值、适当的默认 95% CI（方案另有水平时从其规定），并仅在有明确检验问题时给 p 值；多重检验记录校正方法与 q/调整后 p。保留未经显著性筛选的完整结果，含参数身份、尺度/单位、有效 N/事件数、方法、CI 界限/水平、适用的 p/q、来源及不适用/不可估计/未运行状态与理由。complex 的 `R/` 函数读取 `raw/`/上游 target；Rmd 用 `tar_read()`/`tar_load()` 消费真实结果，不在正文臆算。Top N/阈值/配色放 YAML `params`。target 语义化命名并按阶段注释；交付摘要附 `targets::tar_manifest()`。静态图写 `reports/`，HTML 留根目录；默认不在图内重复标题。只在 I/O 边界和硬前提检查，不用占位/静默降级掩盖失败。
+5. **计算推断并实现报告**：`00.Environment.R` 用 `luckyBase::Plus.library()`；分析代码优先 `pkg::fn()`，基因 ID 用 `luckyBase::convert()`。分析层对关键参数计算估计值、适当的默认 95% CI（方案另有水平时从其规定），并仅在有明确检验问题时给 p 值；多重检验记录校正方法与 q/调整后 p。保留未经显著性筛选的完整结果，含参数身份、尺度/单位、有效 N/事件数、方法、CI 界限/水平、适用的 p/q、来源及不适用/不可估计/未运行状态与理由。complex 的 `R/` 函数读取 `raw/`/上游 target；Rmd 用 `tar_read()`/`tar_load()` 消费真实结果，不在正文臆算。Top N/阈值/配色放 YAML `params`。target 语义化命名并按阶段注释；交付摘要附 `targets::tar_manifest()`。静态图写 `reports/`，默认不在图内重复标题。只在 I/O 边界和硬前提检查，不用占位/静默降级掩盖失败。
 6. **真实轻量测试**：新建或实质修改流程选择 `synthetic_fixture`（保 schema、类型、主键、分组、缺失和边缘条件，固定种子）或有授权时的 `project_subset`（覆盖关键分组/结局/缺失/异常，不能仅 `head(n)`）。测试在 `scripts/tests/`，每次使用唯一 `tmp/tests/<run-id>/`；只改输入规模和路径，不加业务 `analysis_mode`/`test_mode`。simple 调正式入口；complex 执行同一 DAG，store 放 `<run-id>/_targets`。至少断言输入契约、类型/主键、数值不变量、产品/报告生成和 `raw/` 未写入。checker/语法/`--dry-run` 仅为 `preflight`；真实链为 `lightweight_execution`；未跑全量记 `full_data_execution=NOT_RUN`。按环境依赖、fixture/子集、路径隔离、分析代码、科学断言、渲染、外部服务分类失败。
 7. **串行审查**：初稿和轻量测试后，按 [`serial_review_protocol.md`](references/serial_review_protocol.md) 完成结构/数据流、R/恢复、科学/统计三项只读审查；每项读取前项修正后的最新版本。影响执行、输出或断言的修正会使旧证据失效，须在最新 identity 上重跑受影响链；不能提供独立 Agent 时须记录降级。
 8. **正式运行与报告**：simple 用明确 R/Rmd 入口；complex 先检查契约，再 `targets::tar_make()`，store 为 `_targets/`。中断后用 `tar_meta()`、outdated 集合和执行记录证明有效 target 被跳过，不手工写 `SUCCESS`。图表默认英文，中文场景用 `params.plot_language`；静态图保存 PDF，并在任务工作区生成 JPG 预览。每个关键结论给出与计算产品对应的估计值、CI、有明确假设时的 p/q、实际意义与局限；无法推断时写清状态和理由。图/表附近给对象、方向/对比与可追溯证据，不为装饰性数字逐个检验。
@@ -78,7 +78,9 @@ metadata:
 
 ### 输出管理
 
-正式代码、测试、Rmd/HTML、产品和报告留在用户项目约定位置；草稿、审查、JPG 和日志进入当前 `.bensz-api/task-*`；测试现场进入 `tmp/tests/<run-id>/`。不写 `raw/`；`products/` 不放草稿；`reports/` 不放源码、缓存或审查日志；`tmp/scratch/` 的重要发现须晋升并补 renv/轻量测试证据。
+正式 HTML 默认由渲染入口直接生成在源 Rmd 同目录、同名（`config.yaml:output.html_location`）。不要为 HTML 另建目录或在渲染后搬运文件；用户已有明确交付路径时沿用。`reports/` 收纳单独交付的图、表和补充材料。渲染和重建命令见 [`rebuild_contract.md`](references/rebuild_contract.md)。
+
+正式代码、测试和产品留在用户项目约定位置；草稿、审查、JPG 和日志进入当前 `.bensz-api/task-*`；轻量测试的 HTML 和其它产物留在 `tmp/tests/<run-id>/`。不写 `raw/`；`products/` 不放草稿；`reports/` 不放缓存或审查日志；`tmp/scratch/` 的重要发现须晋升并补 renv/轻量测试证据。
 
 ### 校验
 

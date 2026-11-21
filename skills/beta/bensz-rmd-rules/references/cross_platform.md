@@ -12,7 +12,7 @@ figure_path <- file.path("reports", "figures", "02.00.00. 主要结果.pdf")
 
 - `raw/` 只读；不得把清洗结果或缓存写回。
 - 完整可恢复数据写 `products/`，正式图表/表格写 `reports/`。
-- Rmd 与同名 HTML 位于项目根目录。
+- 正式 HTML 与源 Rmd 同目录、同名。项目根是 R chunk 的工作目录，不要求 Rmd 放在项目根。
 - AI 日志、预览和检查结果写当前 `.bensz-api/task-*`，由宿主传入任务根目录。
 
 R/ 函数名、target 名称和报告文件名必须兼容 Windows：不得包含 `< > : " / \\ | ? *` 或控制字符，不得以点/空格结尾，也不得使用 `CON`、`PRN`、`AUX`、`NUL`、`COM1`–`COM9`、`LPT1`–`LPT9` 等设备保留名。

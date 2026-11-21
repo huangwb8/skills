@@ -171,7 +171,8 @@ class DualModeRealExecution(unittest.TestCase):
                     )
                     stopifnot(file.exists(output), file.info(output)$size > 0)
                     unlink(fixture_path)
-                    bensz_test_finish(context, assertions = c("synthetic schema passed", "Rmd rendered"))
+                    bensz_test_finish(context, assertions = c("synthetic schema passed", "Rmd rendered"),
+                                      lightweight_execution = "PASS")
                     """
                 ),
                 encoding="utf-8",
@@ -272,7 +273,8 @@ class DualModeRealExecution(unittest.TestCase):
                     stopifnot(file.exists(file.path(context$products_dir, "summary.txt")))
                     stopifnot(identical(raw_before, unname(tools::md5sum(source_path))))
                     unlink(test_input)
-                    bensz_test_finish(context, assertions = c("representative subset passed", "target graph executed"))
+                    bensz_test_finish(context, assertions = c("representative subset passed", "target graph executed"),
+                                      lightweight_execution = "PASS")
                     """
                 ),
                 encoding="utf-8",

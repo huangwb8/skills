@@ -30,6 +30,7 @@
 - 测试专用 helper 只存在于 `scripts/tests/` 或隔离副本。不得向业务逻辑添加长期 `analysis_mode`、`test_mode` 或两套科学行为。
 - harness 先设置 `BENSZ_TEST_RUN_ROOT`，再用正式入口已经识别的 `BENSZ_ANALYSIS_INPUT`、`BENSZ_PRODUCTS_DIR` 和 `BENSZ_REPORTS_DIR` 把输入、产品和报告绑定到同一 run root；`00.Environment.R` 只接受与该 run root 精确匹配的 `tmp/tests/<run-id>/{products,reports}`，不能借测试变量放宽任意 `tmp/` 写入。
 - 正式与测试必须调用同一计算函数和同一报告入口。若正式代码无法在不加入测试分支的情况下隔离路径，应先修正路径边界。
+- 正式渲染默认在源 Rmd 旁生成同名 HTML。共享项目文件的 smoke 测试只为隔离覆盖输出目录；在独立项目副本验证正式路径时，省略覆盖并核对 HTML 与副本中的 Rmd 同目录。
 
 existing 项目实质修改后仍应沿其现有 targets 或顺序脚本入口做可行的轻量运行，但不得为测试补建 renv、targets 或持久测试框架。可以使用一次性隔离副本；若旧入口硬编码绝对路径或会覆盖正式结果，将其记录为 `path_isolation` 阻塞/风险，请人类决定是否授权最小可测试性改造或显式迁移。
 
@@ -73,6 +74,10 @@ existing 项目实质修改后仍应沿其现有 targets 或顺序脚本入口�
 - `templates/tests/complex_smoke_test.R`：complex 隔离 target store 入口。
 - `templates/tests/test_harness.R`：唯一 run root、subject identity、正式路径不变性与运行记录 helper。
 
-smoke 模板通过 `bensz_test_run_entry()` 在新 `Rscript --vanilla` 子进程中激活 renv 后执行同一正式入口；complex 内部仍只调用 targets，不是另一套分析调度器。身份覆盖根级源码、`R/`、`scripts/`、模板与 lockfile。simple 模板验证 Rmd 实际渲染；`.R` 入口须提供 `scripts/tests/assert_results.R` 验证实际产品/科学不变量，不能只靠退出码。complex 示例对 `analysis_results`/`scientific_product` 验证重复运行复用、产品丢失恢复和冷重建；须适配真实 target 名与断言。两个模板都保留输入变化/迁移 `NOT_RUN`，complex 的 unchanged rerun 也不冒充真实中断测试。按契约补齐这些用例后才能逐项更新状态。
+从项目根目录运行 smoke。两种模板默认 `synthetic_fixture`；复制所选数据模板为 `scripts/tests/test_data.R`。使用真实子集时先确认授权，再显式设置 `BENSZ_TEST_STYLE=project_subset` 和 `BENSZ_SOURCE_DATA`，后者须为项目内来源文件。测试生成的输入只接受本次 run 的 `input/`，结束时删除该目录。若报告或日志含真实个体数据，渲染前先配置可保留的脱敏输出。
+
+`bensz_test_run_entry()` 在新 `Rscript --vanilla` 子进程中激活 renv 并执行同一正式入口。运行身份覆盖根级源码、`R/`、`scripts/`、模板、renv 激活脚本、lockfile 和所选入口。simple 的 `.R` 和 `.Rmd` 都需要 `scripts/tests/assert_results.R` 验证实际产品和科学不变量，可通过 `context` 读取隔离路径。
+
+complex 对 `analysis_results`/`scientific_product` 验证复用、产品丢失恢复和冷重建；须适配真实 target 名与断言。若正式交付的 Rmd 在 DAG 外渲染，设置 `BENSZ_REPORT_ENTRY` 为项目内报告路径，测试以 `BENSZ_TARGETS_STORE` 传入隔离 store，报告须使用该参数读 target。未选报告记录为 `NOT_RUN`。两个模板也保留输入变化和迁移的 `NOT_RUN`；unchanged rerun 不能证明中断复用。按契约逐项补齐并显式记录实际状态；harness 不默认写 `PASS`。
 
 复制到项目后按真实 schema、文件名和科学不变量修改，不能保留占位断言后声称通过。

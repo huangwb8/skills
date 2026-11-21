@@ -11,6 +11,7 @@ This script is for maintainers (CI/local checks), not for end-users.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,7 @@ def _extract_frontmatter(text: str) -> str | None:
 
 
 def main() -> int:
+    argparse.ArgumentParser(description="Check the two Rmd templates shipped with this Skill.").parse_args()
     root = _skill_root()
     config_path = root / "config.yaml"
     tmpl_paths = [

@@ -34,7 +34,7 @@ R/               # target 调用的计算函数
 Rmd              # tar_read()/tar_load() 消费结果并负责科学沟通
 _targets/        # targets 自己管理的机器计算状态
 products/        # 需要审阅、复用或交付的科学对象（可选）
-reports/         # 图、表、HTML 与补充材料
+reports/         # 单独交付的图、表和补充材料
 ```
 
 不得再为 pipeline 生成编号执行图、`SUCCESS`、identity hash、force-step/resume runner 或自定义 checkpoint helper。`products/` 不是第二个缓存系统；只有科学上需要持久化的对象才导出。
@@ -63,4 +63,6 @@ python3 <skill-root>/scripts/check_targets_renv.py <project> \
 python3 <skill-root>/scripts/check_pipeline_contract.py <project>
 ```
 
-检查器只读：simple 拒绝 targets 入口；complex 要求 `_targets.R`、`R/` 与隔离 test store，并检查 Rmd 是否消费 target；existing 的缺失机制降级为 warning，不因缺失新机制失败，模式契约冲突仍报 error。
+两个检查器都只读，`--workflow-mode pipeline` 是 `complex` 的别名。simple 拒绝 targets 入口；complex 要求 `_targets.R`、`R/` 和 `tmp/tests/<run-id>/_targets`。已有项目缺 renv 或 smoke 入口只提示，指定 complex 却缺 DAG 或 `R/`、文件类型错误或锁文件损坏会报错，不做自动迁移。
+
+pipeline 检查器只扫描候选报告的 R chunk 和内联 R，跳过项目内模板、临时区、产品、缓存和依赖目录。`tar_render()` 负责渲染编排，报告自身仍应读取 target；预检只识别常见代码形式，间接依赖与报告是否成功由实际执行核验。

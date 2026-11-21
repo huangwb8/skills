@@ -56,6 +56,7 @@ list(
   ),
   # Render outside the graph with an Rmd that calls tar_read("analysis_results"),
   # or use tarchetypes::tar_render() only when it is locked in renv.lock.
+  # Render the final HTML beside its Rmd without redirecting the output directory.
   # Document that render command too; tar_make() alone does not create a report
   # outside the graph. Missing report files must be rendered again.
   targets::tar_target(

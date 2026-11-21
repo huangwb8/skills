@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 版本更新至 `0.30.3`：正式 HTML 默认在源 Rmd 同目录生成同名文件，无需另设 HTML 目录；`reports/` 用于单独交付的图、表和补充材料。项目根只决定 R chunk 的工作目录，测试 HTML 仍留在隔离 run root。macOS 实际渲染根目录及带空格的子目录，验证删除后原位重建和 smoke 不覆盖正式 HTML。
+
+### Fixed
+
+- 版本更新至 `0.30.2`：项目预检区分缺失、错误文件类型及无效 renv 锁文件；simple/complex 模式冲突统一判定，`pipeline` 可作为 CLI 别名。报告预检从候选报告的 R 代码识别 target 消费，忽略模板与测试生成目录。
+- 轻量 harness 独占创建测试目录，限制清理目标，并将所选入口及 renv 激活文件纳入运行身份。两种模式默认合成 fixture；授权子集需要明确来源。simple R/Rmd 都须验证实际产物和科学不变量；complex 可用 `BENSZ_REPORT_ENTRY` 从隔离 store 渲染正式报告。未执行的阶段默认记为 `NOT_RUN`。
+
+### Validation
+
+- macOS 24 项定向回归通过，含真实 renv/targets/Rmd、冷重建、报告/产物恢复、输入更新、项目迁移、下游失败续算和隔离反例；Linux 容器 14 项 Python 预检通过。strict 结构、R 模板解析、Rmd YAML、双语 README 和 Ruff 检查通过。Linux/Windows 原生 R、Agent 行为评估和用户全量数据未运行。
+
+### Changed
+
 - 版本更新至 `0.30.1`：将原 `evals/evals.json` 的 18 个行为场景及全部验收要点无损迁入 `references/behavioral_acceptance.md`；原 `qa/` 的 7 个可执行回归脚本移至 `scripts/`，删除 `evals/` 和 `qa/`。同步正文、双语说明与回归命令，Windows 状态字符测试使用等价 ASCII 转义保留原检查集合，避免迁入后把自身测试字面量误判为 CLI 输出。历史变更记录中的旧路径仅描述当时布局。
 
 ### Added
