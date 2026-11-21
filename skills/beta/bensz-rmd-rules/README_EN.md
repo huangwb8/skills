@@ -34,6 +34,8 @@ Describe the reader, decision, data location, and any limits on analysis or acce
 
 Every new analysis delivers a paper-style research report. Each major result explains the choice of analysis, shows the actual code, and uses inline R to interpret the current values. Reports cover relevant robustness checks, quality control, and the limits of each conclusion. See [the full report guide](references/report.md#把完整研究写成论文式报告).
 
+When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first; a longer common prefix means the reports address more closely related questions. The guide identifies the main report and optional reading. A single report needs no prefix. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序).
+
 ## Examples
 
 ### Basic example
