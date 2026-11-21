@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed（修复）
 
+- beta `bensz-rmd-rules` 修订为 0.31.2：恢复 Liquid Glass 默认主题及响应式目录、图片放大、复制代码；恢复出版级可读性、英文标签、矢量 PDF 和可选 R 绘图样式模板。
+- beta `bensz-rmd-rules` 修订为 0.31.1：两种骨架共用配对校验、估计和报告正文；区间不可估时保留可用的点估计，修正子目录报告链接并在环境或输出冲突时提前报错。macOS 验证真实 R 构建、缓存复用和 Chrome 交互；Linux 验证 Python 骨架。
 - `bensz-rmd-rules` 修订为 0.30.2：对齐 R 项目预检、隔离轻量执行和验收记录。收紧 renv、DAG、正式报告和测试 store 检查；两种模式默认使用合成 fixture，真实子集需显式指定来源；complex 可用隔离 store 验证正式 Rmd，simple 要求验证实际产物与科学不变量。macOS 定向回归 24 项、Linux Python 预检 14 项通过；Windows 原生 R 尚未验证。
 - `humanization` 修订为 3.0.2：修复控制入口写死 POSIX 托管 Python/BSK 路径，导致 Windows 原生托管环境被误拒绝的问题；Windows 经隔离托管解释器调用 BSK CLI，避免批处理展开路径，并固定 UTF-8。171 项定向回归、strict 结构、双语 README、临时安装副本与空白检查通过；Windows 分支为模拟验证，原生 Windows 整链待验。
 
 ### Changed（变更）
 
+- beta `bensz-r-developer` 修订为 0.2.2：示例包的帮助页由 roxygen2 生成，移除模板中预生成的 `man/`。macOS 重建结果逐文件一致，`R CMD check --no-manual` 通过。
 - beta `bensz-r-developer` 修订为 0.2.1：将 5 条行为验收用例并入已有 Package 工作流参考，移除 `evals/` 目录。strict 结构检查及用例逐条比对通过。
 - beta `bensz-rmd-rules` 修订为 0.31.0：围绕科学问题组织真实代码、图、表和文字，用日常例子和公式解释关键概念与发现。两套模板示范配对变化；macOS 完成实际渲染、数值复算与 targets 复用，Chrome 离线验证公式和窄屏阅读。
 - beta `bensz-rmd-rules` 修订为 0.30.4：以科学问题组织报告，分离代码展示和计算，集中托管 `00.Environments/` 与 renv；保留 simple、targets complex 和与 Rmd 同目录同名的 HTML。参考从 28 份减到 3 份，撤下旧接口及文字打分器。macOS 实测恢复、缓存失效、缺失补齐、含空格路径和 DT 浏览器交互；test-02 复用既有汇总完成独立报告。Linux 验证 Python 骨架，Linux/Windows 的 R 链未验证。
