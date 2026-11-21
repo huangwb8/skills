@@ -63,12 +63,12 @@ Profile first, then improve algorithms, vectorization, copies/I/O, and chunking 
 
 ## Demo Package
 
-[templates/demo-package/](templates/demo-package/) is a runnable minimal package with an S3 constructor/validator/print/execution method, `output.dir`/`cache.dir`, rollback-capable transactional outputs and a manifest, `filelock` cache locking, future-based parallelism, and testthat. It builds manual test data from `iris` and contains no private paths or real business data.
+[templates/demo-package/](templates/demo-package/) is a minimal R package template with an S3 constructor/validator/print/execution method, `output.dir`/`cache.dir`, rollback-capable transactional outputs and a manifest, `filelock` cache locking, future-based parallelism, and testthat. It builds manual test data from `iris` and contains no private paths or real business data. Copy the template to your project and generate its help pages with roxygen2 before testing, building, or installing it.
 
 ```r
-devtools::document("templates/demo-package")
-devtools::test("templates/demo-package")
-devtools::check("templates/demo-package", cran = FALSE)
+devtools::document("path/to/package")
+devtools::test("path/to/package")
+devtools::check("path/to/package", cran = FALSE)
 ```
 
 The demo passes testthat and `R CMD check --no-manual`. After copying it, replace the package name, author, license, domain object, and demonstration statistics.

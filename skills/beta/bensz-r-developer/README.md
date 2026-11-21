@@ -63,12 +63,12 @@
 
 ## Demo Package
 
-[templates/demo-package/](templates/demo-package/) 是可运行的最小包，包含 S3 构造/验证/打印/执行方法、`output.dir`/`cache.dir`、带回滚的事务输出与 manifest、`filelock` 缓存锁、future 并行和 testthat。它使用 `iris` 构造手测数据，不包含私人路径或真实业务数据。
+[templates/demo-package/](templates/demo-package/) 是最小 R 包模板，包含 S3 构造/验证/打印/执行方法、`output.dir`/`cache.dir`、带回滚的事务输出与 manifest、`filelock` 缓存锁、future 并行和 testthat。它使用 `iris` 构造手测数据，不包含私人路径或真实业务数据。复制到目标项目后，先用 roxygen2 生成帮助页，再测试、构建或安装。
 
 ```r
-devtools::document("templates/demo-package")
-devtools::test("templates/demo-package")
-devtools::check("templates/demo-package", cran = FALSE)
+devtools::document("path/to/package")
+devtools::test("path/to/package")
+devtools::check("path/to/package", cran = FALSE)
 ```
 
 示例已通过 testthat 和 `R CMD check --no-manual`；复制后必须替换包名、作者、许可证、领域对象与示例统计逻辑。

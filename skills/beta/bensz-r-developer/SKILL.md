@@ -105,7 +105,7 @@ Package 任务读取 [references/package-workflow.md](references/package-workflo
 
 #### 9. 使用 demo 起步
 
-`templates/demo-package/` 提供可运行 Package：S3 对象与方法、输出/缓存、手测块、future 并行和 testthat。复制后更换包名与领域语义，并运行：
+`templates/demo-package/` 演示 S3 对象与方法、输出/缓存、手测块、future 并行和 testthat。复制后更换包名与领域语义，先从 roxygen2 注释生成 `man/*.Rd`，再测试、构建或安装：
 
 ```r
 devtools::document("path/to/package")

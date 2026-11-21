@@ -10,7 +10,7 @@
 - 尊重调用方 future plan 的可复现并行；
 - testthat 对不变量、文件副作用和串并行等价的验证。
 
-运行：
+复制模板后，在新包根目录运行。`devtools::document()` 会从 `R/` 内的 roxygen2 注释生成 `man/*.Rd` 并更新 `NAMESPACE`。先生成帮助页，再测试、构建或安装；发布的源码包应包含生成的帮助页。
 
 ```r
 devtools::document(".")
