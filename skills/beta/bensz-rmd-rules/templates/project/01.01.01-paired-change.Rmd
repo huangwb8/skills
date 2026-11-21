@@ -94,10 +94,14 @@ omission_range <- switch(robustness$status,
 
 ## 摘要
 
-这份示例考察同一单位在基线与随访之间的平均变化，并检查整体结果是否容易被某一个单位左右。
-在这组合成数据中，我们对有限的随访减基线差值取均值，用 $t$ 区间刻画平均变化的不确定性。
-完整配对占 `r pair_count`，平均变化（测量单位）：**`r report_estimate$mean`**。`r report_estimate$confidence`：`r report_estimate$interval`。
-估计针对观测到完整配对的单位；对失访单位或变化原因的判断，需要额外证据。
+**背景** 两次测量的样本构成不同时，直接比较均值容易把构成差异混入变化。本报告估计同一单位从基线到随访的平均变化。
+
+**方法** 使用合成的前后测量数据，对完整配对的随访减基线差值取均值，并在可估计时用 $t$ 区间刻画不确定性。
+
+**结果** 完整配对占 `r pair_count`，平均变化（测量单位）为 **`r report_estimate$mean`**。`r report_estimate$confidence` `r report_estimate$interval`。
+
+<!-- 替换随附数据后，请根据新的分析结果改写示例解读与结论。 -->
+**结论** 在随附的合成样例中，有完整配对的单位在随访时平均读数较高，但置信区间仍容许总体平均变化为零。失访单位的变化和读数变化的原因仍需额外证据。
 
 ## 引言
 
@@ -169,7 +173,7 @@ DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%"
 
 ### 平均值背后，每个单位都在同一方向变化吗？
 
-用点图保留每个有效配对的变化，可以看出整体平均是否掩盖了相反方向或少数极端值。虚线标出零变化，
+有有效配对时，点图保留每个单位的变化，可以看出整体平均是否掩盖了相反方向或少数极端值。虚线标出零变化，
 点在虚线两侧的位置对应变化方向。纵向堆叠只为分开重叠的点。
 
 ```{r individual-changes, eval=length(observed)>0, dev.args=plot_device_args, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap=change_caption, fig.alt=change_alt}
@@ -179,7 +183,6 @@ graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
 graphics::abline(v = 0, lty = 2, col = "grey50")
 ```
 
-`r if (!length(observed)) "没有完整配对，无法绘制变化分布。"`
 在有效配对中，`r changed[["up"]]` 个单位上升，`r changed[["level"]]` 个持平，`r changed[["down"]]` 个下降。
 这些方向计数描述的是观测样本；区间描述的是平均变化的不确定性，不能用来预测个体的下一次读数。
 

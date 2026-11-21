@@ -36,7 +36,7 @@ def main() -> None:
     skill_root = Path(__file__).resolve().parents[1]
     templates = skill_root / "templates"
     project = templates / "project"
-    report_template = project / "report.Rmd"
+    report_template = project / "01.01.01-paired-change.Rmd"
     destination = args.destination
     source = report_template.read_text(encoding="utf-8")
     theme = HTML_THEMES[args.theme]

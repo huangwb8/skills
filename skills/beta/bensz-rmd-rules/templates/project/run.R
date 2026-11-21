@@ -50,7 +50,7 @@ main <- function(args) {
     prepare_environment(command)
     return(invisible(NULL))
   }
-  input <- if (length(args) == 2L) args[[2L]] else "report.Rmd"
+  input <- if (length(args) == 2L) args[[2L]] else "01.01.01-paired-change.Rmd"
   if (!file.exists(input) || dir.exists(input) || !grepl("\\.[Rr][Mm][Dd]$", input)) {
     stop("Provide the path of an existing Rmd, relative to the project root.")
   }

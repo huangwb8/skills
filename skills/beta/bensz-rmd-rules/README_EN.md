@@ -20,9 +20,9 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. The default Liquid Glass theme numbers section headings and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
+Open `01.01.01-paired-change.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. The default Liquid Glass theme numbers section headings and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
 
-The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
+The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available. If you replace the sample data, revise the interpretation and conclusions after reviewing the new results.
 
 ## When to use it
 
@@ -32,7 +32,7 @@ Use it to analyze data with R, deliver a scientific report readers can check, or
 
 Describe the reader, decision, data location, and any limits on analysis or access. The Skill uses targets and renv and delivers Rmd, HTML, analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check and reuse results through the formal entry point.
 
-Every new analysis delivers a paper-style research report. Each major result explains the choice of analysis, shows the actual code, and uses inline R to interpret the current values. Reports cover relevant robustness checks, quality control, and the limits of each conclusion. See [the full report guide](references/report.md#把完整研究写成论文式报告).
+Every new analysis delivers a paper-style research report. The abstract presents four labeled sections in the order Background, Methods, Results, and Conclusions. Each major result explains the choice of analysis, shows the actual code, and cites computed values through inline R. Write the interpretation, discussion, and conclusions directly in Markdown, grounding robustness, quality control, and the limits of each conclusion in the current evidence. See [the full report guide](references/report.md#把完整研究写成论文式报告).
 
 When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first; a longer common prefix means the reports address more closely related questions. The guide identifies the main report and optional reading. A single report needs no prefix. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序).
 

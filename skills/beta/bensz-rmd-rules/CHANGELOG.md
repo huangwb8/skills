@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.13 配对示例以 `01.01.01-paired-change.Rmd` 和 `01.01.01-paired-change.html` 演示三级阅读编号，生成器、默认入口与用法说明同步使用新名称。
+- macOS 核对默认构建、单独渲染、显式报告路径与可选附录。Linux 核对生成的 Rmd 和运行入口，Linux R 与 Windows 未实测。
+- 0.31.12 结果解读、讨论和摘要结论直接写在 Markdown 正文中。示例摘要按随附数据撰写结论，内联 R 引用分母、估计、区间和状态。
+- macOS 通过正式入口渲染随附样例与无配对样例，核对两份报告的摘要数值、状态和各自撰写的结论。Linux 和 Windows 未实测。
+- 0.31.11 新增结构式摘要。背景、方法、结果和结论各有明确标签，报告骨架使用四个短段落。macOS 通过正式入口渲染四种合成配对情形，核对摘要位置、数字及结论。Linux 的骨架生成结果与 macOS 一致，Linux R 和 Windows 未实测。
 - 0.31.10：图表默认用英文，报告正文按用户指定语言或请求所用语言撰写。配对示例支持分别切换图和表的语言。macOS 实际渲染并核对默认图表、语言覆盖和无有效配对的状态文字，Linux 验证生成骨架，Windows 未实测。
 - 0.31.9：新建 Liquid Glass 报告默认给正文各级章节标题编号，可在 Rmd 中设置 `number_sections: false` 关闭。macOS 通过正式入口渲染并检查了默认和关闭编号的 HTML，另核对 `plain` 和 `flatly` 的 YAML。Linux 和 Windows 未实测。
 - 0.31.8：多报告交付默认以科学问题、证据线和展开深度分配三级阅读编号，Rmd 和 HTML 使用相同文件名，README 顶部标明先读和选读。单报告无需编号，既有路径可通过索引兼容。通过 strict 结构、双语 README 和现有三报告案例的排序与链接核对。

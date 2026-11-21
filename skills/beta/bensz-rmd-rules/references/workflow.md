@@ -11,7 +11,7 @@
 | `R/`, `_targets.R`, `_targets/` | 正式计算函数、依赖图、可重建的 store；骨架的 `R/paired.R` 示范配对、估计和稳健性诊断 |
 | `products/`, `reports/` | 可复用的科学结果；单独交付的图、表和补充附件 |
 | `scripts/tests/`, `tmp/tests/<run-id>/`, `tmp/scratch/` | 按需放入项目测试、独立运行副本和探索产物 |
-| `run.R`, `report.Rmd`, `report.html` | 起步入口和报告；报告也可以放在项目内的其他位置，HTML 默认在 Rmd 旁 |
+| `run.R`, `01.01.01-paired-change.Rmd`, `01.01.01-paired-change.html` | 起步入口和报告。显式传入其他 Rmd 路径也可渲染，HTML 默认与所选 Rmd 同名并位于同一目录 |
 
 目录按需创建。用户已有的合法布局优先。正式输出与输入、环境、测试和 store 分开。正式入口从项目根运行，R chunk 中的相对路径以项目根为准；HTML 中的相对链接以 HTML 所在目录为准。生成的样例会随报告目录调整链接；若只交付 HTML，还需一并提供允许交付且报告引用的附件。
 
