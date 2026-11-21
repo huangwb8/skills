@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Fixed（修复）
 
+- `bensz-rmd-rules` 修订为 0.30.2：对齐 R 项目预检、隔离轻量执行和验收记录。收紧 renv、DAG、正式报告和测试 store 检查；两种模式默认使用合成 fixture，真实子集需显式指定来源；complex 可用隔离 store 验证正式 Rmd，simple 要求验证实际产物与科学不变量。macOS 定向回归 24 项、Linux Python 预检 14 项通过；Windows 原生 R 尚未验证。
 - `humanization` 修订为 3.0.2：修复控制入口写死 POSIX 托管 Python/BSK 路径，导致 Windows 原生托管环境被误拒绝的问题；Windows 经隔离托管解释器调用 BSK CLI，避免批处理展开路径，并固定 UTF-8。171 项定向回归、strict 结构、双语 README、临时安装副本与空白检查通过；Windows 分支为模拟验证，原生 Windows 整链待验。
 
 ### Changed（变更）
 
+- `bensz-rmd-rules` 修订为 0.30.3：正式 HTML 默认由渲染入口生成在源 Rmd 旁；`reports/` 用于单独交付的图、表和补充材料。macOS 上实际验证根目录、子目录、原位重建和 smoke 隔离。
 - `AGENTS.md` 新增通用代码跨操作系统约束，要求开发时充分考虑 macOS、Linux、Windows 的路径、命令、依赖及运行行为差异，并如实记录各平台验证范围。
 - `awesome-code` 更新至 3.0.6：在设计、前端实现与代码审查子 Agent 中加强界面文案约束，禁止无需求依据的口号、开发状态与填充说明，保留必要业务反馈及明确品牌需求；同步父级交接要求和指南。strict 结构、配置与引用路径、空白检查通过，完成 8 类文案边界语义走查；未进行模型行为基准或浏览器验收。
 
