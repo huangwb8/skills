@@ -14,7 +14,6 @@ HTML_THEMES = {
         "    toc: true\n"
         "    toc_float: true\n"
         "    toc_depth: 3\n"
-        "    number_sections: true\n"
         "    highlight: tango\n"
         "    css: templates/liquid-glass/liquid_glass_theme.css\n"
         "    includes:\n"

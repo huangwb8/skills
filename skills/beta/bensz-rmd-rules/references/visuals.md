@@ -1,8 +1,14 @@
 # HTML 主题与图表规范
 
+## HTML 章节编号
+
+新写或修订完整报告时，在原有渲染入口核对正文章节号。R Markdown 的 `html_document` 使用 `number_sections: true`，生成的三种示例主题共用这个默认值。用 `## 数据与方法` 和 `### 研究设计` 这类标题层级，让 Pandoc 生成对应的节号。标题文字省略手写数字，YAML 页首题名单独显示。
+
+已有项目保留主题与渲染入口，按实际使用的输出格式补齐编号设置。用户或投稿模板明确要求关闭编号时，在 `output.html_document` 下设 `number_sections: false`，或在项目使用的输出格式中设等效选项。成品检查见[测试与交付](delivery.md#先核对结果再读-html)。
+
 ## Liquid Glass HTML
 
-新项目的报告骨架默认启用 Liquid Glass，正文标题按层级自动编号。需要关闭编号时，在 `output.html_document` 下设置 `number_sections: false`。主题提供半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中图片和点击放大、代码复制和视图状态恢复。代码样式关闭字体连字，使 R 的 `<-` 保持原样。需要其它外观时用 `--theme plain` 或 `--theme flatly`；已有项目保留用户选择。
+报告骨架默认启用 Liquid Glass，提供半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中图片和点击放大、代码复制和视图状态恢复。代码样式关闭字体连字，使 R 的 `<-` 保持原样。需要其它外观时用 `--theme plain` 或 `--theme flatly`；已有项目保留用户选择。
 
 要给已有报告启用主题，把 Skill 的 [Liquid Glass 资源](../assets/liquid-glass/)复制到项目的 `templates/liquid-glass/`，合并以下 Rmd 配置，保留项目原有的公式和代码选项：
 
@@ -13,7 +19,6 @@ output:
     toc: true
     toc_float: true
     toc_depth: 3
-    number_sections: true
     highlight: tango
     code_folding: show
     css: templates/liquid-glass/liquid_glass_theme.css

@@ -1,11 +1,12 @@
 ---
-title: "同一单位前后测量，平均变化有多大？"
+title: "合成随访数据中同一单位测量值的平均变化与配对分析"
 lang: zh-CN
 params:
   plot_language: en
   table_language: en
 output:
   html_document:
+    number_sections: true
     code_folding: show
     mathjax: null
     pandoc_args: ["--mathml"]

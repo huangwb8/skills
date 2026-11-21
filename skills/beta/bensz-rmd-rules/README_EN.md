@@ -20,9 +20,9 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `01.01.01-paired-change.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. The default Liquid Glass theme numbers section headings and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
+Open `01.01.01-paired-change.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. The default Liquid Glass theme provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`. All three themes number body headings by default.
 
-The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available. If you replace the sample data, revise the interpretation and conclusions after reviewing the new results.
+The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available. If you replace the sample data, revise the title, interpretation, and conclusions to fit your study and results.
 
 ## When to use it
 
@@ -32,9 +32,9 @@ Use it to analyze data with R, deliver a scientific report readers can check, or
 
 Describe the reader, decision, data location, and any limits on analysis or access. The Skill uses targets and renv and delivers Rmd, HTML, analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check and reuse results through the formal entry point.
 
-Every new analysis delivers a paper-style research report. The abstract presents four labeled sections in the order Background, Methods, Results, and Conclusions. Each major result explains the choice of analysis, shows the actual code, and cites computed values through inline R. Write the interpretation, discussion, and conclusions directly in Markdown, grounding robustness, quality control, and the limits of each conclusion in the current evidence. See [the full report guide](references/report.md#把完整研究写成论文式报告).
+Every new analysis delivers a paper-style research report. The page title identifies the subject and scope of the analysis. Check it after confirming the main results. The abstract presents four labeled sections in the order Background, Methods, Results, and Conclusions. Each major result explains the choice of analysis, shows the actual code, and cites computed values through inline R. Write the interpretation, discussion, and conclusions directly in Markdown, grounding robustness, quality control, and the limits of each conclusion in the current evidence. See [the full report guide](references/report.md#把完整研究写成论文式报告).
 
-When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first; a longer common prefix means the reports address more closely related questions. The guide identifies the main report and optional reading. A single report needs no prefix. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序).
+When a delivery includes several standalone reports, start with the reading guide at the top of the project README. New Rmd and HTML pairs share a three-level prefix such as `01.01.01-`. Read lower numbers first; a longer common prefix means the reports address more closely related questions. The guide identifies the main report and optional reading. A single report can omit the filename prefix. Body section numbers follow the heading hierarchy. Set `number_sections: false` when numbering must be disabled. See [reading order for multiple reports](references/delivery.md#多报告的阅读顺序) and [HTML section numbering](references/visuals.md#html-章节编号).
 
 ## Examples
 
@@ -57,7 +57,7 @@ put the wide table in a searchable appendix, and reuse the fit when only prose c
 
 ## Environment and scripts
 
-`00.Environments/` holds the project environment, lockfile, and analysis settings. Use the [project generator](scripts/new_project.py) to start a new directory. Prepare the environment with `run.R prepare`, restore it from the lockfile with `run.R restore`, and use `run.R update-lock` when you intend to revise dependencies. See [computation, environment, and rebuild](references/workflow.md) for complete commands. This Skill is in the beta source and must be selected explicitly.
+The example keeps its environment, lockfile, and analysis settings in `00.Environments/`. Use the [project generator](scripts/new_project.py), set up your own project, or keep an existing entry point as appropriate for the study. In the example, prepare the environment with `run.R prepare`, restore it from the lockfile with `run.R restore`, and use `run.R update-lock` when you intend to revise dependencies. See [computation, environment, and rebuild](references/workflow.md) for complete commands. This Skill is in the beta source and must be selected explicitly.
 
 To adapt the starter example, find the main report and analysis entry point in the Skill's [project scaffold](templates/project/). Use `--detail` to add the [detail appendix](templates/detail/). The [assets directory](assets/) holds the Liquid Glass theme, which the generator copies when selected, and plotting code you can use as needed.
 

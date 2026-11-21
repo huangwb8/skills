@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.14 将正文章节编号移入共用的 HTML 配置，保留显式关闭编号的选项。新增正式题名的拟定与成品复核要求，明确配对骨架的各部分可按实际研究取用。
+- macOS 用正式入口构建三种主题和独立的合成外部队列报告，验证嵌套节号、目录和显式关闭编号。Chrome 实测 Liquid Glass 的桌面和窄屏跳转。test-02 的隔离副本无法复用原 store，使用相同 YAML、主题和标题层级的最小副本验证渲染。Linux 验证三种骨架生成，Linux R 和 Windows 未实测。
 - 0.31.13 配对示例以 `01.01.01-paired-change.Rmd` 和 `01.01.01-paired-change.html` 演示三级阅读编号，生成器、默认入口与用法说明同步使用新名称。
 - macOS 核对默认构建、单独渲染、显式报告路径与可选附录。Linux 核对生成的 Rmd 和运行入口，Linux R 与 Windows 未实测。
 - 0.31.12 结果解读、讨论和摘要结论直接写在 Markdown 正文中。示例摘要按随附数据撰写结论，内联 R 引用分母、估计、区间和状态。
