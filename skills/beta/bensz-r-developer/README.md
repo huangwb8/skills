@@ -90,7 +90,7 @@ devtools::check("templates/demo-package", cran = FALSE)
 - [类与 API](references/class-api-design.md)：S3/S4/R6 选择与最小对象契约。
 - [输出与缓存](references/io-cache-contract.md)：落盘、缓存身份、原子写入与 manifest。
 - [并行与性能](references/parallel-performance.md)：future、RNG、资源预算和 C++ 门禁。
-- [Package 工作流](references/package-workflow.md)：usethis/roxygen2/testthat/devtools 闭环。
+- [Package 工作流](references/package-workflow.md)：usethis/roxygen2/testthat/devtools 开发流程，附维护时使用的 [Skill 行为验收用例](references/package-workflow.md#skill-行为验收)。
 
 ## WHICHMODEL：模型选择
 

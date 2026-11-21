@@ -10,6 +10,7 @@
 
 ### Changed
 
+- 将 5 条 Skill 行为验收用例并入现有的 `references/package-workflow.md`，保留完整请求和预期行为；移除单独的 `evals/` 目录，同步双语 README。strict 结构检查及用例逐条比对通过。
 - `SKILL.md` 以主要交付物与复用范围区分 `bensz-rmd-rules`：本 Skill 主责可独立测试、文档化、版本化或跨项目复用的 R 函数/API/类/Package；分析本地 helper 仍归分析流程管理。
 - 补充混合任务协作顺序、近邻触发用例与 README 分流说明，版本更新至 `0.2.0`。
 - 经一轮 `auto-test-skill` 优化 demo：限制安全文件名，补齐对象与数值参数验证，并拒绝输出/缓存目录嵌套。

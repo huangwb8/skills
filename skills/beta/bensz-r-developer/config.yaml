@@ -1,6 +1,6 @@
 skill_info:
   name: bensz-r-developer
-  version: "0.2.0"
+  version: "0.2.1"
   description: "面向可复用 R 函数、稳定 API、类与 Package 的工程规范，与 R/Rmd 分析流程主责明确分离"
   author: "Bensz Conan"
   category: "R development"

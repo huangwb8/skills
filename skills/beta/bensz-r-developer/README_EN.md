@@ -90,7 +90,7 @@ The demo passes testthat and `R CMD check --no-manual`. After copying it, replac
 - [Classes and APIs](references/class-api-design.md): S3/S4/R6 selection and minimal object contracts.
 - [Outputs and cache](references/io-cache-contract.md): persistence, cache identity, atomic writes, and manifests.
 - [Parallelism and performance](references/parallel-performance.md): future, RNG, resource budgets, and C++ gates.
-- [Package workflow](references/package-workflow.md): the usethis/roxygen2/testthat/devtools loop.
+- [Package workflow](references/package-workflow.md): the usethis/roxygen2/testthat/devtools loop, with [Skill behavior cases](references/package-workflow.md#skill-行为验收) for maintainers.
 
 ## WHICHMODEL: model selection
 
