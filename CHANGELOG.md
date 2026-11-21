@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.1.2] - 2026-11-21
+
 ### Fixed（修复）
 
+- `install-bensz-skills` 0.7.4 用不区分大小写的正则识别 Skill 根目录的 README 文档，普通安装、MD5 比较和旧副本更新共用此规则。
 - beta `bensz-rmd-rules` 修订为 0.31.3：Rmd 报告展示的每张表都必须使用 `DT::datatable()`，两种骨架默认用 DT 渲染正文汇总表。
 - beta `bensz-rmd-rules` 修订为 0.31.2：恢复 Liquid Glass 默认主题及响应式目录、图片放大、复制代码；恢复出版级可读性、英文标签、矢量 PDF 和可选 R 绘图样式模板。
 - beta `bensz-rmd-rules` 修订为 0.31.1：两种骨架共用配对校验、估计和报告正文；区间不可估时保留可用的点估计，修正子目录报告链接并在环境或输出冲突时提前报错。macOS 验证真实 R 构建、缓存复用和 Chrome 交互；Linux 验证 Python 骨架。
@@ -17,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- beta `bensz-rmd-rules` 修订为 0.31.10：图表默认用英文，报告正文按用户指定语言或请求所用语言撰写。
 - beta `bensz-rmd-rules` 修订为 0.31.8：多报告交付默认用三级阅读编号，README 标明主报告和可选阅读。单报告无需编号，既有文件可保留原路径。通过 strict 结构、双语 README 及现有三报告案例的排序和链接核对。
 - beta `bensz-rmd-rules` 修订为 0.31.7：整理项目骨架、明细附录和主题及绘图资源，移除附录演示 CSV。`--detail` 直接展示正文所用的配对记录。macOS 实际构建并验证新增测量后正文和附录同步更新；macOS 和 Linux 验证默认骨架和附录参数。
 - beta `bensz-rmd-rules` 修订为 0.31.6：移除双模式，完整深度报告统一由 targets 与 renv 支撑；新版骨架命令直接接收目标目录。macOS 验证冷构建、纯渲染复用、缺失结果补齐、参数及输入变动；Chrome 核对完整报告，Linux 验证骨架生成。
@@ -29,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - `bensz-rmd-rules` 修订为 0.30.3：正式 HTML 默认由渲染入口生成在源 Rmd 旁；`reports/` 用于单独交付的图、表和补充材料。macOS 上实际验证根目录、子目录、原位重建和 smoke 隔离。
 - `AGENTS.md` 新增通用代码跨操作系统约束，要求开发时充分考虑 macOS、Linux、Windows 的路径、命令、依赖及运行行为差异，并如实记录各平台验证范围。
 - `awesome-code` 更新至 3.0.6：在设计、前端实现与代码审查子 Agent 中加强界面文案约束，禁止无需求依据的口号、开发状态与填充说明，保留必要业务反馈及明确品牌需求；同步父级交接要求和指南。strict 结构、配置与引用路径、空白检查通过，完成 8 类文案边界语义走查；未进行模型行为基准或浏览器验收。
+- 发布仓库 v5.1.2：根级双语 README 与最新源代码对齐，`bensz-rmd-rules` 描述更新为统一 targets 流水线、论文式报告、多报告三级阅读编号与 `--detail` 明细附录；README pair 校验通过。BSK 2.1.6 与 BSI 1.0.2 的源码和 PyPI 均已是目标版本，按条件跳过修改、上传与重装。
 
 ## [5.1.1] - 2026-11-14
 

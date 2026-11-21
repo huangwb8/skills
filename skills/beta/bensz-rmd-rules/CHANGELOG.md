@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.10：图表默认用英文，报告正文按用户指定语言或请求所用语言撰写。配对示例支持分别切换图和表的语言。macOS 实际渲染并核对默认图表、语言覆盖和无有效配对的状态文字，Linux 验证生成骨架，Windows 未实测。
+- 0.31.9：新建 Liquid Glass 报告默认给正文各级章节标题编号，可在 Rmd 中设置 `number_sections: false` 关闭。macOS 通过正式入口渲染并检查了默认和关闭编号的 HTML，另核对 `plain` 和 `flatly` 的 YAML。Linux 和 Windows 未实测。
 - 0.31.8：多报告交付默认以科学问题、证据线和展开深度分配三级阅读编号，Rmd 和 HTML 使用相同文件名，README 顶部标明先读和选读。单报告无需编号，既有路径可通过索引兼容。通过 strict 结构、双语 README 和现有三报告案例的排序与链接核对。
 - 0.31.7：将完整项目骨架归入 `templates/project/`，可选附录归入 `templates/detail/`，主题及绘图资源移入 `assets/`。移除独立的演示明细 CSV；`--detail`（兼容 `--dt`）直接展示正文所用的逐单位差值和纳入状态。默认骨架和生成项目的主题路径保持原样。
 - macOS 实际渲染附录并对照原始记录，新增一条测量后，附录从 8 行更新为 9 行，并与正文的有效配对数一致。macOS 和 Linux 验证默认骨架及两个附录参数，生成器不再为附录复制数据或添加直接依赖。Linux R 和 Windows 未实测。

@@ -6,11 +6,12 @@
 ```{r detail-table, echo=FALSE}
 included <- is.finite(data$change)
 detail <- data.frame(
-  单位 = data$unit,
-  `变化量（测量单位）` = replace(data$change, !included, NA_real_),
-  纳入估计 = ifelse(included, "是", "否"),
-  check.names = FALSE
+  unit = data$unit,
+  change = replace(data$change, !included, NA_real_),
+  included = ifelse(included, table_text("Yes", "是"), table_text("No", "否"))
 )
 DT::datatable(detail, rownames = FALSE, class = "stripe compact", width = "100%",
+              colnames = table_text(c("Unit", "Change (units)", "Included in estimate"),
+                                    c("单位", "变化量（测量单位）", "纳入估计")),
               options = list(pageLength = 8, lengthChange = FALSE, scrollX = TRUE))
 ```

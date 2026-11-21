@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
-import fnmatch
 import hashlib
 import json
 import os
@@ -46,7 +45,14 @@ if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
 from i18n import get_translator
-from bootstrap_install import assert_unmanaged, guarded_exit, resolve_skill_aliases
+from bootstrap_install import (
+    assert_unmanaged,
+    copytree_ignore as _copytree_ignore,
+    guarded_exit,
+    has_installed_readme_document,
+    resolve_skill_aliases,
+    should_ignore_rel_path as _should_ignore_rel_path,
+)
 from remove_legacy_skills import (
     load_legacy_skill_names as _load_legacy_skill_names,
     remove_legacy_skills as _remove_legacy_skills,
@@ -263,54 +269,6 @@ def _run_silent_update(*, t: get_translator().__class__) -> int:
         return 0
 
 
-_IGNORE_DIR_NAMES = {
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".tox",
-    ".nox",
-    "test",
-    "tests",
-    "plans",
-}
-_IGNORE_FILE_NAMES = {".DS_Store"}
-_IGNORE_ROOT_FILE_NAMES = {"readme.md", "changelog.md"}
-_IGNORE_GLOBS = ("*.pyc", "*.pyo")
-
-
-def _copytree_ignore(src_root: Path):
-    """Return a copytree ignore callback based on installable relative paths."""
-
-    def _ignore(current_dir: str, names: list[str]) -> list[str]:
-        current_path = Path(current_dir)
-        ignored: list[str] = []
-        for name in names:
-            try:
-                rel_path = (current_path / name).relative_to(src_root)
-            except ValueError:
-                continue
-            if _should_ignore_rel_path(rel_path):
-                ignored.append(name)
-        return ignored
-
-    return _ignore
-
-
-def _should_ignore_rel_path(rel_path: Path) -> bool:
-    if len(rel_path.parts) == 1 and rel_path.name.lower() in _IGNORE_ROOT_FILE_NAMES:
-        return True
-    if any(part.startswith(".") for part in rel_path.parts):
-        return True
-    if any(part in _IGNORE_DIR_NAMES for part in rel_path.parts):
-        return True
-    if rel_path.name in _IGNORE_FILE_NAMES:
-        return True
-    if any(fnmatch.fnmatch(rel_path.name, pattern) for pattern in _IGNORE_GLOBS):
-        return True
-    return False
-
-
 def _path_is_within(path: Path, root: Path) -> bool:
     """Return True if path is root or inside root (after resolve)."""
     try:
@@ -491,6 +449,9 @@ def _get_installed_md5(dest_dir: Path, target: Target) -> str | None:
         dest_dir: 技能目标目录
         target: 目标平台信息（codex/claude）
     """
+    if has_installed_readme_document(dest_dir):
+        return None
+
     # 平台特定的 manifest 文件名（避免不同平台的版本记录互相干扰）
     manifest_file = dest_dir / f".skill-manifest.{target.label}.json"
     if manifest_file.exists():

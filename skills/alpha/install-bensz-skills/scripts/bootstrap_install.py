@@ -127,7 +127,7 @@ def _configure_console_streams() -> None:
 
 MIN_PYTHON = (3, 8)
 MANIFEST_SCHEMA_VERSION = 1
-FALLBACK_CONFIG_VERSION = "0.7.2"
+FALLBACK_CONFIG_VERSION = "0.7.4"
 FALLBACK_SKILL_ALIASES = {"nsfc-humanization": "humanization"}
 REMOTE_CONFIG_PATH = "skills/alpha/install-bensz-skills/config.yaml"
 INSTALLATION_ROOT_PARTS = (".bensz-skills", "installation")
@@ -180,7 +180,10 @@ IGNORE_DIR_NAMES = {
     "plans",
 }
 IGNORE_FILE_NAMES = {".DS_Store"}
-IGNORE_ROOT_FILE_NAMES = {"readme.md", "changelog.md"}
+_README_DOCUMENT_NAME = re.compile(
+    r"readme|.*readme.*\.(?:adoc|asciidoc|html?|markdown|md|mdx|org|rst|text|txt)",
+    re.IGNORECASE,
+)
 IGNORE_GLOBS = ("*.pyc", "*.pyo")
 
 MESSAGES = {
@@ -405,9 +408,10 @@ def print_msg(lang: str, key: str, dry_run: bool = False, **kwargs: object) -> N
     print(message)
 
 
-def should_ignore_rel_path(rel_path: Path) -> bool:
-    if len(rel_path.parts) == 1 and rel_path.name.lower() in IGNORE_ROOT_FILE_NAMES:
-        return True
+def should_ignore_rel_path(rel_path: Path, *, is_dir: bool = False) -> bool:
+    if len(rel_path.parts) == 1 and not is_dir:
+        if rel_path.name.lower() == "changelog.md" or _README_DOCUMENT_NAME.fullmatch(rel_path.name):
+            return True
     if any(part.startswith(".") for part in rel_path.parts):
         return True
     if any(part in IGNORE_DIR_NAMES for part in rel_path.parts):
@@ -420,15 +424,18 @@ def should_ignore_rel_path(rel_path: Path) -> bool:
 
 
 def copytree_ignore(src_root: Path):
+    """Return a copytree ignore callback based on installable relative paths."""
+
     def ignore(current_dir: str, names: list[str]) -> list[str]:
         current_path = Path(current_dir)
         ignored = []
         for name in names:
+            path = current_path / name
             try:
-                rel_path = (current_path / name).relative_to(src_root)
+                rel_path = path.relative_to(src_root)
             except ValueError:
                 continue
-            if should_ignore_rel_path(rel_path):
+            if should_ignore_rel_path(rel_path, is_dir=len(rel_path.parts) == 1 and path.is_dir()):
                 ignored.append(name)
         return ignored
 
@@ -465,7 +472,19 @@ def parse_skill_filter(raw_values: list[str] | None) -> list[str]:
     return skill_names
 
 
+def has_installed_readme_document(skill_dir: Path) -> bool:
+    """Detect an older copy before an identical installable hash can skip it."""
+    if not skill_dir.is_dir():
+        return False
+    return any(
+        _README_DOCUMENT_NAME.fullmatch(entry.name) and not entry.is_dir()
+        for entry in skill_dir.iterdir()
+    )
+
+
 def installed_md5(dest_dir: Path, target: Target) -> str | None:
+    if has_installed_readme_document(dest_dir):
+        return None
     manifest_file = dest_dir / f".skill-manifest.{target.label}.json"
     if manifest_file.exists():
         try:

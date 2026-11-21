@@ -3,6 +3,7 @@ title: "同一单位前后测量，平均变化有多大？"
 lang: zh-CN
 params:
   plot_language: en
+  table_language: en
 output:
   html_document:
     code_folding: show
@@ -41,15 +42,42 @@ source_excerpt <- function(name) {
 observed <- sample$changes
 changed <- sample$directions
 pair_count <- sprintf("%d / %d", estimate$n, estimate$n_total)
-mean_value <- if (estimate$n) sprintf("%+.2f", estimate$estimate) else "不可估计"
-confidence_label <- sprintf("%g%% t 区间", 100 * estimate$confidence)
-interval_value <- switch(estimate$interval_status,
-  ok = sprintf("%.2f 至 %.2f", estimate$lower, estimate$upper),
-  no_pairs = "不可估计：没有完整配对",
-  one_pair = "不可估计：只有一条完整配对",
-  no_variation = "不可估计：样本差值没有变异",
-  numeric_limit = "不可估计：当前数值精度下未得到可用区间"
+plot_language <- match.arg(params$plot_language, c("en", "zh"))
+table_language <- match.arg(params$table_language, c("en", "zh"))
+table_text <- function(en, zh) if (table_language == "zh") zh else en
+plot_text <- function(en, zh) if (plot_language == "zh") zh else en
+
+format_estimate <- function(language) {
+  label <- function(en, zh) if (language == "zh") zh else en
+  list(
+    mean = if (estimate$n) sprintf("%+.2f", estimate$estimate) else label("Not estimable", "不可估计"),
+    confidence = sprintf(label("%g%% t confidence interval", "%g%% t 区间"), 100 * estimate$confidence),
+    interval = switch(estimate$interval_status,
+      ok = sprintf(label("%.2f to %.2f", "%.2f 至 %.2f"), estimate$lower, estimate$upper),
+      no_pairs = label("Not estimable (no complete pairs)", "不可估计：没有完整配对"),
+      one_pair = label("Not estimable (one complete pair)", "不可估计：只有一条完整配对"),
+      no_variation = label("Not estimable (no variation in changes)", "不可估计：样本差值没有变异"),
+      numeric_limit = label("Not estimable at the current numerical precision",
+                            "不可估计：当前数值精度下未得到可用区间")
+    )
+  )
+}
+report_estimate <- format_estimate("zh")
+table_estimate <- format_estimate(table_language)
+
+change_caption <- plot_text(
+  "Follow-up minus baseline for complete pairs. Overlapping points are stacked vertically for visibility.",
+  "完整配对的随访减基线差值。重叠点沿纵向堆叠；纵向位置不代表另一项测量。"
 )
+change_alt <- plot_text(
+  "Dot plot of individual changes for complete pairs, with a dashed line at zero.",
+  "点图显示各完整配对的变化，虚线为零。"
+)
+plot_device_args <- if (plot_language == "zh" && capabilities("cairo")) {
+  list(type = "cairo")
+} else {
+  list()
+}
 zero_relation <- if (estimate$interval_status != "ok") {
   "不可判断"
 } else if (estimate$lower <= 0 && estimate$upper >= 0) {
@@ -68,7 +96,7 @@ omission_range <- switch(robustness$status,
 
 这份示例考察同一单位在基线与随访之间的平均变化，并检查整体结果是否容易被某一个单位左右。
 在这组合成数据中，我们对有限的随访减基线差值取均值，用 $t$ 区间刻画平均变化的不确定性。
-完整配对占 `r pair_count`，平均变化（测量单位）：**`r mean_value`**。`r confidence_label`：`r interval_value`。
+完整配对占 `r pair_count`，平均变化（测量单位）：**`r report_estimate$mean`**。`r report_estimate$confidence`：`r report_estimate$interval`。
 估计针对观测到完整配对的单位；对失访单位或变化原因的判断，需要额外证据。
 
 ## 引言
@@ -126,14 +154,17 @@ $$
 
 ```{r summary-table}
 summary_table <- data.frame(
-  指标 = c("完整配对 / 总单位数", "平均变化（测量单位）", confidence_label),
-  结果 = c(pair_count, mean_value, interval_value)
+  metric = c(table_text("Complete pairs / total units", "完整配对 / 总单位数"),
+             table_text("Mean change (units)", "平均变化（测量单位）"),
+             table_estimate$confidence),
+  result = c(pair_count, table_estimate$mean, table_estimate$interval)
 )
 DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%",
+              colnames = table_text(c("Measure", "Result"), c("指标", "结果")),
               options = list(dom = "t", paging = FALSE, ordering = FALSE))
 ```
 
-完整配对的平均变化（测量单位）为 `r mean_value`；`r confidence_label`：`r interval_value`。
+完整配对的平均变化（测量单位）为 `r report_estimate$mean`；`r report_estimate$confidence`：`r report_estimate$interval`。
 本次区间是否包含零：`r zero_relation`。区间包含零时，数据不足以确定总体平均变化的方向；这也不能作为没有变化的证据。
 
 ### 平均值背后，每个单位都在同一方向变化吗？
@@ -141,9 +172,8 @@ DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%"
 用点图保留每个有效配对的变化，可以看出整体平均是否掩盖了相反方向或少数极端值。虚线标出零变化，
 点在虚线两侧的位置对应变化方向。纵向堆叠只为分开重叠的点。
 
-```{r individual-changes, eval=length(observed)>0, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap="完整配对的随访减基线差值。重叠点沿纵向堆叠；纵向位置不代表另一项测量。", fig.alt="点图显示各完整配对的变化，虚线为零。"}
-plot_language <- match.arg(params$plot_language, c("en", "zh"))
-axis_label <- if (plot_language == "zh") "随访减基线（测量单位）" else "Follow-up minus baseline (units)"
+```{r individual-changes, eval=length(observed)>0, dev.args=plot_device_args, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap=change_caption, fig.alt=change_alt}
+axis_label <- plot_text("Follow-up minus baseline (units)", "随访减基线（测量单位）")
 graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
                      xlim = range(c(0, observed)), xlab = axis_label)
 graphics::abline(v = 0, lty = 2, col = "grey50")
@@ -190,13 +220,24 @@ if (!all(count_ok, point_ok, interval_ok, omission_ok)) {
 }
 excluded <- estimate$n_total - estimate$n
 qc_summary <- data.frame(
-  检查 = c("配对分母与方向计数", "正式估计与有效差值均值", "区间与估计状态", "逐次移除覆盖"),
-  观察结果 = c(sprintf("%s（排除 %d）", pair_count, excluded), mean_value, interval_value,
-              sprintf("%d / %d", robustness$n_checks, expected_checks)),
-  判定 = c("一致", "一致", if (estimate$interval_status == "ok") "端点与估计一致" else "无区间，状态一致",
-           if (expected_checks) "覆盖一致" else "无需运行")
+  check = c(table_text("Pair counts and change directions", "配对分母与方向计数"),
+            table_text("Estimate and mean of valid changes", "正式估计与有效差值均值"),
+            table_text("Interval and estimation status", "区间与估计状态"),
+            table_text("Leave-one-out coverage", "逐次移除覆盖")),
+  observed = c(sprintf(table_text("%s (%d excluded)", "%s（排除 %d）"), pair_count, excluded),
+               table_estimate$mean, table_estimate$interval,
+               sprintf("%d / %d", robustness$n_checks, expected_checks)),
+  assessment = c(rep(table_text("Consistent", "一致"), 2),
+                 if (estimate$interval_status == "ok") {
+                   table_text("Bounds agree with estimate", "端点与估计一致")
+                 } else {
+                   table_text("Missing interval matches status", "无区间，状态一致")
+                 },
+                 if (expected_checks) table_text("Coverage verified", "覆盖一致") else
+                   table_text("Not required", "无需运行"))
 )
 DT::datatable(qc_summary, rownames = FALSE, class = "compact", width = "100%",
+              colnames = table_text(c("Check", "Observed result", "Assessment"), c("检查", "观察结果", "判定")),
               options = list(dom = "t", paging = FALSE, ordering = FALSE))
 ```
 

@@ -232,6 +232,71 @@ def make_skill(root: Path, name: str, body: str = "content") -> Path:
     return skill
 
 
+@pytest.mark.parametrize("entrypoint", ["local", "remote", "bootstrap"])
+def test_install_excludes_root_readme_documents(tmp_path, monkeypatch, entrypoint):
+    home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
+    source = tmp_path / "source"
+    skill = make_skill(source, "demo")
+    readmes = ("README", "README.md", "README_EN.md", "README.zh-CN.MD", "guide-ReadMe.rst")
+    for name in readmes:
+        (skill / name).write_text("Human-facing documentation", encoding="utf-8")
+    nested_readme = skill / "references" / "README_EN.md"
+    nested_readme.parent.mkdir()
+    nested_readme.write_text("Skill reference", encoding="utf-8")
+    runtime_files = ("render-readme.py", "make-readme", "README.md.template")
+    for name in runtime_files:
+        (skill / name).write_text("Skill resource", encoding="utf-8")
+    resource_dir = skill / "readme-examples.md"
+    resource_dir.mkdir()
+    (resource_dir / "example.json").write_text("{}", encoding="utf-8")
+
+    if entrypoint == "bootstrap":
+        monkeypatch.setattr(bootstrap, "load_remote_config_contract", lambda: None)
+        monkeypatch.setattr(bootstrap, "load_legacy_skill_names_from_remote_config", lambda: None)
+        monkeypatch.setattr(bootstrap, "download_source", lambda *_: (source, False))
+        run_install = bootstrap.main
+        args = ["--source", "general"]
+    elif entrypoint == "remote":
+        monkeypatch.setattr(install, "_check_git_available", lambda: True)
+        monkeypatch.setattr("builtins.input", lambda _: "y")
+        monkeypatch.setattr(
+            install, "_download_remote_source",
+            lambda *_, **__: install.RemoteDownloadResult(skills_dir=source),
+        )
+        run_install = install.main
+        args = ["--remote", "--check", "--general"]
+    else:
+        run_install = install.main
+        args = ["--source", str(source)]
+    args.extend(["--skill", "demo", "--codex"])
+
+    assert run_install(args) == 0
+    installed = home / ".codex" / "skills" / "demo"
+    assert all(not (installed / name).exists() for name in readmes)
+    assert (installed / "references" / nested_readme.name).read_text(encoding="utf-8") == "Skill reference"
+    assert all((installed / name).is_file() for name in runtime_files)
+    assert (installed / resource_dir.name / "example.json").is_file()
+
+    marker = installed / ".unchanged"
+    marker.touch()
+    for name in readmes:
+        (skill / name).write_text("Updated human-facing documentation", encoding="utf-8")
+    assert run_install(args) == 0
+    assert marker.exists()
+
+    manifest = installed / ".skill-manifest.codex.json"
+    for with_manifest, name in [(True, "readme_en.MD"), (False, "guide-ReadMe.rst")]:
+        assert manifest.is_file()
+        if not with_manifest:
+            manifest.unlink()
+        stale_readme = installed / name
+        stale_readme.write_text("Left by an older installer", encoding="utf-8")
+        assert run_install(args) == 0
+        assert not stale_readme.exists()
+        assert manifest.is_file()
+
+
 def test_default_source_prefers_alpha_and_does_not_implicitly_use_pipelines(tmp_path, monkeypatch):
     # Arrange: both the historical and canonical layouts exist.
     make_skill(tmp_path / "skills" / "alpha", "canonical")

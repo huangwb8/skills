@@ -68,7 +68,7 @@ R Markdown HTML 默认 `code_folding: show`，单个长块可用 `class.source =
 
 ## 用 DT 展示报告表格
 
-图形编码、图内语言、独立图件和报告主题的默认要求见[主题与图表规范](visuals.md)。
+图形编码、图表语言、独立图件和报告主题的默认要求见[主题与图表规范](visuals.md)。
 
 只要在 Rmd 报告里展示表格，就必须用 `DT::datatable()`，包括正文里的短汇总表、附录和长宽明细。短表可只显示表格（如 `options = list(dom = "t", paging = FALSE, ordering = FALSE)`）；明细按需启用搜索、排序、分页或 `scrollX`。将 `DT` 纳入项目依赖。直接在代码块输出 widget，赋值后显式输出；循环或折叠区须在浏览器复核。填写单位、精度、分母、缺失和特殊编码。
 

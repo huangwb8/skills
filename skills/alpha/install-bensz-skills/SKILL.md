@@ -238,7 +238,7 @@ python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.gith
 
 脚本使用 **MD5 哈希值**进行智能版本控制：
 
-- **版本计算**：对 skill 目录内的可安装文件进行 MD5 计算（排除 `tests/`、`plans/`、缓存与临时文件，以及 skill 根目录下给人看的 `README.md` / `CHANGELOG.md`）
+- **版本计算**：普通安装仅对可安装文件计算 MD5，使用与复制相同的排除规则。
 - **版本存储**：安装后在目标目录生成平台特定 manifest（`.skill-manifest.{codex,claude}.json`）记录版本信息
 - **智能安装**：
   - ✅ **已安装且版本未变**：跳过，不重复安装
@@ -287,7 +287,7 @@ installed: /Users/xxx/.claude/skills/nsfc-bib-manager
 #### 安装策略（脚本保证）
 
 - 仅安装"包含 `SKILL.md` 的目录"（即每个 skill 的根目录）。
-- skill 根目录下的 `README.md`、`CHANGELOG.md` 不会被复制到系统级目录，避免把面向人的说明文档带进 AI 的技能上下文。
+- 普通安装排除 skill 根目录的 `CHANGELOG.md`，并用不区分大小写的正则排除 `README` 和文件名含 `readme` 的文档（如 `README_EN.md`、`README.zh-CN.MD`、`guide-readme.rst`）。保留 `render-readme.py`、`README.md.template` 和子目录中的 README 等资源。再次安装时，已安装副本根目录中残留的 README 文档会随旧副本替换而清除。
 - **技能类型控制**：通过 SKILL.md 中的 `category` 字段控制（`normal` 可安装，`auxiliary` 和 `test` 不安装）。
 - **MD5 版本检查**：优先检查 `.skill-manifest.{codex,claude}.json`，回退到重新计算
 - **直接替换**：发现到目标路径已存在同名目录且版本变化时，直接删除旧版本并安装新版本（不备份）

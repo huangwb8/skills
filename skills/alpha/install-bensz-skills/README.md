@@ -335,7 +335,7 @@ python3 "${INSTALLER%install.py}remove_legacy_skills.py" --claude --dry-run
 - `category: normal` 的 skill 会被安装；`auxiliary` 和 `test` 类型不会安装。
 - 当前版本的 `install-bensz-skills` 自身也是 `normal` skill，因此全量安装或 `--skill install-bensz-skills` 都可以更新它自己。
 - 每个 skill 会计算可安装文件的 MD5，未变化则跳过，变化则删除旧目录并复制新目录。
-- skill 根目录下的 `README.md` 和 `CHANGELOG.md` 不会安装进系统级目录，避免把面向人类的文档带进 AI 技能上下文。
+- 普通安装在复制和 MD5 比较时排除 skill 根目录的 `CHANGELOG.md`、无扩展名的 `README`，以及文件名含 `readme` 的 Markdown、reStructuredText、AsciiDoc、Org、纯文本或 HTML 文档，匹配时忽略大小写。`render-readme.py`、`README.md.template` 和子目录中的 README 仍可作为 skill 资源安装。再次安装时，已安装副本根目录中残留的 README 文档会随旧副本替换而清除。
 - `--skill` 只是过滤“要处理哪些 skill”，不会改变安装/更新判断逻辑。
 
 ## 常见问题

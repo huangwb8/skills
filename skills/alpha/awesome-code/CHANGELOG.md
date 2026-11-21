@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added（新增）
+- `awesome-code` 更新至 `3.0.7`。子 Agent `writing-plans` 新增 `research` 风格和默认 Markdown 计划结构，按科学问题、可检验假设、子问题、实验设计和结果判读组织科研计划。原有风格迁入 `general` 并继续作为默认选项，指南直接说明计划结构和交付要求。计划入口按用户指定风格或主要目标选用独立指南。
 - 新增 `plans/2026-05-03-ai-autonomous-planning.md`，规划将 `awesome-code` 从关键词硬编码分派重构为 AI 自主规划上下文收集器，并同步更新测试与配置边界。
 - 新增轻量测试目录 `tests/2026-05-03-ai-autonomous-planning.md/`，包含测试规划文档、pytest 输出与测试报告，验证自主规划模式的基础流程可运行。
 - 新增 `plans/2026-04-25-karpathy-coding-discipline-optimization.md`，规划将 andrej-karpathy-skills 的“先澄清、保持简单、外科手术式修改、目标驱动验证”转化为 `awesome-code` 的调度门禁、执行纪律和子代理协作规范。

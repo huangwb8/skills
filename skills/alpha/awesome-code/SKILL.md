@@ -76,7 +76,7 @@ python3 .codex/skills/awesome-code/scripts/get_path.py
 | context-optimizer | 上下文管理与优化 |
 | brainstorming | 交互式设计优化 |
 | mirror-optimizer | 镜像源优化 |
-| writing-plans | 实施计划与任务拆解 |
+| writing-plans | 通用实施计划，以及围绕科学问题的实验与分析计划 |
 | multi-agent-coordinator | 多代理协调 |
 
 #### 核心工作流

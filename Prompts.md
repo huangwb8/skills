@@ -3,7 +3,7 @@
 - 更新
 
 ```
-repo-version = 5.1.1
+repo-version = 5.1.2
 bsk-version = 2.1.6
 identity-version = 1.0.2
 

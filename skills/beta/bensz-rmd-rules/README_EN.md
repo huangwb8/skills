@@ -20,7 +20,7 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
+Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. The default Liquid Glass theme numbers section headings and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
 
 The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
 
@@ -66,6 +66,7 @@ To adapt the starter example, find the main report and analysis entry point in t
 - **Can I edit the report on its own?** Yes. Run `Rscript --vanilla run.R report` in a starter project. Missing or stale targets results prompt you to run `Rscript --vanilla run.R build`.
 - **Where does the HTML go?** By default it shares the Rmd's directory and basename. Use `reports/` for standalone figures and tables, and `products/` for reusable results, according to the project's layout.
 - **How should I display tables?** Use `DT::datatable()` for every table in the main text or appendix. Hide controls on compact summaries and enable them as needed on detail tables. All embedded data is sent with the HTML, so check permissions before publishing.
-- **What is the default figure style?** Use publication legibility, a white background, and English labels. Put titles and interpretation in the caption or text. Prefer vector PDF for standalone static figures.
+- **What language do reports, figures, and tables use?** Figures and tables default to English for reuse in manuscripts. Report prose follows your requested language or, if unspecified, the language of your request. You can specify a different language for figures and tables. In the paired example, set `params.plot_language` or `params.table_language` to `zh` in the Rmd to switch figures or tables to Chinese independently.
+- **What is the default figure style?** Use readable type, a publication-ready palette, and a white background. Put the figure title in the caption and the interpretation in the report prose. Prefer vector PDF for standalone static figures.
 
 More: [inference and reporting](references/report.md) · [themes and figures](references/visuals.md) · [testing and delivery](references/delivery.md)

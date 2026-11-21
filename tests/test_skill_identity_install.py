@@ -51,7 +51,7 @@ def signed(tmp_path, monkeypatch):
         f'skill_info:\n  name: sample\n  version: "0.1.0"\n  identity:\n    publisher_id: {pub}\n    skill_key: sample\n',
         encoding="utf-8",
     )
-    for name in ("SKILL.md", "README.md", ".asset"):
+    for name in ("SKILL.md", "README.md", "README_EN.md", ".asset"):
         (content / name).write_text("public synthetic fixture", encoding="utf-8")
     auth = authorize(
         root, public_hex(key), ["sample"], not_before=0, expires_at=now + 600
@@ -78,6 +78,7 @@ def test_public_strict_install(signed):
     )
     assert (target / "sample/.asset").is_file()
     assert (target / "sample/README.md").is_file()
+    assert (target / "sample/README_EN.md").is_file()
     assert not (target / "sample/.skill-manifest.codex.json").exists()
     assert (target / ".bensz-skill-identity/records/sample.json").is_file()
     assert not (target.parent.parent / ".claude").exists()

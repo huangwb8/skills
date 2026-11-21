@@ -101,7 +101,7 @@ Start with these entry points for common tasks:
 
 `humanization` allows up to five external review rounds. If the fifth round still fails, it delivers the last draft with an explanation of its unapproved status. The dedicated review targets empty disclaimers and imagined rebuttals while preserving necessary qualifications; writing quality still needs author evaluation.
 
-The beta candidate [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README_EN.md) supports R/Rmd analysis while preserving existing project architecture. It combines `renv` with simple or targets-first complex workflows, requires results to be rebuildable from original inputs, and checks cold rebuilds, missing deliveries, changed inputs at the same path, and project relocation. It is excluded from default installation; select the local source explicitly when needed:
+The beta candidate [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README_EN.md) targets in-depth R/Rmd analysis: `targets` manages formal computation and incremental rebuilds, `renv` locks the environment, and results are written as paper-style Rmd/HTML reports. Multi-report deliveries use a three-level reading order, and `--detail` adds a searchable per-unit appendix. It is excluded from default installation; select the local source explicitly when needed:
 
 ```bash
 python3 skills/alpha/install-bensz-skills/scripts/install.py --source skills/beta --skill bensz-rmd-rules --codex
