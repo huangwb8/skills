@@ -2,7 +2,7 @@
 
 ## Liquid Glass HTML
 
-新项目的 simple 和 complex 骨架默认启用 Liquid Glass。主题提供半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中图片和点击放大、代码复制和视图状态恢复。代码样式关闭字体连字，使 R 的 `<-` 保持原样。需要其它外观时用 `--theme plain` 或 `--theme flatly`；已有项目保留用户选择。
+新项目的报告骨架默认启用 Liquid Glass。主题提供半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中图片和点击放大、代码复制和视图状态恢复。代码样式关闭字体连字，使 R 的 `<-` 保持原样。需要其它外观时用 `--theme plain` 或 `--theme flatly`；已有项目保留用户选择。
 
 要给已有报告启用主题，把 [Liquid Glass 资源](../templates/liquid-glass/)复制到项目的 `templates/liquid-glass/`，合并以下 Rmd 配置，保留项目原有的公式和代码选项：
 
@@ -14,7 +14,7 @@ output:
     toc_float: true
     toc_depth: 3
     highlight: tango
-    code_folding: hide
+    code_folding: show
     css: templates/liquid-glass/liquid_glass_theme.css
     includes:
       after_body: templates/liquid-glass/liquid_glass_lightbox.html

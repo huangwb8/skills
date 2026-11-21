@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [Skill instructions](SKILL.md)
 
-Build an argument around a scientific question worth answering. Everyday examples build intuition, formulas and code define the comparison, and figures, tables, and prose explain what the evidence supports. Use Rmd directly for small analyses and targets for expensive computations, so report edits can reuse results that are still valid.
+Use R to investigate a scientific question in depth. `targets` manages the analysis and incremental rebuilds, and `renv` locks the environment. Rmd brings the actual code, figures, tables, and inline results into a complete research report.
 
 ## Quick start
 
@@ -14,15 +14,15 @@ Show the size of the change, who entered the comparison, and what the result can
 To try a runnable synthetic example, you need Python 3.11+, R, Pandoc, and `renv` in the host R library. From the repository root:
 
 ```sh
-python3 skills/beta/bensz-rmd-rules/scripts/new_project.py simple demo-rmd
+python3 skills/beta/bensz-rmd-rules/scripts/new_project.py demo-rmd
 cd demo-rmd
 Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `report.html` to see how a commuting example introduces a formula for paired differences, then how a plot and a DT summary table explain synthetic results. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Replace `simple` with `complex` to try targets, or add `--detail` for a searchable, horizontally scrollable detail table (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
+Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable, horizontally scrollable detail table (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
 
-Both modes use the same paired analysis code. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
+The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
 
 ## When to use it
 
@@ -30,16 +30,19 @@ Use it to analyze data with R, deliver a scientific report readers can check, or
 
 ## Inputs and outputs
 
-Describe the reader, decision, data location, and any limits on analysis or access. The Skill chooses a computation path based on cost and delivers Rmd, HTML, the necessary analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check the results through the project's current entry point.
+Describe the reader, decision, data location, and any limits on analysis or access. The Skill uses targets and renv and delivers Rmd, HTML, analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check and reuse results through the formal entry point.
+
+Every new analysis delivers a paper-style research report. Each major result explains the choice of analysis, shows the actual code, and uses inline R to interpret the current values. Reports cover relevant robustness checks, quality control, and the limits of each conclusion. See [the full report guide](references/report.md#把完整研究写成论文式报告).
 
 ## Examples
 
 ### Basic example
 
 ```text
-Write a one-page briefing for the group. Start with an everyday example, then
-define eligible pairs in a formula and in code. Plot the individual changes and
-explain how missing follow-up affects the conclusion.
+Analyze paired measurements from baseline and follow-up and deliver a complete report.
+Start with an everyday example, then define eligible pairs in a formula and in code.
+Show individual changes, check how much single observations affect the mean,
+and explain how missing follow-up affects the conclusion.
 ```
 
 ### Advanced example
@@ -56,7 +59,7 @@ put the wide table in a searchable appendix, and reuse the fit when only prose c
 
 ## FAQ
 
-- **Can I edit the report on its own?** Yes. Run `Rscript --vanilla run.R report` in a starter project. In complex mode, a missing or stale result prompts you to run `Rscript --vanilla run.R build`.
+- **Can I edit the report on its own?** Yes. Run `Rscript --vanilla run.R report` in a starter project. Missing or stale targets results prompt you to run `Rscript --vanilla run.R build`.
 - **Where does the HTML go?** By default it shares the Rmd's directory and basename. Use `reports/` for standalone figures and tables, and `products/` for reusable results, according to the project's layout.
 - **How should I display tables?** Use `DT::datatable()` for every table in the main text or appendix. Hide controls on compact summaries and enable them as needed on detail tables. All embedded data is sent with the HTML, so check permissions before publishing.
 - **What is the default figure style?** Use publication legibility, a white background, and English labels. Put titles and interpretation in the caption or text. Prefer vector PDF for standalone static figures.

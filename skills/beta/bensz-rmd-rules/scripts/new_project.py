@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy a runnable demonstration into a new project directory."""
+"""Create a runnable targets and renv project with a research report."""
 
 from __future__ import annotations
 
@@ -26,10 +26,9 @@ HTML_THEMES = {
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("simple", "complex"))
     parser.add_argument("destination", type=Path, help="new directory; its parent must exist")
     parser.add_argument("--detail", "--dt", action="store_true",
-                        help="add a wide-table appendix; the summary already uses DT")
+                        help="add a wide-table appendix; the main report already uses DT")
     parser.add_argument("--theme", choices=HTML_THEMES, default="liquid-glass",
                         help="HTML theme (default: liquid-glass)")
     args = parser.parse_args()
@@ -38,8 +37,6 @@ def main() -> None:
     source = (templates / "report.Rmd").read_text(encoding="utf-8")
     theme = HTML_THEMES[args.theme]
     source = source.replace("{{HTML_THEME}}\n", f"{theme}\n" if theme else "", 1)
-    setup = (templates / f"{args.mode}.Rmd").read_text(encoding="utf-8")
-    source = source.replace("{{SETUP}}", setup.rstrip(), 1)
 
     try:
         destination.mkdir()  # Claim the new directory without touching an existing project.
@@ -47,10 +44,7 @@ def main() -> None:
         parser.error(f"cannot create a new project directory: {error.strerror}")
 
     shutil.copytree(templates / "common", destination, dirs_exist_ok=True)
-    packages = ["rmarkdown", "knitr", "DT"]
-    if args.mode == "complex":
-        shutil.copytree(templates / "complex", destination, dirs_exist_ok=True)
-        packages.append("targets")
+    packages = ["rmarkdown", "knitr", "DT", "targets"]
     if args.theme == "liquid-glass":
         shutil.copytree(templates / "liquid-glass", destination / "templates" / "liquid-glass")
     if args.detail:

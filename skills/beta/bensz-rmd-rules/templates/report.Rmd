@@ -5,30 +5,84 @@ params:
   plot_language: en
 output:
   html_document:
-    code_folding: hide
+    code_folding: show
     mathjax: null
     pandoc_args: ["--mathml"]
 {{HTML_THEME}}
 ---
 
-{{SETUP}}
+```{r read-targets, include=FALSE}
+store <- "_targets"
+outdated <- targets::tar_outdated(
+  c(paired_changes, analysis_sample, paired_estimate, paired_robustness),
+  shortcut = FALSE, script = "_targets.R", store = store, callr_function = NULL
+)
+if (length(outdated)) {
+  stop("Missing or stale report targets: ", paste(outdated, collapse = ", "),
+       ". Run Rscript --vanilla run.R build.")
+}
+data <- targets::tar_read(paired_changes, store = store)
+sample <- targets::tar_read(analysis_sample, store = store)
+estimate <- targets::tar_read(paired_estimate, store = store)
+robustness <- targets::tar_read(paired_robustness, store = store)
+```
 
-```{r interval-status, include=FALSE}
-interval_note <- switch(estimate$interval_status,
+```{r analysis-source, include=FALSE}
+analysis_code <- new.env()
+sys.source("R/paired.R", envir = analysis_code, keep.source = TRUE)
+source_excerpt <- function(name) {
+  lines <- as.character(utils::getSrcref(analysis_code[[name]]))
+  lines[1L] <- paste0(name, " <- ", lines[1L])
+  lines
+}
+```
+
+```{r report-values, include=FALSE}
+observed <- sample$changes
+changed <- sample$directions
+pair_count <- sprintf("%d / %d", estimate$n, estimate$n_total)
+mean_value <- if (estimate$n) sprintf("%+.2f", estimate$estimate) else "不可估计"
+confidence_label <- sprintf("%g%% t 区间", 100 * estimate$confidence)
+interval_value <- switch(estimate$interval_status,
   ok = sprintf("%.2f 至 %.2f", estimate$lower, estimate$upper),
   no_pairs = "不可估计：没有完整配对",
   one_pair = "不可估计：只有一条完整配对",
   no_variation = "不可估计：样本差值没有变异",
   numeric_limit = "不可估计：当前数值精度下未得到可用区间"
 )
+zero_relation <- if (estimate$interval_status != "ok") {
+  "不可判断"
+} else if (estimate$lower <= 0 && estimate$upper >= 0) {
+  "包含零"
+} else {
+  "不包含零"
+}
+omission_range <- switch(robustness$status,
+  ok = sprintf("%+.2f 至 %+.2f", robustness$limits[1L], robustness$limits[2L]),
+  numeric_limit = "不可评估：部分均值不可用",
+  too_few = "不可评估：有效配对不足"
+)
 ```
 
-在这组合成数据中，`r estimate$n` / `r estimate$n_total` 个单位有完整配对。
-`r if (estimate$n) sprintf("平均变化为 **%+.2f 个测量单位**。", estimate$estimate) else "没有可用于估计平均变化的配对。"`
-`r if (estimate$interval_status != "ok") paste0("t 区间", interval_note, "。") else if (estimate$lower <= 0 && estimate$upper >= 0) "区间包含零，这些数据还不足以确定总体平均变化的方向。" else "按这里采用的区间估计，平均变化与零有差别；这仍不能确定变化的原因。"`
+## 摘要
 
-## 为什么比较同一单位前后的差？
+这份示例考察同一单位在基线与随访之间的平均变化，并检查整体结果是否容易被某一个单位左右。
+在这组合成数据中，我们对有限的随访减基线差值取均值，用 $t$ 区间刻画平均变化的不确定性。
+完整配对占 `r pair_count`，平均变化（测量单位）：**`r mean_value`**。`r confidence_label`：`r interval_value`。
+估计针对观测到完整配对的单位；对失访单位或变化原因的判断，需要额外证据。
 
+## 引言
+
+复测往往是为了判断变化是否普遍，以及是否值得继续调查。若两次测量的人员构成不同，
+直接比较两次均值可能把人员差异误认为变化。同一单位前后都有记录时，我们可以把这种构成差异从比较中分开。
+本报告先估计完整配对的平均变化及其区间，再看个体变化是否一致、结论是否受单点影响。
+这里没有同期对照，也没有对缺失随访作插补。
+
+## 数据与方法
+
+### 为什么比较同一单位前后的差？
+
+样例输入每行对应一个单位，三列分别记录标识、基线和随访读数。原始读取会核对列、单位标识和测量值格式。
 设想比较改用新路线前后的通勤时间：甲从 25 分钟变成 30 分钟，乙前后都是 40 分钟。
 两人的变化分别是 +5 和 0，平均多花 2.5 分钟。先算每个人的差，可以把甲、乙原本不同的通勤时间
 与各自的变化分开；如果乙第二次没记录，就不能替乙算这个差。这个例子只解释配对的口径。
@@ -42,25 +96,12 @@ $$
 
 $d_i>0$ 表示上升，$\bar d$ 与原测量使用同一单位。
 
-扣除基线、确定分母和估计区间的实际实现见 [正式计算函数](`r report_root_prefix`R/paired.R)。
+这个问题比较的是同一单位的前后变化。缺少任一读数时，差值无法直接观测，所以只用有限差值计算平均。下面是 [正式计算函数](`r report_root_prefix`R/paired.R) 中筛选有效配对并确定分母的代码。
 
-```{r method-excerpt, eval=FALSE, code=readLines("R/paired.R", warn=FALSE)}
+```{r paired-sample-code, eval=FALSE, code=source_excerpt("paired_sample")}
 ```
 
-## 平均值背后，每个单位都在同一方向变化吗？
-
-`r if (length(observed)) "每个点对应一个有效配对，虚线是零变化。" else "没有完整配对，无法绘制变化分布。"`
-`r if (length(observed)) sprintf("样本中有 %d 个单位上升、%d 个持平、%d 个下降。比较整体平均时，也要看变化是否普遍出现在不同单位。", sum(observed > 0), sum(observed == 0), sum(observed < 0))`
-
-```{r individual-changes, eval=length(observed)>0, echo=FALSE, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap="完整配对的随访减基线差值。重叠点沿纵向堆叠；纵向位置不代表另一项测量。", fig.alt="点图显示各完整配对的变化，虚线为零。"}
-plot_language <- match.arg(params$plot_language, c("en", "zh"))
-axis_label <- if (plot_language == "zh") "随访减基线（测量单位）" else "Follow-up minus baseline (units)"
-graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
-                     xlim = range(c(0, observed)), xlab = axis_label)
-graphics::abline(v = 0, lty = 2, col = "grey50")
-```
-
-## 这组数据对平均变化的约束有多强？
+### 如何估计均值的不确定性？
 
 把各单位的变化看作独立观测。在样本很小时，变化量近似正态是这里的 $t$ 区间有良好覆盖的条件。
 记 $s_d$ 为差值的样本标准差，$t_{1-\alpha/2,\,n-1}$ 为自由度 $n-1$ 的 $t$ 分位数，
@@ -72,18 +113,118 @@ $$
 
 单位间的变化越不一致，或者有效配对越少，区间通常越宽。
 
-```{r summary-table, echo=FALSE}
+正式估计用上面的配对分母计算均值，并在有足够样本和可用变异时给出区间。要核对区间算法和不可估计的处理，可以展开这段实现：
+
+```{r interval-method-code, eval=FALSE, class.source="fold-hide", code=source_excerpt("estimate_change")}
+```
+
+## 结果
+
+### 这组数据对平均变化的约束有多强？
+
+下面把有效分母、变化量级和区间并列，方便核对它们是否来自同一次比较。
+
+```{r summary-table}
 summary_table <- data.frame(
-  指标 = c("完整配对 / 总单位数", "平均变化（测量单位）",
-           sprintf("%g%% t 区间（测量单位）", 100 * estimate$confidence)),
-  结果 = c(sprintf("%d / %d", estimate$n, estimate$n_total),
-           if (estimate$n) sprintf("%+.2f", estimate$estimate) else "不可估计",
-           interval_note)
+  指标 = c("完整配对 / 总单位数", "平均变化（测量单位）", confidence_label),
+  结果 = c(pair_count, mean_value, interval_value)
 )
 DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%",
               options = list(dom = "t", paging = FALSE, ordering = FALSE))
 ```
 
-区间描述的是平均变化的不确定性，不能用来预测某个单位的变化。它也不涵盖失访偏倚：
-如果缺少随访的单位变化不同，完整配对的结果就未必代表全部单位。前后比较还可能受到同期其它变化的影响，
-因此无法凭这组数据把变化归因于某项干预。
+完整配对的平均变化（测量单位）为 `r mean_value`；`r confidence_label`：`r interval_value`。
+本次区间是否包含零：`r zero_relation`。区间包含零时，数据不足以确定总体平均变化的方向；这也不能作为没有变化的证据。
+
+### 平均值背后，每个单位都在同一方向变化吗？
+
+用点图保留每个有效配对的变化，可以看出整体平均是否掩盖了相反方向或少数极端值。虚线标出零变化，
+点在虚线两侧的位置对应变化方向。纵向堆叠只为分开重叠的点。
+
+```{r individual-changes, eval=length(observed)>0, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap="完整配对的随访减基线差值。重叠点沿纵向堆叠；纵向位置不代表另一项测量。", fig.alt="点图显示各完整配对的变化，虚线为零。"}
+plot_language <- match.arg(params$plot_language, c("en", "zh"))
+axis_label <- if (plot_language == "zh") "随访减基线（测量单位）" else "Follow-up minus baseline (units)"
+graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
+                     xlim = range(c(0, observed)), xlab = axis_label)
+graphics::abline(v = 0, lty = 2, col = "grey50")
+```
+
+`r if (!length(observed)) "没有完整配对，无法绘制变化分布。"`
+在有效配对中，`r changed[["up"]]` 个单位上升，`r changed[["level"]]` 个持平，`r changed[["down"]]` 个下降。
+这些方向计数描述的是观测样本；区间描述的是平均变化的不确定性，不能用来预测个体的下一次读数。
+
+## 稳健性分析：平均值受单个单位影响有多大？
+
+均值容易受极端变化影响。这里每次只移除一个有效配对，其余分析口径不动，重新取差值均值，
+用得到的范围判断点估计对单个单位有多敏感。少于两个有效配对时无法做这个比较。
+
+```{r leave-one-out, eval=FALSE, code=source_excerpt("summarize_leave_one_out")}
+```
+
+逐次移除一个配对后的均值范围（测量单位）：`r omission_range`。若这个范围跨过零，
+点估计的方向就取决于是否保留某个单位；即使方向不变，这个检查也没有把样本依赖或失访偏倚纳入考量。
+
+## 质量控制与数字核对
+
+我们把正式估计的分母和均值，与报告用于绘图的配对记录核对，再检查区间端点与可估计状态是否相符，
+以及逐次移除分析是否覆盖所有有效配对。若这些产物对不上，就停止渲染并回查正式计算入口。
+
+```{r verify-results}
+count_ok <- estimate$n == length(observed) && estimate$n_total == nrow(data) &&
+  sum(changed) == estimate$n
+expected_checks <- if (estimate$n > 1L) estimate$n else 0L
+omission_ok <- robustness$n_checks == expected_checks
+point_ok <- if (length(observed)) {
+  isTRUE(all.equal(estimate$estimate, mean(observed)))
+} else {
+  is.na(estimate$estimate)
+}
+interval_ok <- if (estimate$interval_status == "ok") {
+  all(is.finite(c(estimate$lower, estimate$upper))) &&
+    estimate$lower <= estimate$estimate && estimate$estimate <= estimate$upper
+} else {
+  is.na(estimate$lower) && is.na(estimate$upper)
+}
+if (!all(count_ok, point_ok, interval_ok, omission_ok)) {
+  stop("Report data and formal estimate disagree. Check the analysis input and rebuild.")
+}
+excluded <- estimate$n_total - estimate$n
+qc_summary <- data.frame(
+  检查 = c("配对分母与方向计数", "正式估计与有效差值均值", "区间与估计状态", "逐次移除覆盖"),
+  观察结果 = c(sprintf("%s（排除 %d）", pair_count, excluded), mean_value, interval_value,
+              sprintf("%d / %d", robustness$n_checks, expected_checks)),
+  判定 = c("一致", "一致", if (estimate$interval_status == "ok") "端点与估计一致" else "无区间，状态一致",
+           if (expected_checks) "覆盖一致" else "无需运行")
+)
+DT::datatable(qc_summary, rownames = FALSE, class = "compact", width = "100%",
+              options = list(dom = "t", paging = FALSE, ordering = FALSE))
+```
+
+共有 `r excluded` 个单位因前后差值不可用而未进入估计。摘要和结果表中的分母、估计与区间来自同一个
+`estimate` 对象；方向计数和逐次移除检查使用图中同一批有效差值。数值一致性检查无法判断排除单位是否与保留单位有系统差异。
+
+## 讨论
+
+这次分析给出了完整配对中平均变化的量级、区间和个体方向。读者可以把逐次移除后的均值范围与主要结果并列，
+判断是否值得回查某些测量。应结合事先定义的实际重要差异来判断量级是否有用；本示例没有预先设定这个阈值。
+
+如果缺少随访的单位变化不同，完整配对的估计就未必代表全部单位。区间的解释还依赖配对之间的独立性，小样本下对
+差值分布也有要求。即使统计区间排除零，前后比较仍可能受到共同时间趋势及其他同期变化的影响，不能确定变化的原因。
+
+下一步优先查明配对缺失在哪个环节，并尽可能补回随访；再按同一口径比较补录前后的平均变化和区间。
+如果变化量级或实际判断明显改变，应在结论中说明结果对随访覆盖的依赖。若问题进一步变成“什么导致了变化”，
+需要同期对照或其它能区分原因的研究设计。
+
+## 可复现性
+
+样例使用 [合成测量数据](`r report_root_prefix`raw/measurements.csv)，区间水平由
+[分析设置](`r report_root_prefix`00.Environments/analysis.R) 指定，估计代码在
+[配对分析函数](`r report_root_prefix`R/paired.R)；[targets 流水线](`r report_root_prefix`_targets.R)
+保存正式结果和稳健性计算。报告从这两类产物取数，渲染时只做展示和一致性核对。从项目根目录恢复锁定依赖并重建：
+
+```sh
+Rscript --vanilla run.R restore
+Rscript --vanilla run.R build
+```
+
+首次生成环境锁用 `prepare`；已有有效结果、只需渲染时，将第二条命令的 `build` 换成 `report`。

@@ -35,9 +35,15 @@ read_confidence <- function(parameter_file) {
   level
 }
 
-estimate_change <- function(data, confidence) {
-  observed <- data$change[is.finite(data$change)]
-  n <- length(observed)
+paired_sample <- function(data) {
+  changes <- data$change[is.finite(data$change)]
+  directions <- c(up = sum(changes > 0), level = sum(changes == 0), down = sum(changes < 0))
+  list(changes = changes, n = length(changes), n_total = nrow(data), directions = directions)
+}
+
+estimate_change <- function(sample, confidence) {
+  observed <- sample$changes
+  n <- sample$n
   estimate <- if (n) mean(observed) else NA_real_
   bounds <- c(NA_real_, NA_real_)
   interval_status <- if (!n) "no_pairs" else if (n == 1L) "one_pair" else "ok"
@@ -56,6 +62,19 @@ estimate_change <- function(data, confidence) {
       }
     }
   }
-  list(n_total = nrow(data), n = n, estimate = estimate, lower = bounds[[1L]],
+  list(n_total = sample$n_total, n = n, estimate = estimate, lower = bounds[[1L]],
        upper = bounds[[2L]], confidence = confidence, interval_status = interval_status)
+}
+
+summarize_leave_one_out <- function(sample) {
+  observed <- sample$changes
+  limits <- c(NA_real_, NA_real_)
+  if (length(observed) < 2L) {
+    return(list(n_checks = 0L, limits = limits, status = "too_few"))
+  }
+  omitted_means <- vapply(seq_along(observed), function(i) mean(observed[-i]), numeric(1))
+  if (!all(is.finite(omitted_means))) {
+    return(list(n_checks = length(omitted_means), limits = limits, status = "numeric_limit"))
+  }
+  list(n_checks = length(omitted_means), limits = range(omitted_means), status = "ok")
 }

@@ -41,6 +41,9 @@ main <- function(args) {
   if (!file.exists("00.Environments/environment.R")) {
     stop("Start Rscript from the project root.", call. = FALSE)
   }
+  if (!file.exists("_targets.R") || dir.exists("_targets.R")) {
+    stop("Missing _targets.R. This project requires a targets pipeline.", call. = FALSE)
+  }
   command <- args[[1L]]
   sys.source("00.Environments/environment.R", envir = environment())
   if (command %in% c("prepare", "restore", "update-lock")) {
@@ -65,7 +68,7 @@ main <- function(args) {
   use_environment()
   if (!rmarkdown::pandoc_available()) stop("Pandoc is required to produce the HTML report.")
   theme_options <- report_theme_options(input, project_root)
-  if (command == "build" && file.exists("_targets.R")) {
+  if (command == "build") {
     targets::tar_make(script = "_targets.R", store = "_targets", callr_function = NULL)
   }
   rmarkdown::render(input, output_format = "html_document", output_file = basename(output),
