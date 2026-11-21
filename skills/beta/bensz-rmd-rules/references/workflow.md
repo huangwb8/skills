@@ -8,19 +8,20 @@
 | --- | --- |
 | `00.Environments/` | `environment.R` 集中确定依赖库；`packages.txt` 声明所需 R 包；`renv.lock` 锁定环境；`analysis.R` 演示一份独立、受版本控制的分析设置 |
 | `raw/` | 保护真实输入和唯一来源快照；随骨架附上的 CSV 都是合成样例 |
+| `R/paired.R` | 两种骨架共用的配对输入校验和估计；simple 在 Rmd 中调用，complex 在 targets 中调用 |
 | `R/`, `_targets.R`, `_targets/` | complex 的计算函数、正式 DAG、可丢失的存储 |
 | `products/`, `reports/` | 可复用的科学结果；单独交付的图、表和补充附件 |
 | `scripts/tests/`, `tmp/tests/<run-id>/`, `tmp/scratch/` | 按需放入项目测试、独立运行副本和探索产物 |
 | `run.R`, `report.Rmd`, `report.html` | 起步入口和报告；报告也可以放在项目内的其他位置，HTML 默认在 Rmd 旁 |
 
-目录按需创建。用户已有的合法布局优先。正式输出与输入、环境、测试和 store 分开。正式入口从项目根运行，使用项目内相对路径；把待交付的附件放在与报告链接匹配的位置。
+目录按需创建。用户已有的合法布局优先。正式输出与输入、环境、测试和 store 分开。正式入口从项目根运行，R chunk 中的相对路径以项目根为准；HTML 中的相对链接以 HTML 所在目录为准。生成的样例会随报告目录调整链接；若只交付 HTML，还需一并提供允许交付且报告引用的附件。
 
 ## 环境生命周期
 
 骨架需要 R、Pandoc 及在宿主 R 库显式安装的 `renv`。从项目根运行：
 
 - `Rscript --vanilla run.R prepare`：为新项目安装已声明的包及依赖到项目库，生成 `00.Environments/renv.lock`。锁文件已存在时中止。
-- `Rscript --vanilla run.R restore`：根据现有锁文件恢复项目库。恢复需要可用的软件源、包缓存或当地镜像。
+- `Rscript --vanilla run.R restore`：使用锁文件记录的 R 版本恢复项目库。恢复需要可用的软件源、包缓存或当地镜像。
 - `Rscript --vanilla run.R update-lock`：经审阅后更新依赖并重写锁文件；在恢复旧结果时用 restore。
 - `Rscript --vanilla run.R build`：从输入计算并生成报告；complex 先让 targets 更新失效结果再渲染。
 - `Rscript --vanilla run.R report`：只渲染。simple 的低成本分析随 Rmd 执行；complex 的 Rmd 先确认所读 target 仍有效，再消费它。可给 build/report 传一个项目内的 Rmd 路径；工作目录仍以项目根为准。

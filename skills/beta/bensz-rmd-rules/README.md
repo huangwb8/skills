@@ -20,7 +20,9 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-打开 `report.html`，看一个通勤例子如何引出配对差的公式，再用变化分布和汇总表解释合成数据。把 `simple` 改成 `complex` 可体验 targets；加 `--dt --theme flatly` 可看到带搜索和横向滚动的长表及可选主题。
+打开 `report.html`，看一个通勤例子如何引出配对差的公式，再用变化分布和汇总表解释合成数据。默认用 Liquid Glass：桌面可使用浮动目录，窄屏可折叠目录，也能放大图片和复制代码。把 `simple` 改成 `complex` 可体验 targets；加 `--dt` 可查看带搜索和横向滚动的长表。想换外观可用 `--theme plain` 或 `--theme flatly`。
+
+两个模式使用同一份配对计算代码。样例 CSV 每行对应一个单位，必须含 `unit`、`before` 和 `after` 三列。区间无法估计时，报告说明原因，并保留仍可计算的平均变化。
 
 ## 何时使用
 
@@ -55,5 +57,6 @@ Rscript --vanilla run.R build
 - **能只改报告吗？** 可以。起步项目运行 `Rscript --vanilla run.R report`。complex 若缺结果或结果失效，会提示运行 `Rscript --vanilla run.R build`。
 - **HTML 放在哪里？** 默认与 Rmd 同目录同名。图表附件可按项目约定放在 `reports/`；供下游复用的结果可放在 `products/`。
 - **每份报告都要用 DT 吗？** 静态小表更适合正文。需要查明细时再启用 DT；HTML 会收到所有嵌入的数据，发布前要核对授权。
+- **图表默认用什么风格？** 默认采用适合出版的字号、配色和白底；图内标签用英文，把标题和解读放进图注或正文。单独交付的静态图优先用矢量 PDF。
 
-更多：[推断与报告](references/report.md) · [测试与交付](references/delivery.md)
+更多：[推断与报告](references/report.md) · [主题与绘图](references/visuals.md) · [测试与交付](references/delivery.md)

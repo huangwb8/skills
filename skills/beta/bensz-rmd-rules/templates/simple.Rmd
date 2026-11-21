@@ -1,0 +1,6 @@
+```{r paired-estimate, include=FALSE}
+source("R/paired.R", local = TRUE)
+data <- read_pairs("raw/measurements.csv")
+estimate <- estimate_change(data, read_confidence("00.Environments/analysis.R"))
+observed <- data$change[is.finite(data$change)]
+```

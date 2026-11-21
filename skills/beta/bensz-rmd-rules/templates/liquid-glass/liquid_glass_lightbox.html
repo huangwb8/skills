@@ -1,0 +1,754 @@
+<!-- Liquid Glass Lightbox (after_body include) -->
+<script>
+(() => {
+  "use strict";
+
+  function closest(el, selector) {
+    while (el && el.nodeType === 1) {
+      if (el.matches(selector)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function ensureLightbox() {
+    let root = document.getElementById("lg-lightbox");
+    if (root) return root;
+
+    root = document.createElement("div");
+    root.id = "lg-lightbox";
+    root.setAttribute("aria-hidden", "true");
+    root.innerHTML = `
+      <div class="lg-lightbox__backdrop" data-lg-close="1"></div>
+      <div class="lg-lightbox__panel" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button type="button" class="lg-lightbox__close" aria-label="Close" data-lg-close="1">×</button>
+        <img class="lg-lightbox__img" alt="" />
+      </div>
+    `;
+    document.body.appendChild(root);
+    return root;
+  }
+
+  function openLightbox(img) {
+    const root = ensureLightbox();
+    const panelImg = root.querySelector(".lg-lightbox__img");
+    if (!panelImg) return;
+
+    panelImg.src = img.currentSrc || img.src;
+    panelImg.alt = img.alt || "";
+    root.classList.add("is-open");
+    root.setAttribute("aria-hidden", "false");
+    document.documentElement.classList.add("lg-lightbox-open");
+  }
+
+  function closeLightbox() {
+    const root = document.getElementById("lg-lightbox");
+    if (!root) return;
+    const panelImg = root.querySelector(".lg-lightbox__img");
+    if (panelImg) panelImg.src = "";
+    root.classList.remove("is-open");
+    root.setAttribute("aria-hidden", "true");
+    document.documentElement.classList.remove("lg-lightbox-open");
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Delegate so it also works for images created later by widgets.
+    document.body.addEventListener("click", (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+
+      const closeBtn = closest(t, "[data-lg-close]");
+      if (closeBtn) {
+        ev.preventDefault();
+        closeLightbox();
+        return;
+      }
+
+      // Explicitly handle left-click only. Some browsers may dispatch "click"
+      // for non-primary buttons, which would otherwise break the context menu.
+      if (ev.button !== undefined && ev.button !== 0) return;
+
+      // Ignore images inside TOC / navbar / code blocks.
+      const img = t.closest && t.closest("img");
+      if (!img) return;
+      if (img.classList.contains("no-lightbox")) return;
+      if (closest(img, "#TOC")) return;
+      if (closest(img, "pre, code")) return;
+
+      // Most Rmd figures are safe to preview.
+      ev.preventDefault();
+      openLightbox(img);
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeLightbox();
+    });
+  });
+})();
+</script>
+
+<!-- Code Copy Button for Rmd source blocks -->
+<script>
+(() => {
+  "use strict";
+
+  function closestParent(el, selector) {
+    while (el && el.nodeType === 1) {
+      if (el.matches && el.matches(selector)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function isZh() {
+    try {
+      const lang = (document.documentElement && document.documentElement.lang) || "";
+      const nav = (typeof navigator !== "undefined" && navigator.language) ? navigator.language : "";
+      return (lang || nav).toLowerCase().startsWith("zh");
+    } catch {
+      return true;
+    }
+  }
+
+  function safeText(s) {
+    return (typeof s === "string") ? s : "";
+  }
+
+  function getCodeText(container) {
+    if (!container || !(container instanceof HTMLElement)) return "";
+    const pre = container.querySelector("pre");
+    if (!pre) return "";
+    const code = pre.querySelector("code");
+    if (code) return safeText(code.textContent);
+    return safeText(pre.textContent);
+  }
+
+  async function copyTextToClipboard(text) {
+    const t = safeText(text);
+    if (!t) return false;
+
+    // Prefer modern Clipboard API when available and in secure context.
+    try {
+      if (typeof navigator !== "undefined"
+        && navigator.clipboard
+        && typeof navigator.clipboard.writeText === "function"
+        && typeof window !== "undefined"
+        && window.isSecureContext) {
+        await navigator.clipboard.writeText(t);
+        return true;
+      }
+    } catch {
+      // fall through
+    }
+
+    // Fallback: execCommand('copy') (works for file:// and older browsers).
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = t;
+      ta.setAttribute("readonly", "1");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = typeof document.execCommand === "function" && document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function ensureToolbar(container) {
+    // Avoid `:scope` for broader browser compatibility.
+    for (const child of Array.from(container.children || [])) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (child.classList.contains("panel-heading") || child.classList.contains("lg-code-toolbar")) {
+        return child;
+      }
+    }
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "lg-code-toolbar";
+    const pre = Array.from(container.children || []).find((el) => el && el.tagName === "PRE");
+    if (pre && pre.parentNode === container) {
+      container.insertBefore(toolbar, pre);
+    } else {
+      container.insertBefore(toolbar, container.firstChild);
+    }
+    return toolbar;
+  }
+
+  function findFoldingButton(container) {
+    try {
+      const btn = container.querySelector("button.code-folding-btn");
+      return (btn instanceof HTMLButtonElement) ? btn : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function adoptFoldingButtonIntoToolbar(container, toolbar) {
+    if (!container || !(container instanceof HTMLElement)) return;
+    const btn = findFoldingButton(container);
+    if (!btn) return;
+
+    // Already in a toolbar; nothing to do.
+    if (closestParent(btn, ".panel-heading") || closestParent(btn, ".lg-code-toolbar")) return;
+
+    const row = (btn.closest && btn.closest(".row")) ? btn.closest(".row") : null;
+    const canRemoveRow = !!(row
+      && row.parentNode === container
+      && row.querySelector("button.code-folding-btn")
+      && row.querySelectorAll("button").length === 1);
+
+    const t = toolbar || ensureToolbar(container);
+    if (!t) return;
+
+    // Neutralize bootstrap floats so the button behaves inside our flex toolbar.
+    btn.classList.remove("pull-right", "float-right");
+
+    // Keep ordering: copy button should stay left of folding button.
+    const copyBtn = t.querySelector(".lg-copy-btn");
+    if (copyBtn && copyBtn.parentNode === t) {
+      t.insertBefore(btn, copyBtn.nextSibling);
+    } else {
+      t.appendChild(btn);
+    }
+
+    if (canRemoveRow) row.remove();
+
+    // Listen for Bootstrap collapse events to toggle .lg-code-folded on the container.
+    // This drives CSS for collapsed-state background and hides the copy button.
+    const collapseDiv = container.querySelector(".collapse.r-code-collapse");
+    if (collapseDiv && typeof jQuery !== "undefined") {
+      jQuery(collapseDiv)
+        .on("hidden.bs.collapse", function () { container.classList.add("lg-code-folded"); })
+        .on("show.bs.collapse",   function () { container.classList.remove("lg-code-folded"); });
+      // Set initial state: if already collapsed, mark it.
+      if (!collapseDiv.classList.contains("in") && !collapseDiv.classList.contains("show")) {
+        container.classList.add("lg-code-folded");
+      }
+    }
+  }
+
+  function enhanceOne(container) {
+    if (!container || !(container instanceof HTMLElement)) return;
+    if (container.querySelector(".lg-copy-btn")) return;
+
+    const codeText = getCodeText(container);
+    if (!codeText) return;
+
+    const zh = isZh();
+    const labelCopy = zh ? "复制" : "Copy";
+    const labelCopied = zh ? "已复制" : "Copied";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lg-copy-btn";
+    btn.textContent = labelCopy;
+    btn.setAttribute("aria-label", labelCopy);
+    btn.title = labelCopy;
+
+    let resetTimer = 0;
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const ok = await copyTextToClipboard(getCodeText(container));
+      if (!ok) return;
+
+      if (resetTimer) window.clearTimeout(resetTimer);
+      btn.classList.add("copied");
+      btn.textContent = labelCopied;
+      btn.setAttribute("aria-label", labelCopied);
+      btn.title = labelCopied;
+      resetTimer = window.setTimeout(() => {
+        btn.classList.remove("copied");
+        btn.textContent = labelCopy;
+        btn.setAttribute("aria-label", labelCopy);
+        btn.title = labelCopy;
+        resetTimer = 0;
+      }, 1000);
+    });
+
+    const toolbar = ensureToolbar(container);
+    if (!toolbar) return;
+
+    // Insert before the folding "Hide" button if present.
+    const firstBtn = toolbar.querySelector("button");
+    if (firstBtn) {
+      toolbar.insertBefore(btn, firstBtn);
+    } else {
+      toolbar.appendChild(btn);
+    }
+
+    // rmarkdown code folding buttons are injected later (on jQuery ready). Adopt them
+    // into the same floating toolbar to prevent overlap.
+    adoptFoldingButtonIntoToolbar(container, toolbar);
+  }
+
+  function enhanceAll() {
+    const blocks = document.querySelectorAll("div.sourceCode");
+    for (const container of blocks) enhanceOne(container);
+  }
+
+  function watchForLateCodeFoldingButtons() {
+    try {
+      const root = document.body || document.documentElement;
+      if (!root || typeof MutationObserver !== "function") return;
+
+      const obs = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const n of Array.from(m.addedNodes || [])) {
+            if (!(n instanceof HTMLElement)) continue;
+            const btn = (n.matches && n.matches("button.code-folding-btn"))
+              ? n
+              : (n.querySelector ? n.querySelector("button.code-folding-btn") : null);
+            if (!(btn instanceof HTMLButtonElement)) continue;
+            const container = closestParent(btn, "div.sourceCode");
+            if (container) adoptFoldingButtonIntoToolbar(container);
+          }
+        }
+      });
+
+      obs.observe(root, { childList: true, subtree: true });
+    } catch {
+      // ignore
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      enhanceAll();
+      watchForLateCodeFoldingButtons();
+    });
+  } else {
+    enhanceAll();
+    watchForLateCodeFoldingButtons();
+  }
+})();
+</script>
+
+<!-- TOC Modes: static (pinned) vs dynamic (auto-expand on hover) -->
+<script>
+(() => {
+  "use strict";
+
+  const MODE_STATIC = "static";
+  const MODE_DYNAMIC = "dynamic";
+  const STORAGE_KEY = "bensz_rmd_toc_mode_v1";
+  const DEFAULT_MODE = MODE_DYNAMIC;
+  const MOBILE_STORAGE_KEY = "bensz_rmd_toc_mobile_collapsed_v1";
+  const MOBILE_COLLAPSED_CLASS = "lg-toc-collapsed";
+  const DEFAULT_MOBILE_COLLAPSED = true;
+
+  let tocRef = null;
+  let tocHeaderBtn = null;
+
+  function canUseDynamicLayout() {
+    try {
+      return typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(min-width: 1025px)").matches;
+    } catch {
+      return false;
+    }
+  }
+
+  function isSmallScreen() {
+    try {
+      return typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(max-width: 1024px)").matches;
+    } catch {
+      return false;
+    }
+  }
+
+  function readMode() {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY);
+      return (v === MODE_STATIC || v === MODE_DYNAMIC) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function readMobileCollapsed() {
+    try {
+      const v = localStorage.getItem(MOBILE_STORAGE_KEY);
+      if (v === "1") return true;
+      if (v === "0") return false;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeMobileCollapsed(collapsed) {
+    try {
+      localStorage.setItem(MOBILE_STORAGE_KEY, collapsed ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
+
+  function writeMode(mode) {
+    try {
+      localStorage.setItem(STORAGE_KEY, mode);
+    } catch {
+      // ignore
+    }
+  }
+
+  function applyMode(mode) {
+    const root = document.documentElement;
+    root.classList.toggle("lg-toc-mode-static", mode === MODE_STATIC);
+    root.classList.toggle("lg-toc-mode-dynamic", mode === MODE_DYNAMIC);
+  }
+
+  function applyMobileCollapsed(toc, collapsed) {
+    if (!toc) return;
+    toc.classList.toggle(MOBILE_COLLAPSED_CLASS, collapsed);
+  }
+
+  function attachMobileTocAutoCollapse(toc) {
+    if (!toc || !(toc instanceof HTMLElement)) return;
+    if (toc.dataset.lgTocAutoCollapse === "1") return;
+    toc.dataset.lgTocAutoCollapse = "1";
+
+    toc.addEventListener("click", (ev) => {
+      if (!isSmallScreen()) return;
+      if (toc.classList.contains(MOBILE_COLLAPSED_CLASS)) return;
+
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      if (t.closest(".lg-toc-mode-toggle")) return;
+
+      // tocify (rmarkdown toc_float) uses <li>; other TOC generators may use <a>.
+      const a = t.closest("a");
+      const li = t.closest("li.tocify-item, li.list-group-item");
+      if (!(a instanceof HTMLAnchorElement) && !(li instanceof HTMLLIElement)) return;
+
+      // Let the TOC's own click handler perform the jump first, then collapse.
+      setTimeout(() => {
+        applyMobileCollapsed(toc, true);
+        writeMobileCollapsed(true);
+        syncHeaderButton();
+      }, 0);
+    }, { capture: true });
+  }
+
+  function currentMode() {
+    const root = document.documentElement;
+    return root.classList.contains("lg-toc-mode-static") ? MODE_STATIC : MODE_DYNAMIC;
+  }
+
+  function syncHeaderButton() {
+    const toc = tocRef;
+    const btn = tocHeaderBtn;
+    if (!toc || !(btn instanceof HTMLButtonElement)) return;
+
+    if (isSmallScreen()) {
+      const collapsed = toc.classList.contains(MOBILE_COLLAPSED_CLASS);
+      btn.textContent = collapsed ? "展开" : "收起";
+      btn.setAttribute("aria-expanded", String(!collapsed));
+      btn.setAttribute("aria-label", collapsed ? "展开目录" : "收起目录");
+      btn.title = collapsed ? "展开目录" : "收起目录";
+      return;
+    }
+
+    const mode = currentMode();
+    btn.textContent = (mode === MODE_STATIC) ? "静态" : "动态";
+    btn.setAttribute("aria-label", "切换目录模式");
+    btn.title = "切换目录模式（静态/动态）";
+    btn.removeAttribute("aria-expanded");
+  }
+
+  function ensureTocHeader(toc) {
+    if (!toc) return;
+    if (toc.querySelector(".lg-toc-header")) return;
+
+    const header = document.createElement("div");
+    header.className = "lg-toc-header";
+    header.innerHTML = `
+      <div class="lg-toc-header__title">目录</div>
+      <button type="button" class="lg-toc-mode-toggle" aria-label="切换目录模式" title="切换目录模式（静态/动态）"></button>
+    `;
+
+    toc.insertBefore(header, toc.firstChild);
+
+    const btn = header.querySelector(".lg-toc-mode-toggle");
+    if (!(btn instanceof HTMLButtonElement)) return;
+
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (isSmallScreen()) {
+        const next = !toc.classList.contains(MOBILE_COLLAPSED_CLASS);
+        applyMobileCollapsed(toc, next);
+        writeMobileCollapsed(next);
+        syncHeaderButton();
+        return;
+      }
+
+      const mode = currentMode();
+      const next = (mode === MODE_STATIC) ? MODE_DYNAMIC : MODE_STATIC;
+      applyMode(next);
+      writeMode(next);
+      syncHeaderButton();
+    });
+
+    tocRef = toc;
+    tocHeaderBtn = btn;
+    attachMobileTocAutoCollapse(toc);
+    syncHeaderButton();
+  }
+
+  function init() {
+    const toc = document.getElementById("TOC");
+    if (!toc) return;
+
+    const root = document.documentElement;
+    const tocCol = toc.parentElement; // bootstrap grid placeholder column (if toc_float is enabled)
+    let movedOutOfGrid = false;
+
+    function applyLayoutForViewport() {
+      if (!tocCol) return;
+
+      if (canUseDynamicLayout()) {
+        if (!movedOutOfGrid) {
+          // Move TOC out of the bootstrap grid so we can hide the placeholder column without hiding the TOC itself.
+          tocCol.setAttribute("data-lg-toc-col", "1");
+          document.body.appendChild(toc);
+          root.classList.add("lg-toc-layout");
+          movedOutOfGrid = true;
+        }
+        root.classList.remove("lg-toc-mobile");
+        applyMobileCollapsed(toc, false);
+        syncHeaderButton();
+        return;
+      }
+
+      // Small screens: keep the default stacked layout (TOC above content).
+      if (movedOutOfGrid) {
+        tocCol.insertBefore(toc, tocCol.firstChild);
+        root.classList.remove("lg-toc-layout");
+        movedOutOfGrid = false;
+      }
+      root.classList.add("lg-toc-mobile");
+      const collapsed = readMobileCollapsed();
+      applyMobileCollapsed(toc, collapsed === null ? DEFAULT_MOBILE_COLLAPSED : collapsed);
+      syncHeaderButton();
+    }
+
+    applyLayoutForViewport();
+
+    // Some environments (IDE previewers / older WebViews) are flaky with matchMedia "change".
+    // Keep the header text in sync on resize/orientation changes.
+    let syncTimer = 0;
+    const scheduleSyncHeaderButton = () => {
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        syncTimer = 0;
+        syncHeaderButton();
+      }, 150);
+    };
+    window.addEventListener("resize", scheduleSyncHeaderButton, { passive: true });
+    window.addEventListener("orientationchange", scheduleSyncHeaderButton, { passive: true });
+
+    // Keep behavior sane when the user resizes the browser window.
+    try {
+      const mq = window.matchMedia("(min-width: 1025px)");
+      const onChange = () => applyLayoutForViewport();
+      if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
+      else if (typeof mq.addListener === "function") mq.addListener(onChange);
+    } catch {
+      // ignore
+    }
+
+    const preferred = readMode() || DEFAULT_MODE;
+    applyMode(preferred);
+
+    // tocify populates #TOC after DOM ready; inject header after it materializes.
+    let tries = 0;
+    const maxTries = 40; // ~4s
+    const timer = setInterval(() => {
+      tries += 1;
+      const t = document.getElementById("TOC");
+      if (t && (t.querySelector("ul") || tries >= maxTries)) {
+        ensureTocHeader(t);
+        clearInterval(timer);
+      }
+    }, 100);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<!-- View State Persistence: keep zoom + reading position on refresh -->
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_PREFIX = "bensz_rmd_view_state_v1:";
+  const STORAGE_KEY = STORAGE_PREFIX + (location.pathname || location.href || "unknown");
+
+  const ZOOM_DEFAULT = 1.0;
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 3.0;
+  const ZOOM_STEP = 0.1;
+  const RESTORE_TTL_MS = 6 * 60 * 60 * 1000; // avoid surprising jumps from very old state
+
+  const supportsCssZoom = (() => {
+    try {
+      return typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("zoom", "1");
+    } catch {
+      return false;
+    }
+  })();
+
+  function clamp(n, lo, hi) {
+    return Math.min(hi, Math.max(lo, n));
+  }
+
+  function round1(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  function safeJsonParse(s) {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+
+  function readState() {
+    try {
+      return safeJsonParse(sessionStorage.getItem(STORAGE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function writeState(state) {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // ignore (private mode / storage disabled)
+    }
+  }
+
+  let zoom = ZOOM_DEFAULT;
+
+  function applyZoom(nextZoom, { save } = { save: true }) {
+    zoom = clamp(round1(nextZoom), ZOOM_MIN, ZOOM_MAX);
+
+    // Prefer CSS zoom (keeps layout sharp in Chromium/Safari).
+    // Fallback to root font-size scaling for environments without CSS zoom.
+    if (supportsCssZoom) {
+      if (document.body) document.body.style.zoom = String(zoom);
+      else document.documentElement.style.zoom = String(zoom);
+    } else {
+      // 16px is the common default; scaling the root helps most rem-based styles.
+      document.documentElement.style.fontSize = `${16 * zoom}px`;
+    }
+
+    if (save) persistState();
+  }
+
+  function persistState() {
+    writeState({
+      zoom,
+      x: window.scrollX || 0,
+      y: window.scrollY || 0,
+      ts: Date.now(),
+    });
+  }
+
+  function restoreScroll(x, y) {
+    if (typeof x !== "number" || typeof y !== "number") return;
+
+    // Layout may shift after widgets/images initialize. Restore a few times.
+    const attemptsMs = [0, 50, 200];
+    for (const ms of attemptsMs) {
+      setTimeout(() => window.scrollTo(x, y), ms);
+    }
+  }
+
+  function shouldRestore(state) {
+    if (!state || typeof state.ts !== "number") return true;
+    return Date.now() - state.ts <= RESTORE_TTL_MS;
+  }
+
+  let scrollSaveRaf = 0;
+  function schedulePersistOnScroll() {
+    if (scrollSaveRaf) return;
+    scrollSaveRaf = requestAnimationFrame(() => {
+      scrollSaveRaf = 0;
+      persistState();
+    });
+  }
+
+  function onKeydown(ev) {
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    if (ev.altKey) return;
+
+    // Ctrl/Cmd + (+/-/0): internal zoom that can be persisted reliably across refresh.
+    // - "+" is often reported as "=" with Shift depending on keyboard layout.
+    const k = ev.key;
+    if (k === "+" || k === "=") {
+      ev.preventDefault();
+      applyZoom(zoom + ZOOM_STEP);
+      return;
+    }
+    if (k === "-" || k === "_") {
+      ev.preventDefault();
+      applyZoom(zoom - ZOOM_STEP);
+      return;
+    }
+    if (k === "0") {
+      ev.preventDefault();
+      applyZoom(ZOOM_DEFAULT);
+    }
+  }
+
+  function init() {
+    const state = readState();
+    if (state && typeof state.zoom === "number") {
+      applyZoom(state.zoom, { save: false });
+    }
+
+    if (state && typeof state.x === "number" && typeof state.y === "number") {
+      if (shouldRestore(state)) restoreScroll(state.x, state.y);
+    }
+
+    // Persist on refresh/close.
+    window.addEventListener("beforeunload", persistState);
+    window.addEventListener("pagehide", persistState);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") persistState();
+    });
+
+    // Persist while reading.
+    window.addEventListener("scroll", schedulePersistOnScroll, { passive: true });
+
+    // Zoom shortcuts.
+    document.addEventListener("keydown", onKeydown, { capture: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>

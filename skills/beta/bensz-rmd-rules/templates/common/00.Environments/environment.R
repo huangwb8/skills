@@ -16,6 +16,16 @@ activate_environment <- function() {
   renv::load(project = project_root, quiet = TRUE)
 }
 
+check_lock_r <- function(lock) {
+  version <- lock$R$Version
+  if (!is.character(version) || length(version) != 1L || is.na(version) || !nzchar(version)) {
+    stop("No R version recorded in 00.Environments/renv.lock.", call. = FALSE)
+  }
+  if (as.character(getRversion()) != version) {
+    stop("Use the R version recorded in 00.Environments/renv.lock: R ", version, ".", call. = FALSE)
+  }
+}
+
 prepare_environment <- function(action) {
   if (action == "prepare" && file.exists(lockfile)) {
     stop("A lockfile already exists. Use restore or explicitly use update-lock.")
@@ -23,6 +33,7 @@ prepare_environment <- function(action) {
   if (action != "prepare" && !file.exists(lockfile)) {
     stop("Missing lockfile. Use prepare only to initialize a new environment.")
   }
+  if (action == "restore") check_lock_r(renv::lockfile_read(lockfile))
   dir.create(project_library, recursive = TRUE, showWarnings = FALSE)
   activate_environment()
   if (action == "restore") {
@@ -43,9 +54,7 @@ use_environment <- function() {
     stop("Missing 00.Environments/renv.lock. Use Rscript --vanilla run.R prepare for a new project.")
   }
   lock <- renv::lockfile_read(lockfile)
-  if (as.character(getRversion()) != lock$R$Version) {
-    stop("Use the R version recorded in 00.Environments/renv.lock: R ", lock$R$Version, ".")
-  }
+  check_lock_r(lock)
   records <- lock$Packages
   if (!all(project_packages %in% names(records))) {
     stop("Dependencies changed. Review packages.txt and run Rscript --vanilla run.R update-lock.")

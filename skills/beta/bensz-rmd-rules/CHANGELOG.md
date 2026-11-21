@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed
+
+- 0.31.2：新建 simple 与 complex 的 HTML 默认重新启用 Liquid Glass，恢复响应式目录、深色模式、图片放大与代码复制；保留 `--theme plain` 和 `--theme flatly`。正式入口支持从子目录渲染骨架报告。
+- 恢复出版级绘图规范、英文标签默认值与中文选项、静态矢量 PDF 和位图预览，以及 ggplot2、ComplexHeatmap 和 plotly 样式模板。
+
+### Validation
+
+- macOS 从锁文件恢复并实际渲染 simple、complex、子目录报告及备选主题；报告单独渲染后 targets 元数据不变。Chrome 离线验证 1280 / 390 像素下的目录、代码复制、图片放大、MathML 和 DT；实际导出 ggplot2 / ComplexHeatmap PDF 与 plotly HTML，并检查 JPG 预览。Linux 容器验证 Python 骨架；Linux R 链和 Windows 未实测。
+
+### Fixed
+
+- 0.31.1：simple 与 complex 共用配对计算和报告正文。校验 CSV 行宽、必需列、单位标识及置信水平；区间不可估时说明原因，并在可用时保留点估计。
+- 修正子目录 HTML 的计算源码和 DT 附件链接。附件条数以实际读入的明细为准。恢复项目库前核对锁文件的 R 版本；同名 HTML 位置是目录时，构建在计算前停止。
+
+### Validation
+
+- 一轮 `auto-test-skill` 及 B 轮复验：macOS 从隔离副本恢复并构建两种报告，对照配对数、均值和 t 区间，验证子目录链接、targets 复用及损坏结果重建。Chrome 离线验证 390 / 1200 像素下的公式、代码折叠、DT 搜索、翻页和表内滚动。Linux 容器验证 Python 3.11 骨架；Linux R 链和 Windows 未实测。
+
 ### Changed
 
 - 0.31.0：将值得回答的科学问题作为报告主线，把真实代码、图、表和文字写成同一条论证。关键概念与发现先用假设的日常例子建立直觉，再用与计算一致的公式交代口径，并回到本次证据及其边界。

@@ -20,7 +20,9 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `report.html` to see how a commuting example introduces a formula for paired differences, then how a plot and a summary table explain synthetic results. Replace `simple` with `complex` to try targets, or add `--dt --theme flatly` for a searchable, horizontally scrollable table and an optional theme.
+Open `report.html` to see how a commuting example introduces a formula for paired differences, then how a plot and a summary table explain synthetic results. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Replace `simple` with `complex` to try targets, or add `--dt` for a searchable, horizontally scrollable table. To change the appearance, use `--theme plain` or `--theme flatly`.
+
+Both modes use the same paired analysis code. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
 
 ## When to use it
 
@@ -57,5 +59,6 @@ put the wide table in a searchable appendix, and reuse the fit when only prose c
 - **Can I edit the report on its own?** Yes. Run `Rscript --vanilla run.R report` in a starter project. In complex mode, a missing or stale result prompts you to run `Rscript --vanilla run.R build`.
 - **Where does the HTML go?** By default it shares the Rmd's directory and basename. Use `reports/` for standalone figures and tables, and `products/` for reusable results, according to the project's layout.
 - **Does every report need DT?** Static tables work well in the main text. Use DT for details that readers need to look up. All embedded data is sent with the HTML, so check permissions before publishing.
+- **What is the default figure style?** Use publication legibility, a white background, and English labels. Put titles and interpretation in the caption or text. Prefer vector PDF for standalone static figures.
 
-More: [inference and reporting](references/report.md) · [testing and delivery](references/delivery.md)
+More: [inference and reporting](references/report.md) · [themes and figures](references/visuals.md) · [testing and delivery](references/delivery.md)
