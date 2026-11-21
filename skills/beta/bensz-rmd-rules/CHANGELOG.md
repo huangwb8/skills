@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.7：将完整项目骨架归入 `templates/project/`，可选附录归入 `templates/detail/`，主题及绘图资源移入 `assets/`。移除独立的演示明细 CSV；`--detail`（兼容 `--dt`）直接展示正文所用的逐单位差值和纳入状态。默认骨架和生成项目的主题路径保持原样。
+- macOS 实际渲染附录并对照原始记录，新增一条测量后，附录从 8 行更新为 9 行，并与正文的有效配对数一致。macOS 和 Linux 验证默认骨架及两个附录参数，生成器不再为附录复制数据或添加直接依赖。Linux R 和 Windows 未实测。
 - 0.31.6：移除双模式骨架及模式参数，`new_project.py <目标目录>` 始终创建 targets 与 renv 项目。正式估计、描述统计和稳健性计算由 targets 执行，保留论文式报告与独立渲染。
 - macOS 用锁文件恢复并冷构建单一骨架。验证旧调用和缺流水线被拒绝，纯渲染不更新 targets 计算记录，缺失稳健性产物可补齐；仅改置信水平复用稳健性结果，改输入后摘要、图表和质控同步更新。Chrome 验证桌面和窄屏，Linux 生成文件与 macOS 一致。未实测 Linux R 或 Windows。
 - 0.31.5：完整研究默认交付论文式报告；加入章节职责、分析深度和科学质控要求，两套骨架示范实际检查与稳健性分析。

@@ -1,0 +1,16 @@
+
+## 附录：逐单位配对明细
+
+下表列出正文使用的全部 `r nrow(data)` 个单位，可按编号搜索。差值为随访减基线；差值不可用时留空，并标记为未纳入平均变化估计。
+
+```{r detail-table, echo=FALSE}
+included <- is.finite(data$change)
+detail <- data.frame(
+  单位 = data$unit,
+  `变化量（测量单位）` = replace(data$change, !included, NA_real_),
+  纳入估计 = ifelse(included, "是", "否"),
+  check.names = FALSE
+)
+DT::datatable(detail, rownames = FALSE, class = "stripe compact", width = "100%",
+              options = list(pageLength = 8, lengthChange = FALSE, scrollX = TRUE))
+```

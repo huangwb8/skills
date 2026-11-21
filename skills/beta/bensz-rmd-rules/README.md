@@ -20,7 +20,7 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-打开 `report.html`，看一份用合成数据写成的论文式报告：从摘要、引言和配对方法，到结果、单点影响检查、质量控制和讨论。默认用 Liquid Glass：桌面可使用浮动目录，窄屏可折叠目录，也能放大图片和复制代码。加 `--detail` 可追加带搜索和横向滚动的明细表（兼容旧参数 `--dt`）。想换外观可用 `--theme plain` 或 `--theme flatly`。
+打开 `report.html`，看一份用合成数据写成的论文式报告：从摘要、引言和配对方法，到结果、单点影响检查、质量控制和讨论。默认用 Liquid Glass：桌面可使用浮动目录，窄屏可折叠目录，也能放大图片和复制代码。加 `--detail` 可用同一份分析数据生成可搜索的逐单位明细（兼容旧参数 `--dt`）。想换外观可用 `--theme plain` 或 `--theme flatly`。
 
 报告先讲为什么只比较完整配对，再默认展开正式流水线使用的代码；正文用内联 R 带入本次分母、估计和区间，与 DT 汇总表共用展示值。样例 CSV 每行对应一个单位，必须含 `unit`、`before` 和 `after` 三列。区间无法估计时，报告说明原因，并保留仍可计算的平均变化。
 
@@ -53,6 +53,8 @@ Rscript --vanilla run.R build
 ## 环境与脚本
 
 `00.Environments/` 保存项目环境、锁文件和分析设置。先用 [骨架脚本](scripts/new_project.py) 初始化一个新目录；环境准备在 `run.R prepare`，从锁文件恢复用 `run.R restore`，有意更新依赖才使用 `run.R update-lock`。这些入口的完整用法见 [计算、环境与重建](references/workflow.md)。Skill 当前位于 beta 源，需显式选用。
+
+想改起步示例，可以从 Skill 的[项目骨架](templates/project/)找到主报告和计算入口；[明细附录](templates/detail/)由 `--detail` 加入。[主题和绘图资源](assets/)放在一起，生成器只复制所选的 Liquid Glass 主题，绘图代码按需取用。
 
 ## 常见问题
 

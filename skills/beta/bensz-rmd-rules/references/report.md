@@ -74,4 +74,4 @@ R Markdown HTML 默认 `code_folding: show`，单个长块可用 `class.source =
 
 只展示部分记录时，说明选择标准与范围；分页不减少客户端下载的数据。数据太大或不允许嵌入时，在报告里用文字或获准的 DT 汇总，完整明细按授权单独交付。
 
-骨架默认用 DT 渲染正文汇总表；加 `--detail`（也接受旧参数 `--dt`）会追加[长宽表片段](../templates/optional/long-table.Rmd)和合成 CSV。按正式入口构建后，在窄屏实际横向滑动，确认是表内滚动，并核对附件链接和显示范围。
+骨架默认用 DT 渲染正文汇总表。加 `--detail`（也接受旧参数 `--dt`）会追加[逐单位配对明细](../templates/detail/appendix.Rmd)，从正文已读取的 `paired_changes` 结果展示差值及是否纳入估计。换成真实数据前，先确认是否允许在 HTML 中嵌入逐条记录和单位编号。

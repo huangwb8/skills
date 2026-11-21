@@ -20,7 +20,7 @@ Rscript --vanilla run.R prepare
 Rscript --vanilla run.R build
 ```
 
-Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable, horizontally scrollable detail table (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
+Open `report.html` for a paper-style report based on synthetic data, from the abstract, introduction, and paired analysis methods through the results, an influence check, quality control, and discussion. Liquid Glass is the default and provides a floating desktop table of contents, a collapsible mobile table of contents, image zoom, and code copying. Add `--detail` for a searchable table of individual records from the same analysis (`--dt` remains an alias). To change the appearance, use `--theme plain` or `--theme flatly`.
 
 The report explains why it uses complete pairs before showing the actual pipeline code, expanded by default. Inline R supplies the denominator, estimate, and interval from the same values as the DT summary table. The demo CSV has one row per unit and requires the `unit`, `before`, and `after` columns. When an interval cannot be estimated, the report explains why and retains the mean change if available.
 
@@ -56,6 +56,8 @@ put the wide table in a searchable appendix, and reuse the fit when only prose c
 ## Environment and scripts
 
 `00.Environments/` holds the project environment, lockfile, and analysis settings. Use the [project generator](scripts/new_project.py) to start a new directory. Prepare the environment with `run.R prepare`, restore it from the lockfile with `run.R restore`, and use `run.R update-lock` when you intend to revise dependencies. See [computation, environment, and rebuild](references/workflow.md) for complete commands. This Skill is in the beta source and must be selected explicitly.
+
+To adapt the starter example, find the main report and analysis entry point in the Skill's [project scaffold](templates/project/). Use `--detail` to add the [detail appendix](templates/detail/). The [assets directory](assets/) holds the Liquid Glass theme, which the generator copies when selected, and plotting code you can use as needed.
 
 ## FAQ
 

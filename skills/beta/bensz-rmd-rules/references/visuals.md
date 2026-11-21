@@ -4,7 +4,7 @@
 
 新项目的报告骨架默认启用 Liquid Glass。主题提供半透明卡片、系统深色模式、桌面动态/常驻目录、窄屏折叠目录、居中图片和点击放大、代码复制和视图状态恢复。代码样式关闭字体连字，使 R 的 `<-` 保持原样。需要其它外观时用 `--theme plain` 或 `--theme flatly`；已有项目保留用户选择。
 
-要给已有报告启用主题，把 [Liquid Glass 资源](../templates/liquid-glass/)复制到项目的 `templates/liquid-glass/`，合并以下 Rmd 配置，保留项目原有的公式和代码选项：
+要给已有报告启用主题，把 Skill 的 [Liquid Glass 资源](../assets/liquid-glass/)复制到项目的 `templates/liquid-glass/`，合并以下 Rmd 配置，保留项目原有的公式和代码选项：
 
 ```yaml
 output:
@@ -33,7 +33,7 @@ CSS 走 `css`，交互文件走 `includes.after_body`。从子目录独立 knit 
 | ComplexHeatmap | 行列标签 8–10 pt；连续数据用感知顺序明确的色带（如 viridis） | 有含义的零点可用以零为中心的发散色带；矩阵很密时减少标签，并保留可核对的完整映射 |
 | plotly | 轴标题约 14 px、刻度约 12 px、图例约 11 px，数据线约 2–3 px | 只有需要查询明细时才用交互；检查悬停信息、窄屏和客户端接收的数据范围 |
 
-同一变量在不同图里尽量保持颜色、单位和编码一致；分类可从 Nature 风格配色起步，连续量用 viridis 等有序色带。检查色觉差异、灰度和浅底对比，避免彩虹色与仅靠红绿区分。可按项目需要复制 [ggplot2 主题](../templates/plots/nature_theme.R)、[分类配色](../templates/plots/nature_colors.R)、[ComplexHeatmap 示例](../templates/plots/complexheatmap_template.R)或 [plotly 示例](../templates/plots/plotly_template.R)到项目并显式声明所用的包；plotly 示例先加载配色文件。
+同一变量在不同图里尽量保持颜色、单位和编码一致；分类可从 Nature 风格配色起步，连续量用 viridis 等有序色带。检查色觉差异、灰度和浅底对比，避免彩虹色与仅靠红绿区分。可按项目需要复制 [ggplot2 主题](../assets/plots/nature_theme.R)、[分类配色](../assets/plots/nature_colors.R)、[ComplexHeatmap 示例](../assets/plots/complexheatmap_template.R)或 [plotly 示例](../assets/plots/plotly_template.R)到项目并显式声明所用的包；plotly 示例先加载配色文件。
 
 ## 导出和检查
 
