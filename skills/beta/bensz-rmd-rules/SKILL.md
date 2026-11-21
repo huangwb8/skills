@@ -1,117 +1,45 @@
 ---
 name: bensz-rmd-rules
-description: 当主要交付物是基于 R 的数据分析流程、科学结果、可复现数据产品、R Markdown/HTML 报告或论文级图表与解读时使用；即使流程中包含 `.R` 脚本和仅服务当前分析的辅助函数，也由本 Skill 主导。⚠️ 不适用：主要交付物是可独立复用的 R 函数、稳定公共 API、类或 R Package；这些任务使用 bensz-r-developer。也不用于仅渲染既有 Rmd 或其它语言的数据分析。
+description: 当交付物是可复现的 R 数据分析、R Markdown/HTML 科学报告，或需要修改报告并复用正式分析结果时使用。适用于探索性简报、带统计推断的研究报告和用 targets 管理的分析流水线。只渲染现成 Rmd 用 knit-rmd-html；主要交付可复用的 R API 或包用 bensz-r-developer。
 metadata:
   author: Bensz Conan
-  short-description: R/Rmd 多阶段分析、可恢复数据产品与论文级报告规范
-  keywords:
-    - bensz-rmd-rules
-    - R Markdown
-    - Rmd
-    - 数据分析
-    - 断点续算
-    - 可复现报告
 ---
 
 # bensz-rmd-rules
 
 ## 目标
 
-把研究目标和数据组织为可审查、可复现的 R 分析流程。新项目必须用 `renv`，并在真实 R/Rmd 入口完成轻量测试：线性低成本流程用 `simple`；有非线性依赖、昂贵步骤、复用、局部失效、恢复、血缘或并行需求时用 **targets-first complex/pipeline**（`_targets.R` 唯一 DAG，计算函数在 `R/`，Rmd 只消费 target）。`_targets/` 是机器状态，`products/`/`reports/` 是科学产物。已有项目不自动补齐或迁移：有 `_targets.R` 按 complex，无 targets（含历史编号脚本）按 simple；需要复杂能力时由人类显式迁移。本 Skill 不维护编号 runner。
-
-**结果默认可丢失**：数据—分析代码—结果必须贯穿规划、实现、测试和交付。保留受保护输入、源码、参数及环境声明后，即使全部派生数据、缓存、图表和报告丢失，也必须能从文档化正式入口重建约定交付；不得依赖旧 R 会话、`.RData`、未保存对象、临时脚本或未记录的人工操作。不可再生的人工标注、外部响应或用户提供的唯一中间材料须登记为受保护输入，不能当作缓存删除。existing 的未闭合链路披露为风险/阻塞，不隐式迁移，也不宣称可重建。
-
-低成本的整体重建属于 simple 的正常能力，不单独触发 complex；模式选择中的恢复信号指昂贵步骤的断点续算、增量重建等需求。
-
-主要交付物决定触发，而不是扩展名：
-
-| 交付物 | 主导 Skill |
-| --- | --- |
-| 分析数据流、统计结果、可恢复产品、Rmd/HTML、图表与解读 | `bensz-rmd-rules` |
-| 可复用、版本化或跨项目的函数、类、API、Package | `bensz-r-developer` |
-| 分析需要可复用组件 | 本 Skill 定义需求/集成证据，`bensz-r-developer` 实现，本 Skill 接回验证 |
-
-可创建只服务当前分析的 `R/` 函数和 helper，但不扩展为公共 Package。`luckyBase` 是唯一固定 Bensz 依赖；其它包由项目写入 `renv.lock`。`crew`、`autometric`、集群插件只是项目级可选依赖；不自制调度器、日志协议、worker 状态机或资源采样器。本 Skill 不自动接入 State、Verifier、Pack 或 Gate。
+围绕一个或多个有价值的科学问题写成完整的论证。正文让非专业读者理解关键概念与发现，也让专业读者查清数学口径、证据强度和结论边界。关键判断应能追到真实数据、公式、代码和重建入口。
 
 ## 流程
 
 ### 输入
 
-收集：研究问题、用途、交付物、统计边界和完成判据；主要/次要估计对象、目标人群、观察单位、对比与效应尺度、研究设计、缺失/依赖结构、预注册方案及推断目的；原始输入/数据字典/隐私授权及 `raw/` 只读边界；重算成本、依赖、外部请求、随机性、关键参数和恢复需求；现有 R/Rmd、`00.Environment.R`、产品路径、`tmp/`、`_targets.R`、`renv.lock`/`renv/`；可用测试数据与边缘条件；函数复用范围。缺失信息只有在改变行为或安全边界时才询问。
-
-先读 `config.yaml`，再按任务读取最少 references：
-- 模式/目录：[`workflow_modes.md`](references/workflow_modes.md)、[`hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md)；测试：[`lightweight_testing.md`](references/lightweight_testing.md)。
-- 缓存/示例：[`analysis_workflow_cache.md`](references/analysis_workflow_cache.md)、[`hybrid_architecture_examples.md`](references/hybrid_architecture_examples.md)；审查：[`serial_review_protocol.md`](references/serial_review_protocol.md)。
-- 新建或实质修改分析链路必读：[`rebuild_contract.md`](references/rebuild_contract.md)，规定输入身份、单一路径、显式依赖、无缓存重建及结果丢失验收；simple/complex 均适用。
-- 维护本 Skill 的行为规则时，用 [`behavioral_acceptance.md`](references/behavioral_acceptance.md) 的相关场景核对需求；可执行回归统一在 `scripts/test_*.py`，静态或脚本测试不冒充 Agent 行为评估。
-- R 实现：[`code_style_guide.md`](references/code_style_guide.md)、[`no_overdefensive_code.md`](references/no_overdefensive_code.md)、[`cross_platform.md`](references/cross_platform.md)。
-- 指标/解读：[`metric_explanation_protocol.md`](references/metric_explanation_protocol.md)、[`four_tier_interpretation_framework.md`](references/four_tier_interpretation_framework.md)、[`interpretation_templates.md`](references/interpretation_templates.md)、[`interpretation_narrative_examples.md`](references/interpretation_narrative_examples.md)、[`expert_discussion_template.md`](references/expert_discussion_template.md)。
-- 论文级估计与检验：[`statistical_inference_protocol.md`](references/statistical_inference_protocol.md)；计算前逐项确定可估计性与方法，报告时逐项核对。
-- 图表/HTML：[`plot_quality_standards.md`](references/plot_quality_standards.md)、[`plot_language.md`](references/plot_language.md)、[`htmlwidget_visibility_rules.md`](references/htmlwidget_visibility_rules.md)、[`liquid_glass_theme_guide.md`](references/liquid_glass_theme_guide.md)；ID/函数：[`gene_id_guidelines.md`](references/gene_id_guidelines.md)、[`candidate_r.md`](references/candidate_r.md)。
-
-对 `raw/` 仅做规划和选样所需的轻量只读盘点，不启动完整计算。
+明确读者、待做的决定、研究设计、输入和授权范围；盘点现有项目的入口、环境、结果和报告，先读足以判断的资料。区分用户决定、研究方案和探索性选择。信息不足时先推进可检验的部分；只有缺口改变关键口径或授权时才询问。
 
 ### 执行步骤
 
-1. **映射交付与推断**：若只要公共函数/API/类/Package，转交 `bensz-r-developer`；否则建立 target—输入—科学产品—报告—完成判据映射，确保依赖无环。计算前列出影响论文结论的主要与次要估计对象，逐项判断是否需要且能够给出区间/检验，记录设计、方法理由和结果去向；预注册方案优先，不为显著性事后更换主终点或检验。纯描述、固定常数或不可估计项明确标状态与原因，不伪造 CI/p。新 pipeline 的计算函数放 `R/`，由 `_targets.R` 的 `tar_source("R")` 发现；`00.Environment.R` 默认唯一，只负责包、项目根、产品路径和全局配置。
-2. **判状态和模式**：先运行
-   ```bash
-   python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state auto --workflow-mode auto
-   ```
-   优先级为人类要求 → existing 边界 → 复杂度。尽量在写入骨架前判定新旧；已明确的新项目继续用 `--project-state new`。复杂信号（非线性、昂贵/高失败代价、多下游复用、局部失效、恢复、血缘、并行）选 complex，否则选 simple。`existing` 有 `_targets.R` 按 complex，否则按 simple；不创建缺失 targets/renv，不隐式迁移。详见 [`workflow_modes.md`](references/workflow_modes.md)。
-3. **固定路径**：按需使用 `00.Environment.R`、`R/`、`_targets.R`、`raw/`、`products/`、`reports/`、`templates/`、`scripts/tests/`、`tmp/tests/<run-id>/`、`tmp/scratch/`、`renv.lock` 和 `renv/activate.R`，不预建空目录。`products/` 只存需审阅/复用/交付的科学产物；路径优先级为人类指定 → 已有路径 → 项目统一设置 → `products/`，必须在项目内且不得与 `raw/`、`reports/`、`tmp/`、`_targets/`、`.bensz-api/` 重叠。
-4. **设计缓存边界**：只导出昂贵、可复用、高风险/有损、需人工审查、依赖可变外部请求或中断代价高的结果。targets 管理 `_targets/` metadata、失效和增量重建；禁止 `SUCCESS`、identity hash、force-step/resume runner 或 checkpoint helper。详见 [`analysis_workflow_cache.md`](references/analysis_workflow_cache.md)。
-5. **计算推断并实现报告**：`00.Environment.R` 用 `luckyBase::Plus.library()`；分析代码优先 `pkg::fn()`，基因 ID 用 `luckyBase::convert()`。分析层对关键参数计算估计值、适当的默认 95% CI（方案另有水平时从其规定），并仅在有明确检验问题时给 p 值；多重检验记录校正方法与 q/调整后 p。保留未经显著性筛选的完整结果，含参数身份、尺度/单位、有效 N/事件数、方法、CI 界限/水平、适用的 p/q、来源及不适用/不可估计/未运行状态与理由。complex 的 `R/` 函数读取 `raw/`/上游 target；Rmd 用 `tar_read()`/`tar_load()` 消费真实结果，不在正文臆算。Top N/阈值/配色放 YAML `params`。target 语义化命名并按阶段注释；交付摘要附 `targets::tar_manifest()`。静态图写 `reports/`，默认不在图内重复标题。只在 I/O 边界和硬前提检查，不用占位/静默降级掩盖失败。
-6. **真实轻量测试**：新建或实质修改流程选择 `synthetic_fixture`（保 schema、类型、主键、分组、缺失和边缘条件，固定种子）或有授权时的 `project_subset`（覆盖关键分组/结局/缺失/异常，不能仅 `head(n)`）。测试在 `scripts/tests/`，每次使用唯一 `tmp/tests/<run-id>/`；只改输入规模和路径，不加业务 `analysis_mode`/`test_mode`。simple 调正式入口；complex 执行同一 DAG，store 放 `<run-id>/_targets`。至少断言输入契约、类型/主键、数值不变量、产品/报告生成和 `raw/` 未写入。checker/语法/`--dry-run` 仅为 `preflight`；真实链为 `lightweight_execution`；未跑全量记 `full_data_execution=NOT_RUN`。按环境依赖、fixture/子集、路径隔离、分析代码、科学断言、渲染、外部服务分类失败。
-7. **串行审查**：初稿和轻量测试后，按 [`serial_review_protocol.md`](references/serial_review_protocol.md) 完成结构/数据流、R/恢复、科学/统计三项只读审查；每项读取前项修正后的最新版本。影响执行、输出或断言的修正会使旧证据失效，须在最新 identity 上重跑受影响链；不能提供独立 Agent 时须记录降级。
-8. **正式运行与报告**：simple 用明确 R/Rmd 入口；complex 先检查契约，再 `targets::tar_make()`，store 为 `_targets/`。中断后用 `tar_meta()`、outdated 集合和执行记录证明有效 target 被跳过，不手工写 `SUCCESS`。图表默认英文，中文场景用 `params.plot_language`；静态图保存 PDF，并在任务工作区生成 JPG 预览。每个关键结论给出与计算产品对应的估计值、CI、有明确假设时的 p/q、实际意义与局限；无法推断时写清状态和理由。图/表附近给对象、方向/对比与可追溯证据，不为装饰性数字逐个检验。
-
-每项关键交付还须记录输入身份、计算代码/target、分析参数、输出路径、重建入口和数值/结构验收判据；simple 用短表，complex 复用 DAG 与分析计划，不另建调度器。所有外部文件、分析配置、模型参数和随机策略必须进入实际依赖；complex 的文件型输入用 file targets 跟踪，文件交付用 file targets 或明确的同入口导出步骤；simple 从正式入口读取受保护输入并重建全部交付。报告层只保留展示参数，影响估计值的阈值属于分析参数。
-
-轻量执行必须在干净 R 子进程中覆盖：无结果/无 store 重建、缓存保留时交付文件丢失后补齐、同路径输入内容改变后更新，以及隔离项目副本迁移后的数值/结构一致性。complex 另证中断复用和无关节点不被重算。只删本次隔离副本内已确认可再生的结果，不删除正式结果或受保护输入；未验证场景标 `NOT_RUN`/`BLOCKED`，不得宣称完整可重建。项目根由入口定位或明确要求从根启动并拒绝错误 cwd；随机种子与关键系统依赖需记录。具体操作见重建契约。
+1. **从问题下手。** 先说明问题为什么值得回答，什么观察或比较会改变现有判断。交代人群、分析单位、对照和效应尺度；区分主要、次要和探索性问题。按研究设计处理分母、缺失、依赖结构和不确定性。证据不足时收窄结论。详见[推断与报告](references/report.md)。
+2. **确定唯一正式计算路径。** 新项目优先选 `simple`：低成本结果由 Rmd 或一条 R 入口重建。拟合、重采样或可局部重算的昂贵步骤用 `complex` 和 `targets`；把真实输入、估计参数、代码和影响计算的环境纳入依赖。现有项目用它自己的入口和目录；需要改架构时先确定授权。新项目可用[骨架脚本](scripts/new_project.py)，在 [`00.Environments/`](references/workflow.md) 下管理 renv、依赖和分析参数；安装和恢复是显式步骤。
+3. **把代码、图、表和文字写成一条论证。** 开篇给主要判断及条件。实际代码说明怎么比较，图揭示分布、差异、例外或不确定性，表给读者要核对的数字，文字说明证据为何支持判断、哪里还有别的解释。四者按证据需要取舍；每节不必凑齐。分别决定代码是否展示、是否执行：只读结果的报告可以折叠或引用正式代码，昂贵估计照旧留在计算端。
+4. **把关键概念和发现讲透。** 在读者第一次需要理解时，先用贴近日常的小例子解释它解决什么问题，再用与实际算法一致的公式写清比较、符号、单位和必要假设，随即回到本次图表解释结果。标明例子是假设的，说明类比在何处失效。公式服务于理解；把较长推导放在旁注或附录，让不读推导的人也能顺着正文读完。
+5. **用实际交付验收。** 抽查结论、公式、代码和图表是否在回答同一个问题，核对分母、数值、区间和来源。打开 HTML 检查公式、可见代码、图表、窄屏和链接。新建或改动计算流程时，用合成输入或授权子集在隔离副本跑同一正式入口；按变更风险验证复用、失效、恢复和重建。详见[测试与交付](references/delivery.md)。
 
 ### 输出
 
-交付需求—target—报告映射、唯一 `00.Environment.R`、`R/` 函数、Rmd/HTML、`renv.lock`、`renv/activate.R`、`scripts/tests/`、`reports/` 和验证摘要。complex 另交 `_targets.R` 与 `tar_manifest()` 快照，按需交分析计划和科学产品；simple 不创建 targets。测试记录绑定最新 identity，分别报告三层执行状态，不能以轻量通过暗示全量通过。
-
-交付还须附可复制的环境恢复、从原始输入重建和仅重出报告命令（说明 cwd、输入/参数来源）；逐项给出重建验收状态与证据。`renv.lock` 不能独自证明 R/系统库/Pandoc/外部资源可恢复。用于续算的 targets 状态与用于审计的来源摘要不得成为第二个缓存协议。
+按任务交付 Rmd 和渲染后的 HTML（默认与源文件同目录同名），以及支撑结论的分析代码、锁定环境、需要保留的科学结果和明细。提供可执行的环境恢复、正式重建和适用的单独渲染命令，说明从哪里启动、结果读取什么和哪些场景实际验证过。
 
 ### 输出管理
 
-正式 HTML 默认由渲染入口直接生成在源 Rmd 同目录、同名（`config.yaml:output.html_location`）。不要为 HTML 另建目录或在渲染后搬运文件；用户已有明确交付路径时沿用。`reports/` 收纳单独交付的图、表和补充材料。渲染和重建命令见 [`rebuild_contract.md`](references/rebuild_contract.md)。
-
-正式代码、测试和产品留在用户项目约定位置；草稿、审查、JPG 和日志进入当前 `.bensz-api/task-*`；轻量测试的 HTML 和其它产物留在 `tmp/tests/<run-id>/`。不写 `raw/`；`products/` 不放草稿；`reports/` 不放缓存或审查日志；`tmp/scratch/` 的重要发现须晋升并补 renv/轻量测试证据。
+`raw/` 是受保护的输入；`products/` 放需要审阅或复用的计算结果；`reports/` 放图、表和补充交付；`_targets/` 是可再生的计算存储。仅在需要时创建目录。临时项目副本使用独立的测试目录，草稿、审阅和运行日志进当前任务工作区。
 
 ### 校验
 
-```bash
-# 新 simple
-python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state new --workflow-mode simple
-Rscript -e 'renv::status()'
-Rscript <项目根>/scripts/tests/smoke_test.R
-
-# 新 complex
-python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state new --workflow-mode complex
-Rscript -e 'renv::status()'
-Rscript <项目根>/scripts/tests/smoke_test.R
-Rscript -e 'targets::tar_make()'
-Rscript -e 'targets::tar_meta()'
-
-# 已有项目
-python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state existing --workflow-mode auto
-```
-
-所有 Rmd 还要检查解读覆盖/质量、widget 可见性、图表可读性和数字追溯，并按实际情况做 R 语法/运行、Rmd 渲染；逐项复核主要估计对象的结果或不可估计理由、CI/p 方法与设计的一致性。现有文本检查器只作启发式预检，词语命中不证明推断已计算或方法正确。检查清单见 [`workflow_checklist.md`](references/workflow_checklist.md)，证据格式见 [`delivery_verification.md`](references/delivery_verification.md)。最低验收：模式理由可复述、renv 可信、测试未污染正式路径、Rmd 未绕过 DAG、恢复可证明、已有项目未隐式迁移、跳过项不写成通过。
+对照实际结果逐项验算关键结论。对复杂项目，报告文字改动应保持原有估计，新输入或参数变化应让正式入口更新受影响结果。区分预检、轻量运行、全量运行和真实浏览器审阅。脚本提示、模板渲染成功或缓存存在都不能替代科学与交付验收。
 
 ### 失败与恢复
 
-- 缺 `luckyBase` 或新项目无 renv：停止补齐前提，不更换包管理逻辑。
-- simple 出现复杂信号：评估升级 complex，不扩展调度器或无理由降级。
-- 测试失败：按失败类别最小修正并重跑；权限/网络/授权/依赖不足时记录阻塞，不伪造成功。
-- complex 测试写正式 `_targets/`、products、reports 或 raw：停止、隔离并确认正式路径后重跑。
-- targets 失效/失败按 outdated/error 重算必要节点；不伪造 `SUCCESS`。Rmd 渲染失败只从报告层恢复。
-- 结果或 store 丢失时按正式重建入口生成，不用空对象/旧结果凑齐交付。输入版本、外部快照或系统依赖缺失时停止受影响链并记录阻塞；`callr_function = NULL` 只切换进程方式，不代表强制失效或重算。
-- existing 冲突不覆盖/迁移；沿现有 targets 或顺序入口做授权增量修改，需复杂能力时显式迁移。
+缺依赖时指出恢复步骤；缺失或已失效的计算结果由正式入口补齐。报告专用入口不能隐式安装、拟合或吞掉错误。若只能复用固定汇总，说明快照来源、验证过的范围、回到原分析的办法及无法核实的条件；不可估计或未运行的比较注明理由。
 
 ## 约束
 
@@ -136,6 +64,5 @@ python3 <skill-root>/scripts/check_targets_renv.py <项目根> --project-state e
 
 ### Skill 专属约束
 
-- 只在授权范围内只读盘点 `raw/`；不得修改、覆盖或向其写入，也不在日志中记录绝对私有路径、凭据或不必要原始值。
-- 不因模板存在就创建全部文件；模式、缓存边界和目录由真实需求决定。
-- 新 pipeline 不引入 checkpoint helper、SUCCESS 或自定义 identity runner；该自制缓存机制已移除，不得在任何项目中新引入或修复。
+- 原始数据、不可再生标注和唯一外部快照保持只读。保护输入、计算状态和正式交付相互独立；测试在隔离副本运行，不能清理正式 store 或用测试开关替换估计算法。
+- 同意展示读数或汇总不等于同意公开个体数据。可交付的 HTML、widget 和附件都需要检查数据授权；分页不能隐藏客户端已经收到的记录。

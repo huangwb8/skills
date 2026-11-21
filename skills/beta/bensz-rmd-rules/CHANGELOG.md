@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed
 
+- 0.31.0：将值得回答的科学问题作为报告主线，把真实代码、图、表和文字写成同一条论证。关键概念与发现先用假设的日常例子建立直觉，再用与计算一致的公式交代口径，并回到本次证据及其边界。
+- simple 与 complex 起步报告均用通勤场景引出配对变化，展示实际计算、数学定义、变化点图、估计表与缺失随访的限制。成品以 MathML 渲染公式，可离线阅读。
+
+### Validation
+
+- macOS 从临时 Skill 副本恢复锁定环境，实际构建 simple、complex 和 DT 版。独立验算配对数、均值和 t 区间；complex 改文案时计算记录不变，缺少点图所需的 target 时拒绝单独渲染。
+- Chrome 离线在 390 与 1200 像素下验证两条展示公式、可展开代码、点图、结果表和页面宽度；DT 附录搜索通过。其余平台未重跑。
+
+### Changed
+
+- 重构为 0.30.4。按科学问题组织 Rmd/HTML，分别处理代码展示和计算执行；报告用图、精选表和文字支撑判断，按需交付长宽明细。
+- 新项目用 `00.Environments/` 托管包声明、renv 锁、项目库与分析参数。simple 直接渲染，complex 通过 targets 更新正式结果，报告专用入口拒绝缺失或失效的结果。继续默认在 Rmd 旁生成同名 HTML。
+- 将参考从 28 份收敛到 3 份，工具从 16 个收敛为一个项目骨架脚本。移除旧检查器、兼容参数、luckyBase 硬依赖和 Liquid Glass 资产；DT、内置 Bootswatch 主题及 Poppler 预览按需使用。
+
+### Validation
+
+- macOS 从临时 Skill 副本搭建并渲染两种模板及 DT 案例，验证显式恢复、离线计算、含空格路径、报告改文不重算、输入/参数/代码失效、缺结果补齐及失败续跑。Chrome 实测桌面与窄屏的 DT 交互和局部滚动；Poppler 预览通过含空格路径测试。
+- 基于同一组已保存的 test-02 汇总做对照稿和新旧独立执行；另从合成数据做一页随访报告。复核了关键数字、报告范围和证据链接。test-02 未重跑原始拟合。
+- Linux 容器验证 Python 骨架及拒绝覆盖已有项目；Linux 和 Windows 未运行 R 链，Windows 未做原生测试。
+
+### Changed
+
 - 版本更新至 `0.30.3`：正式 HTML 默认在源 Rmd 同目录生成同名文件，无需另设 HTML 目录；`reports/` 用于单独交付的图、表和补充材料。项目根只决定 R chunk 的工作目录，测试 HTML 仍留在隔离 run root。macOS 实际渲染根目录及带空格的子目录，验证删除后原位重建和 smoke 不覆盖正式 HTML。
 
 ### Fixed

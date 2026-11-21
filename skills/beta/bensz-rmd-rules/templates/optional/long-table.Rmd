@@ -1,0 +1,16 @@
+
+## Appendix: detailed records
+
+This synthetic example shows all 36 records. Search by record ID, sort by a column,
+or scroll inside the table to inspect measurements. [Complete CSV](raw/detail.csv).
+
+<style>
+.detail-table {max-width: 100%; min-width: 0; overflow-x: auto;}
+</style>
+
+```{r detail-table, echo=FALSE}
+detail <- read.csv("raw/detail.csv", check.names = FALSE)
+htmltools::div(class = "detail-table",
+  DT::datatable(detail, rownames = FALSE, class = "stripe compact", width = "100%",
+                options = list(pageLength = 8, lengthChange = FALSE, scrollX = TRUE, autoWidth = TRUE)))
+```

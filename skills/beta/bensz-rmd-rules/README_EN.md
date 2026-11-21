@@ -1,147 +1,61 @@
 # bensz-rmd-rules
 
-An Agent Skill for **R data analysis, R Markdown reports, reproducible targets workflows, publication-quality plots, and evidence-anchored interpretation**. The current version is `skill_info.version` in [`config.yaml`](config.yaml); this directory is a beta candidate source.
+[简体中文](README.md) · [Skill instructions](SKILL.md)
+
+Build an argument around a scientific question worth answering. Everyday examples build intuition, formulas and code define the comparison, and figures, tables, and prose explain what the evidence supports. Use Rmd directly for small analyses and targets for expensive computations, so report edits can reuse results that are still valid.
+
+## Quick start
+
+```text
+Use bensz-rmd-rules to analyze these follow-up measurements and deliver Rmd and HTML.
+Show the size of the change, who entered the comparison, and what the result can support.
+```
+
+To try a runnable synthetic example, you need Python 3.11+, R, Pandoc, and `renv` in the host R library. From the repository root:
+
+```sh
+python3 skills/beta/bensz-rmd-rules/scripts/new_project.py simple demo-rmd
+cd demo-rmd
+Rscript --vanilla run.R prepare
+Rscript --vanilla run.R build
+```
+
+Open `report.html` to see how a commuting example introduces a formula for paired differences, then how a plot and a summary table explain synthetic results. Replace `simple` with `complex` to try targets, or add `--dt --theme flatly` for a searchable, horizontally scrollable table and an optional theme.
 
 ## When to use it
 
-Use it to turn raw data into preprocessing, statistics/models, plots, Rmd/HTML reports, scientific products, and result interpretation, or to maintain an existing R/Rmd project.
+Use it to analyze data with R, deliver a scientific report readers can check, or rewrite a report around existing results. Use `knit-rmd-html` when you only need to render existing Rmd. Use `bensz-r-developer` when the main deliverable is a reusable R library or package.
 
-Do not use it when the primary deliverable is a reusable cross-project R function, class, stable API, or Package (use `bensz-r-developer`); when only an existing Rmd must be rendered (use `knit-rmd-html`); or for analysis in another language.
+## Inputs and outputs
 
-## Minimal prompt
+Describe the reader, decision, data location, and any limits on analysis or access. The Skill chooses a computation path based on cost and delivers Rmd, HTML, the necessary analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check the results through the project's current entry point.
 
-```text
-Please use bensz-rmd-rules for this R analysis. First inspect read-only whether the project is new or existing, then explain the choice between simple and targets-first complex/pipeline. Use renv and run a real lightweight synthetic_fixture or project_subset test from the formal entry point before the production run.
-```
+## Examples
 
-The Skill preserves existing projects: it does not automatically create targets/renv assets or migrate layouts; a project with `_targets.R` is maintained as complex, while an existing project without targets (including numbered scripts) is maintained with simple semantics.
-
-## Workflow modes
-
-| Mode | Use when | Required contract |
-| --- | --- | --- |
-| `simple` | Linear, inexpensive work where a full rerun is acceptable | `renv`, an explicit R/Rmd entry point, and a real lightweight test; no targets |
-| `complex` (descriptive alias `pipeline`) | Non-linear dependencies, expensive steps, reuse, partial invalidation, recovery, or parallelism | `_targets.R` as the only DAG, compute functions in `R/`, Rmd consumes targets, and isolated-store recovery evidence |
-
-`new`/`existing` describe project state, not a third mode: an existing `_targets.R` means complex; otherwise simple. Migration requires explicit human authorization.
-
-The complex relationship is:
+### Basic example
 
 ```text
-renv.lock → _targets.R → R/ functions → target results → Rmd → reports/
-                         ↘ optional products/
-                         ↘ _targets/ (machine state)
+Write a one-page briefing for the group. Start with an everyday example, then
+define eligible pairs in a formula and in code. Plot the individual changes and
+explain how missing follow-up affects the conclusion.
 ```
 
-`_targets/` stores machine computation state only. `products/` stores scientific objects that need review, reuse, or delivery; it is not a second cache, `SUCCESS` marker, identity-hash, or recovery runner.
-
-## Recommended project layout
+### Advanced example
 
 ```text
-project-root/
-├── 00.Environment.R
-├── R/                         # compute functions called by targets
-├── _targets.R                 # the only complex DAG entry point
-├── raw/                       # read-only
-├── products/                  # optional scientific products
-├── reports/                   # standalone plots, tables, and supplements
-├── scripts/tests/             # versioned test code
-├── tmp/tests/<run-id>/        # isolated test run
-├── renv.lock
-└── renv/activate.R
+Rewrite the report using checked results from the existing targets pipeline.
+Lead with the recommendation and exceptions. Show the code that defines the comparison,
+put the wide table in a searchable appendix, and reuse the fit when only prose changes.
 ```
 
-The [`_targets.R`](templates/_targets.R) template uses `tar_source("R")`; [`R_data_template.R`](templates/R_data_template.R) provides a data-preparation starting point; [`Rmd_template.Rmd`](templates/Rmd_template.Rmd) consumes `analysis_results` with `targets::tar_read()`; simple projects can start from [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd).
+## Environment and scripts
 
-The final HTML is rendered directly beside its Rmd. For example, `manuscript/analysis.Rmd` produces `manuscript/analysis.html`.
+`00.Environments/` holds the project environment, lockfile, and analysis settings. Use the [project generator](scripts/new_project.py) to start a new directory. Prepare the environment with `run.R prepare`, restore it from the lockfile with `run.R restore`, and use `run.R update-lock` when you intend to revise dependencies. See [computation, environment, and rebuild](references/workflow.md) for complete commands. This Skill is in the beta source and must be selected explicitly.
 
-## Rebuilding after results are lost
+## FAQ
 
-The Skill assumes derived results may disappear. With protected inputs, source code, parameters, and environment declarations retained, documented entry points should recreate products, figures, and reports. Manual annotations, irreplaceable external responses, and unique source materials are protected inputs, not disposable caches.
+- **Can I edit the report on its own?** Yes. Run `Rscript --vanilla run.R report` in a starter project. In complex mode, a missing or stale result prompts you to run `Rscript --vanilla run.R build`.
+- **Where does the HTML go?** By default it shares the Rmd's directory and basename. Use `reports/` for standalone figures and tables, and `products/` for reusable results, according to the project's layout.
+- **Does every report need DT?** Static tables work well in the main text. Use DT for details that readers need to look up. All embedded data is sent with the HTML, so check permissions before publishing.
 
-Each key deliverable maps to input identity, code/target, analysis parameters, output path, rebuild command, and acceptance criteria. Paths come from one project configuration; the entry point resolves the project root or verifies the documented root-directory launch requirement. Runs must not rely on old R sessions, `.RData`, temporary scripts, or manually edited result files. Complex workflows track file contents and analysis configuration, and recreate missing delivery files.
-
-For example:
-
-```text
-Use bensz-rmd-rules for this analysis. Assume products, reports, HTML, and the targets store may all disappear. Deliver commands to restore the environment, rebuild from original inputs, and render reports alone. In isolated lightweight copies, verify cold rebuilding, missing delivery files, content changes at the same input path, and project relocation; report evidence and unverified cases separately.
-```
-
-Tests use fresh R subprocesses; deletion and input changes are limited to isolated copies. Record each of the four scenarios as `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or justified `NA`. Lightweight success does not establish full-data success. Compare numerical values and structure with predefined tolerances, rather than HTML/PDF bytes. Existing projects retain their architecture; missing inputs/environments or unsafe isolation are disclosed as blockers/risks without automatic migration. See [`rebuild_contract.md`](references/rebuild_contract.md).
-
-## Statistical inference completeness
-
-Before a paper-level analysis, list the primary and conclusion-relevant secondary estimands, including the target population, analysis unit, comparison, design, and inferential purpose. Where valid, retain the estimate and unit, effective N/event count, and an appropriate 95% CI by default; follow a preregistered confidence level when it differs. Report a p-value only for a defined hypothesis, and identify the adjustment method plus q-value or adjusted p-value for multiple tests. Reports must cite the computed results and explain practical magnitude and limitations. Mark fixed constants or descriptive quantities `not_applicable`, unsupported inference `not_estimable` with reasons and alternatives, and unexecuted work `not_run`. Do not fabricate CI/p-values or treat keyword checks as proof of statistical validity. See [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md).
-
-## Lightweight testing and recovery
-
-Every new or materially changed flow must run one real test style:
-
-- `synthetic_fixture`: when real data are unavailable, sensitive, or too large; preserve schema, types, keys, groups, missingness, and an edge case with a fixed seed.
-- `project_subset`: when authorized data and existing code are available; use a representative subset covering key groups/outcomes/missingness/anomalies, not only `head(n)`.
-
-Put test code in `scripts/tests/` and use a unique `tmp/tests/<run-id>/` per run. Simple invokes the formal entry point; complex runs the same DAG with a store under `<run-id>/_targets`, never the formal `_targets/`, `products/`, or `reports/`. Assert input contracts, key types/keys, important numeric invariants, product/report creation, and no writes to `raw/`. Record `full_data_execution=NOT_RUN` when the full dataset was not run.
-
-For recovery evidence, first complete an expensive target, interrupt a later target, then rerun `tar_make()` with unchanged input, code, parameters, and renv identity. Use `tar_meta()`, the outdated set, and execution records to show valid upstream targets were skipped.
-
-Both modes default to a synthetic fixture. To use an authorized real subset, set `BENSZ_TEST_STYLE=project_subset` and `BENSZ_SOURCE_DATA` explicitly. The simple template requires `scripts/tests/assert_results.R` to verify deliverables and scientific invariants. If a complex workflow renders an Rmd separately, set `BENSZ_REPORT_ENTRY` to test the same report against the isolated store.
-
-## Checks and script entry points
-
-Inspect project state and mode first:
-
-```bash
-python3 <skill-root>/scripts/check_targets_renv.py <project> --project-state auto --workflow-mode auto
-```
-
-Common checks:
-
-```bash
-python3 <skill-root>/scripts/check_pipeline_contract.py <project>
-python3 <skill-root>/scripts/check_interpretation_quality.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_figure_table_interpretation.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_htmlwidget_visibility.py <project>/report.Rmd
-Rscript <project>/scripts/tests/smoke_test.R
-```
-
-`check_rmd_template_yaml.py` takes no arguments and checks the two templates shipped with the Skill against its configuration.
-
-Use [`check_plot_readability.R`](scripts/check_plot_readability.R) for plot readability and [`validate_paths.R`](scripts/validate_paths.R) for path safety. Initialize the Liquid Glass theme with [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py); its desktop dynamic TOC expands the interactive area immediately so the pointer can enter the menu. Use the project’s render entry point. For an Rmd at the project root, `knit-rmd-html` can also render to its default location.
-
-## Plot and interpretation rules
-
-Plots default to English; switch with YAML `params.plot_language` for Chinese-journal contexts. Place an interpretation near every visible figure/table: current object, direction/comparison, traceable values, magnitude, uncertainty, and follow-up validation (method + input + criterion). See:
-
-- [`four_tier_interpretation_framework.md`](references/four_tier_interpretation_framework.md): four-layer interpretation and the Fail Fast Gate.
-- [`interpretation_templates.md`](references/interpretation_templates.md): univariate, multivariable, and model-validation skeletons.
-- [`plot_quality_standards.md`](references/plot_quality_standards.md): publication-quality readability rules.
-- [`liquid_glass_theme_guide.md`](references/liquid_glass_theme_guide.md): HTML theme and troubleshooting.
-
-## Related templates and references
-
-Behavioral requirements and acceptance scenarios live in [`behavioral_acceptance.md`](references/behavioral_acceptance.md). The Skill's executable regression scripts live in [`scripts/`](scripts/). Run them from any directory, replacing `<skill-root>` with this Skill's root:
-
-```bash
-python3 -B -m unittest discover -s <skill-root>/scripts -p 'test_*.py' -v
-```
-
-R integration tests require the corresponding R packages and Pandoc; browser interaction tests require Playwright/Chromium. Tests explicitly skip when prerequisites are unavailable. `templates/tests/` still provides test code for generated analysis projects.
-
-- Environment and dependencies: [`00.Environment.R`](templates/00.Environment.R), [`renv/activate.R`](templates/renv/activate.R).
-- Testing: [`templates/tests/`](templates/tests/), [`lightweight_testing.md`](references/lightweight_testing.md).
-- Modes and architecture: [`workflow_modes.md`](references/workflow_modes.md), [`hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md).
-- Delivery and review: [`delivery_verification.md`](references/delivery_verification.md), [`serial_review_protocol.md`](references/serial_review_protocol.md).
-
-## FAQ and boundaries
-
-**Can numbered scripts be migrated to targets automatically?** No. Existing projects without targets stay simple; migration needs explicit human authorization, mapping, result checks, and rollback.
-
-**Can I add a custom checkpoint or `SUCCESS` file?** No. Complex uses targets metadata, invalidation, and incremental rebuilds; do not introduce a second cache/recovery protocol.
-
-**Does a passing lightweight test mean the full dataset passed?** No. Report `preflight`, `lightweight_execution`, and `full_data_execution` separately; write `NOT_RUN` when the full run was skipped.
-
-**What if I need a reusable R function?** Have `bensz-r-developer` implement it; this Skill owns analysis requirements, integration, and workflow evidence.
-
-## License and contribution
-
-See the repository-root `LICENSE` for licensing terms. When changing this Skill, keep `SKILL.md`, `config.yaml`, required references, and change records aligned, and run checks appropriate to the risk. Never put credentials, private data, or private prompts in `raw/` or the README.
+More: [inference and reporting](references/report.md) · [testing and delivery](references/delivery.md)

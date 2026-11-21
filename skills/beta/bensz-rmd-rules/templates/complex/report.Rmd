@@ -1,0 +1,86 @@
+---
+title: "同一单位前后测量，平均变化有多大？"
+lang: zh-CN
+output:
+  html_document:
+    code_folding: hide
+    mathjax: null
+    pandoc_args: ["--mathml"]
+---
+
+```{r check-results, include=FALSE}
+store <- "_targets"
+outdated <- targets::tar_outdated(c(paired_estimate, paired_changes), shortcut = FALSE,
+                                  script = "_targets.R", store = store, callr_function = NULL)
+if (any(c("paired_estimate", "paired_changes") %in% outdated)) {
+  stop("Missing or stale paired_estimate or paired_changes. Run Rscript --vanilla run.R build.")
+}
+estimate <- targets::tar_read(paired_estimate, store = store)
+data <- targets::tar_read(paired_changes, store = store)
+observed <- data$change[is.finite(data$change)]
+```
+
+在这组合成数据中，`r estimate$n` / `r estimate$n_total` 个单位有完整配对，平均变化为
+**`r sprintf("%+.2f", estimate$estimate)` 个测量单位**。
+`r if (estimate$lower <= 0 && estimate$upper >= 0) "区间包含零，这些数据还不足以确定总体平均变化的方向。" else "按这里采用的区间估计，平均变化与零有差别；这仍不能确定变化的原因。"`
+
+## 为什么比较同一单位前后的差？
+
+设想比较改用新路线前后的通勤时间：甲从 25 分钟变成 30 分钟，乙前后都是 40 分钟。
+两人的变化分别是 +5 和 0，平均多花 2.5 分钟。先算每个人的差，可以把甲、乙原本不同的通勤时间
+与各自的变化分开；如果乙第二次没记录，就不能替乙算这个差。这个例子只解释配对的口径。
+
+令 $y_{i,0}$ 和 $y_{i,1}$ 分别为单位 $i$ 的基线和随访测量。对有完整、有限测量差的
+$n$ 个单位，先取差，再等权平均：
+
+$$
+d_i = y_{i,1}-y_{i,0}, \qquad \bar d=\frac{1}{n}\sum_{i=1}^{n}d_i.
+$$
+
+$d_i>0$ 表示上升，$\bar d$ 与原测量使用同一单位。
+
+扣除基线的代码见[正式计算函数](R/paired.R)，下面是同一函数中确定分母和估计区间的语句。
+报告只读取[流水线](_targets.R)已经算好的结果。
+
+```{r method-excerpt, eval=FALSE}
+observed <- data$change[is.finite(data$change)]
+fit <- stats::t.test(observed, conf.level = settings$confidence)
+```
+
+## 平均值背后，每个单位都在同一方向变化吗？
+
+每个点对应一个有效配对，虚线是零变化。样本中有 `r sum(observed > 0)` 个单位上升、
+`r sum(observed == 0)` 个持平、`r sum(observed < 0)` 个下降。比较整体平均时，
+也要看变化是否普遍出现在不同单位。
+
+```{r individual-changes, echo=FALSE, fig.width=6, fig.height=2.5, out.width="100%", fig.cap="完整配对的随访减基线差值。重叠点沿纵向堆叠；纵向位置不代表另一项测量。", fig.alt="点图显示各完整配对的变化，虚线为零。"}
+graphics::stripchart(observed, method = "stack", pch = 19, col = "#176982",
+                     xlim = range(c(0, observed)), xlab = "Follow-up minus baseline (units)")
+graphics::abline(v = 0, lty = 2, col = "grey50")
+```
+
+## 这组数据对平均变化的约束有多强？
+
+把各单位的变化看作独立观测。在样本很小时，变化量近似正态是这里的 $t$ 区间有良好覆盖的条件。
+记 $s_d$ 为差值的样本标准差，$t_{1-\alpha/2,\,n-1}$ 为自由度 $n-1$ 的 $t$ 分位数，
+则置信度为 $1-\alpha$ 的区间是：
+
+$$
+\bar d \ \pm\ t_{1-\alpha/2,\,n-1}\,\frac{s_d}{\sqrt n}.
+$$
+
+单位间的变化越不一致，或者有效配对越少，区间通常越宽。
+
+```{r summary-table, echo=FALSE}
+knitr::kable(data.frame(
+  指标 = c("完整配对 / 总单位数", "平均变化（测量单位）",
+           sprintf("%g%% t 区间（测量单位）", 100 * estimate$confidence)),
+  结果 = c(sprintf("%d / %d", estimate$n, estimate$n_total),
+           sprintf("%+.2f", estimate$estimate),
+           sprintf("%.2f 至 %.2f", estimate$lower, estimate$upper))
+))
+```
+
+区间描述的是平均变化的不确定性，不能用来预测某个单位的变化。它也不涵盖失访偏倚：
+如果缺少随访的单位变化不同，完整配对的结果就未必代表全部单位。前后比较还可能受到同期其它变化的影响，
+因此无法凭这组数据把变化归因于某项干预。

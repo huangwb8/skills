@@ -1,147 +1,59 @@
 # bensz-rmd-rules
 
-面向 **R 数据分析、R Markdown 报告、可复现 targets 流程、论文级图表与证据解读** 的 Agent Skill。当前版本以 [`config.yaml`](config.yaml) 中的 `skill_info.version` 为准；本目录属于 beta 候选源。
+[English](README_EN.md) · [Skill 指令](SKILL.md)
 
-## 什么时候使用
+用 Rmd 围绕值得回答的科学问题展开论证：日常例子给读者直觉，公式和代码明确比较口径，图表和文字解释证据支持什么。小分析直接用 Rmd；昂贵计算用 targets，修改报告时复用仍有效的结果。
 
-使用场景：从原始数据完成整理、统计/模型、图表、Rmd/HTML、科学产品和结果解释，或维护已有 R/Rmd 项目。
-
-不要用于：主要交付物是跨项目复用的 R 函数、类、稳定 API 或 Package（改用 `bensz-r-developer`）；仅渲染既有 Rmd（改用 `knit-rmd-html`）；其它语言的数据分析。
-
-## 最短用法
+## 快速开始
 
 ```text
-请用 bensz-rmd-rules 完成这个 R 分析。先只读判断项目是 new 还是 existing，再说明选择 simple 或 targets-first complex/pipeline 的理由。使用 renv，并在正式运行前从正式入口真实跑通 synthetic_fixture 或 project_subset 轻量测试。
+用 bensz-rmd-rules 分析这份随访数据，交付 Rmd 和 HTML。
+我要知道变化有多大、哪些人在比较里、结果还能说明什么。
 ```
 
-Skill 会保留已有项目的现状：不因默认策略自动创建 targets/renv 或迁移目录；有 `_targets.R` 的项目按 complex 维护，无 targets（含历史编号脚本）的项目按 simple 语义维护。
+想先试用可运行的合成样例？需要 Python 3.11+、R、Pandoc，以及在宿主 R 库中安装的 `renv`。从本仓库根执行：
 
-## 工作流模式
+```sh
+python3 skills/beta/bensz-rmd-rules/scripts/new_project.py simple demo-rmd
+cd demo-rmd
+Rscript --vanilla run.R prepare
+Rscript --vanilla run.R build
+```
 
-| 模式 | 适用场景 | 固定要求 |
-| --- | --- | --- |
-| `simple` | 线性、低成本、整体重跑可接受 | `renv`、明确 R/Rmd 入口、真实轻量测试；不创建 targets |
-| `complex`（说明性别名 `pipeline`） | 非线性依赖、昂贵步骤、多下游复用、局部失效、恢复或并行 | `_targets.R` 唯一 DAG、`R/` 计算函数、Rmd 消费 target、隔离 store 恢复验收 |
+打开 `report.html`，看一个通勤例子如何引出配对差的公式，再用变化分布和汇总表解释合成数据。把 `simple` 改成 `complex` 可体验 targets；加 `--dt --theme flatly` 可看到带搜索和横向滚动的长表及可选主题。
 
-`new`/`existing` 是项目状态而不是第三种模式：已有 `_targets.R` 按 complex，否则按 simple。迁移必须由人类明确授权。
+## 何时使用
 
-complex 的核心关系：
+适合从 R 数据出发做分析、生成可复核的科学报告，或针对现有结果改写报告。只想把现成 Rmd 转成 HTML，用 `knit-rmd-html`；主要交付可复用的 R 函数库或包，用 `bensz-r-developer`。
+
+## 输入与产出
+
+说明报告给谁看、需要做什么决定、数据在哪里、有哪些分析或访问限制。Skill 会选择符合计算成本的入口，给出 Rmd、HTML、必要的分析代码、环境锁和复核说明。已有项目可以只重写报告，按已有正式入口核验其结果。
+
+## 示例
+
+### 基础用法
 
 ```text
-renv.lock → _targets.R → R/ functions → target results → Rmd → reports/
-                         ↘ optional products/
-                         ↘ _targets/ (machine state)
+给组会做一页配对分析。先用日常例子讲清配对，再用公式和代码定义有效配对。
+用图说明平均变化背后的个体差异，并解释缺失随访对结论的影响。
 ```
 
-`_targets/` 只存机器计算状态；`products/` 只存需要审阅、复用或交付的科学对象，不实现第二套缓存、`SUCCESS`、identity hash 或恢复 runner。
-
-## 推荐项目布局
+### 进阶用法
 
 ```text
-项目根目录/
-├── 00.Environment.R
-├── R/                         # target 调用的计算函数
-├── _targets.R                 # complex 的唯一 DAG 入口
-├── raw/                       # 只读
-├── products/                  # 可选科学产物
-├── reports/                   # 单独交付的图、表和补充材料
-├── scripts/tests/             # 可版本化测试代码
-├── tmp/tests/<run-id>/        # 隔离测试现场
-├── renv.lock
-└── renv/activate.R
+用现有 targets 的已验证结果重写报告。先给推荐与例外，
+展示决定比较口径的代码，把宽表放入可搜索的附录。只改文案时沿用现有拟合。
 ```
 
-模板 [`_targets.R`](templates/_targets.R) 使用 `tar_source("R")`；[`R_data_template.R`](templates/R_data_template.R) 提供数据处理起点；[`Rmd_template.Rmd`](templates/Rmd_template.Rmd) 通过 `targets::tar_read()` 消费 `analysis_results`；simple 可从 [`Rmd_simple_template.Rmd`](templates/Rmd_simple_template.Rmd) 开始。
+## 环境与脚本
 
-正式报告直接生成在源 Rmd 旁：例如 `manuscript/analysis.Rmd` 渲染为 `manuscript/analysis.html`。
+`00.Environments/` 保存项目环境、锁文件和分析设置。先用 [骨架脚本](scripts/new_project.py) 初始化一个新目录；环境准备在 `run.R prepare`，从锁文件恢复用 `run.R restore`，有意更新依赖才使用 `run.R update-lock`。这些入口的完整用法见 [计算、环境与重建](references/workflow.md)。Skill 当前位于 beta 源，需显式选用。
 
-## 结果丢失后如何重建
+## 常见问题
 
-Skill 按“派生结果随时可能丢失”设计分析：保留原始输入、正式源码、参数和环境声明后，应能从文档化入口重新生成产品、图表与报告。人工标注、无法重取的外部响应和唯一来源材料属于受保护输入，不作为缓存清理。
+- **能只改报告吗？** 可以。起步项目运行 `Rscript --vanilla run.R report`。complex 若缺结果或结果失效，会提示运行 `Rscript --vanilla run.R build`。
+- **HTML 放在哪里？** 默认与 Rmd 同目录同名。图表附件可按项目约定放在 `reports/`；供下游复用的结果可放在 `products/`。
+- **每份报告都要用 DT 吗？** 静态小表更适合正文。需要查明细时再启用 DT；HTML 会收到所有嵌入的数据，发布前要核对授权。
 
-每项关键交付对应输入身份、代码/target、分析参数、输出路径、重建命令和验收判据。路径统一配置，正式入口定位项目根或明确验证从根目录启动；不依赖旧 R 会话、`.RData`、临时脚本或手工修改后的结果文件。complex 跟踪输入文件内容和分析配置，产品文件丢失后可补齐。
-
-可以这样要求：
-
-```text
-请用 bensz-rmd-rules 实现分析。假定 products、reports、HTML 和 targets store 都会丢失，交付环境恢复、从原始输入重建和仅重出报告的命令。请在隔离轻量副本中验证冷重建、交付文件丢失、同路径输入内容更新和项目迁移，分别给出证据与未验证项。
-```
-
-测试使用干净 R 子进程；删除和输入变更仅发生在隔离副本。四个场景分别记录 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN` 或有理由的 `NA`，轻量通过不代表全量通过。数值/结构按预定容差比较，不要求 HTML/PDF 字节一致。已有项目保留架构，缺失输入、环境或不可隔离路径会披露为阻塞/风险，不自动迁移。完整标准见 [`rebuild_contract.md`](references/rebuild_contract.md)。
-
-## 统计推断完整性
-
-论文级分析在计算前列出主要及影响结论的次要估计对象，确认目标人群、观察单位、对比、设计和推断目的。方法允许时，完整结果保留估计值与单位、有效 N/事件数、适当的默认 95% CI；只有零假设明确时才报告 p 值，批量检验同时说明校正方法及 q/调整后 p。预注册方案另定置信水平时按方案执行。报告引用计算结果并解释效应的实际意义和局限。固定常数或纯描述结果可标 `not_applicable`；数据或设计无法支持推断时标 `not_estimable` 并说明原因与替代分析；未运行标 `not_run`。不凭空补 CI/p，也不以文本关键词检查代替方法复核。详见 [`statistical_inference_protocol.md`](references/statistical_inference_protocol.md)。
-
-## 轻量测试与恢复
-
-新建或实质修改的流程必须真实运行一种测试：
-
-- `synthetic_fixture`：无授权真实数据、数据敏感或数据过大时，保留 schema、类型、主键、分组、缺失和边缘条件，并固定随机种子。
-- `project_subset`：有授权数据和现有代码时使用代表性子集，覆盖关键分组/结局/缺失/异常；不能只用 `head(n)`。
-
-测试代码放 `scripts/tests/`，每次使用唯一 `tmp/tests/<run-id>/`。simple 调用正式入口；complex 执行同一 DAG，但 store 放在 `<run-id>/_targets`，不能污染正式 `_targets/`、`products/` 或 `reports/`。至少断言输入契约、关键类型/主键、重要数值不变量、产品/报告生成及 `raw/` 无写入。未跑全量时记录 `full_data_execution=NOT_RUN`。
-
-恢复验收：先让昂贵 target 成功，再中断后续 target；在输入、代码、参数和 renv 身份不变时再次 `tar_make()`，用 `tar_meta()`、outdated 集合和执行记录证明有效前序 target 被跳过。
-
-两种模式默认使用合成 fixture。经授权使用真实子集时，显式设置 `BENSZ_TEST_STYLE=project_subset` 和 `BENSZ_SOURCE_DATA`。simple 模板要求 `scripts/tests/assert_results.R` 验证实际产物与科学不变量；complex 若另行渲染 Rmd，可通过 `BENSZ_REPORT_ENTRY` 在隔离 store 上验证同一报告。
-
-## 检查与脚本入口
-
-先检查项目状态和模式：
-
-```bash
-python3 <skill-root>/scripts/check_targets_renv.py <project> --project-state auto --workflow-mode auto
-```
-
-常用检查：
-
-```bash
-python3 <skill-root>/scripts/check_pipeline_contract.py <project>
-python3 <skill-root>/scripts/check_interpretation_quality.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_figure_table_interpretation.py <project>/report.Rmd
-python3 <skill-root>/scripts/check_htmlwidget_visibility.py <project>/report.Rmd
-Rscript <project>/scripts/tests/smoke_test.R
-```
-
-`check_rmd_template_yaml.py` 仅供 Skill 维护者无参数运行，用于核对随 Skill 提供的两个模板与配置。
-
-图表可读性检查器为 [`check_plot_readability.R`](scripts/check_plot_readability.R)，路径安全检查器为 [`validate_paths.R`](scripts/validate_paths.R)。Liquid Glass 主题可用 [`bootstrap_liquid_glass.py`](scripts/bootstrap_liquid_glass.py) 初始化；桌面动态目录会立即扩展可交互区域，避免鼠标移入时收回。HTML 使用项目正式渲染入口；项目根目录的报告也可用 `knit-rmd-html` 按默认路径渲染。
-
-## 图表与解读规范
-
-默认图表语言为英文；中文期刊等场景通过 YAML `params.plot_language` 切换。每个可见图/表附近说明当前对象、方向/对比、可追溯数值、量级、不确定性和后续验证（方法 + 输入 + 判据）。参考：
-
-- [`four_tier_interpretation_framework.md`](references/four_tier_interpretation_framework.md)：四层解读与 Fail Fast Gate。
-- [`interpretation_templates.md`](references/interpretation_templates.md)：单因素、多因素和模型验证骨架。
-- [`plot_quality_standards.md`](references/plot_quality_standards.md)：Nature 级图表可读性。
-- [`liquid_glass_theme_guide.md`](references/liquid_glass_theme_guide.md)：HTML 主题与故障排查。
-
-## 相关模板与参考
-
-行为需求与验收场景见 [`behavioral_acceptance.md`](references/behavioral_acceptance.md)。Skill 自身的回归脚本统一位于 [`scripts/`](scripts/)，可从任意目录运行以下命令（将 `<skill-root>` 替换为本 Skill 根目录）：
-
-```bash
-python3 -B -m unittest discover -s <skill-root>/scripts -p 'test_*.py' -v
-```
-
-R 集成测试需要对应的 R 包和 Pandoc，浏览器交互测试需要 Playwright/Chromium；缺少依赖时会明确跳过。`templates/tests/` 继续用于生成用户分析项目的测试代码。
-
-- 环境与依赖：[`00.Environment.R`](templates/00.Environment.R)、[`renv/activate.R`](templates/renv/activate.R)。
-- 测试：[`templates/tests/`](templates/tests/)、[`lightweight_testing.md`](references/lightweight_testing.md)。
-- 模式与架构：[`workflow_modes.md`](references/workflow_modes.md)、[`hybrid_architecture_guide.md`](references/hybrid_architecture_guide.md)。
-- 交付与审查：[`delivery_verification.md`](references/delivery_verification.md)、[`serial_review_protocol.md`](references/serial_review_protocol.md)。
-
-## FAQ 与边界
-
-**可以把编号脚本自动迁移成 targets 吗？** 不可以。已有无 targets 项目按 simple 维护；迁移前需人类明确授权、映射、结果校验和回退方式。
-
-**可以用自制 checkpoint 或 `SUCCESS` 文件吗？** 不可以。complex 使用 targets 的 metadata、失效和增量重建；不引入第二套缓存/恢复协议。
-
-**轻量测试通过是否等于全量通过？** 不是。必须分别报告 `preflight`、`lightweight_execution` 和 `full_data_execution`；未运行全量写 `NOT_RUN`。
-
-**需要通用 R 函数怎么办？** 由 `bensz-r-developer` 实现，本 Skill 负责分析需求、接入和流程证据。
-
-## 许可证与贡献
-
-仓库许可证见项目根目录的 `LICENSE`。修改 Skill 时请同步 `SKILL.md`、`config.yaml`、必要 references 和变更记录，并运行与风险匹配的检查；不要在 `raw/` 或 README 中写入凭据、隐私数据或私有提示词。
+更多：[推断与报告](references/report.md) · [测试与交付](references/delivery.md)
