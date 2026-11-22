@@ -7,18 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.1.3] - 2026-11-22
+
 ### Added（新增）
 
 - 新增 beta `bensz-rmd-rules` 科研报告论证优化计划，涵盖复杂研究正文的可读性、证据衔接，以及如何用关键计算代码解释图表。
 
 ### Changed（变更）
 
+- beta `bensz-rmd-rules` 修订为 0.31.17，要求主图、关键表格和核心模型展示实际生成结果的代码，并说明如何逐步运行和检查中间结果。配对骨架示范从有效差值生成表和图。
 - beta `bensz-rmd-rules` 修订为 0.31.16，将预设判断、实际效应和证据边界写入报告主线，增加图表读数的正式代码溯源与成品复读。完成一轮 A/B 质量迭代，五份工作文档在优化后压缩约 6.9%。
 - beta `bensz-rmd-rules` 修订为 0.31.15，合并报告写法和验收中的重复说明，执行文档计词下降约 27%。通过压缩校验、strict 结构检查和 Pandoc 链接检查。
 - beta `bensz-rmd-rules` 修订为 0.31.14，三种报告主题共用默认章节编号。正式题名在结果确认后按研究对象、设计与证据范围复核，示例骨架按需选用。
 - beta `bensz-rmd-rules` 修订为 0.31.13，配对示例的 Rmd 和 HTML 使用同一三级阅读编号，默认构建与渲染入口指向编号后的报告。
 - beta `bensz-rmd-rules` 修订为 0.31.12，结果解读、讨论与摘要结论直接写在 Rmd 的 Markdown 正文中。示例保留正式结果的内联引用。
 - beta `bensz-rmd-rules` 修订为 0.31.11，要求报告摘要按背景、方法、结果、结论分段并明确标注，同步报告骨架和交付检查。
+- `awesome-code` 更新至 3.0.8：子 Agent `writing-plans` 的默认 Markdown 计划结构必须完整使用，不再允许按需删减；移除过时的 `ROADMAP.md` 与目录级 `.gitignore`，并同步 `pyproject.toml` 版本漂移。
+- 发布仓库 v5.1.3：根级双语 README 与最新源代码对齐，`bensz-rmd-rules` 描述补充结构式摘要、主图与关键表格展示实际生成代码、预设判断与证据边界写入报告主线。README pair 校验通过。BSK 2.1.6 与 BSI 1.0.2 的源码均已是目标版本，按条件跳过修改、上传与重装。
 
 ## [5.1.2] - 2026-11-21
 

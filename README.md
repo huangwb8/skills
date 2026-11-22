@@ -101,7 +101,7 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 `humanization` 最多进行五轮外部审查；达到上限仍未通过时，交付最后草案和未通过说明。新增专项审查用于清理无效免责、假想反驳等表达，同时保留必要限定；真实写作质量仍需结合作者评价判断。
 
-beta 候选源中的 [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README.md) 面向 R/Rmd 深度分析：`targets` 管理正式计算与增量重建，`renv` 锁定环境，结果写成论文式 Rmd/HTML 报告；多报告交付使用三级阅读编号，`--detail` 可加逐单位明细附录。它不进入默认安装；需要时显式指定本地源：
+beta 候选源中的 [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README.md) 面向 R/Rmd 深度分析：`targets` 管理正式计算与增量重建，`renv` 锁定环境，结果写成论文式 Rmd/HTML 报告——摘要按背景、方法、结果、结论分段，主图与关键表格展示实际生成结果的代码，预设判断和证据边界写入报告主线；多报告交付使用三级阅读编号，`--detail` 可加逐单位明细附录。它不进入默认安装；需要时显式指定本地源：
 
 ```bash
 python3 skills/alpha/install-bensz-skills/scripts/install.py --source skills/beta --skill bensz-rmd-rules --codex

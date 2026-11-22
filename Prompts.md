@@ -3,20 +3,20 @@
 - 更新
 
 ```
-repo-version = 5.1.2
+repo-version = 5.1.3
 bsk-version = 2.1.6
 identity-version = 1.0.2
 
 请您：
+- 如果 {repo-version} 不是本仓库的最新版本，则 
+  - 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
+  - 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。写commit时要综合上一版本之前的所有commit，而不仅局限于最新的待commit信息。
+  - 用 git-publish-release skill 发布新的 release。
 - 如果 {bsk-version} 不是 packages/bensz-skill-kernel 的最新版本，则 
   - 该python包内的和版本有关的文件全对齐到 {bsk-version}
   - 将 packages/bensz-skill-kernel的 README 与源代码对齐（基于 write-readme skill进行优化）
   - 将 {bsk-version} 这个版本的bsk更新到 pypi ，本机已经配置好权限
   - 将 {bsk-version} 这个版本的bsk安装到本设备。
-- 如果 {repo-version} 不是本仓库的最新版本，则 
-  - 根据本skill开发项目的 README 与项目的最新源代码对齐（基于 write-readme skill进行优化）。
-  - 创建新的tag v{repo-version}。 用 git-commit skill 提交仅1个commit，commit信息里要带版本号。
-  - 用 git-publish-release skill 发布新的 release。
 - 如果 {identity-version} 不是 packages/bensz-skill-identity （简称bsi） 的最新版本，则 
   - 该python包内的和版本有关的文件全对齐到 {identity-version}
   - 将 packages/bensz-skill-identity 的 README 与源代码对齐（基于 write-readme skill进行优化）

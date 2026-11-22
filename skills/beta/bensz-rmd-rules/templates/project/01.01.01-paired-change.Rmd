@@ -24,7 +24,6 @@ if (length(outdated)) {
        ". Run Rscript --vanilla run.R build.")
 }
 data <- targets::tar_read(paired_changes, store = store)
-sample <- targets::tar_read(analysis_sample, store = store)
 estimate <- targets::tar_read(paired_estimate, store = store)
 robustness <- targets::tar_read(paired_robustness, store = store)
 ```
@@ -40,8 +39,6 @@ source_excerpt <- function(name) {
 ```
 
 ```{r report-values, include=FALSE}
-observed <- sample$changes
-changed <- sample$directions
 pair_count <- sprintf("%d / %d", estimate$n, estimate$n_total)
 plot_language <- match.arg(params$plot_language, c("en", "zh"))
 table_language <- match.arg(params$table_language, c("en", "zh"))
@@ -129,12 +126,9 @@ $$
 
 $d_i>0$ 表示上升，$\bar d$ 与原测量使用同一单位。
 
-这个问题比较的是同一单位的前后变化。缺少任一读数时，差值无法直接观测，所以只用有限差值计算平均。下面是 [正式计算函数](`r report_root_prefix`R/paired.R) 中筛选有效配对并确定分母的代码。
+缺少任一读数时，差值无法直接观测，所以只用有限差值计算平均。结果中的[配对分母](#pair-count-and-estimate)展示了这一筛选在正式流水线中的实现。
 
-```{r paired-sample-code, eval=FALSE, code=source_excerpt("paired_sample")}
-```
-
-### 如何估计均值的不确定性？
+### 如何估计均值的不确定性？ {#mean-interval}
 
 把各单位的变化看作独立观测。在样本很小时，变化量近似正态是这里的 $t$ 区间有良好覆盖的条件。
 记 $s_d$ 为差值的样本标准差，$t_{1-\alpha/2,\,n-1}$ 为自由度 $n-1$ 的 $t$ 分位数，
@@ -153,10 +147,14 @@ $$
 
 ## 结果
 
-### 这组数据对平均变化的约束有多强？
+### 这组数据对平均变化的约束有多强？ {#pair-count-and-estimate}
 
-汇总表第一行的分子来自[有效配对筛选](#valid-pairs)，分母是输入的全部单位。均值和区间也用这些有效差值，
-与下面点图显示的是同一批观测。
+汇总表第一行为什么有两个计数？[正式流水线](`r report_root_prefix`_targets.R)先[对每个单位取随访减基线](#valid-pairs)，再由下面的函数筛出可用于比较的差值。[配对分析源码](`r report_root_prefix`R/paired.R)
+
+```{r paired-sample-code, eval=FALSE, code=source_excerpt("paired_sample")}
+```
+
+`length(changes)` 是表中完整配对数，也是计算均值的分母。`nrow(data)` 是输入的全部单位数。若补齐一条原本缺失的随访且得到有限差值，前者增加一，后者不变。同一组 `changes` 进入[均值与区间的估计](#mean-interval)，也用来绘制下面的点图。
 
 ```{r summary-table, echo=FALSE}
 summary_table <- data.frame(
@@ -175,14 +173,20 @@ DT::datatable(summary_table, rownames = FALSE, class = "compact", width = "100%"
 
 ### 平均值背后，每个单位都在同一方向变化吗？
 
-有有效配对时，点图保留每个单位的变化，可以看出整体平均是否掩盖了相反方向或少数极端值。虚线标出零变化，
-点在虚线两侧的位置对应变化方向。纵向堆叠只为分开重叠的点。
+点图使用 `analysis_sample` target 的 `changes` 字段。每个点是一个单位[筛选后的有限差值](#pair-count-and-estimate)，横坐标是该单位的随访读数减基线读数。缺少随访的单位既不进入上表的均值，也不会出现在图中。零变化的虚线分开上升和下降，纵向堆叠只为分开重叠的点。
 
-```{r individual-changes, eval=length(observed)>0, dev.args=plot_device_args, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap=change_caption, fig.alt=change_alt}
-axis_label <- plot_text("Follow-up minus baseline (units)", "随访减基线（测量单位）")
-graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
-                     xlim = range(c(0, observed)), xlab = axis_label)
-graphics::abline(v = 0, lty = 2, col = "grey50")
+要在 Rmd 中逐步运行下面的代码，先从项目根构建正式结果，并在锁定的 R 环境中运行 `read-targets` 和 `report-values`。交互式运行后者前，按 YAML 设定 `params`，样例用 `params <- list(plot_language = "en", table_language = "en")`。取数后可以先检查 `observed` 的长度和值，再执行画点和零参考线的语句。
+
+```{r individual-changes, dev.args=plot_device_args, fig.width=6, fig.height=2.5, fig.align="center", out.width="100%", fig.cap=change_caption, fig.alt=change_alt}
+sample <- targets::tar_read(analysis_sample, store = store)
+observed <- sample$changes
+changed <- sample$directions
+if (length(observed)) {
+  axis_label <- plot_text("Follow-up minus baseline (units)", "随访减基线（测量单位）")
+  graphics::stripchart(observed, method = "stack", pch = 19, col = "#3C5488",
+                       xlim = range(c(0, observed)), xlab = axis_label)
+  graphics::abline(v = 0, lty = 2, col = "grey50")
+}
 ```
 
 在有效配对中，`r changed[["up"]]` 个单位上升，`r changed[["level"]]` 个持平，`r changed[["down"]]` 个下降。
