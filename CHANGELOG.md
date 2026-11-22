@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Added（新增）
+
+- beta `bensz-rmd-rules` 修订为 0.31.18，增加按需交付论文用图的流程，复用已核验的正式结果，默认在 `reports/papers/` 提供整图 PDF、PNG 和中文配套稿件。macOS 合成示例验证常规报告、默认论文图和自定义规格。
+
+### Changed（变更）
+
+- beta `bensz-rmd-rules` 修订为 0.31.19，为论文用图增加 AI 成品审图，允许在字体和字号固定的前提下微调版面并复验。
+
 ## [5.1.3] - 2026-11-22
 
 ### Added（新增）

@@ -74,6 +74,23 @@ WORKSPACE = ./.bensz-api/task-20260830-0816-episode-terminal-gate/
 
 ---
 
+bensz-rmd-rules 我希望还要约定一种情况下的图：论文的图。 一般来说，论文用的图我希望是这样的：
+
+- 保存在<项目根目录>/reports/papers 里
+- 论文中使用的每张完整 Figure（整幅 panel，含全部子图）的画布统一宽 16.65 cm、高 19.05 cm，主图、附图和概念总结图均适用；这是整图尺寸，不要求每个子图单独达到该尺寸。在固定画布内调整子图比例、间距和图例，文字在最终排版尺寸下至少 8 pt；内容过密时拆分为独立 Figure，不通过加高画布、非等比拉伸或整体缩小字体解决。交付前核对最终 PDF 的物理尺寸、PNG 的像素及分辨率，并实际渲染检查文字、裁切、留白和面板比例。
+- 使用 skills/beta/bensz-rmd-rules/assets/plots 里的样式约束；字体除外
+- figure pannel legend 使用 /Volumes/2T01/winE/iProjects/CCS_Analysis/projects/normCCS-bulk-sc-pairs-04 /reports/papers 里那个字体和大小，这个比较合适
+- reports/papers/paper.md 里引入图的png，然后论述； 包括提供可在论文里用的正文（中文版）、figure legend (中文版) 及其它内容
+- 论文用图默认是不画的； 用户主要要求出论文用的图时才画。
+
+上述是默认要求； 如果用户有额外要求，要按用户的要求来。
+
+/Volumes/2T01/winE/iProjects/CCS_Analysis/projects/normCCS-bulk-sc-pairs-04 /reports/papers  和 /Volumes/2T01/winE/iProjects/CCS_Analysis/projects/ablation-03/reports/papers 是2个真实的例子，你可以了解一下； 基本上和我上面的要求差不多。
+
+然后，写一个优化计划，让 skills/beta/bensz-rmd-rules 在分析、报告完成后，在用户的要求下可以支持生成符合上述要求的论文图。我个人的想法是不需要调太多东西； 在 skills/beta/bensz-rmd-rules/references 里加个md约束，然后 skills/beta/bensz-rmd-rules/SKILL.md 简要对应一下就够。 毕竟也不是很复杂。
+
+---
+
 基于 docs/plans/2026-11-21-bensz-rmd-rules-narrative-evidence.md 优化skill。 使用 Auto Test Skill 迭代优化1次。用 Compact Bensz Skills 在保持内涵不变的前提下压缩skill文档。
 
 ---
