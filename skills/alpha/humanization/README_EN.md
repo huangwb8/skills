@@ -49,7 +49,10 @@ flowchart TD
     R2 --> Q
     R3 --> Q
     Q -->|Yes| G["Main Agent consolidates reviews; Kernel Gate permits ready"]
-    G --> O["Main Agent: recheck hashes and deliver approved bytes"]
+    G --> F{"After rechecking hashes, is the revision eligible for a Bensz API pass?"}
+    F -->|Eligible| P["Run the Responses API pass, check its output and deliver it"]
+    F -->|Skip| O["Deliver the approved artifacts"]
+    P -->|API or output check fails| O
     Q -->|No, fewer than five rounds| E["Main Agent: retry and improve the draft"]
     E --> C
     Q -->|Fifth round fails| X["Deliver last draft with unapproved status; retain working"]
@@ -59,7 +62,9 @@ The host dispatches all three reviewers before waiting, through `parallel-vibe`.
 
 For example, changing “we plan to send the report on Friday” into “we guarantee delivery on Friday” strengthens a promise even though the date is unchanged. The reviewers should identify this. Pass/pass/fail meets the voting threshold for one proposition, but a substantive objection from the third reviewer still requires a correction and new review, or a dismissal supported by source and candidate evidence. Unresolved substantive objections block delivery. Minority style preferences may remain; pass/pass/missing is incomplete. Votes cannot override structural, identity, hash or authorization errors.
 
-The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round; retries do not reset the budget. Edits require new votes. Ready approves only the frozen bytes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even text_only includes a short unapproved-status note and the last draft; this fallback does not mark the draft ready. See the [runtime guide](references/runtime-control.md).
+The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round. Retries do not reset the budget, and edits during review require new votes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even `text_only` includes a short unapproved-status note and the last draft.
+
+After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. The defaults are `gpt-6.2-sol` and `medium` reasoning effort. The main Agent checks meaning, formatting and writing requirements, then delivers the returned draft. The approved draft is used if the API call or output check fails, or if the provider does not match. Diagnosis, unchanged text and local-only jobs skip the extra pass. See the [runtime guide](references/runtime-control.md#交付前终润色).
 
 ## Styles and parameters
 

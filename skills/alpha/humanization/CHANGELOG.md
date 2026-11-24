@@ -6,7 +6,13 @@
 
 ### Added（新增）
 
+- 改写稿通过现有审查后，选中的 Codex provider 若使用 `benszresearch.com` 或其子域的 HTTPS 地址，调用一次流式 Responses API。内置编辑提示词作为 `system` 消息，待润色稿作为 `user` 消息。默认使用 `gpt-6.2-sol` 和 `medium` 推理强度，核对返回稿后交付正文。
 - 中英文 README 增加全阶段 Mermaid 流程图及分工说明，覆盖输入理解、原文与参数绑定、润色/免改/诊断、自检、冻结证据、真实语义审查、Gate 放行与重试；逐步标注主 Agent、三个审查子 Agent、脚本与 BSK，并区分自检、并行审核、获批交付和耗尽后的草案提交。
+
+### Validation（验证）
+
+- macOS 使用本机 Codex provider 实测流式 Responses，收到完整合成样稿并保留 Markdown 链接。183 项定向回归、strict 结构及双语 README 检查通过；Linux 容器通过 Python 3.11 隔离入口与域名分流检查；未运行原生 Windows 或真实三人审查的整链验收。
+- 明确请求消息角色后，12 项请求与响应回归及本机真实 Responses 请求通过。
 
 ## [3.0.2] - 2026-11-17
 
