@@ -34,7 +34,11 @@ def test_nonmatching_provider_skips_before_reading_draft(tmp_path, monkeypatch, 
     assert (result.returncode, result.stdout, result.stderr) == (3, b"", b"")
 
 
-def test_codex_wire_request_and_utf8_delivery(tmp_path, monkeypatch, capsysbinary):
+@pytest.mark.parametrize(("profile_args", "prompt_name"), [
+    ([], "PROMPT_A"),
+    (["--prompt-profile", "academic"], "PROMPT_A_ACADEMIC"),
+])
+def test_codex_wire_request_and_utf8_delivery(tmp_path, monkeypatch, capsysbinary, profile_args, prompt_name):
     (tmp_path / "config.toml").write_text(
         'model_provider = "other"\nprofile = "edit"\n[profiles.edit]\nmodel_provider = "active"\n'
         '[model_providers.active]\nbase_url = "https://example.benszresearch.com/api/v1/"\n'
@@ -46,7 +50,7 @@ def test_codex_wire_request_and_utf8_delivery(tmp_path, monkeypatch, capsysbinar
     requirements.write_text("保留链接。", encoding="utf-8")
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
     monkeypatch.setenv("TEST_CODEX_PROVIDER_KEY", "fake-key")
-    monkeypatch.setattr(sys, "argv", [str(SCRIPT), str(draft), "--requirements-file", str(requirements)])
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), str(draft), "--requirements-file", str(requirements), *profile_args])
     final = "新版正文。[附录](./notes.md)\r\n"
 
     class FakeOpener:
@@ -59,7 +63,7 @@ def test_codex_wire_request_and_utf8_delivery(tmp_path, monkeypatch, capsysbinar
             assert body["stream"] is True and body["store"] is False
             assert body["model"] == "gpt-6.2-sol" and body["reasoning"] == {"effort": "medium"}
             system, constraints, prose = body["input"]
-            assert system == {"role": "system", "content": [{"type": "input_text", "text": ENTRY["PROMPT_A"]}]}
+            assert system == {"role": "system", "content": [{"type": "input_text", "text": ENTRY[prompt_name]}]}
             assert constraints["role"] == "developer" and "保留链接。" in constraints["content"][0]["text"]
             assert prose["role"] == "user" and prose["content"][0]["text"].encode() == draft.read_bytes()
             events = [

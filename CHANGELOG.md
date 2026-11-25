@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- `humanization` 修订为 3.1.1。论文、基金标书等正式科研稿件在首轮采用学术语体，终润色使用同一模型的科研专用提示词，保留研究阶段、证据强度和章节职责。
 - beta `bensz-rmd-rules` 修订为 0.31.19，为论文用图增加 AI 成品审图，允许在字体和字号固定的前提下微调版面并复验。
 
 ## [5.1.3] - 2026-11-22

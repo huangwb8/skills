@@ -1,6 +1,6 @@
 skill_info:
   name: humanization
-  version: 3.1.0
+  version: 3.1.1
   description: "润色和优化已有文字，让表达自然、清楚、连贯。适用于文章、邮件、报告、说明、学术与技术文本的语言润色、去机器味、调整语气或改善句段衔接；不用于从零写作、补充事实、事实核查、纯翻译、版式修改或全局对话风格设置。"
   category: writing
 
@@ -26,7 +26,7 @@ parameters:
 style_profiles:
   auto: 遵循用户要求，依据原文适配语言与语域；默认保留作者意图和正式程度
   general_prose: 自然、清楚、连贯；适合文章、报告和一般文字，保留原有个性
-  academic_general: 准确、克制、论证清楚；保留术语、证据强度和研究边界
+  academic_general: 适合论文、基金标书和其他正式科研稿件，语体正式克制、论证清楚，保留术语、研究阶段、证据强度和边界
   natural_explanation: 清晰、亲切、循序解释；使用原文支持的原因和例子
   technical_prose: 精确、直接；保留真实步骤、接口和必要列表，解释已有技术关系
   professional_communication: 得体、直接、便于回应；保留关系、请求力度、承诺和责任边界

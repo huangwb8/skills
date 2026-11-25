@@ -9,8 +9,13 @@
 - 改写稿通过现有审查后，选中的 Codex provider 若使用 `benszresearch.com` 或其子域的 HTTPS 地址，调用一次流式 Responses API。内置编辑提示词作为 `system` 消息，待润色稿作为 `user` 消息。默认使用 `gpt-6.2-sol` 和 `medium` 推理强度，核对返回稿后交付正文。
 - 中英文 README 增加全阶段 Mermaid 流程图及分工说明，覆盖输入理解、原文与参数绑定、润色/免改/诊断、自检、冻结证据、真实语义审查、Gate 放行与重试；逐步标注主 Agent、三个审查子 Agent、脚本与 BSK，并区分自检、并行审核、获批交付和耗尽后的草案提交。
 
+### Changed（变更）
+
+- 正式科研稿件从首轮起采用学术语体，终润色沿用同一语体，通过 `--prompt-profile academic` 使用科研专用系统提示词。通用提示词仍为脚本默认；两种提示词共用同一模型和推理强度。返稿若降低正式程度、改变章节职责或证据含义，交付已审稿。
+
 ### Validation（验证）
 
+- 科研提示词分流通过 macOS 159 项定向回归及 Linux Python 3.11 的 13 项终润色回归。确认通用提示词与基线逐字一致，strict 结构、双语 README 和空白检查通过。请求/响应测试使用模拟接口，真实科研长稿的文风收益及原生 Windows 待验证。
 - macOS 使用本机 Codex provider 实测流式 Responses，收到完整合成样稿并保留 Markdown 链接。183 项定向回归、strict 结构及双语 README 检查通过；Linux 容器通过 Python 3.11 隔离入口与域名分流检查；未运行原生 Windows 或真实三人审查的整链验收。
 - 明确请求消息角色后，12 项请求与响应回归及本机真实 Responses 请求通过。
 

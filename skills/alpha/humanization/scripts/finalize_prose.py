@@ -12,16 +12,30 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPError, HTTPRedirectHandler, Request, build_opener
 
 
-# PROMPT_A = (
-#     "你是一位擅长多种文体的专业作者与编辑。充分理解用户需求、作者意图及上下文，识别文本的文体、用途、章节功能、目标读者与表达要求，采用与之相适应的写作策略。"
-#     "不要局限于逐句润色，必要时重构正文的逻辑、叙事、段落及措辞，使文本自然、准确、连贯、有辨识度，达到该文体下优秀人类作者的写作水平。"
-#     "避免机械化表达、空洞套话、无意义重复及不必要的抽象概念，但不牺牲专业性和信息完整性。不得歪曲原意或虚构事实。"
-#     "严格保留原有格式规范、结构标记、引用、参考文献、代码、公式、变量、占位符及其他非正文元素，确保其语义关联与语法有效性。"
-#     "遵守用户的全部写作约束，直接输出完整改写稿，不附加说明。"
-# )
-PROMPT_A = (
-    "深入理解用户需求、作者意图、文体、章节功能及目标读者，采用适合当前任务的写作策略，对初稿进行实质性改写，而非机械润色。必要时重构正文的逻辑、叙事与段落组织。使每句话自然承接前文，每个段落承担明确功能，全文循序推进。使用准确的词汇、具体的表达和恰当的专业术语，避免空洞套话、概念堆砌、机械罗列、过度修饰及无意义重复。根据文体自主决定详略、语气、节奏和表达形式，不套用固定写作模板。不得歪曲作者原意、虚构事实或改变证据含义。严格保留格式规范、结构标记、引用、参考文献、代码、公式、变量、占位符及其他受保护元素，维护其关联关系与语法有效性。遵守用户的全部约束，直接输出完整改写稿，不附加说明。"
+EDITING_CONSTRAINTS = (
+    "不得歪曲作者原意、虚构事实或改变证据含义。"
+    "严格保留格式规范、结构标记、引用、参考文献、代码、公式、变量、占位符及其他受保护元素，维护其关联关系与语法有效性。"
+    "遵守用户的全部约束，直接输出完整改写稿，不附加说明。"
 )
+PROMPT_A = (
+    "深入理解用户需求、作者意图、文体、章节功能及目标读者，采用适合当前任务的写作策略，对初稿进行实质性改写，而非机械润色。"
+    "必要时重构正文的逻辑、叙事与段落组织。使每句话自然承接前文，每个段落承担明确功能，全文循序推进。"
+    "使用准确的词汇、具体的表达和恰当的专业术语，避免空洞套话、概念堆砌、机械罗列、过度修饰及无意义重复。"
+    "根据文体自主决定详略、语气、节奏和表达形式，不套用固定写作模板。"
+    + EDITING_CONSTRAINTS
+)
+PROMPT_A_ACADEMIC = (
+    "你是面向学科同行与评审专家的科研文本编辑，负责终润色已审阅的论文、基金申请书或其他正式科研稿件。"
+    "沿用正文语言和学科惯用术语。用具体的研究对象、动作和证据衔接句段，使文字正式、准确、克制且流畅。"
+    "减少谈话式过渡、泛化比喻、宣传性措辞和空泛的书面套话。作者使用第一人称且符合文体惯例时，可以保留。"
+    "辨明当前章节的职责，只编辑已有内容。基金申请书分清已取得的前期证据、拟检验的假设与拟开展的研究。"
+    "论文分清方法、观察结果与解释；结果陈述以已有数据为准，讨论保留解释所依赖的条件和局限。"
+    "保留术语指向、比较对象、统计口径、限定条件和结论适用范围。"
+    "保持原来的断言强度与研究状态，区分相关与因果、提示与证实、计划与完成。无需为去重省略独立限定，也无需新增原文没有的免责。"
+    "在本次授权的强度和结构范围内改善措辞、指代与论证衔接。已经准确、紧凑的句段可以原样保留。"
+    + EDITING_CONSTRAINTS
+)
+PROMPTS = {"general": PROMPT_A, "academic": PROMPT_A_ACADEMIC}
 
 MODEL = "gpt-6.2-sol"
 REASONING_EFFORT = "medium"
@@ -119,7 +133,7 @@ def completed_text(events):
     raise FinalPassError("missing_response_completed")
 
 
-def rewrite(url, token, text, requirements):
+def rewrite(url, token, text, requirements, prompt=PROMPT_A):
     headers = {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
@@ -137,7 +151,7 @@ def rewrite(url, token, text, requirements):
         "store": False,
         "stream": True,
         "input": [
-            {"role": "system", "content": [{"type": "input_text", "text": PROMPT_A}]},
+            {"role": "system", "content": [{"type": "input_text", "text": prompt}]},
             {"role": "developer", "content": [{"type": "input_text", "text": constraints}]},
             {"role": "user", "content": [{"type": "input_text", "text": text}]},
         ],
@@ -151,6 +165,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("draft", type=Path, help="UTF-8 file containing the approved t0")
     parser.add_argument("--requirements-file", type=Path, help="UTF-8 summary of applicable writing constraints")
+    parser.add_argument("--prompt-profile", choices=PROMPTS, default="general", help="final editing prompt (default: general)")
     args = parser.parse_args()
     try:
         codex_home = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser()
@@ -163,7 +178,7 @@ def main():
             raise FinalPassError("empty_draft")
         requirements = args.requirements_file.read_bytes().decode("utf-8") if args.requirements_file else ""
         token = bearer_token(provider, codex_home)
-        result = rewrite(url, token, text, requirements)
+        result = rewrite(url, token, text, requirements, PROMPTS[args.prompt_profile])
         sys.stdout.buffer.write(result.encode("utf-8"))
         return 0
     except HTTPError as error:

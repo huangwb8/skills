@@ -98,14 +98,17 @@ init/retry 在变更 BSK 前原子保存绑定输入、资产、运行时和身�
 主 Agent 取得 `ready` 或 `already_ready` 并重验冻结稿哈希后，仅对 `outcome=revise` 执行。需仅在本地处理或任务已有外发限制时，直接交付获批稿。将已获批的 `t0` 路径传给脚本。在 `humanization/input/` 简述实际允许的改写强度、段落结构和用户指定的语域等写作约束，并传入该文件。无需发送原稿、附件、完整私有 Prompt、审查材料或会话历史。
 
 ```bash
-python3 <skill-root>/scripts/finalize_prose.py <approved-t0> --requirements-file <writing-constraints>
+python3 <skill-root>/scripts/finalize_prose.py <approved-t0> \
+  --prompt-profile academic --requirements-file <writing-constraints>
 ```
 
-用 Python 3.11+ 执行，可省略 `--requirements-file`。脚本从 `CODEX_HOME/config.toml`（默认 `~/.codex/config.toml`）解析选中的 `model_provider`，用 `[model_providers.<id>].base_url` 请求 `/responses`。仅接受 `benszresearch.com` 及其子域的 HTTPS URL，不跟随重定向。鉴权复用 provider 的 `env_key` 或 `experimental_bearer_token`，需要 OpenAI 鉴权时也支持 `OPENAI_API_KEY` 或 Codex `auth.json` 中的 API Key。请求使用 Codex 客户端标识和 SSE，默认 `gpt-6.2-sol`、`medium`，设置 `store=false`。
+上例用于首轮采用 `academic_general` 或旧别名 `nsfc_academic` 的稿件。其余风格省略 `--prompt-profile` 或传 `general`。从原任务确定的风格取值；若恢复早期记录且参数仍为 `auto`，按原文和原任务要求判定。写作约束文件可另注明已知的章节职责、读者、语体和本次改写权限。
 
-Responses 的 `input` 依次包含三条消息。内置的 `prompt a` 是 `system` 消息，本次写作约束放在 `developer` 消息，`t0` 正文单独作为 `user` 消息传入。
+用 Python 3.11+ 执行，可省略 `--requirements-file`。脚本从 `CODEX_HOME/config.toml`（默认 `~/.codex/config.toml`）解析选中的 `model_provider`，用 `[model_providers.<id>].base_url` 请求 `/responses`。仅接受 `benszresearch.com` 及其子域的 HTTPS URL，不跟随重定向。鉴权复用 provider 的 `env_key` 或 `experimental_bearer_token`，需要 OpenAI 鉴权时也支持 `OPENAI_API_KEY` 或 Codex `auth.json` 中的 API Key。请求使用 Codex 客户端标识和 SSE，两种提示词均使用 `gpt-6.2-sol`、`medium`，设置 `store=false`。
 
-将标准输出按 UTF-8 原样捕获到 `humanization/output/` 中的独立文件，再等待进程退出。`0` 时文件是完整 `t1`，不能从工具的截断预览取稿；`3` 表示没有匹配 provider，其他非零表示请求或读取失败，均交付 `t0`。恢复时核对 attempt 和 `t0` 哈希后复用已成功取得的 `t1`。核对 `t1` 的语义、必要限定、受保护标记、结构与写作约束，附件仍需与正文一致。通过时提交该返回稿的完整正文和适用的获批附件，发现回归时提交 `t0`。独立保留冻结稿，不覆盖、不重写 BSK 回执。
+Responses 的 `input` 依次包含三条消息。脚本把选中的 `PROMPT_A` 或 `PROMPT_A_ACADEMIC` 作为 `system` 消息，本次写作约束放在 `developer` 消息，`t0` 正文单独作为 `user` 消息传入。
+
+将标准输出按 UTF-8 原样捕获到 `humanization/output/` 中的独立文件，再等待进程退出。`0` 时文件是完整 `t1`，不能从工具的截断预览取稿；`3` 表示没有匹配 provider，其他非零表示参数、请求或读取失败，均交付 `t0`。恢复时核对 attempt、`t0` 哈希与已用的提示词分支后复用已成功取得的 `t1`。核对 `t1` 的语体、章节职责、语义、必要限定、受保护标记、结构与写作约束，附件仍需与正文一致。通过时提交该返回稿的完整正文和适用的获批附件，发现回归时提交 `t0`。独立保留冻结稿，不覆盖、不重写 BSK 回执。
 
 ## RESULT.md 与两项汇总
 

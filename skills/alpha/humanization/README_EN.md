@@ -29,7 +29,7 @@ Natural language requests and installer arguments accept the legacy name `nsfc-h
 
 ## Scope
 
-Use it to polish existing prose, reduce formulaic wording, adjust tone or improve transitions in blog posts, emails, work reports, product explanations, academic papers and technical documents. Chinese, English and mixed text retain their language and follow its conventions. Without a specified audience, purpose or style, it follows the source rather than asking for parameters. An ordinary request such as “explain caching” does not trigger it automatically.
+Use it to polish existing prose, reduce formulaic wording, adjust tone or improve transitions in blog posts, emails, work reports, product explanations, academic papers and technical documents. Chinese, English and mixed text retain their language and follow its conventions. Without a specified audience, purpose or style, it infers the appropriate register from the source. An ordinary request such as “explain caching” does not trigger it automatically.
 
 This Skill edits the expression of existing content. It does not write from scratch, supply facts, retrieve/verify evidence, perform translation alone or change layouts. Use `better-prompt` to design prompt behavior and `write-readme` to author a complete project README; this Skill can polish the natural language within those materials. Its rules apply within the current invocation without changing global conversation style or promising to reproduce a particular model's writing experience.
 
@@ -64,7 +64,7 @@ For example, changing “we plan to send the report on Friday” into “we guar
 
 The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round. Retries do not reset the budget, and edits during review require new votes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even `text_only` includes a short unapproved-status note and the last draft.
 
-After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. The defaults are `gpt-6.2-sol` and `medium` reasoning effort. The main Agent checks meaning, formatting and writing requirements, then delivers the returned draft. The approved draft is used if the API call or output check fails, or if the provider does not match. Diagnosis, unchanged text and local-only jobs skip the extra pass. See the [runtime guide](references/runtime-control.md#交付前终润色).
+After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. Both general and academic editing use `gpt-6.2-sol` with `medium` reasoning, and academic drafts use a dedicated final-pass prompt. The main Agent checks register, meaning, formatting and writing requirements, then delivers the returned draft. The approved draft is used if the API call or output check fails, or if the provider does not match. Diagnosis, unchanged text and local-only jobs skip the extra pass. See the [runtime guide](references/runtime-control.md#交付前终润色).
 
 ## Styles and parameters
 
@@ -80,7 +80,7 @@ Parameters are read by the Agent; they are not rewrite CLI flags. Defaults are d
 | `output_mode` | `text_only` (default), `text_with_change_summary`, `diagnosis_only`, `text_with_change_summary_and_style_card` |
 | `self_eval_rounds` | `1` or `2` (default), capped by `max_self_eval_rounds`; lowering only the cap also reduces the default rounds; one round still checks expression and safety |
 
-Style selection follows user requirements first, then the source; without clear cues, it uses `general_prose`. Emails gain no unsolicited apologies or promises, academic prose gains no stronger evidence, and technical explanations retain interfaces and necessary steps. Existing parameters and values remain valid. The legacy `nsfc_academic` value maps to formal academic writing without imposing grant section templates. No style or editing strength changes meaning or formatting permissions.
+Style follows the user's request first, then the source. Research papers, grant proposals and other formal research drafts use `academic_general` from the first pass by default. The writing stays formal and measured, preserving the strength of the evidence, the stage of the research and each section's purpose. Public-facing science writing, talks and correspondence follow their intended audience. Use `general_prose` when clues are insufficient. `nsfc_academic` maps to `academic_general`, with the source draft guiding section structure. No style or editing strength changes meaning or formatting permissions.
 
 ## Advanced examples
 
