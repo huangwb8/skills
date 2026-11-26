@@ -28,6 +28,8 @@ The report explains why it uses complete pairs before showing the actual pipelin
 
 Use it to analyze data with R, deliver a scientific report readers can check, or rewrite a report around existing results. Use `knit-rmd-html` when you only need to render existing Rmd. Use `bensz-r-developer` when the main deliverable is a reusable R library or package.
 
+Use it to develop, validate, or compare clinical prediction models, or to evaluate a model for a particular setting. The AI first checks the cohorts and how their data are used, then chooses assessments based on the outcome, clinical goal, and available data. The report explains which assessments were completed, where evidence is still missing, and what the results support. [Clinical prediction model evaluation guide](references/model-evaluation.md)
+
 ## Inputs and outputs
 
 Describe the reader, decision, data location, and any limits on analysis or access. The Skill uses targets and renv and delivers Rmd, HTML, analysis code, the environment lock, and verification notes. For an existing project, you can limit the work to the report and check and reuse results through the formal entry point.
