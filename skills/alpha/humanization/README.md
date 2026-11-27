@@ -50,9 +50,10 @@ flowchart TD
     R3 --> Q
     Q -->|是| G["主 Agent 汇总三人审查；BSK Gate 放行并迁移 ready"]
     G --> F{"重验哈希后，改写稿是否适用 Bensz API 终润色？"}
-    F -->|适用| P["Responses API 终润色，核对通过后交付返回稿"]
+    F -->|适用| P{"Responses API 是否返回完整 t1？"}
+    P -->|是| T["交付完整 t1，明确问题在正文外说明"]
     F -->|跳过| O["交付获批产物"]
-    P -->|调用失败或核对未通过| O
+    P -->|否| O
     Q -->|否，尚未满五轮| E["主 Agent：综合意见，retry 后优化"]
     E --> C
     Q -->|第五轮仍未通过| X["提交最后草案及未通过说明；保持 working"]
@@ -64,7 +65,7 @@ flowchart TD
 
 内部表达/安全自检默认两轮，与最多五轮的外部审查独立。同稿 pending、回传与恢复不增加外部轮次，retry 不清零；审查中的改稿会使旧票作废。独立上下文不等于模型偏差完全独立，身份和哈希字段也不认证真实调度。达到上限仍未通过时，即使 text_only 也会附一句“未通过审核，以下为最后一轮草案”及主要分歧，并提交草案；不把它标记为 ready。
 
-审核通过后，如果当前 Codex provider 使用 `benszresearch.com` 或其子域的 HTTPS 地址，改写稿会经该 provider 的 Responses API 再润色一次。通用和学术风格共用 `gpt-6.2-sol` 和 `medium` 推理强度，学术稿件使用专用终润色提示词。主 Agent 核对返回稿的语体、语义、格式和写作约束后，直接交付返回稿。接口失败、返回稿不合要求或未使用该 provider 时，交付已审稿。诊断、原样保留和要求仅本地处理的文本不走此步骤。具体协议见[运行说明](references/runtime-control.md#交付前终润色)。
+审核通过后，如果当前 Codex provider 使用 `benszresearch.com` 或其子域的 HTTPS 地址，改写稿会经该 provider 的 Responses API 再润色一次。通用和学术风格共用 `gpt-6.2-sol` 和 `medium` 推理强度，学术稿件使用专用终润色提示词。只要本次取得完整 `t1`，主 Agent 就会原样交付全文。若返回稿改变了事实、术语或格式等明确要求，仍会交付完整稿件供确认，并在正文外指出问题。只有未取得完整 `t1` 时，才单独交付已审稿 `t0`。诊断、原样保留和要求仅本地处理的文本会跳过终润色。具体协议见[运行说明](references/runtime-control.md#交付前终润色)。
 
 ## 风格与参数
 

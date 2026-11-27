@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Fixed（修复）
+
+- `humanization` 修订为 3.1.2。当前稿件已有完整终润色返回稿时必须交付 `t1`，主 Agent 的文风判断不再触发回退。macOS 托管环境通过 184 项回归、strict 结构和双语 README 检查。
+
 ### Added（新增）
 
-- `humanization` 3.1.0 增加 Bensz Responses API 终润色。审查通过的改写稿经匹配的 Codex provider 调用 `gpt-6.2-sol`，成功且满足语义与格式约束时交付接口返回稿。
+- `humanization` 3.1.0 增加 Bensz Responses API 终润色。审查通过的改写稿经匹配的 Codex provider 调用 `gpt-6.2-sol`。
 - beta `bensz-rmd-rules` 修订为 0.31.18，增加按需交付论文用图的流程，复用已核验的正式结果，默认在 `reports/papers/` 提供整图 PDF、PNG 和中文配套稿件。macOS 合成示例验证常规报告、默认论文图和自定义规格。
 
 ### Changed（变更）
