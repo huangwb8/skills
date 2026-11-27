@@ -50,8 +50,8 @@ flowchart TD
     R3 --> Q
     Q -->|Yes| G["Main Agent consolidates reviews; Kernel Gate permits ready"]
     G --> F{"After rechecking hashes, is the revision eligible for a Bensz API pass?"}
-    F -->|Eligible| P{"Did the Responses API return a complete t1?"}
-    P -->|Yes| T["Deliver t1 in full and flag concrete issues outside the text"]
+    F -->|Eligible| P{"Is t1 complete and did it pass the final check?"}
+    P -->|Yes| T["Deliver t1 in full and verbatim"]
     F -->|Skip| O["Deliver the approved artifacts"]
     P -->|No| O
     Q -->|No, fewer than five rounds| E["Main Agent: retry and improve the draft"]
@@ -65,7 +65,7 @@ For example, changing “we plan to send the report on Friday” into “we guar
 
 The default two expression/safety checks are separate from the five external review rounds. Pending submissions, readbacks and recovery do not consume another round. Retries do not reset the budget, and edits during review require new votes. Separate contexts do not guarantee independent model biases, and identity fields do not authenticate actual dispatch. At the five-round limit, even `text_only` includes a short unapproved-status note and the last draft.
 
-After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. Both general and academic editing use `gpt-6.2-sol` with `medium` reasoning, and academic drafts use a dedicated final-pass prompt. Whenever a complete `t1` is available for the current draft, the main Agent delivers it in full and verbatim. If it changes facts, terminology, formatting or another explicit requirement, the Agent still delivers the full draft for review and flags the issue outside the text. The approved draft `t0` is delivered on its own only when no complete `t1` is available. Diagnosis, unchanged text and local-only jobs skip the extra pass. See the [runtime guide](references/runtime-control.md#交付前终润色).
+After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. The main Agent carries forward the first pass's genre assessment and follows the user's style choice when selecting one of five prompts: general, academic, technical, professional or creative. All five use `gpt-6.2-sol` with `medium` reasoning. The main Agent delivers the complete `t1` verbatim after checking meaning and formatting. If the call fails, the response is incomplete, or the check finds a material regression, the Agent delivers the approved `t0`. Diagnosis, unchanged text and local-only jobs skip the extra pass. See the [runtime guide](references/runtime-control.md#交付前终润色).
 
 ## Styles and parameters
 

@@ -102,15 +102,25 @@ python3 <skill-root>/scripts/finalize_prose.py <approved-t0> \
   --prompt-profile academic --requirements-file <writing-constraints>
 ```
 
-上例用于首轮采用 `academic_general` 或旧别名 `nsfc_academic` 的稿件。其余风格省略 `--prompt-profile` 或传 `general`。从原任务确定的风格取值；若恢复早期记录且参数仍为 `auto`，按原文和原任务要求判定。写作约束文件可另注明已知的章节职责、读者、语体和本次改写权限。
+主 Agent 根据用户要求和 T0 已完成的文体判断选择提示词。用户显式指定 T1 profile 时直接采用，显式指定文体时按文体所承担的表达职责选择。脚本接受以下 T0 `style_profile` 值作为 CLI 别名：
 
-用 Python 3.11+ 执行，可省略 `--requirements-file`。脚本从 `CODEX_HOME/config.toml`（默认 `~/.codex/config.toml`）解析选中的 `model_provider`，用 `[model_providers.<id>].base_url` 请求 `/responses`。仅接受 `benszresearch.com` 及其子域的 HTTPS URL，不跟随重定向。鉴权复用 provider 的 `env_key` 或 `experimental_bearer_token`，需要 OpenAI 鉴权时也支持 `OPENAI_API_KEY` 或 Codex `auth.json` 中的 API Key。请求使用 Codex 客户端标识和 SSE，两种提示词均使用 `gpt-6.2-sol`、`medium`，设置 `store=false`。
+| T0 风格 | T1 profile |
+| --- | --- |
+| `general_prose`、`natural_explanation` | `general` |
+| `academic_general`、`nsfc_academic` | `academic` |
+| `technical_prose` | `technical` |
+| `professional_communication` | `professional` |
+| `auto` | 主 Agent 按原文与原任务判断，直接传给 CLI 时使用 `general` |
 
-Responses 的 `input` 依次包含三条消息。脚本把选中的 `PROMPT_A` 或 `PROMPT_A_ACADEMIC` 作为 `system` 消息，本次写作约束放在 `developer` 消息，`t0` 正文单独作为 `user` 消息传入。
+同一题材可以有不同的表达职责。医学论文面向学科同行，用 `academic`。公众科普用 `general`，软件工具文档用 `technical`，正式工作报告用 `professional`，以文学叙事为主的故事用 `creative`。T0 自动判断用 `general_prose` 承接创意稿时，主 Agent 可根据已识别的创作目的传 `creative`。混合文体难以确定主要用途时选 `general`。省略 `--prompt-profile` 也使用 `general`。选择在本地完成，无需用户选模板或发起分类请求。写作约束文件可注明章节职责、读者、语体和本次改写权限。
 
-将标准输出按 UTF-8 原样捕获到 `humanization/output/` 中的独立文件，再等待进程退出。脚本退出 `0` 且已保存完整的非空标准输出，即已取得 `t1`。这里的完整性指接口返回全文已接收并保存，漏改、缺段等内容问题按下段处理。工具预览可能截断，交付以该文件为准。恢复时先核对 attempt、`t0` 哈希和提示词分支，复用当前已成功取得的 `t1`。仅在本次没有完整 `t1` 时，如脚本跳过（退出 `3`）或运行失败，才单独交付 `t0`。
+用 Python 3.11+ 执行，可省略 `--requirements-file`。脚本从 `CODEX_HOME/config.toml`（默认 `~/.codex/config.toml`）解析选中的 `model_provider`，用 `[model_providers.<id>].base_url` 请求 `/responses`。仅接受 `benszresearch.com` 及其子域的 HTTPS URL，不跟随重定向。鉴权复用 provider 的 `env_key` 或 `experimental_bearer_token`，需要 OpenAI 鉴权时也支持 `OPENAI_API_KEY` 或 Codex `auth.json` 中的 API Key。请求使用 Codex 客户端标识和 SSE，五种提示词均使用 `gpt-6.2-sol`、`medium`，设置 `store=false`。
 
-已有 `t1` 时，直接交付完整返回稿，沿用用户指定的输出形式。核对语义、必要限定、受保护标记、结构和写作约束，并让摘要及风格卡与收到的正文一致。任何明确冲突都在正文外标明，按待确认稿交付完整 `t1`。如果冲突阻止写入正式文件，则交付已保存的 `t1` 文件链接。主 Agent 对语体、流畅度或两稿优劣的偏好不影响交付。保留冻结稿及 BSK 回执，供核验其批准对象。
+Responses 的 `input` 依次包含三条消息。脚本将选定的提示词放在 `system`，将公共保护要求和本次写作约束放在 `developer`，将 `t0` 正文单独作为 `user` 消息传入。正文只作为待编辑数据。除非用户明确要求改变语言，否则沿用正文语言。
+
+将标准输出按 UTF-8 原样捕获到 `humanization/output/` 中的独立文件，再等待进程退出。脚本退出 `0` 且文件非空时，取得可供核验的返回稿。全文以文件为准。恢复时先核对 attempt、`t0` 哈希和提示词分支，复用匹配的返回稿。脚本跳过（退出 `3`）、执行失败或未取得完整返回稿时，交付获批的 `t0`。
+
+核验以冻结的 `t0`、用户要求和已有保护信息为依据。主 Agent 核对内容是否完整，语义、事实、必要限定、术语、结构及受保护元素是否符合原约束。可用 [`check_revision.py`](../scripts/check_revision.py) 按本次有效的 `structure_mode` 辅助核对两稿。普通英文词语的预期变化或检查器无法可靠解析的内容，按主说明逐项人工比对。核验通过就原样交付完整 `t1`。发现内容缺失、语义偏移、保护元素损坏，或无法确认关键内容保真时，交付获批的 `t0`。选稿不依赖主 Agent 的个人文风偏好。让摘要及风格卡与实际交付稿一致，保留冻结稿和对应的 BSK 回执。
 
 ## RESULT.md 与两项汇总
 
