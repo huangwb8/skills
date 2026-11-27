@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Changed（变更）
 
+- `humanization` 修订为 3.2.1。终润色仅接收获批 `t0` 和预设文体，逐稿要求在首轮写作与终稿核验中落实。旧参数 `--requirements-file` 会给出迁移提示，恢复时按实际请求指纹识别返回稿。
 - `humanization` 更新至 3.2.0。终润色提供通用、学术、技术、职业、创意五套提示词，复用 T0 文体信息并兼容旧值。T1 通过最终核验后交付，调用或核验失败时回退 T0。macOS 201 项定向回归与 Linux 75 项通过，五种文体均用合成短稿实测 Responses API。
 - `humanization` 修订为 3.1.1。论文、基金标书等正式科研稿件在首轮采用学术语体，终润色使用同一模型的科研专用提示词，保留研究阶段、证据强度和章节职责。
 - beta `bensz-rmd-rules` 修订为 0.31.19，为论文用图增加 AI 成品审图，允许在字体和字号固定的前提下微调版面并复验。
