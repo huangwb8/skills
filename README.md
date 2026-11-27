@@ -93,15 +93,17 @@ python3 skills/alpha/install-bensz-skills/scripts/install.py --codex
 
 | 你想完成的任务 | 入口与当前行为 |
 | --- | --- |
-| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；主 Agent 唯一润色，三个子 Agent 经 parallel-vibe 并行审查语义安全与防御性表达；两项均须三份判断齐全、至少两票通过，且实质异议已结案 |
+| 润色已有文章、邮件、报告、学术或技术文字 | [humanization](skills/alpha/humanization/README.md)：自动适配语域，保留事实、意图和格式；主 Agent 改稿，三个子 Agent 经 parallel-vibe 并行审查语义安全与防御性表达，两项均须三份判断齐全、至少两票通过，且实质异议已结案；审查通过后，由符合条件的 Codex provider 经 Bensz Responses API 终润色一次，默认交付完整终润色稿，调用失败或返稿不完整时交付已审稿 |
 | 为项目建立 AI 协作规范 | [init-project](skills/alpha/init-project/README.md)：生成项目指令与文档，初始化 `docs/` 和 `docs/plans/` |
 | 组织多个 Agent 协作 | [awesome-code](skills/alpha/awesome-code/README.md) 负责规划和审查，[parallel-vibe](skills/alpha/parallel-vibe/README.md) 统一执行串行或并行任务 |
 
 `humanization` 兼容旧名 `nsfc-humanization`，现已适用于通用文字润色；`init-project` 的默认初始化目录不包含根级 `skills/`。
 
-`humanization` 最多进行五轮外部审查；达到上限仍未通过时，交付最后草案和未通过说明。新增专项审查用于清理无效免责、假想反驳等表达，同时保留必要限定；真实写作质量仍需结合作者评价判断。
+`humanization` 最多进行五轮外部审查；达到上限仍未通过时，交付最后草案和未通过说明。专项审查用于清理无效免责、假想反驳等表达，同时保留必要限定；真实写作质量仍需结合作者评价判断。
 
-beta 候选源中的 [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README.md) 面向 R/Rmd 深度分析：`targets` 管理正式计算与增量重建，`renv` 锁定环境，结果写成论文式 Rmd/HTML 报告——摘要按背景、方法、结果、结论分段，主图与关键表格展示实际生成结果的代码，预设判断和证据边界写入报告主线；多报告交付使用三级阅读编号，`--detail` 可加逐单位明细附录。它不进入默认安装；需要时显式指定本地源：
+审查通过后，如果当前 Codex provider 使用 `benszresearch.com` 或其子域的 HTTPS 地址，改写稿会经 Bensz Responses API 按 Skill 内的固定模板再润色一次：论文、基金标书等正式科研稿件使用学术提示词，其余按文体选用通用、技术、职业或创意提示词。默认交付完整的终润色稿；核对发现实质问题时，正式稿改用已审稿，并附完整终润色稿和原因，调用失败或返稿不完整时交付已审稿。只做诊断、原样保留或仅限本地处理时跳过这一步。
+
+beta 候选源中的 [bensz-rmd-rules](skills/beta/bensz-rmd-rules/README.md) 面向 R/Rmd 深度分析：`targets` 管理正式计算与增量重建，`renv` 锁定环境，结果写成论文式 Rmd/HTML 报告——摘要按背景、方法、结果、结论分段，主图与关键表格展示实际生成结果的代码，预设判断和证据边界写入报告主线；多报告交付使用三级阅读编号，`--detail` 可加逐单位明细附录。需要论文用图时，默认在 `reports/papers/` 为每张整图提供矢量 PDF、300 ppi PNG 和中文配套稿件，交付前由 AI 按实际展示尺寸审阅成图。开发、验证和比较临床预测模型也在适用范围内：按结局类型、临床目标与可用数据选择评价项目。它不进入默认安装；需要时显式指定本地源：
 
 ```bash
 python3 skills/alpha/install-bensz-skills/scripts/install.py --source skills/beta --skill bensz-rmd-rules --codex

@@ -178,6 +178,12 @@ OpenAI 图片模型默认固定请求最低成本的 `1024x1024` 原生尺寸；
 
 同步接口只作为兼容回退：当 job endpoint 明确返回 404/405/501 时，脚本才会改用旧同步端点。服务端尚未确认持久幂等语义前，submit 固定只提交一次；`BILLING_PRICING_NOT_CONFIGURED` 等 `retryable=false` 错误不会退避重试，`2xx` 空/非 JSON 响应也不会重放，poll/result 的临时故障独立处理。JSON 与 multipart 请求都会发送单次生成的安全 `X-Client-Request-ID`；此类协议错误会在 `image-debug/gpt-image-2-error.json` 中记录服务端回传的安全 `X-Request-ID` / `X-Client-Request-ID`、HTTP 状态、origin/path、Content-Type、声明/实际长度、正文 SHA-256、首字节类别和重定向变化，但不会保存 query、鉴权头、prompt 或原始响应正文。参考图证据同样只记录 SHA-256，不记录 API Key 或内部订阅明细。
 
+## 视觉先例
+
+简单流程图、已定版式和局部修改直接使用内置绘图规范。复杂机制图可从医学或科研案例提炼分组、层级和箭头表达。产品摄影海报可借鉴布光、材质表现和文字留白。宿主按任务类别从本地索引定向选例，联网不可用时继续使用内置规范。
+
+Skill 会把本次采纳的设计原则与来源写入现有 `prompt-plan.json` 和 `analysis.json`。用户指定的结构、标签、科学事实、数据、输出比例和图片模型始终优先。直接运行脚本时，可传入已提炼的 `--visual-blueprint <path.json>`。索引只读与单案例读取命令、蓝图格式及来源边界见[按需参考视觉先例](references/visual-inspiration.md)。
+
 ## 配置
 
 推荐配置在 `~/.bensz-skills/config/remote.env` 或环境变量中。如果只使用 OpenAI 图片模型，不需要配置 Gemini。

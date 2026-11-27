@@ -2,6 +2,8 @@
 
 ### Added
 
+- 新增按需参考视觉先例的 Prompt 规划与离线回归测试。
+
 - 新增 GPT Image 2.6 Flare／Sunburst 显式模型选择、complexity、markup 标注编辑和原生 SVG／GIF 输出；保留默认模型与旧 CLI 别名。
 - SVG／GIF 独立格式校验、原件保存、预览与结构检查，GIF 元数据记录实际帧数、逐帧时长、总时长和循环信息；SVG PNG 预览可选依赖 CairoSVG/Cairo。
 - 同步与异步 jobs 共享新参数；新格式默认单轮，显式多轮按文字反馈重新生成，拒绝不支持的编辑、压缩和静态化组合。

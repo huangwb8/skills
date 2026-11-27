@@ -51,6 +51,7 @@ metadata:
 ### 执行步骤
 
 1. **理解需求与模式**：宿主 AI 先把用户需求拆成“主体 / 结构 / 风格 / 硬约束 / 禁止项”，并解析 `mode`；未指定时用 `general`。需要时参考 [references/prompt-guidelines.md](references/prompt-guidelines.md)。
+   - 复用已有需求分析，独立识别主视觉类别。普通流程图、布局与风格已定的任务和小幅编辑直接用内置规范。复杂科研、出版或高审美任务若仍有设计问题，按[视觉先例流程](references/visual-inspiration.md)按需选例，判断哪些设计原则适合当前内容并形成蓝图，再进入后续步骤。
 2. **声明监督路径**：若用户传入 `workspace_base`，解析该路径；否则解析 `project_root/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。必须把解析后的绝对路径用可见消息在 API 检查、`init_workspace.py`、`run_draw_plot.py` 或任何图片生成调用之前告诉用户，例如：`本次 auto-draw-plot .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。不要只把路径写进 `run-manifest.json`；初始化后可再补充实际 `run_dir`，但不能用 `run_dir` 补充替代启动前的根目录声明。
 3. **检查 API**：运行 `scripts/nano_banana_check.py`。默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 当前 BenszAPI provider 获取 base URL 和 `experimental_bearer_token`（或 provider 内兼容 token 字段），再从 `~/.codex/auth.json` 获取兼容 key；环境变量与 `remote.env` 只作为缺失字段的兜底来源。Windows 同时兼容 `%USERPROFILE%`、`%HOMEDRIVE%%HOMEPATH%` 与 Git Bash/PowerShell 的 `HOME`。配置加载必须记录实际配置文件路径、来源和 API Key 不可逆短指纹；若 Codex 配置与 BenszAPI 环境变量同时存在且 Base URL/API Key 不一致，必须在发图前停止并报告冲突字段，不得静默使用旧配置；诊断证据不得写入完整密钥。`gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 共享 OpenAI Images provider，只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。若配置只提供子域名根地址，客户端会在校验后统一规范为带 `/v1` 的 API 基址，避免 Images 请求落入站点 HTML fallback。
    - 若用户点名 `gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider/model，运行前检查和后续出图都必须固定在该 provider/model，并给主脚本传 `--provider <name>`；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
@@ -64,13 +65,14 @@ metadata:
    主入口 `scripts/run_draw_plot.py` 已经会为每一轮自动生成 parallel-vibe plan，用户无需额外手工执行；若宿主 AI 想把“下一轮 prompt 草案”真正交给独立线程处理，则直接复用该轮 `parallel-plan.round-XX.json`。`parallel-vibe` worker 当前仍只负责在隔离 workspace 里产出 prompt 草案与评估请求模板；真正的出图与评估继续由本 skill 的主脚本完成，避免跨 workspace 回写导致不稳定。
 6. **生成第 1 轮 prompt**：
    - 优先由宿主 AI 在调用脚本前完成需求拆解与 prompt 规划；
+   - 把已提炼的蓝图通过 `--visual-blueprint` 传给主入口，作为可选设计指导进入现有 Prompt 模板。同一运行的后续轮次复用已核验的蓝图。
    - `run_draw_plot.py` 只做本地模板拼装与护栏合并，不默认调用 Gemini / Nano Banana 等远端文本规划接口；
    - prompt 仍需忠实反映用户需求，不得暴露密钥或绝对路径。
 7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；OpenAI 图片模型默认使用 `gpt-image-2.5-flare`，也支持显式指定 2.6 Flare／Sunburst、2.5 Sunburst 或 `gpt-image-2`。2.6 新能力优先使用上游 API Key 直连账号；OAuth 桥接不保证等价支持，失败时如实报告，不换模型、不降成静态 JPEG。纯文本出图默认提交到 `/v1/images/jobs/generations`，存在参考图时默认提交到 `/v1/images/jobs/edits`。配置仅给出 BenszAPI 子域名根地址时，客户端会先规范为带 `/v1` 的 API 基址；同步端点只在 job endpoint 明确不支持时兼容回退。submit 在服务端尚无持久幂等契约时只提交一次；结构化 `retryable=false`（包括 `BILLING_PRICING_NOT_CONFIGURED`）立即停止，`2xx` 空/非 JSON 响应也不重试或跨 provider，poll/result 的暂时故障独立处理。默认请求 `quality=low`、最小匹配原生尺寸和 `output_format=jpeg`，输出扩展名、magic bytes、MIME 与 meta 必须一致；PNG/WebP 回退结果导出 JPEG 时以白色合成透明背景。参考图编辑会追加“只改明确要求、保留主体/构图/背景”的契约，并记录原始参考图 SHA-256。
    - 回退授权：只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage、`BILLING_SERVICE_ERROR` 与 submit 空/非 JSON 等任务创建状态不确定的协议错误仍必须停在原 provider 并展示结构化错误。
 8. **视觉评估**：
    - `scripts/evaluate_image.py` 默认只做启发式文件/分辨率检查并标记 `fallback_mode=heuristic`，不调用 Gemini 文本接口；
-   - 宿主 AI 必须根据最终图片、用户需求与 `evaluation.json` 做语义把关，必要时人工触发下一轮。GIF 必须播放完整动画并检查运动、闪烁、主体一致性和循环接缝；SVG 必须渲染原件检查文字、布局和缩放。文件结构、单张预览、接触表或启发式得分均不能替代这些检查。
+   - 宿主 AI 必须根据最终图片、用户需求与 `evaluation.json` 做语义把关，必要时人工触发下一轮。分别检查设计目标和科研内容准确性。使用先例时核对采纳原则的迁移效果。GIF 必须播放完整动画并检查运动、闪烁、主体一致性和循环接缝；SVG 必须渲染原件检查文字、布局和缩放。文件结构、单张预览、接触表或启发式得分均不能替代这些检查。
 9. **多轮优化**：普通静态位图上一轮若未通过，第 `n+1` 轮必须把第 `n` 轮 `output.jpg` 作为第一参考图传给可消费参考图的图片 provider，并把反馈拼进 prompt，要求模型保真微调而不是从零重画；首轮用户参考图也必须标记为 `image-to-image`，来源使用 `user_reference` / `previous_round` / `mixed`。
    - SVG/GIF 显式多轮只走 generations，使用文字反馈重新生成，不把原件当作 edits 参考图；markup 轮次保留原始原图与标注层。
 10. **交付**：输出至少 1 个所选格式的最终文件，默认仍为 JPEG；隐藏目录里保留 `meta/result.json` 供追溯。GIF/SVG 不得隐式转换成 JPEG。GIF 附帧数、各帧时长、总时长、循环信息与接触表；SVG 附静态矢量结构检查结果，安装可用的 CairoSVG/Cairo 时生成 PNG 预览，否则明确提示用浏览器检查原件。
@@ -83,6 +85,7 @@ metadata:
 - 根据后处理前的实际像素判断降级；网关 `native_size` 作为补充证据，旧网关也必须检测。`size_downgrade_detected=true` 时，在交付说明中逐字引用 `size_downgrade_warning`，不得把后处理放大称为原生 4K。自动尺寸不推断降级；尺寸档位沿用网关现有规则（最大边 ≤1024 为 1K，≤1792 为 2K，其余为 4K，包含 `2048x2048`）。最终 `meta/result.json` 保留最佳轮次三段尺寸及降级提示。
 - `image-debug/gpt-image-2-error.json` 只保留错误类别、HTTP 状态和服务端安全返回的 `error.type` / `error.code` / `error.message`。JSON 与 multipart 请求发送安全 `X-Client-Request-ID`；`2xx` 空正文或非 JSON 正文分别记录 `PROVIDER_EMPTY_RESPONSE` / `PROVIDER_NON_JSON_RESPONSE`，附经白名单校验的 `request_id` / `client_request_id`、origin/path、响应类型、声明/实际长度、SHA-256、首字节类别和重定向布尔值；不得写入 query、Authorization、API Key、Cookie、prompt、原始正文、订阅明细或原始内部错误对象。
 - 每轮目录：`rounds/round-XX/prompt.txt`、`rounds/round-XX/prompt-plan.json`、`rounds/round-XX/parallel-plan.json`、`rounds/round-XX/output.jpg`、`rounds/round-XX/evaluation.json` 以及 `image-debug/` / `evaluation-debug/`；OpenAI 图片模型默认主动使用 Sub2API image job endpoint，generation/edit 均显式发送 `quality=low`、原生尺寸和 `output_format=jpeg`，并在 debug meta 中保留参考图 SHA-256。
+- 采用外部案例时，`prompt-plan.json` 与 `meta/analysis.json` 增记 `visual_design_blueprint`，包括案例链接、类别、提炼的设计原则与任务适配。
 - run 级 `parallel-vibe/parallel-plan.json` 与 `parallel-vibe/parallel-plan.round-XX.json`：每轮必留痕的 parallel-vibe plan。
 
 ### 输出管理
@@ -100,6 +103,7 @@ metadata:
 
 ### 失败与恢复
 
+- 视觉案例不可用：跳过外部先例并沿用内置 Prompt 指南，省略 `--visual-blueprint`。
 - 配置冲突：Codex 配置与 BenszAPI 环境变量的 Base URL/API Key 不一致时，必须在发图前停止并报告冲突字段，不得静默使用旧配置。
 - 域名校验失败：OpenAI 图片模型出现非 HTTPS、裸域、非白名单域名或缺少 key 时停止，不得绕过校验。
 - 指定 provider 失败：暂停并报告原因，输出可执行的配置/额度/端点错误，不自动切到另一个模型；provider 回退仅按「执行步骤」第 7 步的授权边界执行，任务创建状态不确定的协议错误一律停在原 provider 并展示结构化错误。
@@ -134,6 +138,6 @@ metadata:
 - `gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。
 - 错误诊断与 `image-debug/gpt-image-2-error.json` 不得写入 query、Authorization、API Key、Cookie、prompt、原始正文、订阅明细或原始内部错误对象；诊断证据中的 API Key 只允许不可逆短指纹。
 - 历史隐藏目录只允许显式兼容读取、迁移或清理，不做静默处理。
-- 因本 skill 设计缺陷导致的 bug 先按公共约束记录到 `~/.bensz-skills/bugs/`；只在用户明确要求 “report bensz skills bugs” 时，才通过本地 `gh` 调用将新 bug 推送到 `huangwb8/bensz-bugs`，上传前必须先脱敏本地路径/用户名等隐私。
+- 本 Skill 的设计缺陷先按公共约束记录到 `~/.bensz-skills/bugs/`。用户明确要求 “report bensz skills bugs” 后，先脱敏本地路径、用户名等隐私，再用本地 `gh` 将新记录推送至 `huangwb8/bensz-bugs`。
 - SVG 原件必须拒绝 DTD、实体、脚本、外部资源、内嵌位图和非静态内容；结构验证通过不代表图意正确。
 - prompt 结构模板与迭代策略见 [references/prompt-guidelines.md](references/prompt-guidelines.md)；合法的 `parallel-vibe` shell plan 模板见 [references/parallel-plan.md](references/parallel-plan.md)。

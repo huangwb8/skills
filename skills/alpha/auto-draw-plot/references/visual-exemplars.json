@@ -1,0 +1,323 @@
+[
+  {
+    "id": "immune-atlas",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-research-paper-figures.md",
+    "lines": [
+      28,
+      48
+    ],
+    "heading": "### No. 76 · Single-cell immune atlas reveals treatment-response states",
+    "preview_path": "docs/research-paper-figures/single-cell-immune-atlas.png",
+    "categories": [
+      "scientific_mechanism_diagram",
+      "infographic_data_storytelling"
+    ],
+    "description": "用分支终点、色彩分组和小图例呈现细胞状态。",
+    "keywords": [
+      "immune",
+      "cell state",
+      "branching",
+      "trajectory"
+    ],
+    "use_for": "机制图的视觉分组、分支终点与方向表达",
+    "prompt_available": true
+  },
+  {
+    "id": "anatomy-poster",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-scientific-and-educational.md",
+    "lines": [
+      7,
+      17
+    ],
+    "heading": "### No. 122 · Anatomy Poster",
+    "preview_path": "docs/scientific-educational/human-anatomy-muscular-poster.png",
+    "categories": [
+      "scientific_medical_illustration",
+      "scientific_mechanism_diagram"
+    ],
+    "description": "解剖主视图与外围标签。",
+    "keywords": [
+      "anatomy",
+      "callout",
+      "medical"
+    ],
+    "use_for": "医学插画的主图与标签布置",
+    "prompt_available": true
+  },
+  {
+    "id": "cohort-workflow",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-research-paper-figures.md",
+    "lines": [
+      7,
+      27
+    ],
+    "heading": "### No. 75 · Patient cohort and multimodal biomarker workflow",
+    "preview_path": "docs/research-paper-figures/clinical-cohort-flow.png",
+    "categories": [
+      "technical_roadmap",
+      "flowchart_architecture",
+      "scientific_medical_illustration"
+    ],
+    "description": "分阶段队列工作流，带筛选分支。",
+    "keywords": [
+      "cohort",
+      "workflow",
+      "experiment"
+    ],
+    "use_for": "研究流程、入排分支和阶段分区",
+    "prompt_available": true
+  },
+  {
+    "id": "encoder-decoder",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-research-paper-figures.md",
+    "lines": [
+      90,
+      106
+    ],
+    "heading": "### No. 79 · Transformer encoder–decoder architecture",
+    "preview_path": "docs/research-paper-figures/transformer-arch.png",
+    "categories": [
+      "flowchart_architecture",
+      "technical_roadmap"
+    ],
+    "description": "并列模块与跨区连接。",
+    "keywords": [
+      "architecture",
+      "module",
+      "connector"
+    ],
+    "use_for": "模型架构与模块层级",
+    "prompt_available": true
+  },
+  {
+    "id": "encyclopedia-field-guide",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-infographics-and-field-guides.md",
+    "lines": [
+      44,
+      70
+    ],
+    "heading": "### No. 69 · Encyclopedia field guide (Giant Panda)",
+    "preview_path": "docs/infographics-field-guides/encyclopedia-panda.png",
+    "categories": [
+      "infographic_data_storytelling"
+    ],
+    "description": "以主图统领成组的辅助信息。",
+    "keywords": [
+      "field guide",
+      "callout",
+      "hierarchy"
+    ],
+    "use_for": "信息图阅读顺序与局部标注",
+    "prompt_available": true
+  },
+  {
+    "id": "studio-product-poster",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-product-and-food.md",
+    "lines": [
+      87,
+      96
+    ],
+    "heading": "### No. 59 · Universal commercial poster template",
+    "preview_path": "docs/product-food/aurora-oolong-poster.png",
+    "categories": [
+      "product_visualization",
+      "editorial_poster_design",
+      "photography_photorealism"
+    ],
+    "description": "瓶身、玻璃杯与克制的影棚光。",
+    "keywords": [
+      "studio",
+      "hero product",
+      "negative space"
+    ],
+    "use_for": "商品主视觉、材质与文字留白",
+    "prompt_available": true
+  },
+  {
+    "id": "packaging-render",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-product-and-food.md",
+    "lines": [
+      7,
+      17
+    ],
+    "heading": "### No. 56 · 3D product box from dieline",
+    "preview_path": "docs/product-food/product-dieline-box.png",
+    "categories": [
+      "3d_isometric_illustration",
+      "product_visualization"
+    ],
+    "description": "展示包装结构、折面和尺度。",
+    "keywords": [
+      "packaging",
+      "3D",
+      "geometry"
+    ],
+    "use_for": "产品三维几何与一致性",
+    "prompt_available": true
+  },
+  {
+    "id": "studio-product-render",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-product-and-food.md",
+    "lines": [
+      18,
+      53
+    ],
+    "heading": "### No. 57 · Chocolate wafer product render (JSON-style)",
+    "preview_path": "docs/product-food/product-chocolate-wafer.png",
+    "categories": [
+      "product_visualization",
+      "3d_isometric_illustration",
+      "photography_photorealism"
+    ],
+    "description": "食物产品特写，聚焦断面和纹理。",
+    "keywords": [
+      "render",
+      "texture",
+      "product"
+    ],
+    "use_for": "商品材质、层次和光泽",
+    "prompt_available": true
+  },
+  {
+    "id": "tea-poster",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-typography-and-posters.md",
+    "lines": [
+      7,
+      32
+    ],
+    "heading": "### No. 33 · Chinese tea launch poster",
+    "preview_path": "docs/typography-posters/tea-poster.png",
+    "categories": [
+      "editorial_poster_design",
+      "product_visualization"
+    ],
+    "description": "用版式、字标和商品搭建阅读顺序。",
+    "keywords": [
+      "poster",
+      "type",
+      "product"
+    ],
+    "use_for": "海报构图与标题层级",
+    "prompt_available": true
+  },
+  {
+    "id": "chess-photography",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-photography.md",
+    "lines": [
+      29,
+      41
+    ],
+    "heading": "### No. 65 · Chess board mid-tournament game",
+    "preview_path": "docs/photography/chess-midgame.png",
+    "categories": [
+      "photography_photorealism"
+    ],
+    "description": "用光线与景深分配视线。",
+    "keywords": [
+      "photography",
+      "depth",
+      "lighting"
+    ],
+    "use_for": "照片的焦点与环境层次",
+    "prompt_available": true
+  },
+  {
+    "id": "character-grid",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-anime-and-manga.md",
+    "lines": [
+      133,
+      143
+    ],
+    "heading": "### No. 9 · Ten-panel anime character grid",
+    "preview_path": "docs/anime-manga/anime-ten-panel-character-grid.png",
+    "categories": [
+      "character_artistic_illustration"
+    ],
+    "description": "用多格布局保持角色语言统一。",
+    "keywords": [
+      "character",
+      "grid",
+      "consistency"
+    ],
+    "use_for": "角色组图的比例与风格一致性",
+    "prompt_available": true
+  },
+  {
+    "id": "skincare-product",
+    "repository": "Shuryne/gpt-image-prompts",
+    "revision": "4c53ea3708c2447a9c87b0a24cc77abf86c3aa7b",
+    "path": "prompts/skincare-product.md",
+    "preview_path": "thumbs/skincare-product.webp",
+    "categories": [
+      "product_visualization",
+      "photography_photorealism"
+    ],
+    "description": "单一产品与柔光，强调玻璃和石材质感。",
+    "keywords": [
+      "skincare",
+      "lighting",
+      "glass"
+    ],
+    "use_for": "静物影棚光、材质与商品重心",
+    "prompt_available": true
+  },
+  {
+    "id": "riso-concert-poster",
+    "repository": "Shuryne/gpt-image-prompts",
+    "revision": "4c53ea3708c2447a9c87b0a24cc77abf86c3aa7b",
+    "path": "prompts/riso-concert-poster.md",
+    "preview_path": "thumbs/riso-concert-poster.webp",
+    "categories": [
+      "editorial_poster_design",
+      "character_artistic_illustration"
+    ],
+    "description": "小色板与印刷质感的海报。",
+    "keywords": [
+      "poster",
+      "riso",
+      "type"
+    ],
+    "use_for": "少色印刷感与图文对比",
+    "prompt_available": true
+  },
+  {
+    "id": "egg-tempera-pomegranate",
+    "repository": "Shuryne/gpt-image-prompts",
+    "revision": "4c53ea3708c2447a9c87b0a24cc77abf86c3aa7b",
+    "path": "prompts/egg-tempera-pomegranate.md",
+    "preview_path": "thumbs/egg-tempera-pomegranate.webp",
+    "categories": [
+      "character_artistic_illustration"
+    ],
+    "description": "用蛋彩表现静物、明暗与手工质感。",
+    "keywords": [
+      "still life",
+      "tempera",
+      "texture"
+    ],
+    "use_for": "手绘媒介与材质表达",
+    "prompt_available": true
+  }
+]

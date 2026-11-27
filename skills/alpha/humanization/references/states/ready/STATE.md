@@ -6,7 +6,7 @@ transitions: []
 
 # 当前冻结产物可交付
 
-仅表示某个冻结交付对象已经通过当前 required 审查及绑定 Gate。进入证据是源 run/visit/attempt、全部 Verifier 结果、Gate event、证据索引哈希及落盘 transition；由控制入口复核回执、快照和文件字节。
+本状态只说明某份冻结交付物通过了当前 required 审查及绑定 Gate。进入证据包括源 run/visit/attempt、全部 Verifier 结果、Gate event、证据索引哈希及已落盘的 transition。控制入口会复核回执、快照和文件字节。
 
 本阶段没有 helper 或额外机器 invariant，不能把阶段存在当作稿件仍未变化的证明。取回已批准产物时仍须重验哈希；改变后不能重用旧资格。
 

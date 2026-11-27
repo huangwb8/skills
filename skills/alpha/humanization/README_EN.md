@@ -2,7 +2,7 @@
 
 [中文](README.md) · [Execution contract](SKILL.md) · [Configuration](config.yaml) · [Regression and evaluation](references/regression-cases.md)
 
-Make existing prose natural, clear and coherent. Edit articles, emails, reports, everyday explanations, academic writing and technical documents: understand the content and intent, then improve progression, transitions, rhythm and tone while preserving facts, stance, necessary boundaries and formatting. Already effective prose may remain unchanged.
+Make existing prose clearer and easier to follow. The Skill works with articles, emails, reports, everyday explanations, academic writing and technical documents. It starts by understanding the content and the author's intent, then improves how sentences and paragraphs develop, connect and sound. It preserves facts, stance, necessary qualifications and formatting. Effective prose can stay as written.
 
 This release includes a dedicated defensive-framing review. Existing installations need an installer update to use the behavior described below.
 
@@ -50,8 +50,10 @@ flowchart TD
     R3 --> Q
     Q -->|Yes| G["Main Agent consolidates reviews; Kernel Gate permits ready"]
     G --> F{"After rechecking hashes, is the revision eligible for a Bensz API pass?"}
-    F -->|Eligible| P{"Is t1 complete and did it pass the final check?"}
-    P -->|Yes| T["Deliver t1 in full and verbatim"]
+    F -->|Eligible| P{"Was a complete t1 returned?"}
+    P -->|Yes| V{"Is there a material issue?"}
+    V -->|No| T["Deliver t1 in full"]
+    V -->|Yes| K["Use t0 as final and include full t1 with the reason"]
     F -->|Skip| O["Deliver the approved artifacts"]
     P -->|No| O
     Q -->|No, fewer than five rounds| E["Main Agent: retry and improve the draft"]
@@ -67,7 +69,7 @@ The default two expression/safety checks are separate from the five external rev
 
 After approval, an edited draft gets one more pass through the configured Codex provider's Responses API if it uses HTTPS on `benszresearch.com` or one of its subdomains. The main Agent sends the approved `t0` verbatim and selects a profile based on the user's style choice or the first pass's genre assessment. The final editor makes an independent editorial judgment using the Skill's fixed instructions. Draft-specific requirements are applied and reviewed in `t0` and checked again after `t1` returns. The five profiles are general, academic, technical, professional, and creative. They all use `gpt-6.2-sol` with `medium` reasoning.
 
-The main Agent delivers the complete `t1` verbatim after checking meaning and formatting. If the call fails, the response is incomplete, or the check finds a material regression, the Agent delivers the approved `t0`. Diagnosis, unchanged text, and local-only jobs skip the extra pass. Remove `--requirements-file` and its value from existing CLI calls. See the [runtime guide](references/runtime-control.md#交付前终润色).
+A complete `t1` is the default final draft. If the only format difference is a single final newline, the main Agent follows the source file's convention when writing and provides the original `t1`. If the review finds a material issue, the approved `t0` becomes the final draft, and the user receives the full `t1` with the specific reason. If the call fails or the response is incomplete, the Agent delivers `t0` and explains why. Diagnosis, unchanged text, and local-only jobs skip the final pass. Remove `--requirements-file` and its value from existing CLI calls. See the [runtime guide](references/runtime-control.md#交付前终润色).
 
 ## Styles and parameters
 

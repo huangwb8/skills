@@ -1,6 +1,6 @@
 # BSK 受控润色
 
-本页定义唯一控制入口的文件契约。State 和 Verifier 的领域含义分别见各 Pack；配置是参数、体积上限、State/action 映射及 required 清单的唯一来源。
+配置统一定义参数、体积上限、State/action 映射和 required 清单。入口和文件约定见本页，State 与 Verifier 的具体规则见各 Pack。
 
 ## 运行准备
 
@@ -58,9 +58,9 @@ Windows PowerShell（`release`、`retry`、`status` 使用同一解释器和参�
   --request-file humanization/input/request.json --run-id run-1 --attempt-id edit-1
 ```
 
-第一次 release 返回 pending_review、handoff_ref 和 evidence_hash，退出 2，working 不变。主 Agent 通过 parallel-vibe 调度同组三个独立子 Agent 并行审查同一冻结对象的两个命题，沿用该 Skill 的计划、thread workspace、RESULT.md 和汇总记录；不新增编排脚本。required Pack 为 revision-readiness 和 defensive-framing，分别回传 semantic-review 与 defensive-review 组件结果。
+第一次 release 返回 pending_review、handoff_ref、evidence_hash，退出 2，状态仍为 working。主 Agent 用 parallel-vibe 的计划、thread workspace、RESULT.md 和汇总记录执行三人并审。required Pack revision-readiness 与 defensive-framing 分别回传 semantic-review 和 defensive-review。
 
-三人各自完整阅读两份当前 handoff、原文、全部产物和写作参考，不读取其他人的结果、不修改正文。对每项命题分别回收三个有效判断，至少两票 pass 且所有实质异议已结案才通过。pass/pass/fail 或 pass/pass/uncertain 仅满足票数门槛；一般风格异议可保留，实质问题须修复并新 attempt 重审，或用原文/候选锚点与可复核理由驳回，未决不能多数放行。缺第三份结果或真实执行未完成不能提前通过，机械/结构/身份/哈希错误仍阻塞。无法启动三个真实子 Agent 时说明受阻，不改成主 Agent 自审。
+三人各自读完两份当前 handoff、原文、全部产物和写作参考，独立审查两项命题。每项都须三份真实判断、至少两票 pass 和实质异议结案。pass/pass/fail 或 pass/pass/uncertain 仅满足票数要求。一般风格异议可保留，实质问题须修后新 attempt 重审，或以原文/候选锚点和可复核理由驳回。机械、结构、身份或哈希错误仍阻塞。无法真实并审时说明受阻。
 
 主 Agent 根据真实审查形成两个组件的独立汇总，再次 release 加 --submission-file humanization/input/submissions.json。每份 facts 的 reviewers 和 resolutions 提供可核验的投票与异议记录，summary 解释本命题结论和少数意见；revision-readiness 继续使用 audit/comparison/rounds，defensive-framing 使用 defensive_audit。入口复算各项票数并检查两份名单一致，executor 如实记录汇总者，不能冒充某位子 Agent。结构化记录和 BSK 绑定不证明三人真实身份、实际并行或结案理由正确。
 
@@ -81,9 +81,9 @@ results.append(result)  # results 先初始化为 []；两份绑定完成后再�
 submissions = {"results": results}
 ```
 
-每个 reviewer 如实给出 pass/fail/uncertain 及依据。主 Agent 对两项命题分别按三人至少两票且实质异议结案的规则汇总；少数意见单独保留，不冒充全票一致。未达到门槛时不能回传汇总 pass；每位 reviewer 的判断不等于 BSK 顶层判定。模型名无法确认时如实写宿主未披露，不猜具体型号。绑定字段证明结果对应当前契约/证据/身份，不认证模型判断的真实性。
+reviewer 如实给出 pass/fail/uncertain 及依据。汇总保留少数意见，未达门槛不得回传 pass。个人判断需由 BSK 汇总判定，绑定只证明契约、证据和身份对应。模型名无法确认时写“宿主未披露”。
 
-外部审查人数、票数和上限由 config.yaml.review_policy 声明，沿用 parallel-vibe 的计划与汇总记录，不新增事件或轮次计数器。一次对冻结稿件的三人审查算一轮，重复提交和恢复不加轮，改稿后的新审查消耗下一轮，retry 不清零。最多五轮；第五轮仍未通过时停止优化，提交最后一轮草案并说明未通过原因，不再发起第六轮或重开 run 规避上限。即使 text_only 也要保留简短未通过说明。状态保持 working，不伪造 Gate/ready；可读草案的兜底提交不等于获批交付。
+按 config.yaml.review_policy 执行，计轮沿用 parallel-vibe 记录。对同一冻结稿的三人审查算一轮，重复提交和恢复不加轮，改稿重审消耗下一轮，retry 不清零。第五轮未过时提交最后草案和原因，即使 text_only 也须说明。状态留在 working，禁止伪造 Gate/ready 或另开 run 规避上限。
 
 准备修订前：将 action 改成 retry、attempt-id 改成新值，入口先验证当前原文/参数，再调用 BSK attempt start；然后生成或修订交付文件，以新身份重新 release。修改原文/参数时先保存新请求，再执行 retry 绑定。旧 handoff/批准不能跨 attempt。pending 同稿重复 release 可恢复且不重复写相同检查事件。
 
@@ -95,7 +95,7 @@ init/retry 在变更 BSK 前原子保存绑定输入、资产、运行时和身�
 
 ### 交付前终润色
 
-主 Agent 取得 `ready` 或 `already_ready` 并重验冻结稿哈希后，仅对 `outcome=revise` 执行。需仅在本地处理或任务已有外发限制时，直接交付获批稿。脚本接收冻结 `t0` 的路径和预设 profile。改写强度、术语、段落结构等逐稿要求在 `t0` 写作和审查中落实，在终稿核验中确认。调用时原样提供 `t0` 正文，禁止加入编辑备忘、审查意见、附加指令或其他上下文。旧调用应删除 `--requirements-file` 及其值。
+仅对 `ready` 或 `already_ready` 的 `outcome=revise` 执行，先重验冻结稿哈希。本地处理或限制外发时直接交付获批稿。脚本接收冻结 `t0` 路径与预设 profile，逐稿要求在 T0 写作、审查及 T1 核验中落实。请求正文为原样 T0，禁止添加编辑备忘、审查意见、指令或其他上下文。旧调用须删去 `--requirements-file` 及其值。
 
 ```bash
 python3 <skill-root>/scripts/finalize_prose.py <approved-t0> \
@@ -115,15 +115,20 @@ python3 <skill-root>/scripts/finalize_prose.py <approved-t0> \
 | `professional_communication` | `professional` |
 | `auto` | 主 Agent 按原文与原任务判断，直接传给 CLI 时使用 `general` |
 
-同一题材可以有不同的表达职责。医学论文面向学科同行，用 `academic`。公众科普用 `general`，软件工具文档用 `technical`，正式工作报告用 `professional`，以文学叙事为主的故事用 `creative`。T0 自动判断用 `general_prose` 承接创意稿时，主 Agent 可根据已识别的创作目的传 `creative`。混合文体难以确定主要用途时选 `general`。省略 `--prompt-profile` 也使用 `general`。选择在本地完成，无需用户选模板或发起分类请求。
+按表达职责本地选择。论文用 `academic`，科普用 `general`，软件文档用 `technical`，正式工作报告用 `professional`，文学叙事用 `creative`。创意稿的 T0 若用 `general_prose`，T1 仍可按其用途选 `creative`。混合文体用途不明或省略 `--prompt-profile` 时用 `general`。无需用户选模板或另发分类请求。
 
 用 Python 3.11+ 执行。脚本从 `CODEX_HOME/config.toml`（默认 `~/.codex/config.toml`）解析选中的 `model_provider`，用 `[model_providers.<id>].base_url` 请求 `/responses`。仅接受 `benszresearch.com` 及其子域的 HTTPS URL，不跟随重定向。鉴权复用 provider 的 `env_key` 或 `experimental_bearer_token`，需要 OpenAI 鉴权时也支持 `OPENAI_API_KEY` 或 Codex `auth.json` 中的 API Key。请求使用 Codex 客户端标识和 SSE，五种提示词均使用 `gpt-6.2-sol`、`medium`，设置 `store=false`。
 
 Responses 请求的 `system` 是所选 profile 的内置提示词，`developer` 是内置的公共保护要求。同一版本、同一 profile 的两条指令消息逐字一致。唯一的 `user` 消息是 `t0` 正文原文，其中的指令式文字也作为正文处理。
 
-`--request-id` 在本地计算实际请求体的 SHA-256，覆盖冻结 `t0`、两条固定指令及模型参数。恢复时重算指纹，只复用 `humanization/output/` 中同时绑定当前 attempt 和该指纹的完整返回稿。旧返回稿没有匹配指纹时，重新执行。生成时带上 `--expect-request-id`，请求体变化会在发送前报错。将标准输出按 UTF-8 原样捕获到独立的临时文件，等待进程退出。仅在退出 `0` 且文件非空时，将该文件保存为绑定当前 attempt 和请求指纹的候选稿。脚本跳过（退出 `3`）、执行失败或未取得完整返回稿时，交付获批的 `t0`。
+`--request-id` 在本地计算实际请求体的 SHA-256，覆盖冻结 `t0`、两条固定指令及模型参数。恢复时重算指纹，只复用 `humanization/output/` 中同时绑定当前 attempt 和该指纹的完整返回稿。旧返回稿没有匹配指纹时，重新执行。生成时带上 `--expect-request-id`，请求体变化会在发送前报错。将标准输出按 UTF-8 原样捕获到独立的临时文件，等待进程退出。仅在退出 `0` 且文件非空时，将该文件保存为绑定当前 attempt 和请求指纹的候选稿。终润色脚本跳过（退出 `3`）、执行失败或返稿明显截断时，交付获批的 `t0` 并简述原因。
 
-核验以冻结的 `t0`、用户要求和已有保护信息为依据。主 Agent 核对内容是否完整，语义、事实、必要限定、术语、结构及受保护元素是否符合原约束。可用 [`check_revision.py`](../scripts/check_revision.py) 按本次有效的 `structure_mode` 辅助核对两稿。普通英文词语的预期变化或检查器无法可靠解析的内容，按主说明逐项人工比对。核验通过就原样交付完整 `t1`。发现内容缺失、语义偏移、保护元素损坏，或无法确认关键内容保真时，交付获批的 `t0`。选稿不依赖主 Agent 的个人文风偏好。让摘要及风格卡与实际交付稿一致，保留冻结稿和对应的 BSK 回执。
+以冻结的 `t0`、用户要求和已有保护信息为依据核验 `t1`。可用 [`check_revision.py`](../scripts/check_revision.py) 按有效的 `structure_mode` 辅助核对两稿。对差异定位复核语义、事实、独立限定、术语、结构与受保护元素。普通英文词语的预期变化或检查器无法可靠解析的内容应逐项人工比对。
+
+- `t1` 满足关键要求时，用它作正式稿。普通措辞差异、节奏变化或主 Agent 的个人文风偏好不构成退回依据。若唯一需要修复的格式差异是最后一个正文行末尾缺少或多出一个换行，按冻结稿约定补上或移除该换行，核对写入副本的结构与回读结果。原始 `t1` 文件保持原样并向用户提供。此规则只处理文件末尾的单个行结束符，段落、空行、缩进及正文内换行仍按有效 `structure_mode` 核验。
+- `t1` 有实质回归，或逐项核查后仍有具体的关键要求无法确认时，用获批 `t0` 作正式稿，同时提供原样的完整 `t1` 正文或可访问文件。指出哪里发生了变化、触犯哪项要求或还需确认什么。比如完整返稿把“拟验证”写成“已验证”，应将这一处说明放在正文外，即使是 `text_only` 也提供 T1 供对照。
+
+摘要和风格卡随正式稿校准。保留冻结稿与对应的 BSK 回执。
 
 ## RESULT.md 与两项汇总
 

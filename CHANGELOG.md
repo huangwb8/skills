@@ -7,21 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [5.1.4] - 2026-11-28
+
 ### Fixed（修复）
 
-- `humanization` 修订为 3.1.2。当前稿件已有完整终润色返回稿时必须交付 `t1`，主 Agent 的文风判断不再触发回退。macOS 托管环境通过 184 项回归、strict 结构和双语 README 检查。
+- `humanization` 默认交付完整 `t1`，写入时可修复单个文件末尾换行。发生实质回归时正式稿使用获批的 `t0`，同时交付完整 `t1` 及具体说明。
 
 ### Added（新增）
 
+- `auto-draw-plot` 修订为 0.3.5，增加按需参考视觉先例、提炼设计原则与记录来源的绘图规划。
 - `humanization` 3.1.0 增加 Bensz Responses API 终润色。审查通过的改写稿经匹配的 Codex provider 调用 `gpt-6.2-sol`。
 - beta `bensz-rmd-rules` 修订为 0.31.18，增加按需交付论文用图的流程，复用已核验的正式结果，默认在 `reports/papers/` 提供整图 PDF、PNG 和中文配套稿件。macOS 合成示例验证常规报告、默认论文图和自定义规格。
 
 ### Changed（变更）
 
+- `humanization` 修订为 3.2.3，精简执行说明和运行契约，润色 Skill 内的 13 份 Markdown，保留原有能力、审查及 T1 交付规则。
 - `humanization` 修订为 3.2.1。终润色仅接收获批 `t0` 和预设文体，逐稿要求在首轮写作与终稿核验中落实。旧参数 `--requirements-file` 会给出迁移提示，恢复时按实际请求指纹识别返回稿。
 - `humanization` 更新至 3.2.0。终润色提供通用、学术、技术、职业、创意五套提示词，复用 T0 文体信息并兼容旧值。T1 通过最终核验后交付，调用或核验失败时回退 T0。macOS 201 项定向回归与 Linux 75 项通过，五种文体均用合成短稿实测 Responses API。
 - `humanization` 修订为 3.1.1。论文、基金标书等正式科研稿件在首轮采用学术语体，终润色使用同一模型的科研专用提示词，保留研究阶段、证据强度和章节职责。
 - beta `bensz-rmd-rules` 修订为 0.31.19，为论文用图增加 AI 成品审图，允许在字体和字号固定的前提下微调版面并复验。
+- beta `bensz-rmd-rules` 修订为 0.31.20，接入临床预测模型评价指南：设计阶段按需读取，正式计算追踪数据用途与模型版本，报告交付评价完成情况，验收和论文用图核对证据边界。
+- 发布仓库 v5.1.4：根级双语 README 与最新源代码对齐，`humanization` 描述补充审查通过后的终润色与默认交付规则，beta `bensz-rmd-rules` 描述补充论文用图与临床预测模型评价。README pair 校验通过。BSK 2.1.6 与 BSI 1.0.2 的源码均已是目标版本，按条件跳过修改、上传与重装。
 
 ## [5.1.3] - 2026-11-22
 

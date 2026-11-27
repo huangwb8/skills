@@ -23,6 +23,7 @@ from init_workspace import init_workspace
 from image_formats import FORMATS, GENERATION_ONLY_FORMATS, resolve_output_format, validate_image_options
 from modes import DrawMode, mode_prompt_lines, resolve_mode
 from build_parallel_plan import build_parallel_plan as create_parallel_plan
+from visual_inspiration import design_prompt_lines, normalize_blueprint, read_blueprint
 
 
 def build_round_prompt(
@@ -36,6 +37,7 @@ def build_round_prompt(
     mode: DrawMode,
     generation_only: bool = False,
     markup_edit: bool = False,
+    visual_blueprint: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     cfg = load_config()
     gen_cfg = cfg.get("generation", {}) or {}
@@ -78,6 +80,8 @@ def build_round_prompt(
         "硬性护栏：",
         *[f"- {line}" for line in guardrails],
     ]
+    design_lines = design_prompt_lines(visual_blueprint) if visual_blueprint else []
+    planner_lines.extend(design_lines)
     if prior_rounds:
         planner_lines.extend(
             [
@@ -102,7 +106,14 @@ def build_round_prompt(
         )
 
     payload: Dict[str, Any] = {
-        "image_prompt": fallback_round_prompt(request_text=request_text, feedback_lines=feedback_lines, mode=mode, generation_only=generation_only, markup_edit=markup_edit),
+        "image_prompt": fallback_round_prompt(
+            request_text=request_text,
+            feedback_lines=feedback_lines,
+            mode=mode,
+            generation_only=generation_only,
+            markup_edit=markup_edit,
+            design_lines=design_lines,
+        ),
         "negative_prompt": negative_prompt,
         "focus_points": ["忠实满足用户要求", "主体清晰", "结构稳定"],
         "reasoning": "使用本地模板拼装 prompt；脚本默认不调用 Gemini 文本规划，宿主 AI 可在运行前自行优化用户需求。",
@@ -116,12 +127,22 @@ def build_round_prompt(
     normalized["raw_text"] = ""
     normalized["planner_backend"] = "local_template"
     normalized["planner_context"] = join_lines(planner_lines)
+    if visual_blueprint:
+        normalized["visual_design_blueprint"] = visual_blueprint
     write_json(prompt_dir / "prompt-plan.json", normalized)
     write_text(prompt_dir / "prompt.txt", normalized["full_prompt"] + "\n")
     return normalized
 
 
-def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode: DrawMode, generation_only: bool = False, markup_edit: bool = False) -> str:
+def fallback_round_prompt(
+    *,
+    request_text: str,
+    feedback_lines: List[str],
+    mode: DrawMode,
+    generation_only: bool = False,
+    markup_edit: bool = False,
+    design_lines: Optional[List[str]] = None,
+) -> str:
     lines = [
         "Create one polished, publication-ready image that directly satisfies the user requirement below.",
         f"Mode: {mode.name} - {mode.label}.",
@@ -146,6 +167,7 @@ def fallback_round_prompt(*, request_text: str, feedback_lines: List[str], mode:
                 "- Do not use condensed, narrow, compressed, horizontally squeezed, or tall skinny text for Chinese labels.",
             ]
         )
+    lines.extend(design_lines or [])
     if feedback_lines:
         lines.extend(
             [
@@ -284,7 +306,10 @@ def run_draw_plot(
     frame_count: Optional[int] = None,
     frame_duration_ms: Optional[int] = None,
     markup: Optional[Path] = None,
+    visual_blueprint: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    if visual_blueprint is not None:
+        visual_blueprint = normalize_blueprint(visual_blueprint)
     cfg = load_config()
     gen_cfg = cfg.get("generation", {}) or {}
     eval_cfg = cfg.get("evaluation", {}) or {}
@@ -408,6 +433,7 @@ def run_draw_plot(
             mode=mode,
             generation_only=generation_only,
             markup_edit=markup is not None,
+            visual_blueprint=visual_blueprint,
         )
         reference_meta = build_round_reference_images(
             user_reference_images=reference_images,
@@ -598,6 +624,7 @@ def main() -> None:
     group.add_argument("--request-file", help="用户需求 Markdown/TXT")
     group.add_argument("--request-text", help="用户需求文本")
     parser.add_argument("--project-root", default=".")
+    parser.add_argument("--visual-blueprint", type=Path, help="可选的本地视觉设计蓝图 JSON")
     parser.add_argument("--workspace-base", default="", help="自定义隐藏工作区根目录")
     parser.add_argument("--output-image", "--output-png", dest="output_image", default="", help="最终输出图片路径；--output-png 为兼容别名")
     parser.add_argument("--max-rounds", type=int, default=0)
@@ -627,9 +654,19 @@ def main() -> None:
     args = parser.parse_args()
 
     request_text = read_text(Path(args.request_file)) if args.request_file else str(args.request_text or "")
+    project_root = expand_path(args.project_root, base=Path.cwd()).resolve()
+    visual_blueprint = None
+    try:
+        if args.visual_blueprint:
+            blueprint_path = expand_path(args.visual_blueprint, base=Path.cwd()).resolve()
+            if not args.allow_outside_project and not blueprint_path.is_relative_to(project_root):
+                raise ValueError("视觉蓝图必须位于 project_root 内。")
+            visual_blueprint = read_blueprint(blueprint_path)
+    except (OSError, ValueError) as exc:
+        parser.error(f"--visual-blueprint 读取失败：{exc}")
     summary = run_draw_plot(
         request_text=request_text,
-        project_root=expand_path(args.project_root, base=Path.cwd()),
+        project_root=project_root,
         output_png=args.output_image or None,
         workspace_base=args.workspace_base or None,
         max_rounds=(args.max_rounds or None),
@@ -652,6 +689,7 @@ def main() -> None:
         frame_count=args.frame_count,
         frame_duration_ms=args.frame_duration_ms,
         markup=expand_path(args.markup, base=Path.cwd()) if args.markup else None,
+        visual_blueprint=visual_blueprint,
     )
     print(summary.get("final_output_image") or summary["final_output_png"])
 

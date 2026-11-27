@@ -3,6 +3,7 @@
 1. **理解需求与模式**：
    - 把用户的 `user_need` 拆成三部分：意图（是什么）、视觉元素（有哪些节点/文本/布局）、硬约束（颜色/比例/输出格式）。
    - 先确定 `mode`：默认 `general`；技术路线图/flowchart 用 `roadmap`；原理图/机制图/架构图用 `schematic`。
+   - 先识别视觉任务类别。简单任务直接使用下述规范，有未解决的设计问题时使用[按需视觉先例](visual-inspiration.md)，将已适配的可选原则并入本轮 Prompt。
    - 在 prompt 中用明确的 bullet（如 `- elements`、`- layout`）列出每个部分，避免模糊说法。
 
 2. **Prompt 模板结构**：
@@ -38,6 +39,7 @@
 
 5. **视觉评估入参**：
    - `evaluation` 段至少要覆盖 `score`（0-10）、`passed`（true/false）、`must_fix`、`prompt_patch`。
+   - 将构图、层级、风格等实际设计目标与科研内容准确性分开检查。先例仅作为视觉参考，严格核对用户给出的变量、数据、术语、标签、箭头和因果方向。
    - 若本轮未通过，下一轮 prompt 必须把 `must_fix` / `prompt_patch` 显式合并进去。
 
 6. **安全与隐私**：
