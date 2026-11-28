@@ -15,12 +15,14 @@ def build_parallel_plan(
     request_file: Path,
     round_index: int,
     output_plan: Path,
+    prompt_file: Path | None = None,
 ) -> Dict[str, Any]:
     cfg = load_config()
     pv_cfg = cfg.get("parallel_vibe", {}) or {}
     runner_script = skill_root() / str(pv_cfg.get("worker_script", "scripts/parallel_round_worker.py"))
     round_name = f"{cfg.get('generation', {}).get('round_dir_prefix', 'round-')}{round_index:02d}"
     thread_id = f"{round_index:03d}"
+    prompt_arg = f" --prompt-file {shlex.quote(str(prompt_file))}" if prompt_file is not None else ""
     plan = {
         "threads": [
             {
@@ -35,10 +37,11 @@ def build_parallel_plan(
                         f"--request-file {shlex.quote(str(request_file))} "
                         f"--round {round_index} "
                         f"--result-file {shlex.quote(str(pv_cfg.get('result_filename', 'RESULT.md')))}"
+                        f"{prompt_arg}"
                     ),
                 },
                 "prompt": (
-                    "在当前 workspace 内完成本轮 prompt 优化草案：读取用户需求与已有 round 记录，"
+                    "在当前 workspace 内复用已准备好的本轮 prompt；没有预备稿时依据用户需求起草。"
                     "输出 `prompt.txt`、`evaluation-request.md` 与 `RESULT.md`。"
                 ),
             }

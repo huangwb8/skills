@@ -47,27 +47,24 @@ metadata:
 - `markup`（可选）：与单张原图尺寸一致的透明 PNG 标注层，以独立 multipart `markup` 字段提交 edits；需要且仅接受一张 PNG/JPEG/WebP 原图，支持 2.5/2.6 Flare、Sunburst。prompt 必须说明区域和修改动作，并要求清除标注、保持其它内容；多轮始终使用原图与原标注层，避免坐标漂移。
 - `reference_images`（可选）：静态位图编辑的风格/布局图；普通静态图第 2 轮起上一轮结果自动作为第一参考图，用户参考图排在其后。SVG/GIF 不接受参考图。
 - `workspace_base`（可选）：用户显式指定的隐藏工作区根目录；未指定时使用当前目录 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/`。
+- `--visual-blueprint`（可选）：实际采用外部案例后，由宿主整理的简短设计原则与适配说明，使用[蓝图 JSON 格式](references/visual-inspiration.md#提炼成当前任务的设计蓝图)。
 
 ### 执行步骤
 
 1. **理解需求与模式**：宿主 AI 先把用户需求拆成“主体 / 结构 / 风格 / 硬约束 / 禁止项”，并解析 `mode`；未指定时用 `general`。需要时参考 [references/prompt-guidelines.md](references/prompt-guidelines.md)。
-   - 复用已有需求分析，独立识别主视觉类别。普通流程图、布局与风格已定的任务和小幅编辑直接用内置规范。复杂科研、出版或高审美任务若仍有设计问题，按[视觉先例流程](references/visual-inspiration.md)按需选例，判断哪些设计原则适合当前内容并形成蓝图，再进入后续步骤。
+   - 复用已有需求分析，识别主视觉类别和待解决的设计问题。普通流程图、布局与风格已定的任务和小幅编辑直接用内置规范。需要参考时按类别、关键词和设计维度定向选例，可先使用已核验的本地提炼。复杂科研、出版或高审美任务仍缺参考时才扩展至第二仓库。按[视觉先例流程](references/visual-inspiration.md)把适配后的原则写进蓝图。
 2. **声明监督路径**：若用户传入 `workspace_base`，解析该路径；否则解析 `project_root/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。必须把解析后的绝对路径用可见消息在 API 检查、`init_workspace.py`、`run_draw_plot.py` 或任何图片生成调用之前告诉用户，例如：`本次 auto-draw-plot .bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot 工作区绝对路径：/abs/project/.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot`。不要只把路径写进 `run-manifest.json`；初始化后可再补充实际 `run_dir`，但不能用 `run_dir` 补充替代启动前的根目录声明。
 3. **检查 API**：运行 `scripts/nano_banana_check.py`。默认优先读取本地 Codex 配置：从 `~/.codex/config.toml` 当前 BenszAPI provider 获取 base URL 和 `experimental_bearer_token`（或 provider 内兼容 token 字段），再从 `~/.codex/auth.json` 获取兼容 key；环境变量与 `remote.env` 只作为缺失字段的兜底来源。Windows 同时兼容 `%USERPROFILE%`、`%HOMEDRIVE%%HOMEPATH%` 与 Git Bash/PowerShell 的 `HOME`。配置加载必须记录实际配置文件路径、来源和 API Key 不可逆短指纹；若 Codex 配置与 BenszAPI 环境变量同时存在且 Base URL/API Key 不一致，必须在发图前停止并报告冲突字段，不得静默使用旧配置；诊断证据不得写入完整密钥。`gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 与 `gpt-image-2` 共享 OpenAI Images provider，只能绑定 `benszresearch.com` 子域名 base URL；非 HTTPS、裸域、非白名单域名或缺少 key 时不得绕过校验。若配置只提供子域名根地址，客户端会在校验后统一规范为带 `/v1` 的 API 基址，避免 Images 请求落入站点 HTML fallback。
    - 若用户点名 `gpt-image-2.6-flare`、`gpt-image-2.6-sunburst`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`、`Nano Banana`、`Gemini` 或其他具体 provider/model，运行前检查和后续出图都必须固定在该 provider/model，并给主脚本传 `--provider <name>`；失败时输出可执行的配置/额度/端点错误，不自动切到另一个模型。
    - 默认 `auto` 会按 provider 优先级检查配置、连接和鉴权；`/v1/models` 成功只能表述为 `connectivity/authentication_ok`，不得写成“可生图”或 `generation_eligible=true`，真实 Images submit 才是当前请求的准入判断。此步骤不执行完整 Images 计费资格检查，不要把“指定模型失败”改写成“自动使用另一个模型”。
 4. **初始化隐藏工作区**：运行 `scripts/init_workspace.py`，默认建立 `.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/auto-draw-plot/{yyyy-mm-dd-hh-mm}/`，写出 `run-manifest.json`。
-5. **生成 parallel-vibe 计划**：每一轮开始前，必须生成该轮的 `parallel-vibe` plan；即使宿主 AI 最终不真正启动 `parallel-vibe` CLI，也必须按它的 thread/workspace 协议为每一轮写出合法 `plan.json`，至少写出：
+5. **生成本轮 prompt**：宿主 AI 在调用脚本前完成需求拆解与 prompt 规划。采纳过外部案例时通过 `--visual-blueprint` 把设计原则合入已有模板，后续轮次沿用蓝图并加入反馈。`run_draw_plot.py` 在本地完成拼装与护栏合并，默认无远程文本规划调用。Prompt 必须忠实反映用户需求，避免暴露密钥或绝对路径。
+6. **生成 parallel-vibe 计划**：每轮在出图前写出合法 `plan.json`，保留 thread/workspace 协议，即使本轮不启动 `parallel-vibe` CLI：
    - `parallel-vibe/parallel-plan.round-XX.json`
    - `parallel-vibe/parallel-plan.json`（latest）
    - `rounds/round-XX/parallel-plan.json`
 
-   主入口 `scripts/run_draw_plot.py` 已经会为每一轮自动生成 parallel-vibe plan，用户无需额外手工执行；若宿主 AI 想把“下一轮 prompt 草案”真正交给独立线程处理，则直接复用该轮 `parallel-plan.round-XX.json`。`parallel-vibe` worker 当前仍只负责在隔离 workspace 里产出 prompt 草案与评估请求模板；真正的出图与评估继续由本 skill 的主脚本完成，避免跨 workspace 回写导致不稳定。
-6. **生成第 1 轮 prompt**：
-   - 优先由宿主 AI 在调用脚本前完成需求拆解与 prompt 规划；
-   - 把已提炼的蓝图通过 `--visual-blueprint` 传给主入口，作为可选设计指导进入现有 Prompt 模板。同一运行的后续轮次复用已核验的蓝图。
-   - `run_draw_plot.py` 只做本地模板拼装与护栏合并，不默认调用 Gemini / Nano Banana 等远端文本规划接口；
-   - prompt 仍需忠实反映用户需求，不得暴露密钥或绝对路径。
+   主入口 `scripts/run_draw_plot.py` 每轮在出图前写好 prompt 和 parallel-vibe plan。需交给独立线程时，复用该轮 `parallel-plan.round-XX.json`；worker 读取主流程已准备的 prompt，生成隔离区内的 prompt 草案与评估请求模板。出图与评估仍由主脚本执行。
 7. **调用图片模型**：运行 `scripts/generate_image.py` 或主入口 `scripts/run_draw_plot.py`；OpenAI 图片模型默认使用 `gpt-image-2.5-flare`，也支持显式指定 2.6 Flare／Sunburst、2.5 Sunburst 或 `gpt-image-2`。2.6 新能力优先使用上游 API Key 直连账号；OAuth 桥接不保证等价支持，失败时如实报告，不换模型、不降成静态 JPEG。纯文本出图默认提交到 `/v1/images/jobs/generations`，存在参考图时默认提交到 `/v1/images/jobs/edits`。配置仅给出 BenszAPI 子域名根地址时，客户端会先规范为带 `/v1` 的 API 基址；同步端点只在 job endpoint 明确不支持时兼容回退。submit 在服务端尚无持久幂等契约时只提交一次；结构化 `retryable=false`（包括 `BILLING_PRICING_NOT_CONFIGURED`）立即停止，`2xx` 空/非 JSON 响应也不重试或跨 provider，poll/result 的暂时故障独立处理。默认请求 `quality=low`、最小匹配原生尺寸和 `output_format=jpeg`，输出扩展名、magic bytes、MIME 与 meta 必须一致；PNG/WebP 回退结果导出 JPEG 时以白色合成透明背景。参考图编辑会追加“只改明确要求、保留主体/构图/背景”的契约，并记录原始参考图 SHA-256。
    - 回退授权：只有用户主动要求允许回退时，才设置 `allow_provider_fallback=true` 或脚本参数 `--allow-provider-fallback`；回退路径使用 `~/.bensz-skills/config/remote.env` 中的 `GEMINI_BASE_URL`、`GEMINI_API | GEMINI_API_KEY`、`GEMINI_MODEL`。即使已授权，计费、订阅、余额、权限、overage、`BILLING_SERVICE_ERROR` 与 submit 空/非 JSON 等任务创建状态不确定的协议错误仍必须停在原 provider 并展示结构化错误。
 8. **视觉评估**：

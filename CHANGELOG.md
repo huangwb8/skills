@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- 同步 `auto-draw-plot` 的按关键词选例、单案例读取和隔离 Prompt 复用。
+- 同步 `auto-draw-plot` 的五仓库精选案例、设计维度检索和离线案例提炼。
+
 ## [5.1.4] - 2026-11-28
 
 ### Fixed（修复）

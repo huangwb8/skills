@@ -22,7 +22,12 @@
       "trajectory"
     ],
     "use_for": "机制图的视觉分组、分支终点与方向表达",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "visual_hierarchy",
+      "color",
+      "information_density"
+    ]
   },
   {
     "id": "anatomy-poster",
@@ -46,7 +51,11 @@
       "medical"
     ],
     "use_for": "医学插画的主图与标签布置",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "composition",
+      "typography"
+    ]
   },
   {
     "id": "cohort-workflow",
@@ -71,7 +80,11 @@
       "experiment"
     ],
     "use_for": "研究流程、入排分支和阶段分区",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "visual_hierarchy",
+      "composition"
+    ]
   },
   {
     "id": "encoder-decoder",
@@ -95,7 +108,11 @@
       "connector"
     ],
     "use_for": "模型架构与模块层级",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "spatial_geometry",
+      "visual_hierarchy"
+    ]
   },
   {
     "id": "encyclopedia-field-guide",
@@ -118,7 +135,11 @@
       "hierarchy"
     ],
     "use_for": "信息图阅读顺序与局部标注",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "information_density",
+      "visual_hierarchy"
+    ]
   },
   {
     "id": "studio-product-poster",
@@ -143,7 +164,12 @@
       "negative space"
     ],
     "use_for": "商品主视觉、材质与文字留白",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "lighting",
+      "composition",
+      "material_texture"
+    ]
   },
   {
     "id": "packaging-render",
@@ -167,7 +193,11 @@
       "geometry"
     ],
     "use_for": "产品三维几何与一致性",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "spatial_geometry",
+      "consistency"
+    ]
   },
   {
     "id": "studio-product-render",
@@ -192,7 +222,11 @@
       "product"
     ],
     "use_for": "商品材质、层次和光泽",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "material_texture",
+      "lighting"
+    ]
   },
   {
     "id": "tea-poster",
@@ -216,7 +250,11 @@
       "product"
     ],
     "use_for": "海报构图与标题层级",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "typography",
+      "visual_hierarchy"
+    ]
   },
   {
     "id": "chess-photography",
@@ -239,7 +277,11 @@
       "lighting"
     ],
     "use_for": "照片的焦点与环境层次",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "lighting",
+      "spatial_geometry"
+    ]
   },
   {
     "id": "character-grid",
@@ -262,7 +304,11 @@
       "consistency"
     ],
     "use_for": "角色组图的比例与风格一致性",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "consistency",
+      "composition"
+    ]
   },
   {
     "id": "skincare-product",
@@ -281,7 +327,11 @@
       "glass"
     ],
     "use_for": "静物影棚光、材质与商品重心",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "lighting",
+      "material_texture"
+    ]
   },
   {
     "id": "riso-concert-poster",
@@ -300,7 +350,12 @@
       "type"
     ],
     "use_for": "少色印刷感与图文对比",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "color",
+      "typography",
+      "rendering_style"
+    ]
   },
   {
     "id": "egg-tempera-pomegranate",
@@ -318,6 +373,246 @@
       "texture"
     ],
     "use_for": "手绘媒介与材质表达",
-    "prompt_available": true
+    "prompt_available": true,
+    "design_dimensions": [
+      "material_texture",
+      "rendering_style"
+    ]
+  },
+  {
+    "id": "porcelain-specimen",
+    "repository": "ZeroLu/awesome-gpt-image",
+    "revision": "75786966cbc9580a2fe13786e65d816955a0ef56",
+    "path": "README.md",
+    "lines": [
+      600,
+      608
+    ],
+    "heading": "### Jingdezhen Blue-and-White Porcelain Diagram",
+    "preview_path": "assets/opennana/jingdezhen-blue-white-porcelain-diagram.jpeg",
+    "categories": [
+      "infographic_data_storytelling"
+    ],
+    "description": "中心器物轮廓配合局部纹样、材料和说明分区。",
+    "keywords": [
+      "porcelain",
+      "specimen",
+      "material callouts",
+      "annotation"
+    ],
+    "use_for": "器物或标本的整体与局部对照，避免标注线被正文遮挡",
+    "prompt_available": true,
+    "design_dimensions": [
+      "information_density",
+      "composition"
+    ]
+  },
+  {
+    "id": "relationship-map",
+    "repository": "ZeroLu/awesome-gpt-image",
+    "revision": "75786966cbc9580a2fe13786e65d816955a0ef56",
+    "path": "README.md",
+    "lines": [
+      591,
+      599
+    ],
+    "heading": "### Key Character Relationship Map",
+    "preview_path": "assets/opennana/key-character-relationship-map.jpeg",
+    "categories": [
+      "infographic_data_storytelling",
+      "character_artistic_illustration"
+    ],
+    "description": "群组底色、中心节点和分层连接线组织众多角色。",
+    "keywords": [
+      "relationship map",
+      "ensemble",
+      "annotation"
+    ],
+    "use_for": "关系图的分组与主次层级，可将人物替换为用户提供的节点",
+    "prompt_available": true,
+    "design_dimensions": [
+      "visual_hierarchy",
+      "color",
+      "information_density"
+    ]
+  },
+  {
+    "id": "midcentury-poster-grid",
+    "repository": "LaplaceYoung/awesome-gpt-image-2.5",
+    "revision": "ef9e62c1e4070b578a9583b1325ca2249c67b4d9",
+    "path": "docs/cases/06-mid-century-modern-posters.md",
+    "preview_path": "assets/generated/06-mid-century-modern-posters.jpg",
+    "categories": [
+      "editorial_poster_design"
+    ],
+    "description": "两个同规格重建样本保留等宽间距、统一色板和文字权重。",
+    "keywords": [
+      "poster series",
+      "modular grid",
+      "shared palette",
+      "gutters"
+    ],
+    "use_for": "系列海报的共同风格、栅格和文字权重",
+    "prompt_available": true,
+    "design_dimensions": [
+      "consistency",
+      "typography",
+      "color"
+    ]
+  },
+  {
+    "id": "observatory-keyframe",
+    "repository": "LaplaceYoung/awesome-gpt-image-2.5",
+    "revision": "ef9e62c1e4070b578a9583b1325ca2249c67b4d9",
+    "path": "docs/cases/18-desert-observatory-keyframe.md",
+    "preview_path": "assets/generated/18-desert-observatory-keyframe.png",
+    "categories": [
+      "3d_isometric_illustration",
+      "character_artistic_illustration"
+    ],
+    "description": "用冷暖照明、主体剪影和远近层次组织微缩场景。",
+    "keywords": [
+      "keyframe",
+      "depth",
+      "blue hour",
+      "miniature"
+    ],
+    "use_for": "叙事场景的空间深度与人物剪影分离",
+    "prompt_available": true,
+    "design_dimensions": [
+      "lighting",
+      "spatial_geometry",
+      "material_texture"
+    ]
+  },
+  {
+    "id": "small-multiples",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-data-visualization.md",
+    "lines": [
+      7,
+      17
+    ],
+    "heading": "### No. 107 · Small Multiples Climate Grid",
+    "preview_path": "docs/data-visualization/small-multiples-climate-grid.png",
+    "categories": [
+      "infographic_data_storytelling"
+    ],
+    "description": "重复面板沿用统一轴域、图例和排版节奏。",
+    "keywords": [
+      "small multiples",
+      "comparison",
+      "shared axes"
+    ],
+    "use_for": "多组数据并列时的尺度对齐与共用图例",
+    "prompt_available": true,
+    "design_dimensions": [
+      "consistency",
+      "information_density",
+      "typography"
+    ]
+  },
+  {
+    "id": "exploded-watch",
+    "repository": "quanglewin/gpt-image2-skill",
+    "revision": "068dd9e24aadc8731e46f38548ca4dcd94515d35",
+    "path": "skills/gpt-image/references/gallery-technical-illustration.md",
+    "lines": [
+      7,
+      17
+    ],
+    "heading": "### No. 112 · Mechanical Watch Exploded View",
+    "preview_path": "docs/technical-illustration/mechanical-watch-exploded-view.png",
+    "categories": [
+      "3d_isometric_illustration",
+      "product_visualization"
+    ],
+    "description": "沿共同装配轴展开零件，外侧对齐引线和短标签。",
+    "keywords": [
+      "exploded view",
+      "assembly",
+      "callout"
+    ],
+    "use_for": "产品或仪器部件的分层、角度与标注位置",
+    "prompt_available": true,
+    "design_dimensions": [
+      "spatial_geometry",
+      "visual_hierarchy"
+    ]
+  },
+  {
+    "id": "botanical-watercolor",
+    "repository": "Shuryne/gpt-image-prompts",
+    "revision": "4c53ea3708c2447a9c87b0a24cc77abf86c3aa7b",
+    "path": "prompts/botanical-watercolor.md",
+    "preview_path": "thumbs/botanical-watercolor.webp",
+    "categories": [
+      "character_artistic_illustration"
+    ],
+    "description": "单枝轮廓、纸面留白和薄透水彩层塑造标本质感。",
+    "keywords": [
+      "botanical",
+      "watercolor",
+      "paper"
+    ],
+    "use_for": "轻纸纹与色层过渡，也适合无文字的植物插画",
+    "prompt_available": true,
+    "design_dimensions": [
+      "rendering_style",
+      "material_texture",
+      "color"
+    ]
+  },
+  {
+    "id": "macro-dew",
+    "repository": "Shuryne/gpt-image-prompts",
+    "revision": "4c53ea3708c2447a9c87b0a24cc77abf86c3aa7b",
+    "path": "prompts/macro-dew-spiderweb.md",
+    "preview_path": "thumbs/macro-dew-spiderweb.webp",
+    "categories": [
+      "photography_photorealism"
+    ],
+    "description": "逆光勾出细丝和露珠，背景虚化保留明暗关系。",
+    "keywords": [
+      "macro",
+      "backlight",
+      "shallow focus",
+      "texture"
+    ],
+    "use_for": "用景深、焦平面和受光边缘突出小尺度细节",
+    "prompt_available": true,
+    "design_dimensions": [
+      "lighting",
+      "spatial_geometry",
+      "material_texture"
+    ]
+  },
+  {
+    "id": "data-poster-proof",
+    "repository": "pyth0nb3st/awesome-gpt-image-2",
+    "revision": "7335fef0487023a94b939585aabc108a95da8b7d",
+    "path": "README.md",
+    "lines": [
+      96,
+      96
+    ],
+    "categories": [
+      "infographic_data_storytelling"
+    ],
+    "description": "数据海报案例把数据表、图形和逐项校样放在一起。",
+    "keywords": [
+      "data validation",
+      "proof",
+      "chart audit",
+      "scale"
+    ],
+    "use_for": "核对图表的文本、单位、顺序、数值、刻度与来源",
+    "prompt_available": false,
+    "design_dimensions": [
+      "information_density",
+      "visual_hierarchy"
+    ],
+    "design_note": "先在草稿旁放一张源数据核对表，用同一个字段顺序逐项验证标题、单位、类别顺序、数值、刻度和来源。核对过程留在审图记录，正式图仅按用户实际需要展示内容。"
   }
 ]

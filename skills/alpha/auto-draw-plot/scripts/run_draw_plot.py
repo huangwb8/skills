@@ -415,14 +415,6 @@ def run_draw_plot(
 
     for round_index in range(1, max_rounds + 1):
         round_dir = ensure_dir(rounds_dir / f"{gen_cfg.get('round_dir_prefix', 'round-')}{round_index:02d}")
-        parallel_plan_path = prepare_parallel_plan(
-            run_dir=run_dir,
-            request_file=request_file,
-            parallel_dir=parallel_dir,
-            parallel_cfg=parallel_cfg,
-            round_index=round_index,
-            round_dir=round_dir,
-        )
         prompt_data = build_round_prompt(
             request_text=request_text,
             round_index=round_index,
@@ -434,6 +426,14 @@ def run_draw_plot(
             generation_only=generation_only,
             markup_edit=markup is not None,
             visual_blueprint=visual_blueprint,
+        )
+        parallel_plan_path = prepare_parallel_plan(
+            run_dir=run_dir,
+            request_file=request_file,
+            parallel_dir=parallel_dir,
+            parallel_cfg=parallel_cfg,
+            round_index=round_index,
+            round_dir=round_dir,
         )
         reference_meta = build_round_reference_images(
             user_reference_images=reference_images,
@@ -602,6 +602,7 @@ def prepare_parallel_plan(
         request_file=request_file,
         round_index=round_index,
         output_plan=round_plan_path,
+        prompt_file=round_dir / "prompt.txt",
     )
     latest_plan_path = parallel_dir / str(parallel_cfg.get("plan_filename", "parallel-plan.json"))
     if latest_plan_path != round_plan_path:

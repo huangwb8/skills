@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from http.client import HTTPException
 from pathlib import Path
 from typing import Any
 from urllib.request import HTTPRedirectHandler, build_opener
@@ -36,7 +37,7 @@ def case_metadata(case: dict) -> dict:
     source = f'https://github.com/{case["repository"]}/blob/{case["revision"]}/{case["path"]}'
     if "lines" in case:
         first, last = case["lines"]
-        source += f"#L{first}-L{last}"
+        source += f"#L{first}" if first == last else f"#L{first}-L{last}"
     return {
         "id": case["id"],
         "repository": case["repository"],
@@ -45,23 +46,36 @@ def case_metadata(case: dict) -> dict:
         "description": case["description"],
         "keywords": case["keywords"],
         "use_for": case["use_for"],
+        "design_dimensions": case.get("design_dimensions", []),
+        "access": "local_note" if "design_note" in case else "github_excerpt",
         "prompt_available": case["prompt_available"],
     }
 
 
-def shortlist(visual_tasks: list[str], *, level: int) -> list[dict]:
+def shortlist(
+    visual_tasks: list[str],
+    *,
+    level: int,
+    keywords: tuple[str, ...] = (),
+    dimensions: tuple[str, ...] = (),
+) -> list[dict]:
     """Return relevant local candidates, grouped in review order."""
     if level not in (1, 2) or not visual_tasks:
         return []
+    terms = {word.strip().casefold() for word in keywords if word.strip()}
+    design_targets = set(dimensions)
     ranked = []
     for case in load_cases().values():
         for priority, task in enumerate(visual_tasks):
             if task in case["categories"]:
-                ranked.append((priority, case["categories"].index(task), case))
+                matches = len(terms.intersection(tag.casefold() for tag in case["keywords"]))
+                matched_dimensions = len(design_targets.intersection(case.get("design_dimensions", ())))
+                rank = (priority, -matches, -matched_dimensions, case["categories"].index(task))
+                ranked.append((rank, case))
                 break
-    ranked.sort(key=lambda item: item[:2])
+    ranked.sort(key=lambda item: item[0])
     repositories: dict[str, list[dict]] = {}
-    for _, _, case in ranked:
+    for _, case in ranked:
         repositories.setdefault(case["repository"], []).append(case_metadata(case))
     groups = list(repositories.values())[:level]
     if not groups:
@@ -81,19 +95,35 @@ def read_case(case_id: str) -> dict:
     case = load_cases().get(case_id)
     if case is None:
         raise ValueError("未知视觉案例 ID。")
+    metadata = case_metadata(case)
+    if "design_note" in case:
+        return {**metadata, "design_note": case["design_note"], "untrusted_excerpt": "", "preview_url": None}
     root = f'https://raw.githubusercontent.com/{case["repository"]}/{case["revision"]}/'
+    line_range = case.get("lines")
     with build_opener(NoRedirect).open(root + case["path"], timeout=5) as response:
-        raw = response.read(MAX_SOURCE_BYTES + 1)
-    if len(raw) > MAX_SOURCE_BYTES:
-        raise ValueError("视觉案例来源超出读取上限。")
+        if line_range is None:
+            raw = response.read(MAX_SOURCE_BYTES + 1)
+            if len(raw) > MAX_SOURCE_BYTES:
+                raise ValueError("视觉案例来源超出读取上限。")
+        else:
+            first, last = line_range
+            remaining = MAX_SOURCE_BYTES
+            selected = []
+            for number in range(1, last + 1):
+                line = response.readline(remaining + 1)
+                remaining -= len(line)
+                if remaining < 0:
+                    raise ValueError("视觉案例来源超出读取上限。")
+                if not line:
+                    raise ValueError("视觉案例定位无效。")
+                if number >= first:
+                    selected.append(line)
+            raw = b"".join(selected)
     lines = raw.decode("utf-8").splitlines()
-    if "lines" in case:
-        first, last = case["lines"]
-        lines = lines[first - 1:last]
     if not lines or ("heading" in case and lines[0] != case["heading"]):
         raise ValueError("视觉案例定位无效。")
     return {
-        **case_metadata(case),
+        **metadata,
         "untrusted_excerpt": "\n".join(lines)[:4000],
         "preview_url": root + case["preview_path"] if case.get("preview_path") else None,
     }
@@ -173,10 +203,14 @@ def main() -> None:
     group.add_argument("--task", choices=VISUAL_TASKS, action="append", help="主类别在先，可追加次类别")
     group.add_argument("--case", help="仅深入读取一个已选案例")
     parser.add_argument("--level", type=int, choices=(0, 1, 2), default=1)
+    parser.add_argument("--keyword", action="append", default=[], help="用于本地排序的索引关键词，可重复")
+    parser.add_argument("--dimension", choices=DESIGN_DIMENSIONS, action="append", default=[], help="待解决的设计维度，可重复")
     args = parser.parse_args()
     try:
-        result = read_case(args.case) if args.case else shortlist(args.task, level=args.level)
-    except (OSError, ValueError) as exc:
+        result = read_case(args.case) if args.case else shortlist(
+            args.task, level=args.level, keywords=tuple(args.keyword), dimensions=tuple(args.dimension),
+        )
+    except (OSError, ValueError, HTTPException) as exc:
         parser.exit(1, f"视觉案例不可用，可继续使用内置绘图规范：{type(exc).__name__}\n")
     json.dump(result, sys.stdout, ensure_ascii=True, indent=2)
     print()
